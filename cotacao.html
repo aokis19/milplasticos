@@ -1,0 +1,2560 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotação | Mil Plásticos</title>
+
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/milplasticos/assets/css/main.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/topbar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/cotacao.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Bibliotecas para PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* Estilos existentes... */
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+      background: #f9f9f9;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: normal;
+    }
+    .fornecedores-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px 0;
+    }
+    .fornecedor-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .fornecedor-card h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+    }
+    .fornecedor-card p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .fornecedor-card .produtos-list {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #ccc;
+      font-size: 13px;
+      color: #555;
+    }
+    .fornecedor-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      color: #3498db;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 5px;
+    }
+    .btn-icon:hover {
+      color: #2980b9;
+    }
+    .btn-icon.delete {
+      color: #e74c3c;
+    }
+    .btn-icon.delete:hover {
+      color: #c0392b;
+    }
+
+    /* Estilos para os cards de produtos */
+    .produtos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 20px 0;
+    }
+    .produto-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .produto-card h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      font-size: 18px;
+    }
+    .produto-card p {
+      margin: 5px 0;
+      color: #555;
+    }
+    .produto-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* Estilos para o histórico */
+    .historico-item {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    .historico-item div {
+      margin: 3px 0;
+    }
+
+    /* Estilos para linhas da tabela com checkbox */
+    .table-header {
+      display: grid;
+      grid-template-columns: 0.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr;
+      padding: 10px;
+      background: #3a2bbe;
+      font-weight: bold;
+      border-radius: 4px 4px 0 0;
+      align-items: center;
+    }
+    .table-row {
+      display: grid;
+      grid-template-columns: 0.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      align-items: center;
+    }
+    .checkbox-column {
+      text-align: center;
+    }
+    .checkbox-column input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    .actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .modal-content {
+      background: white;
+      margin: 50px auto;
+      max-width: 600px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .modal-content.large-modal {
+      max-width: 900px;
+    }
+    .modal-content.comparison-modal {
+      max-width: 1400px;
+    }
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body {
+      padding: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+    .close-modal:hover {
+      color: #333;
+    }
+
+    /* Form styles */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    .select-with-button {
+      display: flex;
+      gap: 10px;
+    }
+    .select-with-button select {
+      flex: 1;
+    }
+    .btn-small {
+      padding: 8px 12px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #95a5a6;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-success {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-export {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-warning {
+      background: #f39c12;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Summary preview */
+    .summary-preview {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+    }
+    .summary-content {
+      margin-top: 10px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+    }
+    .summary-row.total {
+      border-top: 2px solid #ddd;
+      margin-top: 5px;
+      padding-top: 10px;
+      font-weight: bold;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    /* Header actions */
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Filtros */
+    .filtro-historico {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .filtro-historico input,
+    .filtro-historico select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    /* Tabs */
+    .cotacao-tabs {
+      display: flex;
+      gap: 2px;
+      background: #f5f5f5;
+      padding: 10px 10px 0 10px;
+      border-radius: 8px 8px 0 0;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab-btn.active {
+      background: white;
+      color: #3498db;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Estilos para o comparativo - NOVO LAYOUT */
+    .comparativo-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .comparativo-header-principal {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      color: white;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+
+    .produto-info {
+      background: rgba(255,255,255,0.15);
+      padding: 20px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .produto-nome {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .produto-detalhes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .detalhe-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .pedido-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .info-card {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      color: #333;
+      transition: transform 0.2s;
+    }
+
+    .info-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .info-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .info-icon.solicitante { background: #e3f2fd; color: #1976d2; }
+    .info-icon.data { background: #e8f5e8; color: #388e3c; }
+    .info-icon.departamento { background: #fff3e0; color: #f57c00; }
+    .info-icon.prioridade { background: #fce4ec; color: #c2185b; }
+
+    .info-content {
+      flex: 1;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .info-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .edit-info-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 5px;
+    }
+
+    .edit-info-btn:hover {
+      color: #3498db;
+    }
+
+    .resumo-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .resumo-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      border-left: 4px solid;
+    }
+
+    .resumo-card.total { border-left-color: #3498db; }
+    .resumo-card.menor { border-left-color: #27ae60; }
+    .resumo-card.media { border-left-color: #f39c12; }
+
+    .resumo-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .resumo-icon.total { background: #e3f2fd; color: #1976d2; }
+    .resumo-icon.menor { background: #e8f5e8; color: #388e3c; }
+    .resumo-icon.media { background: #fff3e0; color: #f57c00; }
+
+    .resumo-content {
+      flex: 1;
+    }
+
+    .resumo-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .resumo-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .comparativo-tabela {
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .comparativo-tabela table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .comparativo-tabela th {
+      background: #2c3e50;
+      color: white;
+      padding: 15px;
+      text-align: left;
+      font-weight: 500;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .comparativo-tabela td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #e9ecef;
+      font-size: 14px;
+    }
+
+    .comparativo-tabela tr:hover {
+      background: #f8f9fa;
+    }
+
+    .melhor-preco {
+      background: #d4edda !important;
+      font-weight: bold;
+    }
+
+    .melhor-preco td {
+      border-left: 4px solid #28a745;
+    }
+
+    .observacao-rodape {
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      border-radius: 8px;
+      padding: 15px;
+      color: #856404;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .selecionar-todos {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .prioridade-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .prioridade-badge.urgente { background: #dc3545; color: white; }
+    .prioridade-badge.alta { background: #fd7e14; color: white; }
+    .prioridade-badge.normal { background: #f1c40f; color: #000; }
+    .prioridade-badge.baixa { background: #28a745; color: white; }
+
+    /* Modal de edição personalizado */
+    .modal-edicao {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal-edicao-content {
+      background: white;
+      border-radius: 12px;
+      width: 400px;
+      max-width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-edicao-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .modal-edicao-header h3 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 18px;
+    }
+
+    .modal-edicao-body {
+      padding: 20px;
+    }
+
+    .modal-edicao-body select,
+    .modal-edicao-body input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .modal-edicao-body select:focus,
+    .modal-edicao-body input:focus {
+      border-color: #3498db;
+      outline: none;
+    }
+
+    .modal-edicao-footer {
+      padding: 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-cancelar {
+      padding: 10px 20px;
+      background: #95a5a6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+
+    .btn-cancelar:hover {
+      background: #7f8c8d;
+    }
+
+    .btn-confirmar {
+      padding: 10px 20px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+
+    .btn-confirmar:hover {
+      background: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+      .produto-detalhes,
+      .pedido-info {
+        grid-template-columns: 1fr;
+      }
+      
+      .comparativo-tabela {
+        overflow-x: auto;
+      }
+      
+      .comparativo-tabela table {
+        min-width: 1000px;
+      }
+    }
+
+    /* Loading para PDF */
+    .pdf-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .pdf-loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
+
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      <div class="page-container">
+        <!-- Tabs para navegação -->
+        <div class="cotacao-tabs">
+          <button class="tab-btn active" data-tab="cotacoes">
+            <i class="fas fa-balance-scale"></i> Cotações Ativas
+          </button>
+          <button class="tab-btn" data-tab="historico">
+            <i class="fas fa-history"></i> Histórico por Produto
+          </button>
+          <button class="tab-btn" data-tab="produtos">
+            <i class="fas fa-box"></i> Produtos Cadastrados
+          </button>
+          <button class="tab-btn" data-tab="fornecedores">
+            <i class="fas fa-truck"></i> Fornecedores
+          </button>
+        </div>
+
+        <!-- Conteúdo das tabs -->
+        <div class="tab-content active" id="cotacoesTab">
+          <div class="cotacao-system">
+            <header class="cotacao-header">
+              <h1><i class="fas fa-balance-scale"></i> Sistema de Cotações</h1>
+              <div class="header-actions">
+                <button class="btn-primary" id="addCotacaoBtn">
+                  <i class="fas fa-plus-circle"></i> Nova Cotação
+                </button>
+                <button class="btn-success" id="compararSelecionadosBtn">
+                  <i class="fas fa-chart-bar"></i> Comparar Selecionados
+                </button>
+                <button class="btn-warning" id="finalizarSelecionadosBtn">
+                  <i class="fas fa-check-circle"></i> Finalizar Orçamentos
+                </button>
+                <button class="btn-export" id="exportAllPdfBtn">
+                  <i class="fas fa-file-pdf"></i> Exportar Tudo
+                </button>
+              </div>
+            </header>
+
+            <div class="cotacao-content">
+              <div class="cotacao-list">
+                <div class="table-header">
+                  <div class="checkbox-column">
+                    <input type="checkbox" id="selecionarTodos" title="Selecionar todos">
+                  </div>
+                  <div>Produto</div>
+                  <div>Fornecedor</div>
+                  <div>UF</div>
+                  <div>Qtd</div>
+                  <div>Valor Unitário</div>
+                  <div>Valor Total</div>
+                  <div>Ações</div>
+                </div>
+
+                <div id="cotacoesContainer">
+                  <!-- Cotações ativas serão carregadas aqui -->
+                </div>
+              </div>
+
+              <div id="emptyState" class="empty-state">
+                <i class="fas fa-clipboard-list"></i>
+                <h3>Nenhuma cotação ativa</h3>
+                <p>Clique em "Nova Cotação" para adicionar seu primeiro item para comparação.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="historicoTab">
+          <div class="cotacao-system">
+            <header class="cotacao-header">
+              <h1><i class="fas fa-history"></i> Histórico por Produto</h1>
+              <div class="header-actions">
+                <button class="btn-secondary" id="limparHistoricoBtn">
+                  <i class="fas fa-trash-alt"></i> Limpar Histórico
+                </button>
+              </div>
+            </header>
+
+            <div class="historico-content">
+              <div class="filtro-historico">
+                <input type="text" id="filtroProduto" placeholder="Filtrar por produto...">
+                <input type="text" id="filtroFornecedor" placeholder="Filtrar por fornecedor...">
+                <select id="filtroPeriodo">
+                  <option value="todos">Todos os períodos</option>
+                  <option value="7">Últimos 7 dias</option>
+                  <option value="30">Últimos 30 dias</option>
+                  <option value="90">Últimos 90 dias</option>
+                </select>
+              </div>
+
+              <div class="historico-list" id="historicoContainer">
+                <!-- Histórico será carregado aqui -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="produtosTab">
+          <div class="cotacao-system">
+            <header class="cotacao-header">
+              <h1><i class="fas fa-box"></i> Produtos Cadastrados</h1>
+              <div class="header-actions">
+                <button class="btn-primary" id="addProdutoBtn">
+                  <i class="fas fa-plus-circle"></i> Novo Produto
+                </button>
+              </div>
+            </header>
+
+            <div class="produtos-content">
+              <div class="produtos-grid" id="produtosContainer">
+                <!-- Produtos serão carregados aqui -->
+              </div>
+
+              <div id="emptyProdutos" class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <h3>Nenhum produto cadastrado</h3>
+                <p>Clique em "Novo Produto" para cadastrar seu primeiro produto.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Fornecedores -->
+        <div class="tab-content" id="fornecedoresTab">
+          <div class="cotacao-system">
+            <header class="cotacao-header">
+              <h1><i class="fas fa-truck"></i> Fornecedores Cadastrados</h1>
+              <div class="header-actions">
+                <button class="btn-primary" id="addFornecedorBtn">
+                  <i class="fas fa-plus-circle"></i> Novo Fornecedor
+                </button>
+              </div>
+            </header>
+
+            <div class="fornecedores-content">
+              <div class="fornecedores-grid" id="fornecedoresContainer">
+                <!-- Fornecedores serão carregados aqui -->
+              </div>
+
+              <div id="emptyFornecedores" class="empty-state">
+                <i class="fas fa-truck"></i>
+                <h3>Nenhum fornecedor cadastrado</h3>
+                <p>Clique em "Novo Fornecedor" para cadastrar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal para adicionar/editar cotação -->
+      <div class="modal" id="cotacaoModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="modalTitle">Nova Cotação</h2>
+            <button class="close-modal" id="closeModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="cotacaoForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="produtoSelect">Produto *</label>
+                  <div class="select-with-button">
+                    <select id="produtoSelect" name="produto" required>
+                      <option value="">Selecione um produto</option>
+                    </select>
+                    <button type="button" class="btn-small" id="novoProdutoModalBtn">
+                      <i class="fas fa-plus"></i> Novo
+                    </button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="fornecedorSelect">Fornecedor *</label>
+                  <div class="select-with-button">
+                    <select id="fornecedorSelect" name="fornecedor" required>
+                      <option value="">Selecione um Fornecedor</option>
+                    </select>
+                    <button type="button" class="btn-small" id="novoFornecedorModalBtn">
+                      <i class="fas fa-plus"></i> Novo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="uf">UF *</label>
+                  <select id="uf" name="uf" required>
+                    <option value="">Selecione</option>
+                    <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                    <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                    <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                    <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                    <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                    <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                    <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                    <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                    <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="dataCotacao">Data da Cotação *</label>
+                  <input type="date" id="dataCotacao" name="dataCotacao" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="quantidade">Quantidade *</label>
+                  <input type="number" id="quantidade" name="quantidade" required placeholder="Ex: 500" min="1" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label for="unidade">Unidade *</label>
+                  <input type="text" id="unidade" name="unidade" required placeholder="Ex: kg, un, m²">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="valorUnitario">Valor Unitário (R$) *</label>
+                  <input type="number" id="valorUnitario" name="valorUnitario" required placeholder="Ex: 17.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="icms">ICMS (%) *</label>
+                  <input type="number" id="icms" name="icms" required placeholder="Ex: 18" step="0.01" min="0" max="100" value="18">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bicms">B. CALC. ICMS (%) *</label>
+                  <input type="number" id="bicms" name="bicms" required placeholder="Ex: 100" step="0.01" min="0" value="100">
+                </div>
+                <div class="form-group">
+                  <label for="ipi">IPI (%)</label>
+                  <input type="number" id="ipi" name="ipi" placeholder="Ex: 5" step="0.01" min="0" max="100" value="0">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="prazoPagamento">Prazo de Pagamento *</label>
+                  <input type="text" id="prazoPagamento" name="prazoPagamento" required placeholder="Ex: 30 dias, 28 ddl">
+                </div>
+                <div class="form-group">
+                  <label for="frete">FRETE</label>
+                  <select id="frete" name="frete">
+                    <option value="">Selecione</option>
+                    <option value="FOB">FOB</option>
+                    <option value="CIF">CIF</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="regimeTributario">Regime Tributário</label>
+                  <select id="regimeTributario" name="regimeTributario">
+                    <option value="">Selecione</option>
+                    <option value="Lucro Presumido">Lucro Presumido</option>
+                    <option value="Lucro Real">Lucro Real</option>
+                    <option value="Simples Nacional">Simples Nacional</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="ncm">NCM</label>
+                  <input type="text" id="ncm" name="ncm" placeholder="Ex: 15161000">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="observacoes">Observações</label>
+                <textarea id="observacoes" name="observacoes" rows="3" placeholder="Informações adicionais, condições especiais, etc."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="salvarHistorico" name="salvarHistorico" checked>
+                  <span>Salvar no histórico do produto</span>
+                </label>
+              </div>
+
+              <div class="summary-preview">
+                <h4>Resumo da Cotação:</h4>
+                <div class="summary-content">
+                  <div class="summary-row">
+                    <span>Valor Bruto:</span>
+                    <span id="valorBrutoPreview">R$ 0,00</span>
+                  </div>
+                  <div class="summary-row">
+                    <span>ICMS (<span id="icmsPercentPreview">18</span>%):</span>
+                    <span id="icmsValuePreview">R$ 0,00</span>
+                  </div>
+                  <div class="summary-row">
+                    <span>IPI (<span id="ipiPercentPreview">0</span>%):</span>
+                    <span id="ipiValuePreview">R$ 0,00</span>
+                  </div>
+                  <div class="summary-row total">
+                    <span>Valor Total:</span>
+                    <span id="valorTotalPreview">R$ 0,00</span>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" id="cancelBtn">Cancelar</button>
+            <button type="button" class="btn-primary" id="saveCotacaoBtn">Salvar Cotação</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal para cadastrar/editar produto -->
+      <div class="modal" id="produtoModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="produtoModalTitle">Cadastrar Novo Produto</h2>
+            <button class="close-modal" id="closeProdutoModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="produtoForm">
+              <div class="form-group">
+                <label for="nomeProduto">Nome do Produto *</label>
+                <input type="text" id="nomeProduto" name="nomeProduto" required placeholder="Ex: GotaLube Sp">
+              </div>
+
+              <div class="form-group">
+                <label for="codigoProduto">Código do Produto</label>
+                <input type="text" id="codigoProduto" name="codigoProduto" placeholder="Ex: GL-001">
+              </div>
+
+              <div class="form-group">
+                <label for="categoriaProduto">Categoria</label>
+                <input type="text" id="categoriaProduto" name="categoriaProduto" placeholder="Ex: Lubrificantes">
+              </div>
+
+              <div class="form-group">
+                <label for="descricaoProduto">Descrição</label>
+                <textarea id="descricaoProduto" name="descricaoProduto" rows="3" placeholder="Descrição detalhada do produto"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="unidadePadrao">Unidade Padrão *</label>
+                <input type="text" id="unidadePadrao" name="unidadePadrao" required placeholder="Ex: kg">
+              </div>
+
+              <div class="form-group">
+                <label for="ncmProduto">NCM Sugerido</label>
+                <input type="text" id="ncmProduto" name="ncmProduto" placeholder="Ex: 15161000">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" id="cancelProdutoBtn">Cancelar</button>
+            <button type="button" class="btn-primary" id="saveProdutoBtn">Salvar Produto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal para cadastrar/editar fornecedor -->
+      <div class="modal" id="fornecedorModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 id="fornecedorModalTitle">Novo Fornecedor</h2>
+            <button class="close-modal" id="closeFornecedorModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <form id="fornecedorForm">
+              <div class="form-group">
+                <label for="nomeEmpresa">Nome da Empresa *</label>
+                <input type="text" id="nomeEmpresa" name="nomeEmpresa" required>
+              </div>
+              <div class="form-group">
+                <label for="cnpj">CNPJ</label>
+                <input type="text" id="cnpj" name="cnpj" placeholder="00.000.000/0000-00">
+              </div>
+              <div class="form-group">
+                <label for="endereco">Endereço</label>
+                <input type="text" id="endereco" name="endereco" placeholder="Rua, nº, bairro, cidade/UF">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vendedor">Vendedor</label>
+                  <input type="text" id="vendedor" name="vendedor">
+                </div>
+                <div class="form-group">
+                  <label for="telefone">Telefone</label>
+                  <input type="text" id="telefone" name="telefone" placeholder="(11) 99999-9999">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" placeholder="contato@empresa.com">
+              </div>
+              <div class="form-group">
+                <label>Produtos fornecidos</label>
+                <div id="produtosFornecedorContainer" class="checkbox-group">
+                  <!-- Checkboxes serão gerados via JS -->
+                </div>
+                <small>Selecione os produtos que este fornecedor comercializa.</small>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" id="cancelFornecedorBtn">Cancelar</button>
+            <button type="button" class="btn-primary" id="saveFornecedorBtn">Salvar Fornecedor</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal para comparar cotações (MELHORADO) -->
+      <div class="modal" id="comparisonModal">
+        <div class="modal-content comparison-modal">
+          <div class="modal-header">
+            <h2><i class="fas fa-chart-bar"></i> Comparativo de Orçamentos</h2>
+            <div class="modal-actions">
+              <button class="btn-export-sm" id="exportComparisonPdf">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+              </button>
+              <button class="close-modal" id="closeComparisonModal">&times;</button>
+            </div>
+          </div>
+          <div class="modal-body">
+            <div id="comparisonForPdf">
+              <!-- Conteúdo do comparativo será gerado via JavaScript -->
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="closeComparisonBtn">Fechar</button>
+            <button class="btn-primary" id="finalizarComparadosBtn">
+              <i class="fas fa-check-circle"></i> Finalizar Selecionados
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal para ver histórico do produto -->
+      <div class="modal" id="historicoProdutoModal">
+        <div class="modal-content large-modal">
+          <div class="modal-header">
+            <h2 id="historicoProdutoTitulo">Histórico do Produto</h2>
+            <button class="close-modal" id="closeHistoricoModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="historico-produto-info" id="infoProdutoContainer"></div>
+            <div class="historico-linha-tempo" id="linhaTempoContainer"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="closeHistoricoBtn">Fechar</button>
+            <button class="btn-primary" id="exportHistoricoPdfBtn">
+              <i class="fas fa-file-pdf"></i> Exportar Histórico
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ============================================
+    // Sistema de Cotações - Mil Plásticos
+    // Versão Melhorada com Comparativo e Seleção
+    // ============================================
+
+    // ================== DADOS INICIAIS ==================
+    let produtos = JSON.parse(localStorage.getItem('produtos')) || [];
+    let cotacoes = JSON.parse(localStorage.getItem('cotacoes')) || [];
+    let historico = JSON.parse(localStorage.getItem('historico')) || [];
+    let fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
+    let editingId = null;
+    let editingFornecedorId = null;
+    let editingProdutoId = null;
+
+    // ================== UTILITÁRIOS ==================
+    function formatarMoeda(valor) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+    }
+
+    function formatarData(dataStr) {
+      if (!dataStr) return '';
+      const data = new Date(dataStr + 'T12:00:00');
+      return data.toLocaleDateString('pt-BR');
+    }
+
+    function gerarId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function salvarDados() {
+      localStorage.setItem('produtos', JSON.stringify(produtos));
+      localStorage.setItem('cotacoes', JSON.stringify(cotacoes));
+      localStorage.setItem('historico', JSON.stringify(historico));
+      localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
+    }
+
+    // ================== CÁLCULOS ==================
+    function calcularImpostos(quantidade, valorUnitario, icms, ipi) {
+      const bruto = quantidade * valorUnitario;
+      const valorIcms = bruto * (icms / 100);
+      const valorIpi = bruto * (ipi / 100);
+      const total = bruto + valorIcms + valorIpi;
+      return { bruto, valorIcms, valorIpi, total };
+    }
+
+    // ================== ATUALIZAR SELECT DE FORNECEDORES ==================
+    function atualizarSelectFornecedores() {
+      const fornecedorSelect = document.getElementById('fornecedorSelect');
+      if (!fornecedorSelect) return;
+      
+      const valorAtual = fornecedorSelect.value;
+      
+      fornecedorSelect.innerHTML = '<option value="">Selecione um Fornecedor</option>';
+      
+      if (fornecedores.length === 0) {
+        fornecedorSelect.innerHTML += '<option value="" disabled>Nenhum fornecedor cadastrado</option>';
+      } else {
+        fornecedores.forEach(forn => {
+          const selected = forn.nomeEmpresa === valorAtual ? 'selected' : '';
+          fornecedorSelect.innerHTML += `<option value="${forn.nomeEmpresa}" ${selected}>${forn.nomeEmpresa}</option>`;
+        });
+      }
+    }
+
+    // ================== RENDERIZAÇÃO COTAÇÕES ==================
+    function renderCotacoes() {
+      const container = document.getElementById('cotacoesContainer');
+      const emptyState = document.getElementById('emptyState');
+      if (!container) return;
+
+      if (cotacoes.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'flex';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      container.innerHTML = cotacoes.map(cot => {
+        const produto = produtos.find(p => p.id === cot.produtoId) || { nome: 'Produto não encontrado' };
+        const { total } = calcularImpostos(cot.quantidade, cot.valorUnitario, cot.icms, cot.ipi || 0);
+
+        return `
+          <div class="table-row" data-id="${cot.id}">
+            <div class="checkbox-column">
+              <input type="checkbox" class="select-cotacao" value="${cot.id}">
+            </div>
+            <div>${produto.nome}</div>
+            <div>${cot.fornecedor}</div>
+            <div>${cot.uf}</div>
+            <div>${cot.quantidade} ${cot.unidade}</div>
+            <div>${formatarMoeda(cot.valorUnitario)}</div>
+            <div>${formatarMoeda(total)}</div>
+            <div class="actions">
+              <button class="btn-icon edit-cotacao" title="Editar"><i class="fas fa-edit"></i></button>
+              <button class="btn-icon archive-cotacao" title="Arquivar"><i class="fas fa-archive"></i></button>
+              <button class="btn-icon delete-cotacao" title="Excluir"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.edit-cotacao').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = e.target.closest('.table-row');
+          const id = row.dataset.id;
+          editarCotacao(id);
+        });
+      });
+
+      document.querySelectorAll('.archive-cotacao').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = e.target.closest('.table-row');
+          const id = row.dataset.id;
+          arquivarCotacao(id);
+        });
+      });
+
+      document.querySelectorAll('.delete-cotacao').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = e.target.closest('.table-row');
+          const id = row.dataset.id;
+          if (confirm('Tem certeza que deseja excluir permanentemente esta cotação?')) {
+            excluirCotacao(id);
+          }
+        });
+      });
+
+      const selecionarTodos = document.getElementById('selecionarTodos');
+      if (selecionarTodos) {
+        selecionarTodos.addEventListener('change', (e) => {
+          const checkboxes = document.querySelectorAll('.select-cotacao');
+          checkboxes.forEach(cb => cb.checked = e.target.checked);
+        });
+      }
+    }
+
+    function renderHistorico() {
+      const container = document.getElementById('historicoContainer');
+      if (!container) return;
+
+      const filtroProduto = document.getElementById('filtroProduto')?.value.toLowerCase() || '';
+      const filtroFornecedor = document.getElementById('filtroFornecedor')?.value.toLowerCase() || '';
+      const filtroPeriodo = document.getElementById('filtroPeriodo')?.value || 'todos';
+
+      let lista = [...historico];
+
+      if (filtroProduto) {
+        lista = lista.filter(item => {
+          const produto = produtos.find(p => p.id === item.produtoId);
+          return produto?.nome.toLowerCase().includes(filtroProduto);
+        });
+      }
+      if (filtroFornecedor) {
+        lista = lista.filter(item => item.fornecedor.toLowerCase().includes(filtroFornecedor));
+      }
+      if (filtroPeriodo !== 'todos') {
+        const dias = parseInt(filtroPeriodo);
+        const dataLimite = new Date();
+        dataLimite.setDate(dataLimite.getDate() - dias);
+        lista = lista.filter(item => new Date(item.dataCotacao + 'T12:00:00') >= dataLimite);
+      }
+
+      if (lista.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><h3>Nenhum histórico encontrado</h3></div>';
+        return;
+      }
+
+      container.innerHTML = lista.map(item => {
+        const produto = produtos.find(p => p.id === item.produtoId) || { nome: 'Produto não encontrado' };
+        const { total } = calcularImpostos(item.quantidade, item.valorUnitario, item.icms, item.ipi || 0);
+        return `
+          <div class="historico-item">
+            <div><strong>${produto.nome}</strong></div>
+            <div>Fornecedor: ${item.fornecedor}</div>
+            <div>Data: ${formatarData(item.dataCotacao)}</div>
+            <div>Valor Total: ${formatarMoeda(total)}</div>
+            <div>UF: ${item.uf} | ICMS: ${item.icms}% | IPI: ${item.ipi || 0}%</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ================== PRODUTOS (CORRIGIDO) ==================
+    function renderProdutos() {
+      const container = document.getElementById('produtosContainer');
+      const emptyProdutos = document.getElementById('emptyProdutos');
+      if (!container) return;
+
+      if (produtos.length === 0) {
+        container.innerHTML = '';
+        emptyProdutos.style.display = 'flex';
+        return;
+      }
+
+      emptyProdutos.style.display = 'none';
+      container.innerHTML = produtos.map(prod => `
+        <div class="produto-card" data-id="${prod.id}">
+          <h3>${prod.nome}</h3>
+          <p><i class="fas fa-barcode"></i> Código: ${prod.codigo || '-'}</p>
+          <p><i class="fas fa-tag"></i> Categoria: ${prod.categoria || '-'}</p>
+          <p><i class="fas fa-ruler"></i> Unidade: ${prod.unidadePadrao}</p>
+          <p><i class="fas fa-file"></i> NCM: ${prod.ncm || '-'}</p>
+          <div class="produto-actions">
+            <button class="btn-icon edit-produto" title="Editar Produto"><i class="fas fa-edit"></i></button>
+            <button class="btn-icon delete-produto" title="Excluir Produto"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+
+      // Eventos de edição de produto
+      document.querySelectorAll('.edit-produto').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const card = e.target.closest('.produto-card');
+          const id = card.dataset.id;
+          editarProduto(id);
+        });
+      });
+
+      // Eventos de exclusão de produto
+      document.querySelectorAll('.delete-produto').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const card = e.target.closest('.produto-card');
+          const id = card.dataset.id;
+          if (confirm('Excluir produto?')) {
+            produtos = produtos.filter(p => p.id !== id);
+            salvarDados();
+            renderProdutos();
+            renderFornecedores();
+            renderCotacoes(); // Atualizar cotações pois produto pode ter sido removido
+          }
+        });
+      });
+    }
+
+    // Função para editar produto
+    function editarProduto(id) {
+      const produto = produtos.find(p => p.id === id);
+      if (produto) {
+        abrirModalProduto(produto);
+      }
+    }
+
+    // Função para abrir modal de produto (criar/editar)
+    function abrirModalProduto(produto = null) {
+      editingProdutoId = produto ? produto.id : null;
+      document.getElementById('produtoModalTitle').textContent = produto ? 'Editar Produto' : 'Cadastrar Novo Produto';
+
+      document.getElementById('nomeProduto').value = produto?.nome || '';
+      document.getElementById('codigoProduto').value = produto?.codigo || '';
+      document.getElementById('categoriaProduto').value = produto?.categoria || '';
+      document.getElementById('descricaoProduto').value = produto?.descricao || '';
+      document.getElementById('unidadePadrao').value = produto?.unidadePadrao || '';
+      document.getElementById('ncmProduto').value = produto?.ncm || '';
+
+      document.getElementById('produtoModal').style.display = 'flex';
+    }
+
+    // Função para salvar produto (criar/editar)
+    function salvarProduto() {
+      const nome = document.getElementById('nomeProduto').value.trim();
+      if (!nome) {
+        alert('Nome do produto é obrigatório.');
+        return;
+      }
+      
+      const unidade = document.getElementById('unidadePadrao').value.trim();
+      if (!unidade) {
+        alert('Unidade padrão é obrigatória.');
+        return;
+      }
+
+      const produtoData = {
+        id: editingProdutoId || gerarId(),
+        nome,
+        codigo: document.getElementById('codigoProduto').value.trim(),
+        categoria: document.getElementById('categoriaProduto').value.trim(),
+        descricao: document.getElementById('descricaoProduto').value.trim(),
+        unidadePadrao: unidade,
+        ncm: document.getElementById('ncmProduto').value.trim()
+      };
+
+      if (editingProdutoId) {
+        // Editar produto existente
+        const index = produtos.findIndex(p => p.id === editingProdutoId);
+        if (index !== -1) {
+          produtos[index] = produtoData;
+        }
+      } else {
+        // Novo produto
+        produtos.push(produtoData);
+      }
+
+      salvarDados();
+      fecharModalProduto();
+      renderProdutos();
+      renderFornecedores(); // Atualiza fornecedores pois produtos podem ter mudado
+      
+      // Atualizar selects de produto nos modais abertos
+      atualizarSelectProdutos();
+    }
+
+    function fecharModalProduto() {
+      document.getElementById('produtoModal').style.display = 'none';
+      document.getElementById('produtoForm').reset();
+      editingProdutoId = null;
+    }
+
+    function atualizarSelectProdutos() {
+      const produtoSelect = document.getElementById('produtoSelect');
+      if (!produtoSelect) return;
+      
+      const valorAtual = produtoSelect.value;
+      produtoSelect.innerHTML = '<option value="">Selecione um produto</option>';
+      produtos.forEach(prod => {
+        const selected = prod.id === valorAtual ? 'selected' : '';
+        produtoSelect.innerHTML += `<option value="${prod.id}" ${selected}>${prod.nome}</option>`;
+      });
+    }
+
+    // ================== FORNECEDORES ==================
+    function renderFornecedores() {
+      const container = document.getElementById('fornecedoresContainer');
+      const emptyFornecedores = document.getElementById('emptyFornecedores');
+      if (!container) return;
+
+      if (fornecedores.length === 0) {
+        container.innerHTML = '';
+        emptyFornecedores.style.display = 'flex';
+        return;
+      }
+
+      emptyFornecedores.style.display = 'none';
+      
+      let html = '';
+      fornecedores.forEach(forn => {
+        if (!forn.id) {
+          forn.id = gerarId();
+        }
+        
+        const nomesProdutos = (forn.produtosIds || [])
+          .map(id => {
+            const prod = produtos.find(p => p.id === id);
+            return prod ? prod.nome : null;
+          })
+          .filter(n => n)
+          .join(', ') || 'Nenhum produto vinculado';
+
+        html += `
+          <div class="fornecedor-card" data-id="${forn.id}">
+            <h3>${forn.nomeEmpresa || 'Sem nome'}</h3>
+            <p><i class="fas fa-id-card"></i> ${forn.cnpj || '-'}</p>
+            <p><i class="fas fa-map-marker-alt"></i> ${forn.endereco || '-'}</p>
+            <p><i class="fas fa-user"></i> ${forn.vendedor || '-'}</p>
+            <p><i class="fas fa-phone"></i> ${forn.telefone || '-'}</p>
+            <p><i class="fas fa-envelope"></i> ${forn.email || '-'}</p>
+            <div class="produtos-list">
+              <strong>Produtos:</strong> ${nomesProdutos}
+            </div>
+            <div class="fornecedor-actions">
+              <button class="btn-icon edit-fornecedor" onclick="editarFornecedor('${forn.id}')" title="Editar">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn-icon delete-fornecedor" onclick="excluirFornecedor('${forn.id}')" title="Excluir">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    window.excluirFornecedor = function(id) {
+      const fornecedor = fornecedores.find(f => f.id === id);
+      if (!fornecedor) {
+        alert('Fornecedor não encontrado!');
+        return;
+      }
+
+      if (confirm(`Tem certeza que deseja excluir o fornecedor "${fornecedor.nomeEmpresa}"?`)) {
+        fornecedores = fornecedores.filter(f => f.id !== id);
+        salvarDados();
+        renderFornecedores();
+        atualizarSelectFornecedores();
+        alert('Fornecedor excluído com sucesso!');
+      }
+    }
+
+    window.editarFornecedor = function(id) {
+      const fornecedor = fornecedores.find(f => f.id === id);
+      if (fornecedor) {
+        abrirModalFornecedor(fornecedor);
+      }
+    }
+
+    function abrirModalFornecedor(fornecedor = null) {
+      editingFornecedorId = fornecedor ? fornecedor.id : null;
+      document.getElementById('fornecedorModalTitle').textContent = fornecedor ? 'Editar Fornecedor' : 'Novo Fornecedor';
+
+      document.getElementById('nomeEmpresa').value = fornecedor?.nomeEmpresa || '';
+      document.getElementById('cnpj').value = fornecedor?.cnpj || '';
+      document.getElementById('endereco').value = fornecedor?.endereco || '';
+      document.getElementById('vendedor').value = fornecedor?.vendedor || '';
+      document.getElementById('telefone').value = fornecedor?.telefone || '';
+      document.getElementById('email').value = fornecedor?.email || '';
+
+      const container = document.getElementById('produtosFornecedorContainer');
+      container.innerHTML = '';
+      if (produtos.length === 0) {
+        container.innerHTML = '<p>Nenhum produto cadastrado. Crie produtos primeiro.</p>';
+      } else {
+        produtos.forEach(prod => {
+          const checked = fornecedor?.produtosIds?.includes(prod.id) ? 'checked' : '';
+          container.innerHTML += `
+            <label>
+              <input type="checkbox" name="produtoFornecedor" value="${prod.id}" ${checked}>
+              ${prod.nome}
+            </label>
+          `;
+        });
+      }
+
+      document.getElementById('fornecedorModal').style.display = 'flex';
+    }
+
+    function salvarFornecedor() {
+      const nomeEmpresa = document.getElementById('nomeEmpresa').value.trim();
+      if (!nomeEmpresa) {
+        alert('Nome da empresa é obrigatório.');
+        return;
+      }
+
+      const produtosSelecionados = [];
+      document.querySelectorAll('input[name="produtoFornecedor"]:checked').forEach(cb => {
+        produtosSelecionados.push(cb.value);
+      });
+
+      const fornecedorData = {
+        id: editingFornecedorId || gerarId(),
+        nomeEmpresa,
+        cnpj: document.getElementById('cnpj').value.trim(),
+        endereco: document.getElementById('endereco').value.trim(),
+        vendedor: document.getElementById('vendedor').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        produtosIds: produtosSelecionados
+      };
+
+      if (editingFornecedorId) {
+        const index = fornecedores.findIndex(f => f.id === editingFornecedorId);
+        if (index !== -1) fornecedores[index] = fornecedorData;
+      } else {
+        fornecedores.push(fornecedorData);
+      }
+
+      salvarDados();
+      fecharModalFornecedor();
+      renderFornecedores();
+      atualizarSelectFornecedores();
+    }
+
+    function fecharModalFornecedor() {
+      document.getElementById('fornecedorModal').style.display = 'none';
+      editingFornecedorId = null;
+    }
+
+    // ================== COTAÇÕES ==================
+    function abrirModalCotacao(cotacao = null) {
+      editingId = cotacao ? cotacao.id : null;
+      document.getElementById('modalTitle').textContent = cotacao ? 'Editar Cotação' : 'Nova Cotação';
+
+      atualizarSelectProdutos();
+      
+      const fornecedorSelect = document.getElementById('fornecedorSelect');
+      fornecedorSelect.innerHTML = '<option value="">Selecione um Fornecedor</option>';
+      
+      if (fornecedores.length === 0) {
+        fornecedorSelect.innerHTML += '<option value="" disabled>Nenhum fornecedor cadastrado</option>';
+      } else {
+        fornecedores.forEach(forn => {
+          const selected = cotacao && cotacao.fornecedor === forn.nomeEmpresa ? 'selected' : '';
+          fornecedorSelect.innerHTML += `<option value="${forn.nomeEmpresa}" ${selected}>${forn.nomeEmpresa}</option>`;
+        });
+      }
+
+      document.getElementById('uf').value = cotacao?.uf || '';
+      document.getElementById('dataCotacao').value = cotacao?.dataCotacao || new Date().toISOString().split('T')[0];
+      document.getElementById('quantidade').value = cotacao?.quantidade || '';
+      document.getElementById('unidade').value = cotacao?.unidade || '';
+      document.getElementById('valorUnitario').value = cotacao?.valorUnitario || '';
+      document.getElementById('icms').value = cotacao?.icms || 18;
+      document.getElementById('bicms').value = cotacao?.bicms || 100;
+      document.getElementById('ipi').value = cotacao?.ipi || 0;
+      document.getElementById('prazoPagamento').value = cotacao?.prazoPagamento || '';
+      document.getElementById('frete').value = cotacao?.frete || '';
+      document.getElementById('regimeTributario').value = cotacao?.regimeTributario || '';
+      document.getElementById('ncm').value = cotacao?.ncm || '';
+      document.getElementById('observacoes').value = cotacao?.observacoes || '';
+      document.getElementById('salvarHistorico').checked = cotacao ? cotacao.salvarHistorico !== false : true;
+
+      if (cotacao) {
+        document.getElementById('produtoSelect').value = cotacao.produtoId;
+      }
+
+      atualizarPreview();
+      document.getElementById('cotacaoModal').style.display = 'flex';
+    }
+
+    function salvarCotacao() {
+      const produtoId = document.getElementById('produtoSelect').value;
+      if (!produtoId) {
+        alert('Selecione um produto.');
+        return;
+      }
+      
+      const fornecedorSelect = document.getElementById('fornecedorSelect');
+      const fornecedor = fornecedorSelect.value;
+      
+      if (!fornecedor) {
+        alert('Selecione um fornecedor.');
+        return;
+      }
+      
+      const uf = document.getElementById('uf').value;
+      if (!uf) {
+        alert('Selecione a UF.');
+        return;
+      }
+      
+      const dataCotacao = document.getElementById('dataCotacao').value;
+      if (!dataCotacao) {
+        alert('Data da cotação é obrigatória.');
+        return;
+      }
+      
+      const quantidade = parseFloat(document.getElementById('quantidade').value);
+      if (isNaN(quantidade) || quantidade <= 0) {
+        alert('Quantidade inválida.');
+        return;
+      }
+      
+      const unidade = document.getElementById('unidade').value.trim();
+      if (!unidade) {
+        alert('Unidade é obrigatória.');
+        return;
+      }
+      
+      const valorUnitario = parseFloat(document.getElementById('valorUnitario').value);
+      if (isNaN(valorUnitario) || valorUnitario <= 0) {
+        alert('Valor unitário inválido.');
+        return;
+      }
+      
+      const prazoPagamento = document.getElementById('prazoPagamento').value.trim();
+      if (!prazoPagamento) {
+        alert('Prazo de pagamento é obrigatório.');
+        return;
+      }
+
+      const cotacaoData = {
+        id: editingId || gerarId(),
+        produtoId,
+        fornecedor,
+        uf,
+        dataCotacao,
+        quantidade,
+        unidade,
+        valorUnitario,
+        icms: parseFloat(document.getElementById('icms').value) || 0,
+        bicms: document.getElementById('bicms').value,
+        ipi: parseFloat(document.getElementById('ipi').value) || 0,
+        prazoPagamento,
+        frete: document.getElementById('frete').value,
+        regimeTributario: document.getElementById('regimeTributario').value,
+        ncm: document.getElementById('ncm').value,
+        observacoes: document.getElementById('observacoes').value,
+        salvarHistorico: document.getElementById('salvarHistorico').checked
+      };
+
+      if (editingId) {
+        const index = cotacoes.findIndex(c => c.id === editingId);
+        if (index !== -1) cotacoes[index] = cotacaoData;
+        const histIndex = historico.findIndex(h => h.id === editingId);
+        if (histIndex !== -1) historico[histIndex] = { ...cotacaoData };
+      } else {
+        cotacoes.push(cotacaoData);
+        if (cotacaoData.salvarHistorico) {
+          historico.push({ ...cotacaoData });
+        }
+      }
+
+      salvarDados();
+      fecharModalCotacao();
+      renderCotacoes();
+      renderHistorico();
+    }
+
+    function editarCotacao(id) {
+      const cotacao = cotacoes.find(c => c.id === id);
+      if (cotacao) abrirModalCotacao(cotacao);
+    }
+
+    function arquivarCotacao(id) {
+      const cotacao = cotacoes.find(c => c.id === id);
+      if (!cotacao) return;
+
+      const existeNoHistorico = historico.some(h => h.id === id);
+      if (!existeNoHistorico) {
+        historico.push({ ...cotacao });
+      }
+
+      cotacoes = cotacoes.filter(c => c.id !== id);
+      salvarDados();
+      renderCotacoes();
+      renderHistorico();
+    }
+
+    function excluirCotacao(id) {
+      cotacoes = cotacoes.filter(c => c.id !== id);
+      historico = historico.filter(h => h.id !== id);
+      salvarDados();
+      renderCotacoes();
+      renderHistorico();
+    }
+
+    function fecharModalCotacao() {
+      document.getElementById('cotacaoModal').style.display = 'none';
+      editingId = null;
+    }
+
+    function atualizarPreview() {
+      const quantidade = parseFloat(document.getElementById('quantidade').value) || 0;
+      const valorUnitario = parseFloat(document.getElementById('valorUnitario').value) || 0;
+      const icms = parseFloat(document.getElementById('icms').value) || 0;
+      const ipi = parseFloat(document.getElementById('ipi').value) || 0;
+
+      const { bruto, valorIcms, valorIpi, total } = calcularImpostos(quantidade, valorUnitario, icms, ipi);
+
+      document.getElementById('valorBrutoPreview').textContent = formatarMoeda(bruto);
+      document.getElementById('icmsPercentPreview').textContent = icms;
+      document.getElementById('icmsValuePreview').textContent = formatarMoeda(valorIcms);
+      document.getElementById('ipiPercentPreview').textContent = ipi;
+      document.getElementById('ipiValuePreview').textContent = formatarMoeda(valorIpi);
+      document.getElementById('valorTotalPreview').textContent = formatarMoeda(total);
+    }
+
+    // ================== FUNÇÕES DE COMPARATIVO ==================
+    function getCotacoesSelecionadas() {
+      const checkboxes = document.querySelectorAll('.select-cotacao:checked');
+      const ids = Array.from(checkboxes).map(cb => cb.value);
+      return cotacoes.filter(c => ids.includes(c.id));
+    }
+
+    // Variáveis globais para o comparativo
+    let solicitanteInfo = 'Compras';
+    let dataPedidoInfo = new Date().toLocaleDateString('pt-BR');
+    let departamentoInfo = 'Compras';
+    let prioridadeInfo = 'Normal';
+
+    // Lista de departamentos pré-definidos
+    const departamentos = [
+      'Oficina',
+      'Logistica',
+      'Esteira PS',
+      'Esteira ABS',
+      'Esteira Cristal',
+      'Esteira PC',
+      'Moagem',
+      'Lavagem',
+      'Batida',
+      'Extrusora',
+      'Administração',
+      'Financeiro',
+      'Escritorio',
+      'Marketing',
+    ];
+
+    // Função para criar modal personalizado de edição
+    function criarModalEdicao(titulo, tipo, valorAtual, opcoes = null) {
+      return new Promise((resolve) => {
+        // Remover modal existente se houver
+        const modalExistente = document.querySelector('.modal-edicao');
+        if (modalExistente) {
+          modalExistente.remove();
+        }
+
+        // Criar modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-edicao';
+
+        // Conteúdo do modal
+        let conteudoBody = '';
+        
+        if (tipo === 'select' && opcoes) {
+          let options = '';
+          opcoes.forEach(op => {
+            const selected = op === valorAtual ? 'selected' : '';
+            options += `<option value="${op}" ${selected}>${op}</option>`;
+          });
+          
+          conteudoBody = `
+            <select id="campoEdicao">
+              ${options}
+            </select>
+          `;
+        } else if (tipo === 'date') {
+          // Converter data do formato BR para ISO se necessário
+          let valorISO = valorAtual;
+          if (valorAtual.includes('/')) {
+            const partes = valorAtual.split('/');
+            valorISO = `${partes[2]}-${partes[1]}-${partes[0]}`;
+          }
+          conteudoBody = `<input type="date" id="campoEdicao" value="${valorISO}">`;
+        } else {
+          conteudoBody = `<input type="text" id="campoEdicao" value="${valorAtual}" placeholder="Digite o valor">`;
+        }
+
+        modal.innerHTML = `
+          <div class="modal-edicao-content">
+            <div class="modal-edicao-header">
+              <h3>${titulo}</h3>
+            </div>
+            <div class="modal-edicao-body">
+              ${conteudoBody}
+            </div>
+            <div class="modal-edicao-footer">
+              <button class="btn-cancelar" id="cancelarEdicao">Cancelar</button>
+              <button class="btn-confirmar" id="confirmarEdicao">Confirmar</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Eventos
+        document.getElementById('confirmarEdicao').addEventListener('click', () => {
+          const valor = document.getElementById('campoEdicao').value;
+          if (tipo === 'date' && valor) {
+            // Converter de ISO para formato BR
+            const [ano, mes, dia] = valor.split('-');
+            const valorFormatado = `${dia}/${mes}/${ano}`;
+            modal.remove();
+            resolve(valorFormatado);
+          } else {
+            modal.remove();
+            resolve(valor);
+          }
+        });
+
+        document.getElementById('cancelarEdicao').addEventListener('click', () => {
+          modal.remove();
+          resolve(null);
+        });
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            modal.remove();
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    function abrirComparativo() {
+      const selecionadas = getCotacoesSelecionadas();
+      
+      if (selecionadas.length === 0) {
+        alert('Selecione pelo menos uma cotação para comparar.');
+        return;
+      }
+
+      const primeiraCotacao = selecionadas[0];
+      const produto = produtos.find(p => p.id === primeiraCotacao.produtoId) || { nome: 'Produto não encontrado', codigo: '', unidadePadrao: primeiraCotacao.unidade, ncm: '' };
+
+      const cotacoesComTotal = selecionadas.map(cot => {
+        const { total } = calcularImpostos(cot.quantidade, cot.valorUnitario, cot.icms, cot.ipi || 0);
+        return { ...cot, total };
+      }).sort((a, b) => a.total - b.total);
+
+      const melhorPreco = cotacoesComTotal[0].id;
+
+      let html = `
+        <div class="comparativo-container">
+          <!-- Cabeçalho Principal -->
+          <div class="comparativo-header-principal">
+            <div class="produto-info">
+              <div class="produto-nome">
+                <i class="fas fa-box"></i>
+                ${produto.nome}
+              </div>
+              <div class="produto-detalhes">
+                <div class="detalhe-item">
+                  <i class="fas fa-barcode"></i>
+                  <div>
+                    <small>Código</small>
+                    <div><strong>${produto.codigo || '-'}</strong></div>
+                  </div>
+                </div>
+                <div class="detalhe-item">
+                  <i class="fas fa-ruler"></i>
+                  <div>
+                    <small>Unidade</small>
+                    <div><strong>${primeiraCotacao.unidade}</strong></div>
+                  </div>
+                </div>
+                <div class="detalhe-item">
+                  <i class="fas fa-tag"></i>
+                  <div>
+                    <small>NCM</small>
+                    <div><strong>${produto.ncm || primeiraCotacao.ncm || '-'}</strong></div>
+                  </div>
+                </div>
+                <div class="detalhe-item">
+                  <i class="fas fa-cubes"></i>
+                  <div>
+                    <small>Quantidade</small>
+                    <div><strong>${primeiraCotacao.quantidade} ${primeiraCotacao.unidade}</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pedido-info">
+              <div class="info-card">
+                <div class="info-icon solicitante">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="info-content">
+                  <div class="info-label">Solicitado por</div>
+                  <div class="info-value" id="solicitanteDisplay">${solicitanteInfo}</div>
+                </div>
+                <button class="edit-info-btn" onclick="editarInfoPedido('solicitante')">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+
+              <div class="info-card">
+                <div class="info-icon data">
+                  <i class="fas fa-calendar"></i>
+                </div>
+                <div class="info-content">
+                  <div class="info-label">Data do Pedido</div>
+                  <div class="info-value" id="dataPedidoDisplay">${dataPedidoInfo}</div>
+                </div>
+                <button class="edit-info-btn" onclick="editarInfoPedido('data')">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+
+              <div class="info-card">
+                <div class="info-icon departamento">
+                  <i class="fas fa-building"></i>
+                </div>
+                <div class="info-content">
+                  <div class="info-label">Departamento</div>
+                  <div class="info-value" id="departamentoDisplay">${departamentoInfo}</div>
+                </div>
+                <button class="edit-info-btn" onclick="editarInfoPedido('departamento')">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+
+              <div class="info-card">
+                <div class="info-icon prioridade">
+                  <i class="fas fa-flag"></i>
+                </div>
+                <div class="info-content">
+                  <div class="info-label">Prioridade</div>
+                  <div class="info-value">
+                    <span class="prioridade-badge ${prioridadeInfo.toLowerCase()}" id="prioridadeDisplay">${prioridadeInfo}</span>
+                  </div>
+                </div>
+                <button class="edit-info-btn" onclick="editarInfoPedido('prioridade')">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards de Resumo -->
+          <div class="resumo-cards">
+            <div class="resumo-card total">
+              <div class="resumo-icon total">
+                <i class="fas fa-file-invoice"></i>
+              </div>
+              <div class="resumo-content">
+                <div class="resumo-label">Total de Orçamentos</div>
+                <div class="resumo-value">${cotacoesComTotal.length}</div>
+              </div>
+            </div>
+
+            <div class="resumo-card menor">
+              <div class="resumo-icon menor">
+                <i class="fas fa-trophy"></i>
+              </div>
+              <div class="resumo-content">
+                <div class="resumo-label">Menor Preço</div>
+                <div class="resumo-value">${formatarMoeda(cotacoesComTotal[0].total)}</div>
+              </div>
+            </div>
+
+            <div class="resumo-card media">
+              <div class="resumo-icon media">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="resumo-content">
+                <div class="resumo-label">Média dos Preços</div>
+                <div class="resumo-value">
+                  ${formatarMoeda(cotacoesComTotal.reduce((acc, cur) => acc + cur.total, 0) / cotacoesComTotal.length)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabela Comparativa -->
+          <div class="comparativo-tabela">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selecionarTodosComparativo" checked></th>
+                  <th>Fornecedor</th>
+                  <th>UF</th>
+                  <th>Quantidade</th>
+                  <th>Valor Unit.</th>
+                  <th>ICMS</th>
+                  <th>IPI</th>
+                  <th>Valor Total</th>
+                  <th>Prazo</th>
+                  <th>B. CALC</th>
+                  <th>Frete</th>
+                  <th>Regime Trib.</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+
+      cotacoesComTotal.forEach(cot => {
+        const isMelhorPreco = cot.id === melhorPreco;
+        const rowClass = isMelhorPreco ? 'melhor-preco' : '';
+        
+        html += `
+          <tr class="${rowClass}" data-id="${cot.id}">
+            <td><input type="checkbox" class="select-comparativo" checked></td>
+            <td><strong>${cot.fornecedor}</strong></td>
+            <td>${cot.uf}</td>
+            <td>${cot.quantidade} ${cot.unidade}</td>
+            <td>${formatarMoeda(cot.valorUnitario)}</td>
+            <td>${cot.icms}%</td>
+            <td>${cot.ipi || 0}%</td>
+            <td><strong>${formatarMoeda(cot.total)}</strong></td>
+            <td>${cot.prazoPagamento}</td>
+            <td>${cot.bicms}%</td>
+            <td>${cot.frete || '-'}</td>
+            <td>${cot.regimeTributario || '-'}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Observação e Selecionar Todos -->
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="observacao-rodape">
+              <i class="fas fa-info-circle"></i>
+              <span>Linhas em verde indicam o menor preço. Os valores já incluem ICMS e IPI.</span>
+            </div>
+            <div class="selecionar-todos">
+              <input type="checkbox" id="selecionarTodosFooter" checked>
+              <label for="selecionarTodosFooter">Selecionar todos para finalizar</label>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('comparisonForPdf').innerHTML = html;
+      document.getElementById('comparisonModal').style.display = 'flex';
+
+      // Eventos dos checkboxes
+      setTimeout(() => {
+        const selecionarTodosHeader = document.getElementById('selecionarTodosComparativo');
+        const selecionarTodosFooter = document.getElementById('selecionarTodosFooter');
+        
+        function selecionarTodos(checked) {
+          document.querySelectorAll('.select-comparativo').forEach(cb => cb.checked = checked);
+        }
+
+        if (selecionarTodosHeader) {
+          selecionarTodosHeader.addEventListener('change', (e) => selecionarTodos(e.target.checked));
+        }
+        
+        if (selecionarTodosFooter) {
+          selecionarTodosFooter.addEventListener('change', (e) => selecionarTodos(e.target.checked));
+        }
+      }, 100);
+    }
+
+    // Função para editar informações do pedido com modal personalizado
+    window.editarInfoPedido = async function(campo) {
+      switch(campo) {
+        case 'solicitante':
+          const novoSolicitante = await criarModalEdicao('Editar Solicitante', 'text', solicitanteInfo);
+          if (novoSolicitante !== null && novoSolicitante.trim() !== '') {
+            solicitanteInfo = novoSolicitante;
+            document.getElementById('solicitanteDisplay').textContent = novoSolicitante;
+          }
+          break;
+          
+        case 'data':
+          const novaData = await criarModalEdicao('Editar Data do Pedido', 'date', dataPedidoInfo);
+          if (novaData !== null) {
+            dataPedidoInfo = novaData;
+            document.getElementById('dataPedidoDisplay').textContent = novaData;
+          }
+          break;
+          
+        case 'departamento':
+          const novoDepartamento = await criarModalEdicao('Selecionar Departamento', 'select', departamentoInfo, departamentos);
+          if (novoDepartamento !== null) {
+            departamentoInfo = novoDepartamento;
+            document.getElementById('departamentoDisplay').textContent = novoDepartamento;
+          }
+          break;
+          
+        case 'prioridade':
+          const prioridades = ['Normal', 'Alta', 'Urgente', 'Baixa'];
+          const novaPrioridade = await criarModalEdicao('Selecionar Prioridade', 'select', prioridadeInfo, prioridades);
+          
+          if (novaPrioridade !== null) {
+            prioridadeInfo = novaPrioridade;
+            const spanPrioridade = document.getElementById('prioridadeDisplay');
+            spanPrioridade.textContent = novaPrioridade;
+            spanPrioridade.className = `prioridade-badge ${novaPrioridade.toLowerCase()}`;
+          }
+          break;
+      }
+    };
+
+    // ================== FUNÇÕES DE PDF ==================
+    async function exportarParaPDF(elementoId, nomeArquivo = 'comparativo.pdf') {
+      // Criar loading
+      const loading = document.createElement('div');
+      loading.className = 'pdf-loading';
+      loading.innerHTML = `
+        <div class="pdf-loading-spinner"></div>
+        <div style="font-size: 18px; color: #333;">Gerando PDF, aguarde...</div>
+      `;
+      document.body.appendChild(loading);
+
+      try {
+        const elemento = document.getElementById(elementoId);
+        if (!elemento) {
+          throw new Error('Elemento não encontrado');
+        }
+
+        // Clonar o elemento para não afetar o original
+        const clone = elemento.cloneNode(true);
+        
+        // Remover botões de edição do clone
+        clone.querySelectorAll('.edit-info-btn').forEach(btn => btn.remove());
+        
+        // Remover checkboxes da tabela no PDF
+        clone.querySelectorAll('th input[type="checkbox"]').forEach(cb => cb.remove());
+        clone.querySelectorAll('td input[type="checkbox"]').forEach(cb => cb.remove());
+        
+        // Ajustar estilos para PDF
+        clone.style.width = '1200px';
+        clone.style.padding = '20px';
+        clone.style.background = 'white';
+        
+        // Adicionar logo/marca d'água
+        const header = document.createElement('div');
+        header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #3498db;';
+        header.innerHTML = `
+          <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">Mil Plásticos</div>
+          <div style="color: #666;">Relatório de Comparativo de Orçamentos</div>
+        `;
+        clone.insertBefore(header, clone.firstChild);
+
+        // Adicionar temporariamente ao body
+        clone.style.position = 'absolute';
+        clone.style.left = '-9999px';
+        clone.style.top = '0';
+        document.body.appendChild(clone);
+
+        // Criar canvas
+        const canvas = await html2canvas(clone, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false,
+          allowTaint: true,
+          useCORS: true
+        });
+
+        // Remover o clone
+        document.body.removeChild(clone);
+
+        // Criar PDF
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(nomeArquivo);
+
+      } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        alert('Erro ao gerar PDF. Tente novamente.');
+      } finally {
+        // Remover loading
+        document.body.removeChild(loading);
+      }
+    }
+
+    function finalizarSelecionados() {
+      const selecionadas = getCotacoesSelecionadas();
+      
+      if (selecionadas.length === 0) {
+        alert('Selecione pelo menos uma cotação para finalizar.');
+        return;
+      }
+
+      if (confirm(`Deseja finalizar ${selecionadas.length} orçamento(s)? Eles serão arquivados no histórico.`)) {
+        selecionadas.forEach(cot => {
+          const existeNoHistorico = historico.some(h => h.id === cot.id);
+          if (!existeNoHistorico) {
+            historico.push({ ...cot });
+          }
+          cotacoes = cotacoes.filter(c => c.id !== cot.id);
+        });
+
+        salvarDados();
+        renderCotacoes();
+        renderHistorico();
+        alert('Orçamentos finalizados com sucesso!');
+      }
+    }
+
+    function finalizarComparados() {
+      const checkboxes = document.querySelectorAll('.select-comparativo:checked');
+      if (checkboxes.length === 0) {
+        alert('Selecione pelo menos um orçamento no comparativo.');
+        return;
+      }
+
+      const ids = Array.from(checkboxes).map(cb => cb.closest('tr')?.dataset.id).filter(id => id);
+      const cotacoesParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
+
+      if (cotacoesParaFinalizar.length === 0) {
+        alert('Nenhum orçamento válido selecionado.');
+        return;
+      }
+
+      if (confirm(`Deseja finalizar ${cotacoesParaFinalizar.length} orçamento(s)?`)) {
+        cotacoesParaFinalizar.forEach(cot => {
+          const existeNoHistorico = historico.some(h => h.id === cot.id);
+          if (!existeNoHistorico) {
+            historico.push({ ...cot });
+          }
+          cotacoes = cotacoes.filter(c => c.id !== cot.id);
+        });
+
+        salvarDados();
+        renderCotacoes();
+        renderHistorico();
+        document.getElementById('comparisonModal').style.display = 'none';
+        alert('Orçamentos finalizados com sucesso!');
+      }
+    }
+
+    // ================== INICIALIZAÇÃO ==================
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCotacoes();
+      renderHistorico();
+      renderProdutos();
+      renderFornecedores();
+      atualizarSelectFornecedores();
+
+      // Eventos das tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          const tabId = btn.dataset.tab + 'Tab';
+          document.getElementById(tabId).classList.add('active');
+
+          if (btn.dataset.tab === 'historico') renderHistorico();
+          if (btn.dataset.tab === 'produtos') renderProdutos();
+          if (btn.dataset.tab === 'fornecedores') renderFornecedores();
+        });
+      });
+
+      // Botões principais
+      document.getElementById('addCotacaoBtn').addEventListener('click', () => abrirModalCotacao());
+      document.getElementById('compararSelecionadosBtn').addEventListener('click', abrirComparativo);
+      document.getElementById('finalizarSelecionadosBtn').addEventListener('click', finalizarSelecionados);
+      document.getElementById('finalizarComparadosBtn').addEventListener('click', finalizarComparados);
+      
+      document.getElementById('saveCotacaoBtn').addEventListener('click', salvarCotacao);
+      document.getElementById('cancelBtn').addEventListener('click', fecharModalCotacao);
+      document.getElementById('closeModal').addEventListener('click', fecharModalCotacao);
+
+      // Preview em tempo real
+      ['quantidade', 'valorUnitario', 'icms', 'ipi'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', atualizarPreview);
+      });
+
+      // Novo produto no modal de cotação
+      document.getElementById('novoProdutoModalBtn')?.addEventListener('click', () => {
+        fecharModalCotacao();
+        abrirModalProduto();
+      });
+
+      // Produtos
+      document.getElementById('addProdutoBtn').addEventListener('click', () => {
+        abrirModalProduto();
+      });
+
+      // Salvar produto
+      document.getElementById('saveProdutoBtn').addEventListener('click', salvarProduto);
+
+      // Fechar modal de produto
+      document.getElementById('closeProdutoModal').addEventListener('click', fecharModalProduto);
+      document.getElementById('cancelProdutoBtn').addEventListener('click', fecharModalProduto);
+
+      // Novo fornecedor no modal de cotação
+      document.getElementById('novoFornecedorModalBtn')?.addEventListener('click', () => {
+        fecharModalCotacao();
+        document.getElementById('fornecedorModalTitle').textContent = 'Novo Fornecedor';
+        document.getElementById('fornecedorForm').reset();
+        document.getElementById('fornecedorModal').style.display = 'flex';
+        
+        const checkModalFechado = setInterval(() => {
+          if (document.getElementById('fornecedorModal').style.display === 'none') {
+            clearInterval(checkModalFechado);
+            document.getElementById('cotacaoModal').style.display = 'flex';
+            atualizarSelectFornecedores();
+          }
+        }, 100);
+      });
+
+      // Fornecedor
+      document.getElementById('addFornecedorBtn').addEventListener('click', () => {
+        abrirModalFornecedor();
+      });
+
+      // Fechar modal de fornecedor
+      document.getElementById('closeFornecedorModal').addEventListener('click', fecharModalFornecedor);
+      document.getElementById('cancelFornecedorBtn').addEventListener('click', fecharModalFornecedor);
+      document.getElementById('saveFornecedorBtn').addEventListener('click', salvarFornecedor);
+
+      // Filtros do histórico
+      document.getElementById('filtroProduto')?.addEventListener('input', renderHistorico);
+      document.getElementById('filtroFornecedor')?.addEventListener('input', renderHistorico);
+      document.getElementById('filtroPeriodo')?.addEventListener('change', renderHistorico);
+
+      // Limpar histórico
+      document.getElementById('limparHistoricoBtn')?.addEventListener('click', () => {
+        if (confirm('Limpar todo o histórico?')) {
+          historico = [];
+          salvarDados();
+          renderHistorico();
+        }
+      });
+
+      // Fechar modais ao clicar fora
+      window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+          e.target.style.display = 'none';
+          
+          if (e.target.id === 'comparisonModal') {
+            renderCotacoes();
+          }
+        }
+      });
+
+      // Botões de fechar modais específicos
+      document.getElementById('closeComparisonModal')?.addEventListener('click', () => {
+        document.getElementById('comparisonModal').style.display = 'none';
+      });
+
+      document.getElementById('closeComparisonBtn')?.addEventListener('click', () => {
+        document.getElementById('comparisonModal').style.display = 'none';
+      });
+
+      // Exportar PDF
+      document.getElementById('exportComparisonPdf')?.addEventListener('click', () => {
+        exportarParaPDF('comparisonForPdf', 'comparativo-orcamentos.pdf');
+      });
+
+      document.getElementById('exportAllPdfBtn')?.addEventListener('click', () => {
+        alert('Funcionalidade de exportar todas as cotações será implementada em breve!');
+      });
+    });
+  </script>
+
+  <script src="/milplasticos/js/main.js"></script>
+  <script src="/milplasticos/js/abastecimento.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle de Gastos - Empresa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Cabeçalho */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .periodo-selector {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .periodo-selector select, .periodo-selector input {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .periodo-selector select option {
+            background: #764ba2;
+            color: white;
+        }
+
+        .periodo-selector button {
+            padding: 12px 30px;
+            background: white;
+            color: #764ba2;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .periodo-selector button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Painel de Adição Rápida */
+        .painel-adicao {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border: 2px solid #667eea;
+        }
+
+        .painel-adicao h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-adicao {
+            display: grid;
+            grid-template-columns: 2fr 1fr 2fr auto;
+            gap: 15px;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-adicao input, .form-adicao select {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .form-adicao input:focus, .form-adicao select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-adicao button {
+            padding: 12px 25px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .form-adicao button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .distribuicao-rapida {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .distribuicao-rapida h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .tabela-distribuicao {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tabela-distribuicao th {
+            background: #1976d2;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .tabela-distribuicao td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .tabela-distribuicao tr:hover {
+            background: #f5f5f5;
+        }
+
+        .tabela-distribuicao input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            text-align: right;
+        }
+
+        .tabela-distribuicao input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .btn-aplicar-todos {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-aplicar-todos:hover {
+            background: #1565c0;
+            transform: translateY(-2px);
+        }
+
+        .total-distribuicao {
+            margin-top: 15px;
+            text-align: right;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #1976d2;
+        }
+
+        /* Setores */
+        .setores-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .setores-container h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .setores-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .setor-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #e0e0e0;
+        }
+
+        .setor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .setor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            cursor: pointer;
+        }
+
+        .setor-header h3 {
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .setor-total {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.2em;
+        }
+
+        .setor-custos {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+
+        .custo-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .custo-descricao {
+            flex: 2;
+            font-size: 0.95em;
+            color: #333;
+        }
+
+        .custo-valor {
+            flex: 1;
+            font-weight: bold;
+            color: #28a745;
+            text-align: right;
+        }
+
+        .btn-remover {
+            background: #dc3545;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .btn-remover:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
+        .adicao-rapida-setor {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .adicao-rapida-setor input {
+            flex: 2;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+
+        .adicao-rapida-setor input[type="number"] {
+            flex: 1;
+        }
+
+        .btn-adicionar-setor {
+            background: #28a745;
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2em;
+            transition: all 0.3s;
+        }
+
+        .btn-adicionar-setor:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+
+        /* Resumo */
+        .resumo-mes {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .resumo-mes h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .resumo-tabela {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .resumo-tabela th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .resumo-tabela td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .resumo-tabela tr:hover {
+            background: #f5f5f5;
+        }
+
+        .total-geral {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        /* Loading e mensagens */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .mensagem {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1001;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .mensagem.sucesso {
+            background: #28a745;
+        }
+
+        .mensagem.erro {
+            background: #dc3545;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .badge-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .form-adicao {
+                grid-template-columns: 1fr;
+            }
+            
+            .setores-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .periodo-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .tabela-distribuicao {
+                font-size: 0.9em;
+            }
+            
+            .tabela-distribuicao input[type="number"] {
+                width: 70px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <!-- Cabeçalho -->
+        <div class="header">
+            <img src="img/logo.png" alt="Encanto MariMel" class="logo-img">
+            <h1>Controle de Gastos - Mil Plasticos</h1>
+            <div class="periodo-selector">
+                <select id="anoSelect">
+                    <option value="2024">2024</option>
+                    <option value="2025" selected>2025</option>
+                    <option value="2026">2026</option>
+                </select>
+                <select id="mesSelect">
+                    <option value="0">Janeiro</option>
+                    <option value="1">Fevereiro</option>
+                    <option value="2">Março</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Maio</option>
+                    <option value="5">Junho</option>
+                    <option value="6">Julho</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Setembro</option>
+                    <option value="9">Outubro</option>
+                    <option value="10">Novembro</option>
+                    <option value="11">Dezembro</option>
+                </select>
+                <button onclick="carregarDados()">📅 Carregar Mês</button>
+                <button onclick="salvarDados()">💾 Salvar Dados</button>
+            </div>
+        </div>
+
+        <!-- Painel de Adição Rápida de Custos -->
+        <div class="painel-adicao">
+            <h2>
+                <i>⚡</i> Controle Contas Fixas
+            </h2>
+            
+            <!-- Formulário principal de adição -->
+            <div class="form-adicao">
+                <input type="text" id="descricaoGeral" placeholder="Descrição do custo (ex: Energia, Matéria-prima, etc.)">
+                <input type="number" id="valorGeral" placeholder="Valor total R$" step="0.01">
+                <select id="tipoDistribuicao">
+                    <option value="igual">Dividir Igual entre Setores</option>
+                    <option value="manual">Distribuição Manual</option>
+                </select>
+                <button onclick="abrirDistribuicao()">▶ Continuar</button>
+            </div>
+
+            <!-- Área de distribuição (inicialmente oculta) -->
+            <div id="areaDistribuicao" style="display: none;">
+                <div class="distribuicao-rapida">
+                    <h3>📊 Distribuir Custo: <span id="custoDescricao"></span> - R$ <span id="custoValor"></span></h3>
+                    
+                    <table class="tabela-distribuicao" id="tabelaDistribuicao">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">✓</th>
+                                <th>Setor</th>
+                                <th style="text-align: right;">Percentual (%)</th>
+                                <th style="text-align: right;">Valor (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpoDistribuicao">
+                            <!-- Será preenchido via JavaScript -->
+                        </tbody>
+                    </table>
+
+                    <div class="total-distribuicao" id="totalDistribuido">
+                        Total Distribuído: R$ 0,00
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                        <button class="btn-aplicar-todos" onclick="marcarTodosSetores(true)">✓ Selecionar Todos</button>
+                        <button class="btn-aplicar-todos" onclick="marcarTodosSetores(false)">✗ Limpar Todos</button>
+                        <button class="btn-aplicar-todos" onclick="aplicarDistribuicao()" style="background: #28a745;">✅ Confirmar Distribuição</button>
+                        <button class="btn-aplicar-todos" onclick="cancelarDistribuicao()" style="background: #dc3545;">❌ Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setores -->
+        <div class="setores-container">
+            <h2>🏭 Setores da Empresa</h2>
+            <div class="setores-grid" id="setores">
+                <!-- Os setores serão carregados aqui via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Resumo do Mês -->
+        <div class="resumo-mes">
+            <h2>📊 Resumo do Mês</h2>
+            <table class="resumo-tabela" id="tabelaResumo">
+                <thead>
+                    <tr>
+                        <th>Setor</th>
+                        <th>Total (R$)</th>
+                        <th>Qtd. Custos</th>
+                    </tr>
+                </thead>
+                <tbody id="resumoBody">
+                </tbody>
+            </table>
+            <div class="total-geral" id="totalGeral">
+                Total Geral: R$ 0,00
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Lista de setores da empresa
+        const setoresLista = [
+            'ESTEIRA PS',
+            'COMPRAS',
+            'LOGISTICA SEPARAÇÃO',
+            'ADM',
+            'FINANCEIRO',
+            'ESTEIRA ABS',
+            'ESTEIRA CRISTAL',
+            'MOAGEM',
+            'LAVAGEM',
+            'BATIDA',
+            'EXTRUSÃO',
+            'ESTOQUE',
+            'MÃO DE OBRA',
+            'TRANSPORTE'
+        ];
+
+        // Dados da aplicação
+        let dadosAtuais = {};
+        let distribuicaoAtual = {
+            descricao: '',
+            valorTotal: 0,
+            setores: []
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarSetores();
+            carregarDados();
+        });
+
+        // Carregar estrutura dos setores
+        function carregarSetores() {
+            const setoresDiv = document.getElementById('setores');
+            setoresDiv.innerHTML = '';
+
+            setoresLista.forEach(setor => {
+                const setorCard = document.createElement('div');
+                setorCard.className = 'setor-card';
+                setorCard.id = `setor-${setor.replace(/\s+/g, '-')}`;
+                
+                setorCard.innerHTML = `
+                    <div class="setor-header" onclick="toggleSetor('${setor}')">
+                        <h3>${setor}</h3>
+                        <span class="setor-total" id="total-${setor.replace(/\s+/g, '-')}">R$ 0,00</span>
+                    </div>
+                    <div class="setor-custos" id="custos-${setor.replace(/\s+/g, '-')}" style="display: block;">
+                        <!-- Custos serão adicionados aqui -->
+                    </div>
+                    <div class="adicao-rapida-setor">
+                        <input type="text" id="desc-${setor.replace(/\s+/g, '-')}" placeholder="Descrição">
+                        <input type="number" id="valor-${setor.replace(/\s+/g, '-')}" placeholder="Valor" step="0.01">
+                        <button class="btn-adicionar-setor" onclick="adicionarCustoSetor('${setor}')">+</button>
+                    </div>
+                `;
+                
+                setoresDiv.appendChild(setorCard);
+            });
+        }
+
+        // Toggle visualização dos custos do setor
+        function toggleSetor(setor) {
+            const custosDiv = document.getElementById(`custos-${setor.replace(/\s+/g, '-')}`);
+            if (custosDiv) {
+                custosDiv.style.display = custosDiv.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // Abrir painel de distribuição
+        function abrirDistribuicao() {
+            const descricao = document.getElementById('descricaoGeral').value.trim();
+            const valor = parseFloat(document.getElementById('valorGeral').value);
+            const tipo = document.getElementById('tipoDistribuicao').value;
+
+            if (!descricao) {
+                mostrarMensagem('Por favor, insira uma descrição para o custo!', 'erro');
+                return;
+            }
+
+            if (isNaN(valor) || valor <= 0) {
+                mostrarMensagem('Por favor, insira um valor válido!', 'erro');
+                return;
+            }
+
+            distribuicaoAtual = {
+                descricao: descricao,
+                valorTotal: valor,
+                tipo: tipo,
+                setores: setoresLista.map(setor => ({
+                    nome: setor,
+                    selecionado: tipo === 'manual' ? false : true,
+                    percentual: tipo === 'igual' ? (100 / setoresLista.length).toFixed(1) : 0,
+                    valor: 0
+                }))
+            };
+
+            if (tipo === 'igual') {
+                const valorPorSetor = valor / setoresLista.length;
+                distribuicaoAtual.setores.forEach(s => {
+                    s.valor = valorPorSetor;
+                });
+            }
+
+            document.getElementById('custoDescricao').textContent = descricao;
+            document.getElementById('custoValor').textContent = valor.toFixed(2);
+            
+            preencherTabelaDistribuicao();
+            document.getElementById('areaDistribuicao').style.display = 'block';
+            
+            // Rolar até a área de distribuição
+            document.getElementById('areaDistribuicao').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Preencher tabela de distribuição
+        function preencherTabelaDistribuicao() {
+            const tbody = document.getElementById('corpoDistribuicao');
+            tbody.innerHTML = '';
+
+            distribuicaoAtual.setores.forEach((setor, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td style="text-align: center;">
+                        <input type="checkbox" onchange="toggleSetorDistribuicao(${index})" ${setor.selecionado ? 'checked' : ''}>
+                    </td>
+                    <td><strong>${setor.nome}</strong></td>
+                    <td style="text-align: right;">
+                        <input type="number" id="perc-${index}" value="${setor.percentual}" min="0" max="100" step="0.1" 
+                               onchange="calcularValorSetor(${index})" style="text-align: right;" ${distribuicaoAtual.tipo === 'manual' ? '' : 'readonly'}>
+                    </td>
+                    <td style="text-align: right;">
+                        <input type="number" id="valor-${index}" value="${setor.valor.toFixed(2)}" min="0" step="0.01" 
+                               onchange="calcularPercentualSetor(${index})" style="text-align: right; font-weight: bold; color: #28a745;" 
+                               ${distribuicaoAtual.tipo === 'manual' ? '' : 'readonly'}>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+
+            atualizarTotalDistribuido();
+        }
+
+        // Toggle seleção de setor na distribuição
+        function toggleSetorDistribuicao(index) {
+            const checkbox = event.target;
+            distribuicaoAtual.setores[index].selecionado = checkbox.checked;
+            
+            if (!checkbox.checked) {
+                distribuicaoAtual.setores[index].percentual = 0;
+                distribuicaoAtual.setores[index].valor = 0;
+                document.getElementById(`perc-${index}`).value = 0;
+                document.getElementById(`valor-${index}`).value = 0;
+            } else if (distribuicaoAtual.tipo === 'igual') {
+                const setoresSelecionados = distribuicaoAtual.setores.filter(s => s.selecionado).length;
+                if (setoresSelecionados > 0) {
+                    const valorPorSetor = distribuicaoAtual.valorTotal / setoresSelecionados;
+                    const percentualPorSetor = 100 / setoresSelecionados;
+                    
+                    distribuicaoAtual.setores.forEach((s, i) => {
+                        if (s.selecionado) {
+                            s.valor = valorPorSetor;
+                            s.percentual = percentualPorSetor;
+                            document.getElementById(`perc-${i}`).value = percentualPorSetor.toFixed(1);
+                            document.getElementById(`valor-${i}`).value = valorPorSetor.toFixed(2);
+                        }
+                    });
+                }
+            }
+            
+            atualizarTotalDistribuido();
+        }
+
+        // Calcular valor do setor baseado no percentual
+        function calcularValorSetor(index) {
+            const percentual = parseFloat(document.getElementById(`perc-${index}`).value) || 0;
+            distribuicaoAtual.setores[index].percentual = percentual;
+            
+            const valor = (distribuicaoAtual.valorTotal * percentual) / 100;
+            distribuicaoAtual.setores[index].valor = valor;
+            document.getElementById(`valor-${index}`).value = valor.toFixed(2);
+            
+            atualizarTotalDistribuido();
+        }
+
+        // Calcular percentual do setor baseado no valor
+        function calcularPercentualSetor(index) {
+            const valor = parseFloat(document.getElementById(`valor-${index}`).value) || 0;
+            distribuicaoAtual.setores[index].valor = valor;
+            
+            const percentual = (valor / distribuicaoAtual.valorTotal) * 100;
+            distribuicaoAtual.setores[index].percentual = percentual;
+            document.getElementById(`perc-${index}`).value = percentual.toFixed(1);
+            
+            atualizarTotalDistribuido();
+        }
+
+        // Atualizar total distribuído
+        function atualizarTotalDistribuido() {
+            const total = distribuicaoAtual.setores.reduce((sum, setor) => {
+                return setor.selecionado ? sum + setor.valor : sum;
+            }, 0);
+            
+            document.getElementById('totalDistribuido').innerHTML = 
+                `Total Distribuído: R$ ${total.toFixed(2)} (${((total/distribuicaoAtual.valorTotal)*100).toFixed(1)}%)`;
+        }
+
+        // Marcar/desmarcar todos os setores
+        function marcarTodosSetores(marcar) {
+            distribuicaoAtual.setores.forEach((setor, index) => {
+                setor.selecionado = marcar;
+                const checkbox = document.querySelector(`#corpoDistribuicao tr:nth-child(${index+1}) input[type="checkbox"]`);
+                if (checkbox) checkbox.checked = marcar;
+                
+                if (!marcar) {
+                    setor.percentual = 0;
+                    setor.valor = 0;
+                    document.getElementById(`perc-${index}`).value = 0;
+                    document.getElementById(`valor-${index}`).value = 0;
+                }
+            });
+            
+            if (marcar && distribuicaoAtual.tipo === 'igual') {
+                const valorPorSetor = distribuicaoAtual.valorTotal / setoresLista.length;
+                distribuicaoAtual.setores.forEach((setor, index) => {
+                    setor.valor = valorPorSetor;
+                    setor.percentual = 100 / setoresLista.length;
+                    document.getElementById(`perc-${index}`).value = (100 / setoresLista.length).toFixed(1);
+                    document.getElementById(`valor-${index}`).value = valorPorSetor.toFixed(2);
+                });
+            }
+            
+            atualizarTotalDistribuido();
+        }
+
+        // Aplicar distribuição
+        function aplicarDistribuicao() {
+            const totalDistribuido = distribuicaoAtual.setores.reduce((sum, setor) => {
+                return setor.selecionado ? sum + setor.valor : sum;
+            }, 0);
+
+            if (Math.abs(totalDistribuido - distribuicaoAtual.valorTotal) > 0.01) {
+                if (!confirm(`O total distribuído (R$ ${totalDistribuido.toFixed(2)}) é diferente do valor total (R$ ${distribuicaoAtual.valorTotal.toFixed(2)}). Deseja continuar mesmo assim?`)) {
+                    return;
+                }
+            }
+
+            // Adicionar custos aos setores selecionados
+            distribuicaoAtual.setores.forEach(setor => {
+                if (setor.selecionado && setor.valor > 0) {
+                    if (!dadosAtuais[setor.nome]) {
+                        dadosAtuais[setor.nome] = [];
+                    }
+                    
+                    dadosAtuais[setor.nome].push({
+                        descricao: distribuicaoAtual.descricao,
+                        valor: setor.valor
+                    });
+                }
+            });
+
+            // Atualizar visualização
+            setoresLista.forEach(setor => {
+                atualizarCustosSetor(setor);
+            });
+
+            // Limpar campos
+            document.getElementById('descricaoGeral').value = '';
+            document.getElementById('valorGeral').value = '';
+            
+            // Fechar área de distribuição
+            cancelarDistribuicao();
+            
+            // Atualizar resumo
+            atualizarResumo();
+            
+            mostrarMensagem('Custos distribuídos com sucesso!', 'sucesso');
+        }
+
+        // Cancelar distribuição
+        function cancelarDistribuicao() {
+            document.getElementById('areaDistribuicao').style.display = 'none';
+            distribuicaoAtual = {
+                descricao: '',
+                valorTotal: 0,
+                setores: []
+            };
+        }
+
+        // Adicionar custo diretamente no setor
+        function adicionarCustoSetor(setor) {
+            const descInput = document.getElementById(`desc-${setor.replace(/\s+/g, '-')}`);
+            const valorInput = document.getElementById(`valor-${setor.replace(/\s+/g, '-')}`);
+            
+            const descricao = descInput.value.trim();
+            const valor = parseFloat(valorInput.value);
+
+            if (!descricao) {
+                mostrarMensagem('Por favor, insira uma descrição para o custo!', 'erro');
+                return;
+            }
+
+            if (isNaN(valor) || valor <= 0) {
+                mostrarMensagem('Por favor, insira um valor válido!', 'erro');
+                return;
+            }
+
+            // Inicializar dados do setor se não existir
+            if (!dadosAtuais[setor]) {
+                dadosAtuais[setor] = [];
+            }
+
+            // Adicionar custo
+            dadosAtuais[setor].push({
+                descricao: descricao,
+                valor: valor
+            });
+
+            // Limpar campos
+            descInput.value = '';
+            valorInput.value = '';
+
+            // Atualizar visualização
+            atualizarCustosSetor(setor);
+            atualizarResumo();
+            mostrarMensagem('Custo adicionado ao setor!', 'sucesso');
+        }
+
+        // Remover custo de um setor
+        function removerCusto(setor, index) {
+            if (confirm('Remover este custo?')) {
+                if (dadosAtuais[setor] && dadosAtuais[setor][index]) {
+                    dadosAtuais[setor].splice(index, 1);
+                    atualizarCustosSetor(setor);
+                    atualizarResumo();
+                    mostrarMensagem('Custo removido!', 'sucesso');
+                }
+            }
+        }
+
+        // Atualizar visualização dos custos de um setor
+        function atualizarCustosSetor(setor) {
+            const custosDiv = document.getElementById(`custos-${setor.replace(/\s+/g, '-')}`);
+            const totalSpan = document.getElementById(`total-${setor.replace(/\s+/g, '-')}`);
+            
+            if (!custosDiv || !totalSpan) return;
+
+            // Limpar custos existentes
+            custosDiv.innerHTML = '';
+
+            if (!dadosAtuais[setor] || dadosAtuais[setor].length === 0) {
+                totalSpan.textContent = 'R$ 0,00';
+                return;
+            }
+
+            let totalSetor = 0;
+
+            // Ordenar custos por valor (maior para menor)
+            const custosOrdenados = [...dadosAtuais[setor]].sort((a, b) => b.valor - a.valor);
+
+            // Adicionar cada custo
+            custosOrdenados.forEach((custo, index) => {
+                totalSetor += custo.valor;
+                
+                // Encontrar o índice original para remoção
+                const originalIndex = dadosAtuais[setor].findIndex(c => c.descricao === custo.descricao && c.valor === custo.valor);
+                
+                const custoElement = document.createElement('div');
+                custoElement.className = 'custo-item';
+                custoElement.innerHTML = `
+                    <span class="custo-descricao">${custo.descricao}</span>
+                    <span class="custo-valor">R$ ${custo.valor.toFixed(2)}</span>
+                    <button class="btn-remover" onclick="removerCusto('${setor}', ${originalIndex})" title="Remover">×</button>
+                `;
+                
+                custosDiv.appendChild(custoElement);
+            });
+
+            totalSpan.textContent = `R$ ${totalSetor.toFixed(2)}`;
+        }
+
+        // Atualizar resumo do mês
+        function atualizarResumo() {
+            const resumoBody = document.getElementById('resumoBody');
+            const totalGeralSpan = document.getElementById('totalGeral');
+            
+            resumoBody.innerHTML = '';
+            
+            let totalGeral = 0;
+
+            setoresLista.forEach(setor => {
+                const custosSetor = dadosAtuais[setor] || [];
+                const totalSetor = custosSetor.reduce((sum, custo) => sum + custo.valor, 0);
+                const qtdCustos = custosSetor.length;
+                
+                totalGeral += totalSetor;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${setor}</strong></td>
+                    <td>R$ ${totalSetor.toFixed(2)}</td>
+                    <td><span class="badge badge-primary">${qtdCustos} itens</span></td>
+                `;
+                
+                resumoBody.appendChild(row);
+            });
+
+            totalGeralSpan.textContent = `Total Geral: R$ ${totalGeral.toFixed(2)}`;
+        }
+
+        // Carregar dados do mês selecionado
+        function carregarDados() {
+            const ano = document.getElementById('anoSelect').value;
+            const mes = document.getElementById('mesSelect').value;
+            
+            mostrarLoading(true);
+
+            setTimeout(() => {
+                const chave = `gastos_${ano}_${mes}`;
+                const dadosSalvos = localStorage.getItem(chave);
+
+                if (dadosSalvos) {
+                    const dados = JSON.parse(dadosSalvos);
+                    
+                    // Carregar dados dos setores
+                    dadosAtuais = dados.setores || {};
+
+                    // Atualizar visualização
+                    setoresLista.forEach(setor => {
+                        atualizarCustosSetor(setor);
+                    });
+
+                    mostrarMensagem(`Dados carregados: ${getNomeMes(mes)}/${ano}`, 'sucesso');
+                } else {
+                    // Inicializar dados vazios
+                    dadosAtuais = {};
+                    
+                    setoresLista.forEach(setor => {
+                        dadosAtuais[setor] = [];
+                        atualizarCustosSetor(setor);
+                    });
+
+                    mostrarMensagem(`Novo mês: ${getNomeMes(mes)}/${ano}`, 'sucesso');
+                }
+
+                atualizarResumo();
+                mostrarLoading(false);
+            }, 500);
+        }
+
+        // Salvar dados do mês atual
+        function salvarDados() {
+            const ano = document.getElementById('anoSelect').value;
+            const mes = document.getElementById('mesSelect').value;
+            
+            mostrarLoading(true);
+
+            setTimeout(() => {
+                const dadosParaSalvar = {
+                    setores: dadosAtuais
+                };
+
+                const chave = `gastos_${ano}_${mes}`;
+                localStorage.setItem(chave, JSON.stringify(dadosParaSalvar));
+
+                mostrarMensagem(`Dados salvos: ${getNomeMes(mes)}/${ano}`, 'sucesso');
+                mostrarLoading(false);
+            }, 500);
+        }
+
+        // Utilitários
+        function getNomeMes(mes) {
+            const meses = [
+                'Janeiro', 'Fevereiro', 'Março', 'Abril',
+                'Maio', 'Junho', 'Julho', 'Agosto',
+                'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            return meses[parseInt(mes)];
+        }
+
+        function mostrarLoading(mostrar) {
+            const loading = document.getElementById('loading');
+            if (mostrar) {
+                loading.classList.add('active');
+            } else {
+                loading.classList.remove('active');
+            }
+        }
+
+        function mostrarMensagem(texto, tipo) {
+            const mensagem = document.createElement('div');
+            mensagem.className = `mensagem ${tipo}`;
+            mensagem.textContent = texto;
+            
+            document.body.appendChild(mensagem);
+            
+            setTimeout(() => {
+                mensagem.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

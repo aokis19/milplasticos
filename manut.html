@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Manutenção | Mil Plásticos</title>
+  
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/milplasticos/assets/css/main.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/topbar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/manut.css">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+  
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
+    
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      
+      <div class="page-container">
+        
+        <!-- Cabeçalho da página -->
+        <div class="page-header">
+          <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
+          <p>Gerencie trocas de óleo e manutenções da frota</p>
+          <div class="page-actions">
+            <button class="btn btn-warning" id="btnCheckAlertas">
+              <i class="fas fa-bell"></i> Verificar Alertas
+            </button>
+            <button class="btn btn-success" id="btnNovaTrocaOleo">
+              <i class="fas fa-oil-can"></i> Nova Troca de Óleo
+            </button>
+            <button class="btn btn-primary" id="btnNovaManutencao">
+              <i class="fas fa-plus"></i> Nova Manutenção
+            </button>
+          </div>
+        </div>
+        
+        <!-- Card de Alertas -->
+        <div class="card card-alertas" id="cardAlertas" style="display: none;">
+          <div class="card-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Alertas de Manutenção</h3>
+            <button class="btn-icon" id="btnFecharAlertas">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="alertas-container" id="alertasContainer">
+              <!-- Alertas carregados via JS -->
+            </div>
+          </div>
+        </div>
+        
+        <!-- Abas -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="trocas-oleo">
+            <i class="fas fa-oil-can"></i> Trocas de Óleo
+          </button>
+          <button class="tab-btn" data-tab="manutencoes-gerais">
+            <i class="fas fa-tools"></i> Manutenções Gerais
+          </button>
+          <button class="tab-btn" data-tab="programadas">
+            <i class="fas fa-calendar-alt"></i> Programadas
+          </button>
+        </div>
+        
+        <!-- Conteúdo das Abas -->
+        
+        <!-- Aba: Trocas de Óleo -->
+        <div class="tab-content active" id="trocas-oleo">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-oil-can"></i> Histórico de Trocas de Óleo</h2>
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="filterOleo" placeholder="Buscar trocas...">
+                </div>
+                <span class="badge" id="totalTrocasOleo">0 trocas</span>
+              </div>
+            </div>
+            <div class="card-body table-responsive">
+              <table id="tabelaOleo">
+                <thead>
+                  <tr>
+                    <th><i class="fas fa-calendar"></i> Data</th>
+                    <th><i class="fas fa-truck"></i> Veículo</th>
+                    <th><i class="fas fa-tachometer-alt"></i> KM/Hora</th>
+                    <th><i class="fas fa-oil-can"></i> Óleo</th>
+                    <th><i class="fas fa-filter"></i> Filtros</th>
+                    <th><i class="fas fa-redo"></i> Próxima em</th>
+                    <th><i class="fas fa-file-pdf"></i> Relatório</th>
+                    <th><i class="fas fa-cogs"></i> Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaOleoBody">
+                  <!-- Dados carregados via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Aba: Manutenções Gerais -->
+        <div class="tab-content" id="manutencoes-gerais">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-tools"></i> Histórico de Manutenções</h2>
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="filterManutencoes" placeholder="Buscar manutenções...">
+                </div>
+                <span class="badge" id="totalManutencoes">0 manutenções</span>
+              </div>
+            </div>
+            <div class="card-body table-responsive">
+              <table id="tabelaManutencoes">
+                <thead>
+                  <tr>
+                    <th><i class="fas fa-calendar"></i> Data</th>
+                    <th><i class="fas fa-truck"></i> Veículo</th>
+                    <th><i class="fas fa-cog"></i> Tipo</th>
+                    <th><i class="fas fa-sticky-note"></i> Descrição</th>
+                    <th><i class="fas fa-money-bill-wave"></i> Custo</th>
+                    <th><i class="fas fa-calendar-check"></i> Garantia</th>
+                    <th><i class="fas fa-file-pdf"></i> Relatório</th>
+                    <th><i class="fas fa-cogs"></i> Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaManutencoesBody">
+                  <!-- Dados carregados via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Aba: Programadas -->
+        <div class="tab-content" id="programadas">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-calendar-alt"></i> Manutenções Programadas</h2>
+              <span class="badge badge-warning" id="totalProgramadas">0 programadas</span>
+            </div>
+            <div class="card-body">
+              <div class="programadas-container" id="programadasContainer">
+                <!-- Programadas carregadas via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div> <!-- Fim do page-container -->
+      
+    </main> <!-- Fim do main-content -->
+    
+  </div> <!-- Fim do container -->
+  
+  <!-- Modals -->
+  
+  <!-- Modal Troca de Óleo -->
+  <div id="modalTrocaOleo" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-oil-can"></i> Nova Troca de Óleo</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formTrocaOleo">
+          <div class="form-group">
+            <label for="veiculoOleo"><i class="fas fa-truck"></i> Veículo *</label>
+            <select id="veiculoOleo" required>
+              <option value="">Selecione...</option>
+            </select>
+            <div class="vehicle-info" id="infoVeiculoOleo" style="display: none;">
+              <small>KM Atual: <span id="kmAtualVeiculo">0</span></small>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="dataTrocaOleo"><i class="fas fa-calendar-alt"></i> Data da Troca *</label>
+            <input type="date" id="dataTrocaOleo" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="kmTrocaOleo"><i class="fas fa-tachometer-alt"></i> KM/Hora da Troca *</label>
+            <input type="number" id="kmTrocaOleo" min="0" required>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="tipoOleo">Tipo de Óleo *</label>
+              <select id="tipoOleo" required>
+                <option value="">Selecione...</option>
+                <option value="mineral">Mineral</option>
+                <option value="sintetico">Sintético</option>
+                <option value="semissintetico">Semissintético</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="marcaOleo">Marca do Óleo</label>
+              <input type="text" id="marcaOleo" placeholder="Ex: Shell Helix">
+            </div>
+            
+            <div class="form-group">
+              <label for="viscosidadeOleo">Viscosidade</label>
+              <input type="text" id="viscosidadeOleo" placeholder="Ex: 5W30">
+            </div>
+            
+            <div class="form-group">
+              <label for="quantidadeOleo">Quantidade (L)</label>
+              <input type="number" id="quantidadeOleo" min="0" step="0.5" placeholder="Ex: 5.0">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="intervaloProximaOleo">Intervalo para Próxima Troca (KM/Horas) *</label>
+            <input type="number" id="intervaloProximaOleo" min="0" required value="10000">
+            <small class="hint">Geralmente 10.000 KM para óleo sintético</small>
+          </div>
+          
+          <div class="form-group">
+            <h4><i class="fas fa-filter"></i> Filtros Trocados</h4>
+            <div class="filtros-grid">
+              <div class="filtro-item">
+                <input type="checkbox" id="filtroOleo" value="filtro_oleo">
+                <label for="filtroOleo">Filtro de Óleo</label>
+                <input type="text" id="modeloFiltroOleo" placeholder="Modelo" class="filtro-modelo">
+              </div>
+              
+              <div class="filtro-item">
+                <input type="checkbox" id="filtroAr" value="filtro_ar">
+                <label for="filtroAr">Filtro de Ar</label>
+                <input type="text" id="modeloFiltroAr" placeholder="Modelo" class="filtro-modelo">
+              </div>
+              
+              <div class="filtro-item">
+                <input type="checkbox" id="filtroCombustivel" value="filtro_combustivel">
+                <label for="filtroCombustivel">Filtro de Combustível</label>
+                <input type="text" id="modeloFiltroCombustivel" placeholder="Modelo" class="filtro-modelo">
+              </div>
+              
+              <div class="filtro-item">
+                <input type="checkbox" id="filtroArCondicionado" value="filtro_ar_condicionado">
+                <label for="filtroArCondicionado">Filtro Ar Cond.</label>
+                <input type="text" id="modeloFiltroArCondicionado" placeholder="Modelo" class="filtro-modelo">
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="observacoesOleo"><i class="fas fa-comment"></i> Observações</label>
+            <textarea id="observacoesOleo" rows="2" placeholder="Observações sobre a troca..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="pdfOleo"><i class="fas fa-file-pdf"></i> Anexar Relatório (PDF)</label>
+            <input type="file" id="pdfOleo" accept=".pdf">
+            <small class="hint">Anexe a nota fiscal ou relatório da troca</small>
+          </div>
+          
+          <div class="form-footer">
+            <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save"></i> Salvar Troca de Óleo
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Manutenção Geral -->
+  <div id="modalManutencaoGeral" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-tools"></i> Nova Manutenção</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formManutencaoGeral">
+          <div class="form-group">
+            <label for="veiculoManutencao"><i class="fas fa-truck"></i> Veículo *</label>
+            <select id="veiculoManutencao" required>
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="tipoManutencao"><i class="fas fa-cog"></i> Tipo de Manutenção *</label>
+            <select id="tipoManutencao" required>
+              <option value="">Selecione...</option>
+              <option value="pneus">Pneus</option>
+              <option value="freios">Freios</option>
+              <option value="suspensao">Suspensão</option>
+              <option value="motor">Motor</option>
+              <option value="bateria">Bateria</option>
+              <option value="eletrica">Elétrica</option>
+              <option value="ar_condicionado">Ar Condicionado</option>
+              <option value="corpo">Funilaria/Pintura</option>
+              <option value="preventiva">Preventiva</option>
+              <option value="corretiva">Corretiva</option>
+              <option value="outros">Outros</option>
+            </select>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="dataManutencao"><i class="fas fa-calendar-alt"></i> Data *</label>
+              <input type="date" id="dataManutencao" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="kmManutencao"><i class="fas fa-tachometer-alt"></i> KM/Hora</label>
+              <input type="number" id="kmManutencao" min="0">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="descricaoManutencao"><i class="fas fa-sticky-note"></i> Descrição *</label>
+            <textarea id="descricaoManutencao" rows="3" required 
+                      placeholder="Descreva o serviço realizado ou peças trocadas..."></textarea>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="custoManutencao"><i class="fas fa-money-bill-wave"></i> Custo (R$)</label>
+              <input type="number" id="custoManutencao" min="0" step="0.01" placeholder="0,00">
+            </div>
+            
+            <div class="form-group">
+              <label for="fornecedorManutencao"><i class="fas fa-store"></i> Oficina/Fornecedor</label>
+              <input type="text" id="fornecedorManutencao" placeholder="Nome da oficina">
+            </div>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="garantiaManutencao">Garantia (meses)</label>
+              <input type="number" id="garantiaManutencao" min="0" placeholder="Ex: 12">
+            </div>
+            
+            <div class="form-group">
+              <label for="dataGarantia">Data Final Garantia</label>
+              <input type="date" id="dataGarantia" readonly>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="observacoesManutencao"><i class="fas fa-comment"></i> Observações</label>
+            <textarea id="observacoesManutencao" rows="2" placeholder="Observações adicionais..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="pdfManutencao"><i class="fas fa-file-pdf"></i> Anexar Relatório (PDF)</label>
+            <input type="file" id="pdfManutencao" accept=".pdf">
+            <small class="hint">Anexe a nota fiscal ou relatório do serviço</small>
+          </div>
+          
+          <div class="form-footer">
+            <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save"></i> Salvar Manutenção
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Detalhes -->
+  <div id="modalDetalhes" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="modalDetalhesTitulo"><i class="fas fa-info-circle"></i> Detalhes</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalDetalhesBody">
+        <!-- Detalhes carregados via JS -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="/milplasticos/js/main.js"></script>
+  <script src="/milplasticos/js/manut.js"></script>
+</body>
+</html>

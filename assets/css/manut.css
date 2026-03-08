@@ -1,0 +1,419 @@
+/* manutencao.css - Estilos para controle de manutenção */
+
+/* ==================== LAYOUT ==================== */
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+/* ==================== ABAS ==================== */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #dee2e6;
+  margin-bottom: 2rem;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  color: #495057;
+  background: #f8f9fa;
+}
+
+.tab-btn.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: #f0f7ff;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ==================== CARD DE ALERTAS ==================== */
+.card-alertas {
+  border-left: 4px solid #ffc107;
+  background: linear-gradient(to right, #fff3cd, #fff);
+  margin-bottom: 2rem;
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-alertas .card-header {
+  background-color: #fff3cd;
+  color: #856404;
+  border-bottom: 1px solid #ffeaa7;
+}
+
+.alertas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.alerta-item {
+  padding: 1rem;
+  border-radius: 8px;
+  background: white;
+  border-left: 4px solid #dc3545;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.alerta-item:hover {
+  transform: translateX(5px);
+}
+
+.alerta-item.warning {
+  border-left-color: #ffc107;
+}
+
+.alerta-item.info {
+  border-left-color: #17a2b8;
+}
+
+.alerta-info {
+  flex: 1;
+}
+
+.alerta-veiculo {
+  font-weight: 600;
+  color: #2d3436;
+  font-size: 1.1rem;
+}
+
+.alerta-descricao {
+  color: #636e72;
+  margin: 0.25rem 0;
+}
+
+.alerta-detalhes {
+  font-size: 0.9rem;
+  color: #74b9ff;
+}
+
+.alerta-acoes {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ==================== TABELAS ==================== */
+.table-responsive {
+  overflow-x: auto;
+}
+
+#tabelaOleo, #tabelaManutencoes {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tabelaOleo th, #tabelaManutencoes th {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+#tabelaOleo td, #tabelaManutencoes td {
+  padding: 1rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+/* ==================== FORMULÁRIOS MODAIS ==================== */
+.modal-content {
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* ==================== FILTROS ==================== */
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.filtro-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.filtro-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.filtro-item label {
+  flex: 1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.filtro-modelo {
+  width: 100px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* ==================== MANUTENÇÕES PROGRAMADAS ==================== */
+.programadas-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.programada-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  transition: all 0.3s;
+}
+
+.programada-card.urgente {
+  border-left: 4px solid #dc3545;
+  background: #fff5f5;
+  animation: pulse 2s infinite;
+}
+
+.programada-card.proximo {
+  border-left: 4px solid #ffc107;
+  background: #fff9db;
+}
+
+.programada-card.normal {
+  border-left: 4px solid #28a745;
+  background: #f4fce3;
+}
+
+.programada-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.programada-veiculo {
+  font-weight: 600;
+  color: #2d3436;
+}
+
+.programada-tipo {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e9ecef;
+}
+
+.programada-detalhes {
+  font-size: 0.9rem;
+  color: #636e72;
+  margin: 0.5rem 0;
+}
+
+.programada-km {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #74b9ff;
+  margin-top: 0.5rem;
+}
+
+.programada-acoes {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ==================== UTILITÁRIOS ==================== */
+.hint {
+  color: #6c757d;
+  font-size: 0.85rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.vehicle-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #6c757d;
+  color: white;
+}
+
+.badge-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.text-warning {
+  color: #ffc107 !important;
+}
+
+.text-success {
+  color: #28a745 !important;
+}
+
+/* ==================== ANIMAÇÕES ==================== */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* ==================== RESPONSIVIDADE ==================== */
+@media (max-width: 768px) {
+  .page-actions {
+    flex-direction: column;
+  }
+  
+  .page-actions button {
+    width: 100%;
+  }
+  
+  .tabs {
+    flex-direction: column;
+  }
+  
+  .tab-btn {
+    justify-content: center;
+  }
+  
+  .filtros-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .programadas-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* ==================== MODAIS ==================== */
+.modal {
+  display: none; /* escondido por padrão */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6); /* fundo escuro */
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+.close-modal {
+  cursor: pointer;
+  font-size: 1.5rem;
+  border: none;
+  background: none;
+}
+.modal {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal[style*="display: flex"] {
+  opacity: 1;
+  pointer-events: auto;
+}

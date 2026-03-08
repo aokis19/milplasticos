@@ -1,0 +1,79 @@
+/* ============================================
+   MAIN.CSS - Estilos GLOBAIS do sistema
+   ============================================ */
+
+/* RESET BÁSICO */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* CONTAINER PRINCIPAL */
+.container {
+  display: flex;
+  min-height: 100vh;
+  padding-top: 60px; /* Espaço para a topbar fixa */
+}
+
+/* CONTEÚDO PRINCIPAL */
+.main-content {
+  flex: 1;
+  padding: 25px;
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - 60px);
+  background: #f8fafc;
+}
+
+/* Quando sidebar está ativa */
+.sidebar.active ~ .main-content {
+  margin-left: 250px;
+  width: calc(100% - 250px);
+}
+
+/* OVERLAY PARA MOBILE */
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+}
+
+.overlay.active {
+  display: block;
+}
+
+/* RESPONSIVIDADE */
+@media (max-width: 991px) {
+  .sidebar.active ~ .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (min-width: 992px) {
+  .sidebar {
+    transform: translateX(0) !important;
+  }
+  
+  .main-content {
+    margin-left: 250px;
+    width: calc(100% - 250px);
+  }
+  
+  .toggle-btn {
+    display: none !important;
+  }
+}
