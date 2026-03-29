@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotação | Mil Plásticos</title>
+
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/milplasticos/assets/css/main.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/topbar.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Bibliotecas para PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* ========== ESTILOS GERAIS ========== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
+
+    /* TABS */
+    .cotacao-tabs { display: flex; gap: 5px; background: white; padding: 10px 20px 0 20px; border-radius: 12px 12px 0 0; margin-bottom: 20px; }
+    .tab-btn { padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-size: 15px; font-weight: 500; color: #666; border-radius: 8px 8px 0 0; transition: all 0.3s; }
+    .tab-btn i { margin-right: 8px; }
+    .tab-btn:hover { background: #f0f0f0; color: #3498db; }
+    .tab-btn.active { background: white; color: #3498db; border-bottom: 3px solid #3498db; }
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* BOTÕES */
+    .btn-primary { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary:hover { background: #2980b9; }
+    .btn-success { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-success:hover { background: #219a52; }
+    .btn-warning { background: #f39c12; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-warning:hover { background: #e67e22; }
+    .btn-secondary { background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+    .btn-small { padding: 6px 12px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-icon { background: none; border: none; color: #3498db; cursor: pointer; padding: 5px 8px; border-radius: 4px; }
+    .btn-icon:hover { background: #f0f0f0; }
+    .btn-icon.delete { color: #e74c3c; }
+
+    /* TABELAS */
+    .table-header { display: grid; grid-template-columns: 0.5fr 2fr 2fr 0.8fr 1fr 1fr 1fr 1.2fr 1fr; background: #2c3e50; color: white; padding: 12px 15px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 13px; }
+    .table-row { display: grid; grid-template-columns: 0.5fr 2fr 2fr 0.8fr 1fr 1fr 1fr 1.2fr 1fr; padding: 12px 15px; border-bottom: 1px solid #e9ecef; align-items: center; background: white; }
+    .table-row:hover { background: #f8f9fa; }
+    .checkbox-column { text-align: center; }
+    .checkbox-column input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .actions { display: flex; gap: 5px; }
+
+    /* MODAL */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
+    .modal-content { background: white; margin: 50px auto; max-width: 800px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .modal-content.comparison-modal { max-width: 1400px; }
+    .modal-header { padding: 20px 25px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2, .modal-header h3 { color: #2c3e50; }
+    .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
+    .modal-footer { padding: 15px 25px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px; }
+    .close-modal { background: none; border: none; font-size: 28px; cursor: pointer; color: #999; }
+    .close-modal:hover { color: #333; }
+
+    /* FORMULÁRIO */
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; }
+    .select-with-button { display: flex; gap: 10px; }
+    .select-with-button select { flex: 1; }
+    .full-width { grid-column: 1 / -1; }
+
+    /* SUMMARY */
+    .summary-preview { background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e9ecef; }
+    .summary-preview h4 { margin-bottom: 10px; color: #2c3e50; }
+    .summary-row { display: flex; justify-content: space-between; padding: 5px 0; }
+    .summary-row.total { border-top: 2px solid #dee2e6; margin-top: 5px; padding-top: 10px; font-weight: bold; font-size: 16px; }
+
+    /* CARDS */
+    .produtos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px 0; }
+    .produto-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .produto-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
+    .produto-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
+    .fornecedores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding: 20px 0; }
+    .fornecedor-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; }
+    .fornecedor-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
+    .fornecedor-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
+    .produtos-list { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; font-size: 12px; color: #666; }
+
+    /* HISTÓRICO */
+    .historico-item { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
+    .historico-item-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+    .historico-produto { font-weight: bold; color: #2c3e50; }
+    .historico-data { color: #666; font-size: 12px; }
+    .historico-detalhes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+    .historico-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
+    .filtro-historico { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .filtro-historico input, .filtro-historico select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+
+    /* COMPARATIVO */
+    .comparativo-container { display: flex; flex-direction: column; gap: 20px; }
+    .comparativo-header-principal { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; color: white; }
+    .produto-info { background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; }
+    .produto-nome { font-size: 24px; font-weight: bold; margin-bottom: 15px; }
+    .produto-detalhes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+    .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .resumo-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; gap: 15px; border-left: 4px solid; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .resumo-card.total { border-left-color: #3498db; }
+    .resumo-card.menor { border-left-color: #27ae60; }
+    .resumo-card.media { border-left-color: #f39c12; }
+    .resumo-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .resumo-icon.total { background: #e3f2fd; color: #1976d2; }
+    .resumo-icon.menor { background: #e8f5e8; color: #388e3c; }
+    .resumo-icon.media { background: #fff3e0; color: #f57c00; }
+    .resumo-label { font-size: 11px; color: #666; }
+    .resumo-value { font-size: 18px; font-weight: bold; }
+    .comparativo-tabela { background: white; border-radius: 10px; overflow-x: auto; }
+    .comparativo-tabela table { width: 100%; border-collapse: collapse; }
+    .comparativo-tabela th { background: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 12px; }
+    .comparativo-tabela td { padding: 10px 12px; border-bottom: 1px solid #e9ecef; font-size: 13px; }
+    .melhor-preco { background: #d4edda !important; }
+    .observacao-rodape { background: #fff3cd; padding: 12px; border-radius: 8px; color: #856404; font-size: 12px; margin-top: 15px; }
+
+    /* CHECKBOX GROUP */
+    .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 6px; background: #f9f9f9; }
+    .checkbox-group label { display: flex; align-items: center; gap: 8px; font-weight: normal; font-size: 13px; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 60px; color: #999; }
+    .empty-state i { font-size: 48px; margin-bottom: 15px; }
+
+    /* LOADING */
+    .pdf-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
+    .pdf-loading-spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* HEADER */
+    .cotacao-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    @media (max-width: 768px) {
+      .table-header, .table-row { grid-template-columns: 0.5fr 1.5fr 1.5fr 0.8fr 1fr 1fr 1fr 1fr 1fr; font-size: 11px; padding: 8px 10px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .modal-content { margin: 20px; width: calc(100% - 40px); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
+
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      <div class="page-container">
+        <!-- Tabs -->
+        <div class="cotacao-tabs">
+          <button class="tab-btn active" data-tab="cotacoes"><i class="fas fa-balance-scale"></i> Cotações Ativas</button>
+          <button class="tab-btn" data-tab="historico"><i class="fas fa-history"></i> Histórico</button>
+          <button class="tab-btn" data-tab="produtos"><i class="fas fa-box"></i> Produtos</button>
+          <button class="tab-btn" data-tab="fornecedores"><i class="fas fa-truck"></i> Fornecedores</button>
+        </div>
+
+        <!-- ABA 1: Cotações Ativas -->
+        <div class="tab-content active" id="cotacoesTab">
+          <div class="cotacao-header">
+            <h1><i class="fas fa-balance-scale"></i> Cotações Ativas</h1>
+            <div class="header-actions">
+              <button class="btn-primary" id="addCotacaoBtn"><i class="fas fa-plus-circle"></i> Nova Cotação</button>
+              <button class="btn-success" id="compararSelecionadosBtn"><i class="fas fa-chart-bar"></i> Comparar Selecionados</button>
+              <button class="btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar Selecionados</button>
+            </div>
+          </div>
+          <div class="table-header">
+            <div class="checkbox-column"><input type="checkbox" id="selecionarTodos"></div>
+            <div>Produto</div><div>Fornecedor</div><div>UF</div><div>Qtd</div><div>Valor Unit.</div><div>Valor Total</div><div>Data Entrega</div><div>Ações</div>
+          </div>
+          <div id="cotacoesContainer"></div>
+          <div id="emptyState" class="empty-state"><i class="fas fa-clipboard-list"></i><h3>Nenhuma cotação ativa</h3><p>Clique em "Nova Cotação" para adicionar.</p></div>
+        </div>
+
+        <!-- ABA 2: Histórico -->
+        <div class="tab-content" id="historicoTab">
+          <div class="cotacao-header">
+            <h1><i class="fas fa-history"></i> Histórico de Compras</h1>
+            <div class="header-actions"><button class="btn-secondary" id="limparHistoricoBtn"><i class="fas fa-trash-alt"></i> Limpar Histórico</button></div>
+          </div>
+          <div class="filtro-historico">
+            <input type="text" id="filtroProduto" placeholder="Filtrar por produto...">
+            <input type="text" id="filtroFornecedor" placeholder="Filtrar por fornecedor...">
+            <select id="filtroPeriodo"><option value="todos">Todos os períodos</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select>
+          </div>
+          <div id="historicoContainer"></div>
+        </div>
+
+        <!-- ABA 3: Produtos -->
+        <div class="tab-content" id="produtosTab">
+          <div class="cotacao-header">
+            <h1><i class="fas fa-box"></i> Produtos</h1>
+            <div class="header-actions"><button class="btn-primary" id="addProdutoBtn"><i class="fas fa-plus-circle"></i> Novo Produto</button></div>
+          </div>
+          <div id="produtosContainer" class="produtos-grid"></div>
+          <div id="emptyProdutos" class="empty-state"><i class="fas fa-box-open"></i><h3>Nenhum produto cadastrado</h3></div>
+        </div>
+
+        <!-- ABA 4: Fornecedores -->
+        <div class="tab-content" id="fornecedoresTab">
+          <div class="cotacao-header">
+            <h1><i class="fas fa-truck"></i> Fornecedores</h1>
+            <div class="header-actions"><button class="btn-primary" id="addFornecedorBtn"><i class="fas fa-plus-circle"></i> Novo Fornecedor</button></div>
+          </div>
+          <div id="fornecedoresContainer" class="fornecedores-grid"></div>
+          <div id="emptyFornecedores" class="empty-state"><i class="fas fa-truck"></i><h3>Nenhum fornecedor cadastrado</h3></div>
+        </div>
+      </div>
+
+      <!-- Modal Cotação -->
+      <div id="cotacaoModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header"><h2 id="modalTitle">Nova Cotação</h2><button class="close-modal" id="closeModal">&times;</button></div>
+          <div class="modal-body">
+            <form id="cotacaoForm">
+              <div class="form-grid">
+                <div class="form-group"><label>Produto *</label><div class="select-with-button"><select id="produtoSelect" required><option value="">Selecione</option></select><button type="button" class="btn-small" id="novoProdutoModalBtn"><i class="fas fa-plus"></i> Novo</button></div></div>
+                <div class="form-group"><label>Fornecedor *</label><div class="select-with-button"><select id="fornecedorSelect" required><option value="">Selecione</option></select><button type="button" class="btn-small" id="novoFornecedorModalBtn"><i class="fas fa-plus"></i> Novo</button></div></div>
+                <div class="form-group"><label>UF *</label><select id="uf"><option value="">Selecione</option><option value="SP">SP</option><option value="RJ">RJ</option><option value="MG">MG</option><option value="RS">RS</option><option value="PR">PR</option><option value="SC">SC</option><option value="BA">BA</option><option value="DF">DF</option><option value="GO">GO</option></select></div>
+                <div class="form-group"><label>Data Cotação *</label><input type="date" id="dataCotacao" required></div>
+                <div class="form-group"><label>Quantidade *</label><input type="number" id="quantidade" step="0.01" required></div>
+                <div class="form-group"><label>Unidade *</label><input type="text" id="unidade" required placeholder="Ex: kg"></div>
+                <div class="form-group"><label>Valor Unitário (R$) *</label><input type="number" id="valorUnitario" step="0.01" required></div>
+                <div class="form-group"><label>ICMS (%) *</label><input type="number" id="icms" step="0.01" value="18"></div>
+                <div class="form-group"><label>Base ICMS (%)</label><input type="number" id="bicms" step="0.01" value="100"></div>
+                <div class="form-group"><label>IPI (%)</label><input type="number" id="ipi" step="0.01" value="0"></div>
+                <div class="form-group"><label>Prazo Pagamento *</label><input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias"></div>
+                <div class="form-group"><label>Frete</label><select id="frete"><option value="">Selecione</option><option value="FOB">FOB</option><option value="CIF">CIF</option></select></div>
+                <div class="form-group"><label>Previsão Entrega *</label><input type="date" id="dataEntrega" required></div>
+                <div class="form-group"><label>Regime Tributário</label><select id="regimeTributario"><option value="">Selecione</option><option value="Lucro Presumido">Lucro Presumido</option><option value="Lucro Real">Lucro Real</option><option value="Simples Nacional">Simples Nacional</option></select></div>
+                <div class="form-group"><label>NCM</label><input type="text" id="ncm" placeholder="Ex: 15161000"></div>
+                <div class="form-group full-width"><label>Observações</label><textarea id="observacoes" rows="2"></textarea></div>
+                <div class="form-group full-width"><label><input type="checkbox" id="salvarHistorico" checked> Salvar no histórico</label></div>
+              </div>
+              <div class="summary-preview">
+                <h4>Resumo da Cotação:</h4>
+                <div class="summary-content">
+                  <div class="summary-row"><span>Valor Bruto:</span><span id="valorBrutoPreview">R$ 0,00</span></div>
+                  <div class="summary-row"><span>ICMS (<span id="icmsPercentPreview">18</span>%):</span><span id="icmsValuePreview">R$ 0,00</span></div>
+                  <div class="summary-row"><span>IPI (<span id="ipiPercentPreview">0</span>%):</span><span id="ipiValuePreview">R$ 0,00</span></div>
+                  <div class="summary-row total"><span>Valor Total:</span><span id="valorTotalPreview">R$ 0,00</span></div>
+                </div>
+              </div>
+              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelBtn">Cancelar</button><button type="button" class="btn-primary" id="saveCotacaoBtn">Salvar</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Produto -->
+      <div id="produtoModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header"><h2 id="produtoModalTitle">Cadastrar Produto</h2><button class="close-modal" id="closeProdutoModal">&times;</button></div>
+          <div class="modal-body">
+            <form id="produtoForm">
+              <div class="form-group"><label>Nome *</label><input type="text" id="nomeProduto" required></div>
+              <div class="form-group"><label>Código</label><input type="text" id="codigoProduto"></div>
+              <div class="form-group"><label>Categoria</label><input type="text" id="categoriaProduto"></div>
+              <div class="form-group"><label>Descrição</label><textarea id="descricaoProduto" rows="2"></textarea></div>
+              <div class="form-group"><label>Unidade Padrão *</label><input type="text" id="unidadePadrao" required></div>
+              <div class="form-group"><label>NCM</label><input type="text" id="ncmProduto"></div>
+              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelProdutoBtn">Cancelar</button><button type="button" class="btn-primary" id="saveProdutoBtn">Salvar</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Fornecedor -->
+      <div id="fornecedorModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header"><h2 id="fornecedorModalTitle">Cadastrar Fornecedor</h2><button class="close-modal" id="closeFornecedorModal">&times;</button></div>
+          <div class="modal-body">
+            <form id="fornecedorForm">
+              <div class="form-group"><label>Nome Empresa *</label><input type="text" id="nomeEmpresa" required></div>
+              <div class="form-group"><label>CNPJ</label><input type="text" id="cnpj"></div>
+              <div class="form-group"><label>Endereço</label><input type="text" id="endereco"></div>
+              <div class="form-group"><label>Vendedor</label><input type="text" id="vendedor"></div>
+              <div class="form-group"><label>Telefone</label><input type="text" id="telefone"></div>
+              <div class="form-group"><label>E-mail</label><input type="email" id="email"></div>
+              <div class="form-group"><label>Produtos fornecidos</label><div id="produtosFornecedorContainer" class="checkbox-group"></div></div>
+              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelFornecedorBtn">Cancelar</button><button type="button" class="btn-primary" id="saveFornecedorBtn">Salvar</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Comparativo -->
+      <div id="comparisonModal" class="modal">
+        <div class="modal-content comparison-modal">
+          <div class="modal-header"><h2><i class="fas fa-chart-bar"></i> Comparativo</h2><div><button class="btn-success" id="exportComparisonPdf"><i class="fas fa-file-pdf"></i> Exportar PDF</button><button class="close-modal" id="closeComparisonModal">&times;</button></div></div>
+          <div class="modal-body"><div id="comparisonForPdf"></div></div>
+          <div class="modal-footer"><button class="btn-secondary" id="closeComparisonBtn">Fechar</button><button class="btn-warning" id="finalizarComparadosBtn"><i class="fas fa-check-circle"></i> Finalizar Selecionados</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+      authDomain: "system-mil.firebaseapp.com",
+      projectId: "system-mil",
+      storageBucket: "system-mil.firebasestorage.app",
+      messagingSenderId: "138426359863",
+      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    window.firebaseDB = db;
+    console.log('🔥 Firebase conectado!');
+  </script>
+
+  <!-- Script principal -->
+  <script src="/milplasticos/js/cotacao.js"></script>
+  <script src="/milplasticos/js/main.js"></script>
+</body>
+</html>

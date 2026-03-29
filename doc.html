@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentos e Licenças | Mil Plásticos</title>
+
+    <!-- CSS Principal -->
+    <link rel="stylesheet" href="/milplasticos/assets/css/main.css">
+    <link rel="stylesheet" href="/milplasticos/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/milplasticos/assets/css/topbar.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ========== ESTILOS GERAIS ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .page-header h1 { font-size: 24px; color: #2c3e50; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* BOTÕES */
+        .btn-primary {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .btn-primary:hover { background: #2980b9; transform: translateY(-1px); }
+        .btn-success {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .btn-success:hover { background: #219a52; transform: translateY(-1px); }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { background: #f0f0f0; }
+        .btn-icon.delete { color: #e74c3c; }
+        .btn-icon.delete:hover { background: #fdeaea; }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            max-width: 800px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
+        .modal-content.large-modal { max-width: 1000px; }
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 { color: #2c3e50; }
+        .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
+        .modal-footer {
+            padding: 15px 25px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.2s;
+        }
+        .close-modal:hover { color: #333; }
+
+        /* FORMULÁRIO */
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #555;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ALERTAS CONFIG INDIVIDUAL */
+        .alertas-config-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .alertas-config-card h4 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .alertas-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        .alerta-level {
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+        }
+        .alerta-level.verde { border-left: 3px solid #28a745; }
+        .alerta-level.amarelo { border-left: 3px solid #ffc107; }
+        .alerta-level.vermelho { border-left: 3px solid #dc3545; }
+        .alerta-level label { font-weight: bold; margin-bottom: 5px; display: block; }
+        .alerta-level input { width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin: 5px 0; }
+        .alerta-level small { font-size: 10px; color: #666; }
+
+        .notificacoes-config {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .notificacoes-config h4 { margin-bottom: 10px; font-size: 14px; color: #2c3e50; }
+        .notificacoes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .notificacao-item { display: flex; align-items: center; gap: 10px; }
+
+        /* DOCUMENTOS GRID */
+        .documentos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+        .documento-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .documento-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+        .documento-card.vencido { border-left: 4px solid #dc3545; background: #fff5f5; }
+        .documento-card.urgente { border-left: 4px solid #ffc107; background: #fffbf0; }
+        .documento-card.atencao { border-left: 4px solid #28a745; background: #f0fff4; }
+
+        .documento-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .documento-categoria {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .documento-categoria.licenca { background: #e3f2fd; color: #1976d2; }
+        .documento-categoria.alvara { background: #e8f5e8; color: #388e3c; }
+        .documento-categoria.certificado { background: #fff3e0; color: #f57c00; }
+        .documento-categoria.seguro { background: #fce4ec; color: #c2185b; }
+        .documento-categoria.veiculo { background: #e0f7fa; color: #00838f; }
+
+        .documento-body { padding: 15px 20px; }
+        .documento-nome { font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+        .documento-descricao { color: #666; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
+        .documento-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; }
+        .documento-validade { display: flex; align-items: center; gap: 5px; }
+        .documento-dias { font-weight: bold; font-size: 14px; }
+        .documento-dias.positivo { color: #28a745; }
+        .documento-dias.negativo { color: #dc3545; }
+        .documento-dias.alerta { color: #ffc107; }
+
+        .documento-preview {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .documento-preview:hover { background: #e9ecef; }
+
+        .documento-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            border-top: 1px solid #e9ecef;
+            padding-top: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-ativo { background: #d4edda; color: #155724; }
+        .status-pendente { background: #fff3cd; color: #856404; }
+        .status-arquivado { background: #e2e3e5; color: #383d41; }
+
+        /* ALERTAS GLOBAIS CONFIG */
+        .alertas-config-global {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .alertas-config-global h3 { font-size: 16px; margin-bottom: 15px; color: #2c3e50; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #999;
+        }
+        .empty-state i { font-size: 48px; margin-bottom: 15px; }
+
+        .details-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .detail-item {
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .detail-item strong {
+            display: block;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .detail-item span { font-size: 14px; color: #333; }
+        .detail-item.full-width { grid-column: 1 / -1; }
+
+        @media (max-width: 768px) {
+            .documentos-grid { grid-template-columns: 1fr; }
+            .alertas-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .notificacoes-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar-container"></div>
+    <div class="container">
+        <div id="sidebar-container"></div>
+        <main class="main-content">
+            <div class="page-container">
+                <div class="page-header">
+                    <h1><i class="fas fa-file-alt"></i> Documentos e Licenças</h1>
+                    <div class="header-actions">
+                        <button class="btn-primary" id="addDocumentoBtn">
+                            <i class="fas fa-plus-circle"></i> Registrar Documento
+                        </button>
+                        <button class="btn-warning" id="configAlertasBtn">
+                            <i class="fas fa-bell"></i> Configurar Alertas Globais
+                        </button>
+                    </div>
+                </div>
+
+                <div id="documentosContainer" class="documentos-grid"></div>
+                <div id="emptyDocumentos" class="empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <h3>Nenhum documento cadastrado</h3>
+                    <p>Clique em "Registrar Documento" para adicionar licenças, certificados ou documentos com validade.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para Configurar Alertas Globais -->
+    <div id="configAlertasModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-bell"></i> Configuração Global de Alertas</h2>
+                <button class="close-modal" id="closeConfigAlertasModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="configAlertasForm">
+                    <div class="alertas-config-global">
+                        <h3><i class="fas fa-envelope"></i> Notificações Padrão</h3>
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> E-mail para Alertas</label>
+                            <input type="email" id="emailAlertas" placeholder="exemplo@empresa.com">
+                            <small>Separe múltiplos e-mails com vírgula</small>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fab fa-whatsapp"></i> WhatsApp para Alertas</label>
+                            <input type="text" id="whatsappAlertas" placeholder="(11) 99999-9999">
+                            <small>Número com DDD para receber alertas</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="cancelConfigAlertasBtn">Cancelar</button>
+                        <button type="button" class="btn-primary" id="saveConfigAlertasBtn">Salvar Configurações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Registrar/Editar Documento -->
+    <div id="documentoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="documentoModalTitle">Registrar Documento</h2>
+                <button class="close-modal" id="closeDocumentoModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="documentoForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nomeDocumento">Nome do Documento *</label>
+                            <input type="text" id="nomeDocumento" required placeholder="Ex: Licença Ambiental, Alvará...">
+                        </div>
+                        <div class="form-group">
+                            <label for="categoriaDocumento">Categoria</label>
+                            <select id="categoriaDocumento">
+                                <option value="">Selecione</option>
+                                <option value="Licença">Licença</option>
+                                <option value="Alvará">Alvará</option>
+                                <option value="Certificado">Certificado</option>
+                                <option value="Seguro">Seguro</option>
+                                <option value="Veículo">Veículo</option>
+                                <option value="Ambiental">Ambiental</option>
+                                <option value="Trabalhista">Trabalhista</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="descricaoDocumento">Descrição</label>
+                        <textarea id="descricaoDocumento" rows="2" placeholder="Detalhes adicionais do documento..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dataValidade">Data de Validade *</label>
+                            <input type="date" id="dataValidade" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="veiculoRelacionado">Veículo Relacionado</label>
+                            <select id="veiculoRelacionado">
+                                <option value="">Nenhum</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="documentoStatus">Status</label>
+                            <select id="documentoStatus">
+                                <option value="Ativo">Ativo</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Arquivado">Arquivado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ALERTAS INDIVIDUAIS DO DOCUMENTO -->
+                    <div class="alertas-config-card">
+                        <h4><i class="fas fa-bell"></i> Configurar Alertas deste Documento</h4>
+                        <div class="alertas-grid">
+                            <div class="alerta-level verde">
+                                <label>🟢 Verde (Atenção)</label>
+                                <input type="number" id="diasVerde" value="150" placeholder="dias antes">
+                                <small>Alerta inicial</small>
+                            </div>
+                            <div class="alerta-level amarelo">
+                                <label>🟡 Amarelo (Urgente)</label>
+                                <input type="number" id="diasAmarelo" value="90" placeholder="dias antes">
+                                <small>Alerta de urgência</small>
+                            </div>
+                            <div class="alerta-level vermelho">
+                                <label>🔴 Vermelho (Vencido)</label>
+                                <input type="number" id="diasVermelho" value="30" placeholder="dias antes">
+                                <small>Alerta de vencimento</small>
+                            </div>
+                        </div>
+                        <div class="notificacoes-config">
+                            <h4><i class="fas fa-bell"></i> Notificações deste Documento</h4>
+                            <div class="notificacoes-grid">
+                                <div class="notificacao-item">
+                                    <input type="checkbox" id="notificarEmail" checked>
+                                    <label>Enviar E-mail</label>
+                                </div>
+                                <div class="notificacao-item">
+                                    <input type="checkbox" id="notificarWhatsapp">
+                                    <label>Enviar WhatsApp</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-file-pdf"></i> Anexar Documento (PDF)</label>
+                        <input type="file" id="anexoDocumento" accept=".pdf">
+                        <small>Arquivos PDF apenas. Máximo 5MB.</small>
+                        <div id="anexoPreview" style="display: none; margin-top: 10px; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+                            <i class="fas fa-file-pdf" style="color: #dc3545;"></i>
+                            <span id="anexoNome"></span>
+                            <button type="button" class="btn-icon" id="removerAnexoBtn"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-footer">
+                        <button type="button" class="btn-secondary" id="cancelDocumentoBtn">Cancelar</button>
+                        <button type="button" class="btn-primary" id="saveDocumentoBtn">Salvar Documento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Visualizar Documento -->
+    <div id="visualizarDocumentoModal" class="modal">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2 id="visualizarDocumentoTitulo">Visualizar Documento</h2>
+                <button class="close-modal" id="closeVisualizarModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="visualizarDocumentoContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="closeVisualizarBtn">Fechar</button>
+                <button class="btn-primary" id="baixarAnexoBtn"><i class="fas fa-download"></i> Baixar Anexo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // ================== FIREBASE CONFIG ==================
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+            authDomain: "system-mil.firebaseapp.com",
+            projectId: "system-mil",
+            storageBucket: "system-mil.firebasestorage.app",
+            messagingSenderId: "138426359863",
+            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        window.firebaseDB = db;
+        console.log('🔥 Firebase conectado!');
+
+        // ================== DADOS GLOBAIS ==================
+        let documentos = [];
+        let veiculos = [];
+        let editingDocId = null;
+        let alertasGlobalConfig = {
+            email: '',
+            whatsapp: ''
+        };
+
+        // ================== UTILITÁRIOS ==================
+        function formatarData(dataStr) {
+            if (!dataStr) return '';
+            try {
+                const d = new Date(dataStr);
+                return d.toLocaleDateString('pt-BR');
+            } catch {
+                return dataStr;
+            }
+        }
+
+        function gerarId() { return Date.now(); }
+
+        function calcularDiasRestantes(dataValidade) {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const validade = new Date(dataValidade);
+            validade.setHours(0, 0, 0, 0);
+            const diffTime = validade - hoje;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        function getStatusDocumento(diasRestantes, alertas) {
+            if (diasRestantes < 0) return { status: 'vencido', classe: 'vencido', texto: 'VENCIDO', cor: '#dc3545' };
+            if (diasRestantes <= (alertas.diasVermelho || 30)) return { status: 'urgente', classe: 'urgente', texto: 'URGENTE', cor: '#dc3545' };
+            if (diasRestantes <= (alertas.diasAmarelo || 90)) return { status: 'atencao', classe: 'atencao', texto: 'ATENÇÃO', cor: '#ffc107' };
+            if (diasRestantes <= (alertas.diasVerde || 150)) return { status: 'alerta', classe: 'atencao', texto: 'ALERTA', cor: '#28a745' };
+            return { status: 'ok', classe: '', texto: 'OK', cor: '#28a745' };
+        }
+
+        function formatarDias(dias) {
+            if (dias < 0) return `Vencido há ${Math.abs(dias)} dias`;
+            if (dias === 0) return `Vence hoje!`;
+            if (dias === 1) return `Vence amanhã`;
+            return `Vence em ${dias} dias`;
+        }
+
+        // ================== FIREBASE CRUD ==================
+        async function carregarDocumentosFirebase() {
+            if (!window.firebaseDB) {
+                carregarDocumentosLocal();
+                return;
+            }
+            try {
+                const snapshot = await window.firebaseDB.collection('documentos').orderBy('dataValidade', 'asc').get();
+                documentos = [];
+                snapshot.forEach(doc => {
+                    documentos.push({ firebaseId: doc.id, ...doc.data() });
+                });
+                salvarDocumentosLocal();
+                console.log(`✅ ${documentos.length} documentos carregados do Firebase`);
+            } catch (error) {
+                console.error('Erro Firebase:', error);
+                carregarDocumentosLocal();
+            }
+        }
+
+        function carregarDocumentosLocal() {
+            documentos = JSON.parse(localStorage.getItem('documentos')) || [];
+            console.log(`💾 ${documentos.length} documentos do localStorage`);
+        }
+
+        function salvarDocumentosLocal() {
+            localStorage.setItem('documentos', JSON.stringify(documentos));
+        }
+
+        async function salvarDocumentoFirebase(doc) {
+            if (!window.firebaseDB) return null;
+            try {
+                const { firebaseId, ...dados } = doc;
+                if (doc.firebaseId) {
+                    await window.firebaseDB.collection('documentos').doc(doc.firebaseId).update(dados);
+                    return doc.firebaseId;
+                } else {
+                    const docRef = await window.firebaseDB.collection('documentos').add(dados);
+                    return docRef.id;
+                }
+            } catch (error) {
+                console.error('Erro Firebase:', error);
+                return null;
+            }
+        }
+
+        async function excluirDocumentoFirebase(id) {
+            const doc = documentos.find(d => d.id == id);
+            if (doc && doc.firebaseId && window.firebaseDB) {
+                await window.firebaseDB.collection('documentos').doc(doc.firebaseId).delete();
+            }
+        }
+
+        // ================== CONFIG GLOBAL ==================
+        function carregarConfigGlobal() {
+            const config = localStorage.getItem('alertasGlobalConfig');
+            if (config) alertasGlobalConfig = JSON.parse(config);
+            else salvarConfigGlobal();
+        }
+
+        function salvarConfigGlobal() {
+            localStorage.setItem('alertasGlobalConfig', JSON.stringify(alertasGlobalConfig));
+        }
+
+        // ================== VEÍCULOS ==================
+        function carregarVeiculos() {
+            const veiculosSalvos = localStorage.getItem('veiculos');
+            if (veiculosSalvos) {
+                veiculos = JSON.parse(veiculosSalvos);
+            }
+            atualizarSelectVeiculos();
+        }
+
+        function atualizarSelectVeiculos() {
+            const select = document.getElementById('veiculoRelacionado');
+            if (!select) return;
+            select.innerHTML = '<option value="">Nenhum</option>';
+            veiculos.forEach(v => {
+                select.innerHTML += `<option value="${v.placa}">${v.placa} - ${v.nome || v.modelo}</option>`;
+            });
+        }
+
+        // ================== RENDERIZAÇÃO ==================
+        function renderDocumentos() {
+            const container = document.getElementById('documentosContainer');
+            const empty = document.getElementById('emptyDocumentos');
+            if (!container) return;
+
+            if (documentos.length === 0) {
+                container.innerHTML = '';
+                if (empty) empty.style.display = 'flex';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+
+            container.innerHTML = documentos.map(doc => {
+                const alertas = doc.alertas || { diasVerde: 150, diasAmarelo: 90, diasVermelho: 30 };
+                const diasRestantes = calcularDiasRestantes(doc.dataValidade);
+                const status = getStatusDocumento(diasRestantes, alertas);
+                const categoriaClass = (doc.categoria || 'outro').toLowerCase();
+
+                return `
+                    <div class="documento-card ${status.classe}" data-id="${doc.id}">
+                        <div class="documento-header">
+                            <span class="documento-categoria ${categoriaClass}">${doc.categoria || 'Documento'}</span>
+                            <span class="status-badge status-${doc.status?.toLowerCase() || 'ativo'}">${doc.status || 'Ativo'}</span>
+                        </div>
+                        <div class="documento-body">
+                            <div class="documento-nome">${escapeHtml(doc.nome)}</div>
+                            ${doc.descricao ? `<div class="documento-descricao">${escapeHtml(doc.descricao)}</div>` : ''}
+                            <div class="documento-info">
+                                <div class="documento-validade">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Validade: ${formatarData(doc.dataValidade)}</span>
+                                </div>
+                                <div class="documento-dias ${diasRestantes < 0 ? 'negativo' : (diasRestantes <= alertas.diasVermelho ? 'negativo' : (diasRestantes <= alertas.diasAmarelo ? 'alerta' : 'positivo'))}">
+                                    ${formatarDias(diasRestantes)}
+                                </div>
+                            </div>
+                            ${doc.veiculoRelacionado ? `<div><i class="fas fa-truck"></i> Veículo: ${doc.veiculoRelacionado}</div>` : ''}
+                            ${doc.anexo ? `
+                                <div class="documento-preview" onclick="visualizarDocumento(${doc.id})">
+                                    <div><i class="fas fa-file-pdf" style="color: #dc3545;"></i> ${doc.anexo.nome}</div>
+                                    <i class="fas fa-eye"></i>
+                                </div>
+                            ` : ''}
+                            <div class="documento-actions">
+                                <button class="btn-icon editar-documento" data-id="${doc.id}" title="Editar"><i class="fas fa-edit"></i></button>
+                                <button class="btn-icon delete excluir-documento" data-id="${doc.id}" title="Excluir"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.querySelectorAll('.editar-documento').forEach(btn => {
+                btn.onclick = () => editarDocumento(parseInt(btn.dataset.id));
+            });
+            document.querySelectorAll('.excluir-documento').forEach(btn => {
+                btn.onclick = () => excluirDocumento(parseInt(btn.dataset.id));
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ================== CRUD DOCUMENTOS ==================
+        async function anexarArquivo(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    resolve({
+                        nome: file.name,
+                        tipo: file.type,
+                        tamanho: file.size,
+                        base64: e.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function abrirModalDocumento(doc = null) {
+            editingDocId = doc?.id || null;
+            document.getElementById('documentoModalTitle').textContent = doc ? 'Editar Documento' : 'Registrar Documento';
+
+            document.getElementById('nomeDocumento').value = doc?.nome || '';
+            document.getElementById('descricaoDocumento').value = doc?.descricao || '';
+            document.getElementById('dataValidade').value = doc?.dataValidade || '';
+            document.getElementById('categoriaDocumento').value = doc?.categoria || '';
+            document.getElementById('documentoStatus').value = doc?.status || 'Ativo';
+            document.getElementById('veiculoRelacionado').value = doc?.veiculoRelacionado || '';
+
+            // Carregar alertas individuais
+            const alertas = doc?.alertas || { diasVerde: 150, diasAmarelo: 90, diasVermelho: 30 };
+            document.getElementById('diasVerde').value = alertas.diasVerde;
+            document.getElementById('diasAmarelo').value = alertas.diasAmarelo;
+            document.getElementById('diasVermelho').value = alertas.diasVermelho;
+            document.getElementById('notificarEmail').checked = doc?.notificarEmail !== false;
+            document.getElementById('notificarWhatsapp').checked = doc?.notificarWhatsapp || false;
+
+            if (doc?.anexo) {
+                document.getElementById('anexoPreview').style.display = 'flex';
+                document.getElementById('anexoNome').textContent = doc.anexo.nome;
+            } else {
+                document.getElementById('anexoPreview').style.display = 'none';
+            }
+
+            document.getElementById('documentoModal').style.display = 'flex';
+        }
+
+        function fecharModalDocumento() {
+            document.getElementById('documentoModal').style.display = 'none';
+            document.getElementById('documentoForm').reset();
+            document.getElementById('anexoPreview').style.display = 'none';
+            editingDocId = null;
+        }
+
+        async function salvarDocumento() {
+            const nome = document.getElementById('nomeDocumento').value.trim();
+            if (!nome) { alert('Nome do documento é obrigatório'); return; }
+            const dataValidade = document.getElementById('dataValidade').value;
+            if (!dataValidade) { alert('Data de validade é obrigatória'); return; }
+
+            let anexoData = null;
+            const fileInput = document.getElementById('anexoDocumento');
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.type !== 'application/pdf') {
+                    alert('Apenas arquivos PDF são permitidos');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Arquivo muito grande. Máximo 5MB');
+                    return;
+                }
+                anexoData = await anexarArquivo(file);
+            }
+
+            const docData = {
+                id: editingDocId || gerarId(),
+                nome: nome,
+                descricao: document.getElementById('descricaoDocumento').value,
+                dataValidade: dataValidade,
+                categoria: document.getElementById('categoriaDocumento').value,
+                status: document.getElementById('documentoStatus').value,
+                veiculoRelacionado: document.getElementById('veiculoRelacionado').value,
+                alertas: {
+                    diasVerde: parseInt(document.getElementById('diasVerde').value) || 150,
+                    diasAmarelo: parseInt(document.getElementById('diasAmarelo').value) || 90,
+                    diasVermelho: parseInt(document.getElementById('diasVermelho').value) || 30
+                },
+                notificarEmail: document.getElementById('notificarEmail').checked,
+                notificarWhatsapp: document.getElementById('notificarWhatsapp').checked,
+                anexo: anexoData,
+                dataCadastro: new Date().toISOString()
+            };
+
+            if (editingDocId) {
+                const idx = documentos.findIndex(d => d.id === editingDocId);
+                if (idx !== -1) {
+                    if (!anexoData && documentos[idx].anexo) docData.anexo = documentos[idx].anexo;
+                    if (documentos[idx].firebaseId) docData.firebaseId = documentos[idx].firebaseId;
+                    documentos[idx] = docData;
+                }
+            } else {
+                documentos.push(docData);
+            }
+
+            const firebaseId = await salvarDocumentoFirebase(docData);
+            if (firebaseId) {
+                const idx = documentos.findIndex(d => d.id === docData.id);
+                if (idx !== -1) documentos[idx].firebaseId = firebaseId;
+            }
+
+            salvarDocumentosLocal();
+            fecharModalDocumento();
+            renderDocumentos();
+            alert('Documento salvo com sucesso!');
+            verificarAlertasDocumentos();
+        }
+
+        function editarDocumento(id) {
+            const doc = documentos.find(d => d.id === id);
+            if (doc) abrirModalDocumento(doc);
+        }
+
+        async function excluirDocumento(id) {
+            if (confirm('Excluir este documento?')) {
+                await excluirDocumentoFirebase(id);
+                documentos = documentos.filter(d => d.id !== id);
+                salvarDocumentosLocal();
+                renderDocumentos();
+                alert('Documento excluído!');
+            }
+        }
+
+        // ================== VISUALIZAR DOCUMENTO ==================
+        function visualizarDocumento(id) {
+            const doc = documentos.find(d => d.id === id);
+            if (!doc) return;
+
+            document.getElementById('visualizarDocumentoTitulo').textContent = doc.nome;
+
+            let anexoHtml = '';
+            if (doc.anexo && doc.anexo.base64) {
+                anexoHtml = `
+                    <div style="margin-top: 20px;">
+                        <h4>Anexo PDF</h4>
+                        <embed src="${doc.anexo.base64}" type="application/pdf" width="100%" height="500px" style="border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+                `;
+            }
+
+            const html = `
+                <div class="details-container">
+                    <div class="detail-item"><strong>Nome:</strong><span>${escapeHtml(doc.nome)}</span></div>
+                    <div class="detail-item"><strong>Categoria:</strong><span>${doc.categoria || '-'}</span></div>
+                    <div class="detail-item"><strong>Data Validade:</strong><span>${formatarData(doc.dataValidade)}</span></div>
+                    <div class="detail-item"><strong>Status:</strong><span>${doc.status || 'Ativo'}</span></div>
+                    ${doc.veiculoRelacionado ? `<div class="detail-item"><strong>Veículo:</strong><span>${doc.veiculoRelacionado}</span></div>` : ''}
+                    <div class="detail-item"><strong>Alertas:</strong><span>Verde: ${doc.alertas?.diasVerde || 150}d | Amarelo: ${doc.alertas?.diasAmarelo || 90}d | Vermelho: ${doc.alertas?.diasVermelho || 30}d</span></div>
+                    <div class="detail-item"><strong>Notificações:</strong><span>${doc.notificarEmail ? '📧 Email' : ''} ${doc.notificarWhatsapp ? '📱 WhatsApp' : ''}</span></div>
+                    ${doc.descricao ? `<div class="detail-item full-width"><strong>Descrição:</strong><span>${escapeHtml(doc.descricao)}</span></div>` : ''}
+                </div>
+                ${anexoHtml}
+            `;
+
+            document.getElementById('visualizarDocumentoContent').innerHTML = html;
+            document.getElementById('visualizarDocumentoModal').style.display = 'flex';
+
+            const baixarBtn = document.getElementById('baixarAnexoBtn');
+            if (baixarBtn) {
+                baixarBtn.onclick = () => {
+                    if (doc.anexo && doc.anexo.base64) {
+                        const link = document.createElement('a');
+                        link.href = doc.anexo.base64;
+                        link.download = doc.anexo.nome;
+                        link.click();
+                    } else {
+                        alert('Nenhum anexo disponível');
+                    }
+                };
+            }
+        }
+
+        // ================== CONFIG GLOBAL ==================
+        function abrirConfigAlertas() {
+            document.getElementById('emailAlertas').value = alertasGlobalConfig.email || '';
+            document.getElementById('whatsappAlertas').value = alertasGlobalConfig.whatsapp || '';
+            document.getElementById('configAlertasModal').style.display = 'flex';
+        }
+
+        function salvarConfigAlertasGlobal() {
+            alertasGlobalConfig = {
+                email: document.getElementById('emailAlertas').value,
+                whatsapp: document.getElementById('whatsappAlertas').value
+            };
+            salvarConfigGlobal();
+            fecharModalConfigAlertas();
+            alert('Configurações salvas!');
+        }
+
+        function fecharModalConfigAlertas() {
+            document.getElementById('configAlertasModal').style.display = 'none';
+        }
+
+        function verificarAlertasDocumentos() {
+            const hoje = new Date();
+            const alertasGerados = [];
+
+            documentos.forEach(doc => {
+                const validade = new Date(doc.dataValidade);
+                const diasRestantes = Math.ceil((validade - hoje) / (1000 * 60 * 60 * 24));
+                const alertas = doc.alertas || { diasVerde: 150, diasAmarelo: 90, diasVermelho: 30 };
+
+                if (diasRestantes <= alertas.diasVerde && diasRestantes > 0) {
+                    alertasGerados.push({
+                        documento: doc.nome,
+                        dias: diasRestantes,
+                        validade: doc.dataValidade,
+                        nivel: diasRestantes <= alertas.diasVermelho ? 'Vermelho' : (diasRestantes <= alertas.diasAmarelo ? 'Amarelo' : 'Verde'),
+                        notificarEmail: doc.notificarEmail,
+                        notificarWhatsapp: doc.notificarWhatsapp
+                    });
+                } else if (diasRestantes <= 0) {
+                    alertasGerados.push({
+                        documento: doc.nome,
+                        dias: diasRestantes,
+                        validade: doc.dataValidade,
+                        nivel: 'Vencido',
+                        notificarEmail: doc.notificarEmail,
+                        notificarWhatsapp: doc.notificarWhatsapp
+                    });
+                }
+            });
+
+            if (alertasGerados.length > 0) {
+                console.log('🔔 ALERTAS DE DOCUMENTOS:');
+                alertasGerados.forEach(a => {
+                    console.log(`   ${a.nivel} - ${a.documento}: ${formatarDias(a.dias)}`);
+                    if (a.notificarEmail && alertasGlobalConfig.email) {
+                        console.log(`      📧 Enviaria email para ${alertasGlobalConfig.email}`);
+                    }
+                    if (a.notificarWhatsapp && alertasGlobalConfig.whatsapp) {
+                        console.log(`      📱 Enviaria WhatsApp para ${alertasGlobalConfig.whatsapp}`);
+                    }
+                });
+            }
+        }
+
+        // ================== INICIALIZAÇÃO ==================
+        async function init() {
+            console.log('🚀 Inicializando sistema de documentos...');
+            carregarConfigGlobal();
+            carregarVeiculos();
+            await carregarDocumentosFirebase();
+            renderDocumentos();
+            verificarAlertasDocumentos();
+
+            setInterval(verificarAlertasDocumentos, 24 * 60 * 60 * 1000);
+
+            document.getElementById('addDocumentoBtn').onclick = () => abrirModalDocumento();
+            document.getElementById('configAlertasBtn').onclick = () => abrirConfigAlertas();
+            document.getElementById('saveDocumentoBtn').onclick = () => salvarDocumento();
+            document.getElementById('cancelDocumentoBtn').onclick = () => fecharModalDocumento();
+            document.getElementById('closeDocumentoModal').onclick = () => fecharModalDocumento();
+            document.getElementById('saveConfigAlertasBtn').onclick = () => salvarConfigAlertasGlobal();
+            document.getElementById('cancelConfigAlertasBtn').onclick = () => fecharModalConfigAlertas();
+            document.getElementById('closeConfigAlertasModal').onclick = () => fecharModalConfigAlertas();
+            document.getElementById('closeVisualizarModal').onclick = () => document.getElementById('visualizarDocumentoModal').style.display = 'none';
+            document.getElementById('closeVisualizarBtn').onclick = () => document.getElementById('visualizarDocumentoModal').style.display = 'none';
+
+            const anexoInput = document.getElementById('anexoDocumento');
+            if (anexoInput) {
+                anexoInput.onchange = (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        document.getElementById('anexoPreview').style.display = 'flex';
+                        document.getElementById('anexoNome').textContent = file.name;
+                    }
+                };
+            }
+
+            const removerAnexoBtn = document.getElementById('removerAnexoBtn');
+            if (removerAnexoBtn) {
+                removerAnexoBtn.onclick = () => {
+                    document.getElementById('anexoDocumento').value = '';
+                    document.getElementById('anexoPreview').style.display = 'none';
+                };
+            }
+
+            console.log('✅ Sistema de documentos pronto!');
+        }
+
+        window.visualizarDocumento = visualizarDocumento;
+        window.editarDocumento = editarDocumento;
+        window.excluirDocumento = excluirDocumento;
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <script src="/milplasticos/js/main.js"></script>
+</body>
+</html>

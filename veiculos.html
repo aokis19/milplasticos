@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro de Veículos | Mil Plásticos</title>
+
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/milplasticos/assets/css/main.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/topbar.css">
+  <link rel="stylesheet" href="/milplasticos/assets/css/veiculos.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+
+  <div class="container">
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+      <div class="page-container">
+
+        <!-- Cabeçalho -->
+        <div class="page-header">
+          <h1><i class="fas fa-truck"></i> Cadastro de Veículos</h1>
+          <p>Gerencie sua frota de veículos</p>
+          <div class="page-actions">
+            <button class="btn btn-secondary" id="btnExport">
+              <i class="fas fa-file-export"></i> Exportar
+            </button>
+            <button class="btn btn-primary" id="btnRelatorio">
+              <i class="fas fa-chart-bar"></i> Relatório
+            </button>
+          </div>
+        </div>
+
+        <!-- Card do Formulário (mantido como estava) -->
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-plus-circle"></i> Novo Veículo</h2>
+          </div>
+          <div class="card-body">
+            <form id="formVeiculo">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="placaVeiculo">
+                    <i class="fas fa-car"></i> Placa *
+                  </label>
+                  <input type="text" id="placaVeiculo" maxlength="8" placeholder="AAA-0000" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="nomeVeiculo"><i class="fas fa-car-side"></i> Modelo *</label>
+                  <input type="text" id="nomeVeiculo" placeholder="Ex: Ford Ranger" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="renavamVeiculo"><i class="fas fa-id-card"></i> Renavam *</label>
+                  <input type="text" id="renavamVeiculo" maxlength="11" placeholder="00000000000" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="anoVeiculo"><i class="fas fa-calendar-alt"></i> Ano</label>
+                  <input type="number" id="anoVeiculo" min="1900" max="2030" placeholder="2024">
+                </div>
+
+                <div class="form-group">
+                  <label for="corVeiculo"><i class="fas fa-palette"></i> Cor</label>
+                  <input type="text" id="corVeiculo" placeholder="Preto, Branco, etc.">
+                </div>
+
+                <div class="form-group">
+                  <label for="tipoMedidor"><i class="fas fa-tachometer-alt"></i> Medidor *</label>
+                  <select id="tipoMedidor" required>
+                    <option value="">Selecione...</option>
+                    <option value="horas">Hora</option>
+                    <option value="km">Quilômetro (Km)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="combustivelVeiculo"><i class="fas fa-gas-pump"></i> Combustível *</label>
+                  <select id="combustivelVeiculo" required>
+                    <option value="">Selecione...</option>
+                    <option value="Gasolina">Gasolina</option>
+                    <option value="Etanol">Etanol</option>
+                    <option value="Diesel S10">Diesel S10</option>
+                    <option value="Diesel S500">Diesel S500</option>
+                    <option value="Flex">Flex</option>
+                    <option value="Eletrico">Elétrico</option>
+                    <option value="Hibrido">Híbrido</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="statusVeiculo"><i class="fas fa-circle"></i> Status</label>
+                  <select id="statusVeiculo">
+                    <option value="Ativo">Ativo</option>
+                    <option value="Manutenção">Em Manutenção</option>
+                    <option value="Inativo">Inativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-footer">
+                <button type="button" class="btn btn-clear" id="btnLimpar">
+                  <i class="fas fa-broom"></i> Limpar
+                </button>
+                <button type="submit" class="btn btn-success">
+                  <i class="fas fa-save"></i> Cadastrar Veículo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Card da Tabela -->
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-list"></i> Veículos Cadastrados</h2>
+            <div class="table-actions">
+              <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="filterInput" placeholder="Filtrar veículos...">
+              </div>
+              <span class="badge" id="totalVeiculos">0 veículos</span>
+            </div>
+          </div>
+          <div class="card-body table-responsive">
+            <table id="tabelaVeiculos">
+              <thead>
+                <tr>
+                  <th><i class="fas fa-car"></i> Placa</th>
+                  <th><i class="fas fa-car-side"></i> Modelo</th>
+                  <th><i class="fas fa-id-card"></i> Renavam</th>
+                  <th><i class="fas fa-calendar-alt"></i> Ano</th>
+                  <th><i class="fas fa-tachometer-alt"></i> Medidor</th>
+                  <th><i class="fas fa-gas-pump"></i> Combustível</th>
+                  <th><i class="fas fa-circle"></i> Status</th>
+                  <th><i class="fas fa-cogs"></i> Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaVeiculosBody">
+                <!-- Dados via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal de Confirmação (mantido original) -->
+        <div id="confirmModal" class="modal">
+          <div class="modal-content">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h3>
+            <p>Tem certeza que deseja excluir o veículo <strong id="placaExcluir"></strong>?</p>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" id="btnCancelar">Cancelar</button>
+              <button class="btn btn-danger" id="btnConfirmarExcluir">Excluir</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <script src="/milplasticos/js/firebase-init.js"></script>
+
+  <script src="/milplasticos/js/main.js"></script>
+  <script src="/milplasticos/js/veiculos.js"></script>
+</body>
+
+</html>
