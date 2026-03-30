@@ -120,6 +120,17 @@
         .notificacoes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .notificacao-item { display: flex; align-items: center; gap: 10px; }
 
+        /* Contatos específicos do documento */
+        .contatos-especificos {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .contatos-especificos h4 { margin-bottom: 10px; font-size: 14px; color: #2c3e50; }
+        .contatos-especificos small { font-size: 11px; color: #666; display: block; margin-top: 5px; }
+
         /* ORIGENS (EMPRESAS) */
         .empresas-header {
             display: flex;
@@ -203,6 +214,14 @@
         .documento-dias.positivo { color: #28a745; }
         .documento-dias.negativo { color: #dc3545; }
         .documento-dias.alerta { color: #ffc107; }
+        .documento-contatos {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 11px;
+        }
+        .documento-contatos i { margin-right: 3px; }
         .documento-preview { margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
         .documento-preview:hover { background: #e9ecef; }
         .documento-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e9ecef; padding-top: 12px; }
@@ -271,16 +290,16 @@
             <div class="modal-body">
                 <form id="configAlertasForm">
                     <div class="alertas-config-global">
-                        <h3><i class="fas fa-envelope"></i> Notificações Padrão</h3>
+                        <h3><i class="fas fa-envelope"></i> Contatos Globais (Recebem alertas de TODOS os documentos)</h3>
                         <div class="form-group">
-                            <label><i class="fas fa-envelope"></i> E-mail para Alertas</label>
-                            <input type="email" id="emailAlertas" placeholder="exemplo@empresa.com">
+                            <label><i class="fas fa-envelope"></i> E-mails para Alertas</label>
+                            <input type="text" id="emailAlertas" placeholder="exemplo@empresa.com, outro@empresa.com">
                             <small>Separe múltiplos e-mails com vírgula</small>
                         </div>
                         <div class="form-group">
                             <label><i class="fab fa-whatsapp"></i> WhatsApp para Alertas</label>
-                            <input type="text" id="whatsappAlertas" placeholder="(11) 99999-9999">
-                            <small>Número com DDD para receber alertas</small>
+                            <input type="text" id="whatsappAlertas" placeholder="(11) 99999-9999, (11) 88888-8888">
+                            <small>Separe múltiplos números com vírgula</small>
                         </div>
                     </div>
                 </form>
@@ -375,6 +394,21 @@
                         </div>
                     </div>
 
+                    <!-- Contatos Específicos do Documento -->
+                    <div class="contatos-especificos">
+                        <h4><i class="fas fa-users"></i> Contatos Específicos deste Documento</h4>
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> E-mails Específicos</label>
+                            <input type="text" id="emailsEspecificos" placeholder="responsavel@empresa.com, gerente@empresa.com">
+                            <small>Estes e-mails receberão alertas DESTE documento + os contatos globais</small>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fab fa-whatsapp"></i> WhatsApp Específico</label>
+                            <input type="text" id="whatsappEspecifico" placeholder="(11) 99999-9999, (11) 88888-8888">
+                            <small>Estes números receberão alertas DESTE documento + os contatos globais</small>
+                        </div>
+                    </div>
+
                     <div class="alertas-config-card">
                         <h4><i class="fas fa-chart-line"></i> Alertas Personalizados</h4>
                         <div class="alertas-grid">
@@ -395,14 +429,14 @@
                             </div>
                         </div>
                         <div class="notificacoes-config">
-                            <h4>Notificações</h4>
+                            <h4>Habilitar Notificações</h4>
                             <div class="notificacoes-grid">
                                 <div class="notificacao-item">
-                                    <input type="checkbox" id="notificarEmail">
+                                    <input type="checkbox" id="notificarEmail" checked>
                                     <label>Enviar E-mail</label>
                                 </div>
                                 <div class="notificacao-item">
-                                    <input type="checkbox" id="notificarWhatsapp">
+                                    <input type="checkbox" id="notificarWhatsapp" checked>
                                     <label>Enviar WhatsApp</label>
                                 </div>
                             </div>
@@ -461,9 +495,9 @@
         window.firebaseDB = db;
 
         let documentos = [];
-        let empresas = [];  // Lista de empresas/eventos
+        let empresas = [];
         let editingDocId = null;
-        let alertasGlobalConfig = { email: "", whatsapp: "" };
+        let alertasGlobalConfig = { emails: "", whatsapps: "" };
 
         // ========== UTILITARIOS ==========
         function formatarData(dataStr) {
@@ -546,7 +580,6 @@
             }
             if (emptyDoc) emptyDoc.style.display = 'none';
 
-            // Agrupar documentos por origem
             const docsPorEmpresa = {};
             documentos.forEach(doc => {
                 const origem = doc.origem || "Sem Origem";
@@ -567,6 +600,15 @@
                     const diasRestantes = calcularDiasRestantes(doc.dataValidade);
                     const status = getStatusDocumento(diasRestantes, alertas);
                     const categoriaClass = (doc.categoria || 'outro').toLowerCase();
+                    
+                    let contatosHtml = '';
+                    if (doc.emailsEspecificos || doc.whatsappEspecifico) {
+                        contatosHtml = '<div class="documento-contatos"><i class="fas fa-users"></i> Contatos específicos: ';
+                        if (doc.emailsEspecificos) contatosHtml += `<i class="fas fa-envelope"></i> ${escapeHtml(doc.emailsEspecificos.substring(0, 30))}${doc.emailsEspecificos.length > 30 ? '...' : ''} `;
+                        if (doc.whatsappEspecifico) contatosHtml += `<i class="fab fa-whatsapp"></i> ${escapeHtml(doc.whatsappEspecifico.substring(0, 30))}${doc.whatsappEspecifico.length > 30 ? '...' : ''}`;
+                        contatosHtml += '</div>';
+                    }
+                    
                     html += `
                         <div class="documento-card ${status.classe}" data-id="${doc.id}">
                             <div class="documento-header">
@@ -582,6 +624,7 @@
                                     <div class="documento-dias ${diasRestantes < 0 ? 'negativo' : (diasRestantes <= alertas.diasVermelho ? 'negativo' : (diasRestantes <= alertas.diasAmarelo ? 'alerta' : 'positivo'))}">${formatarDias(diasRestantes)}</div>
                                 </div>
                                 ${doc.veiculoRelacionado ? `<div><i class="fas fa-truck"></i> Veículo: ${escapeHtml(doc.veiculoRelacionado)}</div>` : ''}
+                                ${contatosHtml}
                                 ${doc.anexo ? `<div class="documento-preview" onclick="window.visualizarDocumento(${doc.id})"><div><i class="fas fa-file-pdf" style="color: #dc3545;"></i> ${escapeHtml(doc.anexo.nome)}</div><i class="fas fa-eye"></i></div>` : ''}
                                 <div class="documento-actions">
                                     <button class="btn-icon editar-documento" data-id="${doc.id}" title="Editar"><i class="fas fa-edit"></i></button>
@@ -595,7 +638,6 @@
             }
             container.innerHTML = html;
 
-            // Reatribuir eventos
             document.querySelectorAll('.editar-documento').forEach(btn => {
                 btn.onclick = () => editarDocumento(parseInt(btn.dataset.id));
             });
@@ -613,11 +655,13 @@
                 snapshot.forEach(doc => { documentos.push({ firebaseId: doc.id, ...doc.data() }); });
                 salvarDocumentosLocal();
                 renderizarPorEmpresa();
+                verificarAlertasDocumentos();
             } catch (error) { console.error('Erro Firebase:', error); carregarDocumentosLocal(); }
         }
         function carregarDocumentosLocal() {
             documentos = JSON.parse(localStorage.getItem('documentos')) || [];
             renderizarPorEmpresa();
+            verificarAlertasDocumentos();
         }
         function salvarDocumentosLocal() { localStorage.setItem('documentos', JSON.stringify(documentos)); }
         async function salvarDocumentoFirebase(doc) {
@@ -663,6 +707,8 @@
                 categoria: document.getElementById('categoriaDocumento').value,
                 status: document.getElementById('documentoStatus').value,
                 veiculoRelacionado: document.getElementById('veiculoRelacionado').value,
+                emailsEspecificos: document.getElementById('emailsEspecificos').value.trim(),
+                whatsappEspecifico: document.getElementById('whatsappEspecifico').value.trim(),
                 alertas: {
                     diasVerde: parseInt(document.getElementById('diasVerde').value) || 150,
                     diasAmarelo: parseInt(document.getElementById('diasAmarelo').value) || 90,
@@ -687,10 +733,14 @@
             salvarDocumentosLocal();
             fecharModalDocumento();
             renderizarPorEmpresa();
+            verificarAlertasDocumentos();
             alert('Documento salvo com sucesso!');
         }
 
-        function editarDocumento(id) { const doc = documentos.find(d => d.id === id); if (doc) abrirModalDocumento(doc); }
+        function editarDocumento(id) { 
+            const doc = documentos.find(d => d.id === id); 
+            if (doc) abrirModalDocumento(doc); 
+        }
         async function excluirDocumento(id) {
             if (confirm('Excluir este documento?')) {
                 await excluirDocumentoFirebase(id);
@@ -711,6 +761,8 @@
             document.getElementById('categoriaDocumento').value = doc?.categoria || '';
             document.getElementById('documentoStatus').value = doc?.status || 'Ativo';
             document.getElementById('veiculoRelacionado').value = doc?.veiculoRelacionado || '';
+            document.getElementById('emailsEspecificos').value = doc?.emailsEspecificos || '';
+            document.getElementById('whatsappEspecifico').value = doc?.whatsappEspecifico || '';
             const alertas = doc?.alertas || { diasVerde: 150, diasAmarelo: 90, diasVermelho: 30 };
             document.getElementById('diasVerde').value = alertas.diasVerde;
             document.getElementById('diasAmarelo').value = alertas.diasAmarelo;
@@ -724,8 +776,74 @@
         function fecharModalDocumento() { document.getElementById('documentoModal').style.display = 'none'; }
 
         // ========== CONFIG GLOBAL ==========
-        function carregarConfigGlobal(){ const config = localStorage.getItem('alertasGlobalConfig'); if (config) alertasGlobalConfig = JSON.parse(config); else salvarConfigGlobal(); }
-        function salvarConfigGlobal(){ localStorage.setItem('alertasGlobalConfig', JSON.stringify(alertasGlobalConfig)); }
+        function carregarConfigGlobal(){ 
+            const config = localStorage.getItem('alertasGlobalConfig'); 
+            if (config) alertasGlobalConfig = JSON.parse(config); 
+            else salvarConfigGlobal(); 
+        }
+        function salvarConfigGlobal(){ 
+            localStorage.setItem('alertasGlobalConfig', JSON.stringify(alertasGlobalConfig)); 
+        }
+
+        // ========== VERIFICAÇÃO DE ALERTAS ==========
+        function verificarAlertasDocumentos() {
+            const hoje = new Date();
+            const alertasGerados = [];
+            documentos.forEach(doc => {
+                const validade = new Date(doc.dataValidade);
+                const diasRestantes = Math.ceil((validade - hoje) / (1000 * 60 * 60 * 24));
+                const alertas = doc.alertas || { diasVerde: 150, diasAmarelo: 90, diasVermelho: 30 };
+                
+                let nivel = null;
+                if (diasRestantes <= 0) nivel = 'Vencido';
+                else if (diasRestantes <= alertas.diasVermelho) nivel = 'Vermelho (Urgente)';
+                else if (diasRestantes <= alertas.diasAmarelo) nivel = 'Amarelo (Atenção)';
+                else if (diasRestantes <= alertas.diasVerde) nivel = 'Verde (Alerta)';
+                
+                if (nivel && doc.notificarEmail !== false || doc.notificarWhatsapp !== false) {
+                    // Combina contatos globais + específicos
+                    let emailsParaAlertar = [];
+                    let whatsappsParaAlertar = [];
+                    
+                    if (alertasGlobalConfig.emails) {
+                        emailsParaAlertar.push(...alertasGlobalConfig.emails.split(',').map(e => e.trim()).filter(e => e));
+                    }
+                    if (doc.emailsEspecificos) {
+                        emailsParaAlertar.push(...doc.emailsEspecificos.split(',').map(e => e.trim()).filter(e => e));
+                    }
+                    
+                    if (alertasGlobalConfig.whatsapps) {
+                        whatsappsParaAlertar.push(...alertasGlobalConfig.whatsapps.split(',').map(w => w.trim()).filter(w => w));
+                    }
+                    if (doc.whatsappEspecifico) {
+                        whatsappsParaAlertar.push(...doc.whatsappEspecifico.split(',').map(w => w.trim()).filter(w => w));
+                    }
+                    
+                    alertasGerados.push({
+                        documento: doc.nome,
+                        origem: doc.origem,
+                        dias: diasRestantes,
+                        validade: doc.dataValidade,
+                        nivel: nivel,
+                        emails: emailsParaAlertar,
+                        whatsapps: whatsappsParaAlertar,
+                        notificarEmail: doc.notificarEmail !== false && emailsParaAlertar.length > 0,
+                        notificarWhatsapp: doc.notificarWhatsapp !== false && whatsappsParaAlertar.length > 0
+                    });
+                }
+            });
+            
+            if (alertasGerados.length > 0) {
+                console.log('========== ALERTAS DE DOCUMENTOS ==========');
+                alertasGerados.forEach(a => {
+                    console.log(`\n📄 ${a.documento} (${a.origem})`);
+                    console.log(`   Nível: ${a.nivel} | ${formatarDias(a.dias)}`);
+                    if (a.notificarEmail && a.emails.length) console.log(`   ✉️ E-mails: ${a.emails.join(', ')}`);
+                    if (a.notificarWhatsapp && a.whatsapps.length) console.log(`   💬 WhatsApp: ${a.whatsapps.join(', ')}`);
+                });
+                console.log('==========================================');
+            }
+        }
 
         // ========== EVENTOS ==========
         document.addEventListener('DOMContentLoaded', () => {
@@ -737,8 +855,20 @@
             document.getElementById('saveDocumentoBtn').onclick = salvarDocumento;
             document.getElementById('cancelDocumentoBtn').onclick = fecharModalDocumento;
             document.getElementById('closeDocumentoModal').onclick = fecharModalDocumento;
-            document.getElementById('configAlertasBtn').onclick = () => { document.getElementById('emailAlertas').value = alertasGlobalConfig.email; document.getElementById('whatsappAlertas').value = alertasGlobalConfig.whatsapp; document.getElementById('configAlertasModal').style.display = 'flex'; };
-            document.getElementById('saveConfigAlertasBtn').onclick = () => { alertasGlobalConfig = { email: document.getElementById('emailAlertas').value, whatsapp: document.getElementById('whatsappAlertas').value }; salvarConfigGlobal(); document.getElementById('configAlertasModal').style.display = 'none'; alert('Configurações salvas!'); };
+            document.getElementById('configAlertasBtn').onclick = () => { 
+                document.getElementById('emailAlertas').value = alertasGlobalConfig.emails || ''; 
+                document.getElementById('whatsappAlertas').value = alertasGlobalConfig.whatsapps || ''; 
+                document.getElementById('configAlertasModal').style.display = 'flex'; 
+            };
+            document.getElementById('saveConfigAlertasBtn').onclick = () => { 
+                alertasGlobalConfig = { 
+                    emails: document.getElementById('emailAlertas').value, 
+                    whatsapps: document.getElementById('whatsappAlertas').value 
+                }; 
+                salvarConfigGlobal(); 
+                document.getElementById('configAlertasModal').style.display = 'none'; 
+                alert('Configurações salvas! Os contatos globais serão somados aos contatos específicos de cada documento.'); 
+            };
             document.getElementById('cancelConfigAlertasBtn').onclick = () => document.getElementById('configAlertasModal').style.display = 'none';
             document.getElementById('closeConfigAlertasModal').onclick = () => document.getElementById('configAlertasModal').style.display = 'none';
             document.getElementById('addEmpresaBtn').onclick = () => { document.getElementById('nomeEmpresa').value = ''; document.getElementById('empresaModal').style.display = 'flex'; };
@@ -752,10 +882,22 @@
             anexoInput.onchange = (e) => { if(e.target.files.length > 0){ document.getElementById('anexoPreview').style.display = 'flex'; document.getElementById('anexoNome').textContent = e.target.files[0].name; } };
             document.getElementById('removerAnexoBtn').onclick = () => { document.getElementById('anexoDocumento').value = ''; document.getElementById('anexoPreview').style.display = 'none'; };
         });
+        
         window.visualizarDocumento = function(id) {
             const doc = documentos.find(d => d.id === id);
             if (!doc) return;
             document.getElementById('visualizarDocumentoTitulo').textContent = doc.nome;
+            
+            let contatosHtml = '';
+            if (doc.emailsEspecificos || doc.whatsappEspecifico || alertasGlobalConfig.emails || alertasGlobalConfig.whatsapps) {
+                contatosHtml = '<div class="detail-item full-width"><strong>Contatos que receberão alertas:</strong><span>';
+                if (alertasGlobalConfig.emails) contatosHtml += `<br><i class="fas fa-globe"></i> Globais (E-mail): ${escapeHtml(alertasGlobalConfig.emails)}`;
+                if (alertasGlobalConfig.whatsapps) contatosHtml += `<br><i class="fas fa-globe"></i> Globais (WhatsApp): ${escapeHtml(alertasGlobalConfig.whatsapps)}`;
+                if (doc.emailsEspecificos) contatosHtml += `<br><i class="fas fa-file-alt"></i> Específicos (E-mail): ${escapeHtml(doc.emailsEspecificos)}`;
+                if (doc.whatsappEspecifico) contatosHtml += `<br><i class="fas fa-file-alt"></i> Específicos (WhatsApp): ${escapeHtml(doc.whatsappEspecifico)}`;
+                contatosHtml += '</span></div>';
+            }
+            
             let anexoHtml = doc.anexo && doc.anexo.base64 ? `<div style="margin-top:20px;"><h4>Anexo PDF</h4><embed src="${doc.anexo.base64}" type="application/pdf" width="100%" height="500px" style="border:1px solid #ddd; border-radius:8px;"></div>` : '';
             const html = `<div class="details-container">
                 <div class="detail-item"><strong>Nome:</strong><span>${escapeHtml(doc.nome)}</span></div>
@@ -764,6 +906,7 @@
                 <div class="detail-item"><strong>Data Validade:</strong><span>${formatarData(doc.dataValidade)}</span></div>
                 <div class="detail-item"><strong>Status:</strong><span>${doc.status || 'Ativo'}</span></div>
                 ${doc.veiculoRelacionado ? `<div class="detail-item"><strong>Veículo:</strong><span>${doc.veiculoRelacionado}</span></div>` : ''}
+                ${contatosHtml}
                 ${doc.descricao ? `<div class="detail-item full-width"><strong>Descrição:</strong><span>${escapeHtml(doc.descricao)}</span></div>` : ''}
             </div>${anexoHtml}`;
             document.getElementById('visualizarDocumentoContent').innerHTML = html;
