@@ -417,3 +417,13 @@
   opacity: 1;
   pointer-events: auto;
 }
+.status-concluida {
+    background-color: #d4edda;
+    color: #155724;
+    font-weight: normal;
+}
+.status-concluida span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
