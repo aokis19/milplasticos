@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    /* Estilos adicionais para filtros */
+    /* Estilos adicionais */
     .filtros-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -209,7 +209,7 @@
     
   </div> <!-- Fim do container -->
   
-  <!-- Modals -->
+  <!-- Modais -->
   
   <!-- Modal Troca de Óleo -->
   <div id="modalTrocaOleo" class="modal">
@@ -299,7 +299,6 @@
                 <input type="text" id="modeloFiltroArCondicionado" placeholder="Modelo" class="filtro-modelo">
               </div>
               
-              <!-- NOVO: Filtro Hidráulico -->
               <div class="filtro-item">
                 <input type="checkbox" id="filtroHidraulico" value="filtro_hidraulico">
                 <label for="filtroHidraulico">Filtro Hidráulico</label>
@@ -420,29 +419,32 @@
     </div>
   </div>
   
-  <!-- Firebase -->
+  <!-- ========== FIREBASE - CORRIGIDO ========== -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-  <script src="/milplasticos/js/firebase-init.js"></script>
-
-  // ================ FIREBASE CONFIG ================
-        const firebaseConfig = {
-            apiKey: "AlzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-            authDomain: "system-mil.firebaseapp.com",
-            projectId: "system-mil",
-            storageBucket: "system-mil.firebasestorage.app",
-            messagingSenderId: "138426359863",
-            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        window.firebaseDB = db;
-
-        let documentos = [];
-        let empresas = [];
-        let editingDocId = null;
-        let alertasGlobalConfig = { emails: "", whatsapps: "" };
   
+  <script>
+    // Configuração CORRIGIDA do Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",  // CORRIGIDO: AIza (não Alza)
+        authDomain: "system-mil.firebaseapp.com",
+        projectId: "system-mil",
+        storageBucket: "system-mil.firebasestorage.app",
+        messagingSenderId: "138426359863",
+        appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+    };
+    
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // Disponibilizar globalmente
+    window.firebaseDB = db;
+    
+    console.log('🔥 Firebase conectado com sucesso!');
+    console.log('📁 Projeto:', firebaseConfig.projectId);
+  </script>
+  <!-- ========== FIM FIREBASE ========== -->
   
   <!-- Helper para manutenção -->
   <script src="/js/manutencao-helper.js"></script>
