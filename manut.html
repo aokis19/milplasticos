@@ -424,6 +424,25 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <script src="/milplasticos/js/firebase-init.js"></script>
+
+  // ================ FIREBASE CONFIG ================
+        const firebaseConfig = {
+            apiKey: "AlzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+            authDomain: "system-mil.firebaseapp.com",
+            projectId: "system-mil",
+            storageBucket: "system-mil.firebasestorage.app",
+            messagingSenderId: "138426359863",
+            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        window.firebaseDB = db;
+
+        let documentos = [];
+        let empresas = [];
+        let editingDocId = null;
+        let alertasGlobalConfig = { emails: "", whatsapps: "" };
+  
   
   <!-- Helper para manutenção -->
   <script src="/js/manutencao-helper.js"></script>
