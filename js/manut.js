@@ -447,39 +447,78 @@ async function carregarTabelaOleo() {
     const tbody = document.getElementById('tabelaOleoBody');
     if (!tbody) return;
     
+    tbody.innerHTML = '';
+    
     if (trocasOleo.length === 0) {
-        tbody.innerHTML = '发展<td colspan="7" class="text-center">Nenhuma troca de óleo registrada.发展</td></tr>';
+        tbody.innerHTML = `发展<td colspan="7" class="text-center">Nenhuma troca de óleo registrada.发展</table></tr>`;
         document.getElementById('totalTrocasOleo').textContent = '0 trocas';
         return;
     }
     
+    // Ordenar por data (mais recente primeiro)
     trocasOleo.sort((a, b) => new Date(b.data) - new Date(a.data));
     
-    let html = '';
+    let veiculos = [];
+    try {
+        veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
+    } catch (e) {}
+    
+    // IDENTIFICAR A ÚLTIMA TROCA DE CADA VEÍCULO
+    const ultimaTrocaPorVeiculo = {};
+    for (const troca of trocasOleo) {
+        if (!ultimaTrocaPorVeiculo[troca.veiculoPlaca] || 
+            new Date(troca.data) > new Date(ultimaTrocaPorVeiculo[troca.veiculoPlaca].data)) {
+            ultimaTrocaPorVeiculo[troca.veiculoPlaca] = troca;
+        }
+    }
+    
     for (const troca of trocasOleo) {
         const veiculo = veiculos.find(v => v.placa === troca.veiculoPlaca);
         const nomeVeiculo = veiculo ? `${troca.veiculoPlaca} - ${veiculo.nome || veiculo.modelo}` : troca.veiculoPlaca;
         const dataFormatada = new Date(troca.data).toLocaleDateString('pt-BR');
         
-        const kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
-        const proximaKm = troca.kmTroca + troca.intervaloProxima;
-        const kmRestantes = proximaKm - kmAtual;
+        // VERIFICAR SE É A ÚLTIMA TROCA DESTE VEÍCULO
+        const isUltimaTroca = ultimaTrocaPorVeiculo[troca.veiculoPlaca]?.id === troca.id;
         
+        let kmAtual = 0;
+        let proximaKm = 0;
+        let kmRestantes = 0;
         let proximaInfo = '-';
         let statusClass = '';
+        let statusTexto = '';
         
-        if (kmRestantes <= 0) {
-            proximaInfo = `<span class="text-danger">⚠️ VENCIDA há ${Math.abs(kmRestantes).toLocaleString('pt-BR')} KM</span>`;
-            statusClass = 'status-atrasada';
-        } else if (kmRestantes <= 50) {
-            proximaInfo = `<span class="text-warning">⚠️ URGENTE! ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
-            statusClass = 'status-urgente';
-        } else if (kmRestantes <= 100) {
-            proximaInfo = `<span class="text-info">📢 Próxima em ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
-            statusClass = 'status-proximo';
+        if (isUltimaTroca) {
+            // É a última troca - calcular status atual
+            kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
+            proximaKm = troca.kmTroca + troca.intervaloProxima;
+            kmRestantes = proximaKm - kmAtual;
+            
+            console.log(`🔧 ${troca.veiculoPlaca} (Última): Troca=${troca.kmTroca}, Atual=${kmAtual}, Próx=${proximaKm}, Restam=${kmRestantes}`);
+            
+            if (kmRestantes <= 0) {
+                proximaInfo = `<span class="text-danger">⚠️ VENCIDA há ${Math.abs(kmRestantes).toLocaleString('pt-BR')} KM</span>`;
+                statusClass = 'status-atrasada';
+                statusTexto = 'Vencida';
+            } else if (kmRestantes <= 50) {
+                proximaInfo = `<span class="text-warning">⚠️ URGENTE! ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
+                statusClass = 'status-urgente';
+                statusTexto = 'Urgente';
+            } else if (kmRestantes <= 100) {
+                proximaInfo = `<span class="text-info">📢 Próxima em ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
+                statusClass = 'status-proximo';
+                statusTexto = 'Próximo';
+            } else {
+                proximaInfo = `<span class="text-success">✅ ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
+                statusClass = 'status-ok';
+                statusTexto = 'OK';
+            }
         } else {
-            proximaInfo = `<span class="text-success">✅ ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
-            statusClass = 'status-ok';
+            // É uma troca antiga (histórico) - mostrar como CONCLUÍDA
+            proximaInfo = `<span class="text-success" style="background-color: #d4edda; padding: 4px 8px; border-radius: 4px;">
+                              <i class="fas fa-check-circle"></i> Troca Realizada
+                           </span>`;
+            statusClass = 'status-concluida';
+            statusTexto = 'Concluída';
         }
         
         const filtrosInfo = troca.filtros?.length > 0 
@@ -492,26 +531,69 @@ async function carregarTabelaOleo() {
             }).join(', ')
             : '-';
         
-        html += `
-            <tr>
-                <td>${dataFormatada}</td>
-                <td><strong>${nomeVeiculo}</strong></td>
-                <td>${troca.kmTroca.toLocaleString('pt-BR')}</td>
-                <td>${troca.tipoOleo}${troca.marcaOleo ? ` - ${troca.marcaOleo}` : ''}</td>
-                <td>${filtrosInfo}</td>
-                <td class="${statusClass}">${proximaInfo}</td>
-                <td class="actions">
-                    <button class="btn-icon btn-edit" onclick="editarTrocaOleo(${troca.id})" title="Editar"><i class="fas fa-edit"></i></button>
-                    <button class="btn-icon btn-delete" onclick="excluirTrocaOleo(${troca.id})" title="Excluir"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
+        // Adicionar badge de "Última Troca" se for a mais recente
+        const ultimaBadge = isUltimaTroca ? '<span style="background-color: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px;">ATUAL</span>' : '';
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${dataFormatada}${ultimaBadge}</td>
+            <td><strong>${nomeVeiculo}</strong></td>
+            <td>${troca.kmTroca.toLocaleString('pt-BR')}</td>
+            <td>${troca.tipoOleo}${troca.marcaOleo ? ` - ${troca.marcaOleo}` : ''}</td>
+            <td>${filtrosInfo}</td>
+            <td class="${statusClass}">${proximaInfo}</td>
+            <td class="actions">
+                <button class="btn-icon btn-info" onclick="verDetalhesTroca(${troca.id})" title="Ver detalhes">
+                    <i class="fas fa-eye"></i>
+                </button>
+                ${!isUltimaTroca ? `
+                <button class="btn-icon btn-success" onclick="copiarTrocaComoNova(${troca.id})" title="Usar como base para nova troca">
+                    <i class="fas fa-copy"></i>
+                </button>
+                ` : `
+                <button class="btn-icon btn-edit" onclick="abrirEdicaoTroca(${JSON.stringify(troca).replace(/"/g, '&quot;')})" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                `}
+                <button class="btn-icon btn-delete" onclick="excluirTrocaOleo(${troca.id})" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
         `;
+        tbody.appendChild(tr);
     }
     
-    tbody.innerHTML = html;
     document.getElementById('totalTrocasOleo').textContent = `${trocasOleo.length} troca${trocasOleo.length !== 1 ? 's' : ''}`;
 }
 
+// FUNÇÃO PARA COPIAR TROCA ANTIGA COMO NOVA (opcional)
+function copiarTrocaComoNova(id) {
+    const trocaAntiga = trocasOleo.find(t => t.id === id);
+    if (!trocaAntiga) return;
+    
+    if (confirm(`Deseja usar a troca de ${trocaAntiga.veiculoPlaca} de ${new Date(trocaAntiga.data).toLocaleDateString('pt-BR')} como base para uma nova troca?`)) {
+        // Preencher o formulário com os dados da troca antiga
+        document.getElementById('veiculoOleo').value = trocaAntiga.veiculoPlaca;
+        document.getElementById('tipoOleo').value = trocaAntiga.tipoOleo;
+        document.getElementById('marcaOleo').value = trocaAntiga.marcaOleo || '';
+        document.getElementById('viscosidadeOleo').value = trocaAntiga.viscosidadeOleo || '';
+        document.getElementById('intervaloProximaOleo').value = trocaAntiga.intervaloProxima;
+        
+        // Data atual para a nova troca
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('dataTrocaOleo').value = hoje;
+        
+        // KM atual do veículo (último abastecimento)
+        const kmAtual = obterKmAtualVeiculo(trocaAntiga.veiculoPlaca);
+        document.getElementById('kmTrocaOleo').value = kmAtual;
+        
+        // Abrir modal
+        document.getElementById('modalTrocaTitulo').innerHTML = '<i class="fas fa-oil-can"></i> Nova Troca de Óleo (baseada em histórico)';
+        abrirModal('modalTrocaOleo');
+        
+        alert(`Campos preenchidos com base na troca anterior. Verifique o KM atual (${kmAtual}) e ajuste se necessário.`);
+    }
+}
 // ================== CARREGAR TABELA DE MANUTENÇÕES ==================
 async function carregarTabelaManutencoes() {
     const tbody = document.getElementById('tabelaManutencoesBody');
