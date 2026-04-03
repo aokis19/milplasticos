@@ -1,11 +1,14 @@
-// manut.js - VERSÃO COMPLETA COM CÁLCULO CORRIGIDO
+// manut.js - VERSÃO COMPLETA CORRIGIDA
 
-// 1. VARIÁVEIS GLOBAIS
+// ================== VARIÁVEIS GLOBAIS ==================
 let trocasOleo = [];
 let manutencoes = [];
 let abastecimentos = [];
+let veiculos = [];
+let editingTrocaId = null;
+let editingManutencaoId = null;
 
-// 2. INICIALIZACAO 
+// ================== INICIALIZAÇÃO ==================
 async function inicializar() {
     console.log('🚀 Inicializando sistema de manutenção...');
     
@@ -25,6 +28,7 @@ async function inicializar() {
     // Escutar atualizações de KM do abastecimento
     window.addEventListener('abastecimentoSalvo', async (event) => {
         console.log('📢 Abastecimento salvo, atualizando manutenções...');
+        await carregarAbastecimentos(); // Recarrega abastecimentos
         await carregarTabelaOleo();
         await carregarProgramadas();
         verificarAlertas();
@@ -67,8 +71,105 @@ function aguardarFirebase() {
     });
 }
 
+// ================== CARREGAR TODOS OS DADOS ==================
 async function carregarTodosDados() {
-    // Carregar trocas de óleo
+    // Carregar veículos primeiro (necessário para selects)
+    await carregarVeiculos();
+    
+    // Carregar abastecimentos (necessário para KM atual)
+    await carregarAbastecimentos();
+    
+    // Carregar trocas e manutenções
+    await carregarTrocas();
+    await carregarManutencoes();
+}
+
+// ================== CARREGAR VEÍCULOS ==================
+async function carregarVeiculos() {
+    try {
+        // Tentar Firebase primeiro
+        if (window.firebaseDB) {
+            const snapshot = await window.firebaseDB.collection('veiculos').get();
+            veiculos = [];
+            snapshot.forEach(doc => {
+                veiculos.push({ firebaseId: doc.id, ...doc.data() });
+            });
+            if (veiculos.length > 0) {
+                console.log(`✅ ${veiculos.length} veículos do Firebase`);
+                localStorage.setItem('veiculos', JSON.stringify(veiculos));
+                atualizarSelectsVeiculos();
+                return;
+            }
+        }
+        
+        // Fallback: localStorage
+        const veiculosSalvos = localStorage.getItem('veiculos');
+        if (veiculosSalvos) {
+            veiculos = JSON.parse(veiculosSalvos);
+            console.log(`💾 ${veiculos.length} veículos do localStorage`);
+        } else {
+            // Dados padrão
+            veiculos = [
+                { id: 1, nome: 'Caminhão Mercedes 1113', placa: 'ABC-1234', tipoMedidor: 'km', combustivel: 'Diesel S10' },
+                { id: 2, nome: 'Empilhadeira Toyota', placa: 'EMP-001', tipoMedidor: 'horas', combustivel: 'Gasolina' },
+                { id: 3, nome: 'Caminhão VW Constellation', placa: 'XYZ-5678', tipoMedidor: 'km', combustivel: 'Diesel S500' }
+            ];
+            console.log(`📝 ${veiculos.length} veículos padrão`);
+            localStorage.setItem('veiculos', JSON.stringify(veiculos));
+        }
+        
+        atualizarSelectsVeiculos();
+        
+    } catch (error) {
+        console.error('Erro ao carregar veículos:', error);
+        veiculos = [];
+    }
+}
+
+function atualizarSelectsVeiculos() {
+    const selectVeiculoOleo = document.getElementById('veiculoOleo');
+    const selectVeiculoManutencao = document.getElementById('veiculoManutencao');
+    
+    const opcoes = '<option value="">Selecione...</option>' + 
+        veiculos.map(v => `<option value="${v.placa}">${v.placa} - ${v.nome || v.modelo} (${v.tipoMedidor || 'km'})</option>`).join('');
+    
+    if (selectVeiculoOleo) selectVeiculoOleo.innerHTML = opcoes;
+    if (selectVeiculoManutencao) selectVeiculoManutencao.innerHTML = opcoes;
+    
+    console.log(`📋 Selects de veículos atualizados com ${veiculos.length} veículos`);
+}
+
+// ================== CARREGAR ABASTECIMENTOS ==================
+async function carregarAbastecimentos() {
+    try {
+        if (window.firebaseDB) {
+            const snapshot = await window.firebaseDB.collection('abastecimentos').orderBy('data', 'desc').get();
+            abastecimentos = [];
+            snapshot.forEach(doc => {
+                abastecimentos.push({ firebaseId: doc.id, ...doc.data() });
+            });
+            if (abastecimentos.length > 0) {
+                console.log(`✅ ${abastecimentos.length} abastecimentos do Firebase`);
+                localStorage.setItem('abastecimentos', JSON.stringify(abastecimentos));
+                return;
+            }
+        }
+        
+        const abastSalvos = localStorage.getItem('abastecimentos');
+        if (abastSalvos) {
+            abastecimentos = JSON.parse(abastSalvos);
+            console.log(`💾 ${abastecimentos.length} abastecimentos do localStorage`);
+        } else {
+            abastecimentos = [];
+        }
+    } catch (error) {
+        console.error('Erro ao carregar abastecimentos:', error);
+        abastecimentos = [];
+    }
+}
+
+// ================== CARREGAR TROCAS ==================
+async function carregarTrocas() {
     if (window.firebaseDB) {
         try {
             const snapshot = await window.firebaseDB.collection('trocasOleo').orderBy('data', 'desc').get();
@@ -77,36 +178,13 @@ async function carregarTodosDados() {
                 trocasOleo.push({ firebaseId: doc.id, ...doc.data() });
             });
             console.log(`✅ ${trocasOleo.length} trocas do Firebase`);
+            localStorage.setItem('trocasOleo', JSON.stringify(trocasOleo));
         } catch (error) {
             console.error('Erro:', error);
             carregarTrocasLocal();
         }
     } else {
         carregarTrocasLocal();
-    }
-    
-    // Carregar manutenções
-    if (window.firebaseDB) {
-        try {
-            const snapshot = await window.firebaseDB.collection('manutencoes').orderBy('data', 'desc').get();
-            manutencoes = [];
-            snapshot.forEach(doc => {
-                manutencoes.push({ firebaseId: doc.id, ...doc.data() });
-            });
-            console.log(`✅ ${manutencoes.length} manutenções do Firebase`);
-        } catch (error) {
-            console.error('Erro:', error);
-            carregarManutencoesLocal();
-        }
-    } else {
-        carregarManutencoesLocal();
-    }
-    
-    // Carregar abastecimentos
-    try {
-        abastecimentos = JSON.parse(localStorage.getItem('abastecimentos')) || [];
-    } catch (e) {
-        abastecimentos = [];
     }
 }
 
@@ -119,6 +197,26 @@ function carregarTrocasLocal() {
     }
 }
 
+// ================== CARREGAR MANUTENÇÕES ==================
+async function carregarManutencoes() {
+    if (window.firebaseDB) {
+        try {
+            const snapshot = await window.firebaseDB.collection('manutencoes').orderBy('data', 'desc').get();
+            manutencoes = [];
+            snapshot.forEach(doc => {
+                manutencoes.push({ firebaseId: doc.id, ...doc.data() });
+            });
+            console.log(`✅ ${manutencoes.length} manutenções do Firebase`);
+            localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
+        } catch (error) {
+            console.error('Erro:', error);
+            carregarManutencoesLocal();
+        }
+    } else {
+        carregarManutencoesLocal();
+    }
+}
+
 function carregarManutencoesLocal() {
     try {
         manutencoes = JSON.parse(localStorage.getItem('manutencoes')) || [];
@@ -128,6 +226,44 @@ function carregarManutencoesLocal() {
     }
 }
 
+// ================== FUNÇÃO: OBTER KM ATUAL ==================
+function obterKmAtualVeiculo(placaVeiculo) {
+    console.log(`🔍 Buscando KM para ${placaVeiculo}`);
+    
+    // 1. KM salvo manualmente
+    const kmSalvo = localStorage.getItem(`km_atual_${placaVeiculo}`);
+    if (kmSalvo) {
+        console.log(`✅ KM manual: ${kmSalvo}`);
+        return parseInt(kmSalvo);
+    }
+    
+    // 2. Último abastecimento por DATA
+    if (abastecimentos && abastecimentos.length > 0) {
+        const abastVeiculo = abastecimentos.filter(a => a.veiculoPlaca === placaVeiculo);
+        
+        if (abastVeiculo.length > 0) {
+            abastVeiculo.sort((a, b) => new Date(b.data) - new Date(a.data));
+            const ultimo = abastVeiculo[0];
+            const km = ultimo.odometro || ultimo.horimetro || 0;
+            console.log(`✅ KM do último abastecimento (${ultimo.data}): ${km}`);
+            return km;
+        }
+    }
+    
+    // 3. Última troca de óleo
+    const trocasVeiculo = trocasOleo.filter(t => t.veiculoPlaca === placaVeiculo);
+    if (trocasVeiculo.length > 0) {
+        trocasVeiculo.sort((a, b) => new Date(b.data) - new Date(a.data));
+        const km = trocasVeiculo[0].kmTroca || 0;
+        console.log(`✅ KM da última troca: ${km}`);
+        return km;
+    }
+    
+    console.log(`⚠️ Nenhum KM encontrado para ${placaVeiculo}`);
+    return 0;
+}
+
+// ================== SALVAR NO FIREBASE ==================
 async function salvarNoFirebase(colecao, dados) {
     if (!window.firebaseDB) return null;
     
@@ -136,7 +272,7 @@ async function salvarNoFirebase(colecao, dados) {
         
         if (dados.firebaseId) {
             await window.firebaseDB.collection(colecao).doc(dados.firebaseId).update(dadosParaSalvar);
-            console.log(`✅ Atualizado no Firebase: ${colecao}/${dados.firebaseId}`);
+            console.log(`✅ Atualizado no Firebase: ${colecao}`);
             return dados.firebaseId;
         } else {
             const docRef = await window.firebaseDB.collection(colecao).add(dadosParaSalvar);
@@ -149,54 +285,7 @@ async function salvarNoFirebase(colecao, dados) {
     }
 }
 
-// ========== FUNÇÃO CORRIGIDA ==========
-// Busca o KM/Hora do ÚLTIMO ABASTECIMENTO por DATA
-function obterKmAtualVeiculo(placaVeiculo) {
-    console.log(`🔍 Buscando KM atual para veículo: ${placaVeiculo}`);
-    
-    // 1. Buscar no localStorage de KM salvo manualmente
-    const kmSalvo = localStorage.getItem(`km_atual_${placaVeiculo}`);
-    if (kmSalvo) {
-        console.log(`✅ KM manual encontrado: ${kmSalvo}`);
-        return parseInt(kmSalvo);
-    }
-    
-    // 2. Buscar no ÚLTIMO ABASTECIMENTO por DATA (CORRETO)
-    if (abastecimentos && abastecimentos.length > 0) {
-        // Filtrar abastecimentos do veículo
-        const abastVeiculo = abastecimentos.filter(a => a.veiculoPlaca === placaVeiculo);
-        
-        console.log(`📊 Abastecimentos encontrados para ${placaVeiculo}: ${abastVeiculo.length}`);
-        
-        if (abastVeiculo.length > 0) {
-            // ORDENAR POR DATA (mais recente primeiro)
-            abastVeiculo.sort((a, b) => new Date(b.data) - new Date(a.data));
-            const ultimo = abastVeiculo[0];
-            
-            // Buscar o KM/Hora (odometro para KM, horimetro para Horas)
-            const km = ultimo.odometro || ultimo.horimetro || ultimo.kmAtual || 0;
-            
-            console.log(`✅ KM do último abastecimento (${ultimo.data}): ${km}`);
-            console.log(`   Detalhes:`, { odometro: ultimo.odometro, horimetro: ultimo.horimetro });
-            
-            return km;
-        }
-    }
-    
-    // 3. Buscar na última troca de óleo
-    const trocasVeiculo = trocasOleo.filter(t => t.veiculoPlaca === placaVeiculo);
-    if (trocasVeiculo.length > 0) {
-        trocasVeiculo.sort((a, b) => new Date(b.data) - new Date(a.data));
-        const km = trocasVeiculo[0].kmTroca || 0;
-        console.log(`✅ KM da última troca de óleo: ${km}`);
-        return km;
-    }
-    
-    console.log(`⚠️ Nenhum KM encontrado para ${placaVeiculo}, retornando 0`);
-    return 0;
-}
-
-// 3. SALVAR TROCA DE ÓLEO
+// ================== SALVAR TROCA DE ÓLEO ==================
 async function salvarTrocaOleo(e) {
     e.preventDefault();
     console.log('Salvando troca de óleo...');
@@ -204,16 +293,41 @@ async function salvarTrocaOleo(e) {
     const trocaId = document.getElementById('trocaId').value;
     const isEdicao = trocaId !== '';
     
+    const veiculoPlaca = document.getElementById('veiculoOleo').value;
+    if (!veiculoPlaca) {
+        alert('Selecione um veículo');
+        return;
+    }
+    
+    const veiculo = veiculos.find(v => v.placa === veiculoPlaca);
+    if (!veiculo) {
+        alert('Veículo não encontrado');
+        return;
+    }
+    
+    const kmTroca = parseInt(document.getElementById('kmTrocaOleo').value);
+    if (!kmTroca || kmTroca <= 0) {
+        alert('Informe o KM/Hora da troca');
+        return;
+    }
+    
+    const intervaloProxima = parseInt(document.getElementById('intervaloProximaOleo').value);
+    if (!intervaloProxima || intervaloProxima <= 0) {
+        alert('Informe o intervalo para próxima troca');
+        return;
+    }
+    
     const troca = {
         id: isEdicao ? parseInt(trocaId) : Date.now(),
-        veiculoPlaca: document.getElementById('veiculoOleo').value,
+        veiculoPlaca: veiculoPlaca,
+        veiculoNome: veiculo.nome || veiculo.modelo,
         data: document.getElementById('dataTrocaOleo').value,
-        kmTroca: parseInt(document.getElementById('kmTrocaOleo').value) || 0,
+        kmTroca: kmTroca,
         tipoOleo: document.getElementById('tipoOleo').value,
         marcaOleo: document.getElementById('marcaOleo').value.trim(),
         viscosidadeOleo: document.getElementById('viscosidadeOleo').value.trim(),
         quantidadeOleo: parseFloat(document.getElementById('quantidadeOleo').value) || 0,
-        intervaloProxima: parseInt(document.getElementById('intervaloProximaOleo').value) || 10000,
+        intervaloProxima: intervaloProxima,
         observacoes: document.getElementById('observacoesOleo').value.trim(),
         dataRegistro: new Date().toISOString(),
         filtros: []
@@ -229,7 +343,7 @@ async function salvarTrocaOleo(e) {
     ];
     
     filtrosConfig.forEach(f => {
-        if (document.getElementById(f.id).checked) {
+        if (document.getElementById(f.id)?.checked) {
             troca.filtros.push({
                 tipo: f.nome,
                 modelo: document.getElementById(f.modeloId).value.trim()
@@ -237,18 +351,10 @@ async function salvarTrocaOleo(e) {
         }
     });
     
-    // Validações
-    if (!troca.veiculoPlaca) { alert('Selecione um veículo'); return; }
-    if (troca.kmTroca <= 0) { alert('Informe o KM/Hora da troca'); return; }
-    if (!troca.tipoOleo) { alert('Selecione o tipo de óleo'); return; }
-    if (troca.intervaloProxima <= 0) { alert('Informe o intervalo para próxima troca'); return; }
-    
-    // Se for edição, manter o firebaseId existente
+    // Se for edição, manter firebaseId
     if (isEdicao) {
-        const trocaExistente = trocasOleo.find(t => t.id === troca.id);
-        if (trocaExistente && trocaExistente.firebaseId) {
-            troca.firebaseId = trocaExistente.firebaseId;
-        }
+        const existente = trocasOleo.find(t => t.id === troca.id);
+        if (existente?.firebaseId) troca.firebaseId = existente.firebaseId;
     }
     
     // Salvar no Firebase
@@ -258,79 +364,26 @@ async function salvarTrocaOleo(e) {
     // Atualizar array local
     if (isEdicao) {
         const index = trocasOleo.findIndex(t => t.id === troca.id);
-        if (index !== -1) {
-            trocasOleo[index] = troca;
-        }
+        if (index !== -1) trocasOleo[index] = troca;
     } else {
         trocasOleo.push(troca);
     }
     
     localStorage.setItem('trocasOleo', JSON.stringify(trocasOleo));
     
-    console.log(isEdicao ? 'Troca atualizada:' : 'Troca salva:', troca);
-    alert(isEdicao ? 'Troca de óleo atualizada com sucesso!' : 'Troca de óleo registrada com sucesso!');
+    alert(isEdicao ? 'Troca atualizada!' : 'Troca registrada!');
     
-    limparFormTrocaOleo();
-    fecharModais();
+    // Limpar e fechar
+    document.getElementById('formTrocaOleo').reset();
+    document.getElementById('trocaId').value = '';
+    document.getElementById('modalTrocaOleo').style.display = 'none';
     
+    // Atualizar interfaces
     await carregarTabelaOleo();
     await carregarProgramadas();
 }
 
-function limparFormTrocaOleo() {
-    document.getElementById('formTrocaOleo').reset();
-    document.getElementById('trocaId').value = '';
-    document.getElementById('dataTrocaOleo').value = new Date().toISOString().split('T')[0];
-    document.getElementById('intervaloProximaOleo').value = 10000;
-    document.getElementById('modalTrocaTitulo').innerHTML = '<i class="fas fa-oil-can"></i> Nova Troca de Óleo';
-}
-
-function abrirEdicaoTroca(troca) {
-    document.getElementById('trocaId').value = troca.id;
-    document.getElementById('veiculoOleo').value = troca.veiculoPlaca;
-    document.getElementById('dataTrocaOleo').value = troca.data;
-    document.getElementById('kmTrocaOleo').value = troca.kmTroca;
-    document.getElementById('tipoOleo').value = troca.tipoOleo;
-    document.getElementById('marcaOleo').value = troca.marcaOleo || '';
-    document.getElementById('viscosidadeOleo').value = troca.viscosidadeOleo || '';
-    document.getElementById('quantidadeOleo').value = troca.quantidadeOleo || '';
-    document.getElementById('intervaloProximaOleo').value = troca.intervaloProxima;
-    document.getElementById('observacoesOleo').value = troca.observacoes || '';
-    
-    const filtrosIds = ['filtroOleo', 'filtroAr', 'filtroCombustivel', 'filtroArCondicionado', 'filtroHidraulico'];
-    filtrosIds.forEach(id => {
-        document.getElementById(id).checked = false;
-        const modeloInput = document.getElementById(`modelo${id.charAt(0).toUpperCase() + id.slice(1)}`);
-        if (modeloInput) modeloInput.value = '';
-    });
-    
-    if (troca.filtros) {
-        troca.filtros.forEach(filtro => {
-            let checkboxId = '';
-            let modeloId = '';
-            
-            switch(filtro.tipo) {
-                case 'filtro_oleo': checkboxId = 'filtroOleo'; modeloId = 'modeloFiltroOleo'; break;
-                case 'filtro_ar': checkboxId = 'filtroAr'; modeloId = 'modeloFiltroAr'; break;
-                case 'filtro_combustivel': checkboxId = 'filtroCombustivel'; modeloId = 'modeloFiltroCombustivel'; break;
-                case 'filtro_ar_condicionado': checkboxId = 'filtroArCondicionado'; modeloId = 'modeloFiltroArCondicionado'; break;
-                case 'filtro_hidraulico': checkboxId = 'filtroHidraulico'; modeloId = 'modeloFiltroHidraulico'; break;
-            }
-            
-            if (checkboxId) {
-                document.getElementById(checkboxId).checked = true;
-                if (filtro.modelo) {
-                    document.getElementById(modeloId).value = filtro.modelo;
-                }
-            }
-        });
-    }
-    
-    document.getElementById('modalTrocaTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Troca de Óleo';
-    abrirModal('modalTrocaOleo');
-}
-
-// 4. SALVAR MANUTENÇÃO GERAL
+// ================== SALVAR MANUTENÇÃO GERAL ==================
 async function salvarManutencaoGeral(e) {
     e.preventDefault();
     console.log('Salvando manutenção...');
@@ -338,9 +391,18 @@ async function salvarManutencaoGeral(e) {
     const manutencaoId = document.getElementById('manutencaoId').value;
     const isEdicao = manutencaoId !== '';
     
+    const veiculoPlaca = document.getElementById('veiculoManutencao').value;
+    if (!veiculoPlaca) {
+        alert('Selecione um veículo');
+        return;
+    }
+    
+    const veiculo = veiculos.find(v => v.placa === veiculoPlaca);
+    
     const manutencao = {
         id: isEdicao ? parseInt(manutencaoId) : Date.now(),
-        veiculoPlaca: document.getElementById('veiculoManutencao').value,
+        veiculoPlaca: veiculoPlaca,
+        veiculoNome: veiculo?.nome || veiculo?.modelo || 'Veículo',
         tipo: document.getElementById('tipoManutencao').value,
         data: document.getElementById('dataManutencao').value,
         km: parseInt(document.getElementById('kmManutencao').value) || 0,
@@ -351,15 +413,12 @@ async function salvarManutencaoGeral(e) {
         dataRegistro: new Date().toISOString()
     };
     
-    if (!manutencao.veiculoPlaca) { alert('Selecione um veículo'); return; }
     if (!manutencao.tipo) { alert('Selecione o tipo de manutenção'); return; }
-    if (!manutencao.descricao) { alert('Informe a descrição da manutenção'); return; }
+    if (!manutencao.descricao) { alert('Informe a descrição'); return; }
     
     if (isEdicao) {
-        const manutExistente = manutencoes.find(m => m.id === manutencao.id);
-        if (manutExistente && manutExistente.firebaseId) {
-            manutencao.firebaseId = manutExistente.firebaseId;
-        }
+        const existente = manutencoes.find(m => m.id === manutencao.id);
+        if (existente?.firebaseId) manutencao.firebaseId = existente.firebaseId;
     }
     
     const firebaseId = await salvarNoFirebase('manutencoes', manutencao);
@@ -374,56 +433,29 @@ async function salvarManutencaoGeral(e) {
     
     localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
     
-    console.log(isEdicao ? 'Manutenção atualizada:' : 'Manutenção salva:', manutencao);
-    alert(isEdicao ? 'Manutenção atualizada com sucesso!' : 'Manutenção registrada com sucesso!');
+    alert(isEdicao ? 'Manutenção atualizada!' : 'Manutenção registrada!');
     
-    limparFormManutencao();
-    fecharModais();
+    document.getElementById('formManutencaoGeral').reset();
+    document.getElementById('manutencaoId').value = '';
+    document.getElementById('modalManutencaoGeral').style.display = 'none';
+    
     await carregarTabelaManutencoes();
 }
 
-function limparFormManutencao() {
-    document.getElementById('formManutencaoGeral').reset();
-    document.getElementById('manutencaoId').value = '';
-    document.getElementById('dataManutencao').value = new Date().toISOString().split('T')[0];
-    document.getElementById('modalManutencaoTitulo').innerHTML = '<i class="fas fa-tools"></i> Nova Manutenção';
-}
-
-function abrirEdicaoManutencao(manutencao) {
-    document.getElementById('manutencaoId').value = manutencao.id;
-    document.getElementById('veiculoManutencao').value = manutencao.veiculoPlaca;
-    document.getElementById('tipoManutencao').value = manutencao.tipo;
-    document.getElementById('dataManutencao').value = manutencao.data;
-    document.getElementById('kmManutencao').value = manutencao.km || '';
-    document.getElementById('descricaoManutencao').value = manutencao.descricao;
-    document.getElementById('custoManutencao').value = manutencao.custo || '';
-    document.getElementById('fornecedorManutencao').value = manutencao.fornecedor || '';
-    document.getElementById('observacoesManutencao').value = manutencao.observacoes || '';
-    
-    document.getElementById('modalManutencaoTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Manutenção';
-    abrirModal('modalManutencaoGeral');
-}
-
-// 5. CARREGAR TABELA DE ÓLEO (COM CÁLCULO CORRIGIDO)
+// ================== CARREGAR TABELA DE ÓLEO ==================
 async function carregarTabelaOleo() {
     const tbody = document.getElementById('tabelaOleoBody');
     if (!tbody) return;
     
-    tbody.innerHTML = '';
-    
     if (trocasOleo.length === 0) {
-        tbody.innerHTML = `发展<td colspan="7" class="text-center">Nenhuma troca de óleo registrada.发展</td></tr>`;
+        tbody.innerHTML = '发展<td colspan="7" class="text-center">Nenhuma troca de óleo registrada.发展</td></tr>';
         document.getElementById('totalTrocasOleo').textContent = '0 trocas';
         return;
     }
     
     trocasOleo.sort((a, b) => new Date(b.data) - new Date(a.data));
     
-    let veiculos = [];
-    try {
-        veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
-    } catch (e) {}
-    
+    let html = '';
     for (const troca of trocasOleo) {
         const veiculo = veiculos.find(v => v.placa === troca.veiculoPlaca);
         const nomeVeiculo = veiculo ? `${troca.veiculoPlaca} - ${veiculo.nome || veiculo.modelo}` : troca.veiculoPlaca;
@@ -431,9 +463,7 @@ async function carregarTabelaOleo() {
         
         const kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
         const proximaKm = troca.kmTroca + troca.intervaloProxima;
-        const kmRestantes = proximaKm - kmAtual; // CORRETO: subtrai atual do próximo
-        
-        console.log(`🔧 ${troca.veiculoPlaca}: Troca=${troca.kmTroca}, Atual=${kmAtual}, Próx=${proximaKm}, Restam=${kmRestantes}`);
+        const kmRestantes = proximaKm - kmAtual;
         
         let proximaInfo = '-';
         let statusClass = '';
@@ -462,48 +492,40 @@ async function carregarTabelaOleo() {
             }).join(', ')
             : '-';
         
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${dataFormatada}</td>
-            <td><strong>${nomeVeiculo}</strong></td>
-            <td>${troca.kmTroca.toLocaleString('pt-BR')}</td>
-            <td>${troca.tipoOleo}${troca.marcaOleo ? ` - ${troca.marcaOleo}` : ''}</td>
-            <td>${filtrosInfo}</td>
-            <td class="${statusClass}">${proximaInfo}</td>
-            <td class="actions">
-                <button class="btn-icon btn-edit" onclick="abrirEdicaoTroca(${JSON.stringify(troca).replace(/"/g, '&quot;')})" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon btn-info" onclick="verDetalhesTroca(${troca.id})" title="Ver detalhes">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-icon btn-delete" onclick="excluirTrocaOleo(${troca.id})" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
+        html += `
+            <tr>
+                <td>${dataFormatada}</td>
+                <td><strong>${nomeVeiculo}</strong></td>
+                <td>${troca.kmTroca.toLocaleString('pt-BR')}</td>
+                <td>${troca.tipoOleo}${troca.marcaOleo ? ` - ${troca.marcaOleo}` : ''}</td>
+                <td>${filtrosInfo}</td>
+                <td class="${statusClass}">${proximaInfo}</td>
+                <td class="actions">
+                    <button class="btn-icon btn-edit" onclick="editarTrocaOleo(${troca.id})" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon btn-delete" onclick="excluirTrocaOleo(${troca.id})" title="Excluir"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
     }
     
+    tbody.innerHTML = html;
     document.getElementById('totalTrocasOleo').textContent = `${trocasOleo.length} troca${trocasOleo.length !== 1 ? 's' : ''}`;
 }
 
-// 6. CARREGAR TABELA DE MANUTENÇÕES
+// ================== CARREGAR TABELA DE MANUTENÇÕES ==================
 async function carregarTabelaManutencoes() {
     const tbody = document.getElementById('tabelaManutencoesBody');
     if (!tbody) return;
     
-    tbody.innerHTML = '';
-    
     if (manutencoes.length === 0) {
-        tbody.innerHTML = `发展<td colspan="6" class="text-center">Nenhuma manutenção registrada.</td></tr>`;
+        tbody.innerHTML = '发展<td colspan="6" class="text-center">Nenhuma manutenção registrada.发展</td></tr>';
         document.getElementById('totalManutencoes').textContent = '0 manutenções';
         return;
     }
     
     manutencoes.sort((a, b) => new Date(b.data) - new Date(a.data));
-    const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
     
+    let html = '';
     for (const manutencao of manutencoes) {
         const veiculo = veiculos.find(v => v.placa === manutencao.veiculoPlaca);
         const nomeVeiculo = veiculo ? `${manutencao.veiculoPlaca} - ${veiculo.nome || veiculo.modelo}` : manutencao.veiculoPlaca;
@@ -517,32 +539,26 @@ async function carregarTabelaManutencoes() {
             'hidraulica': 'Hidráulica', 'outros': 'Outros'
         }[manutencao.tipo] || manutencao.tipo;
         
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${dataFormatada}</td>
-            <td><strong>${nomeVeiculo}</strong></td>
-            <td>${tipoTraduzido}</td>
-            <td>${manutencao.descricao.length > 50 ? manutencao.descricao.substring(0, 50) + '...' : manutencao.descricao}</td>
-            <td>${manutencao.custo > 0 ? manutencao.custo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : '-'}</td>
-            <td class="actions">
-                <button class="btn-icon btn-edit" onclick="abrirEdicaoManutencao(${JSON.stringify(manutencao).replace(/"/g, '&quot;')})" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon btn-info" onclick="verDetalhesManutencao(${manutencao.id})" title="Ver detalhes">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-icon btn-delete" onclick="excluirManutencao(${manutencao.id})" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
+        html += `
+            <tr>
+                <td>${dataFormatada}</td>
+                <td><strong>${nomeVeiculo}</strong></td>
+                <td>${tipoTraduzido}</td>
+                <td>${manutencao.descricao.length > 50 ? manutencao.descricao.substring(0, 50) + '...' : manutencao.descricao}</td>
+                <td>${manutencao.custo > 0 ? manutencao.custo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : '-'}</td>
+                <td class="actions">
+                    <button class="btn-icon btn-edit" onclick="editarManutencao(${manutencao.id})" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon btn-delete" onclick="excluirManutencao(${manutencao.id})" title="Excluir"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(tr);
     }
     
+    tbody.innerHTML = html;
     document.getElementById('totalManutencoes').textContent = `${manutencoes.length} manutenção${manutencoes.length !== 1 ? 'ões' : ''}`;
 }
 
-// 7. CARREGAR PROGRAMADAS (COM CÁLCULO CORRIGIDO)
+// ================== CARREGAR PROGRAMADAS ==================
 async function carregarProgramadas() {
     const container = document.getElementById('programadasContainer');
     if (!container) return;
@@ -555,6 +571,7 @@ async function carregarProgramadas() {
         return;
     }
     
+    // Última troca por veículo
     const trocasPorVeiculo = {};
     trocasOleo.forEach(troca => {
         if (!trocasPorVeiculo[troca.veiculoPlaca] || 
@@ -564,15 +581,12 @@ async function carregarProgramadas() {
     });
     
     const ultimasTrocas = Object.values(trocasPorVeiculo);
-    const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
     const programadas = [];
     
     for (const troca of ultimasTrocas) {
         const kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
         const proximaKm = troca.kmTroca + troca.intervaloProxima;
-        const kmRestantes = proximaKm - kmAtual; // CORRETO
-        
-        console.log(`📅 Programada: ${troca.veiculoPlaca} - Atual=${kmAtual}, Próx=${proximaKm}, Restam=${kmRestantes}`);
+        const kmRestantes = proximaKm - kmAtual;
         
         if (kmRestantes <= 2000) {
             const veiculo = veiculos.find(v => v.placa === troca.veiculoPlaca);
@@ -612,15 +626,9 @@ async function carregarProgramadas() {
                 <span>KM Atual: ${troca.kmAtual.toLocaleString('pt-BR')} KM</span>
             </div>
             <div class="programada-acoes">
-                <button class="btn btn-sm btn-primary" onclick="verDetalhesTroca(${troca.id})">
-                    <i class="fas fa-eye"></i> Detalhes
-                </button>
-                <button class="btn btn-sm btn-warning" onclick="abrirEdicaoTroca(${JSON.stringify(troca).replace(/"/g, '&quot;')})">
-                    <i class="fas fa-edit"></i> Editar
-                </button>
-                <button class="btn btn-sm btn-success" onclick="abrirModal('modalTrocaOleo'); document.getElementById('veiculoOleo').value='${troca.veiculoPlaca}';">
-                    <i class="fas fa-check"></i> Registrar Nova
-                </button>
+                <button class="btn-sm btn-primary" onclick="verDetalhesTroca(${troca.id})">Detalhes</button>
+                <button class="btn-sm btn-warning" onclick="abrirEdicaoTroca(${troca.id})">Editar</button>
+                <button class="btn-sm btn-success" onclick="abrirNovaTroca('${troca.veiculoPlaca}')">Nova Troca</button>
             </div>
         `;
         container.appendChild(card);
@@ -629,44 +637,88 @@ async function carregarProgramadas() {
     document.getElementById('totalProgramadas').textContent = `${programadas.length} programada${programadas.length !== 1 ? 's' : ''}`;
 }
 
-// 8. EXCLUIR TROCA
-window.excluirTrocaOleo = async function(id) {
-    if (!confirm('Tem certeza que deseja excluir esta troca de óleo?')) return;
+// ================== FUNÇÕES DE EDIÇÃO E EXCLUSÃO ==================
+function editarTrocaOleo(id) {
+    const troca = trocasOleo.find(t => t.id === id);
+    if (!troca) return;
+    
+    document.getElementById('trocaId').value = troca.id;
+    document.getElementById('veiculoOleo').value = troca.veiculoPlaca;
+    document.getElementById('dataTrocaOleo').value = troca.data;
+    document.getElementById('kmTrocaOleo').value = troca.kmTroca;
+    document.getElementById('tipoOleo').value = troca.tipoOleo;
+    document.getElementById('marcaOleo').value = troca.marcaOleo || '';
+    document.getElementById('viscosidadeOleo').value = troca.viscosidadeOleo || '';
+    document.getElementById('quantidadeOleo').value = troca.quantidadeOleo || '';
+    document.getElementById('intervaloProximaOleo').value = troca.intervaloProxima;
+    document.getElementById('observacoesOleo').value = troca.observacoes || '';
+    
+    // Limpar e marcar filtros
+    ['filtroOleo', 'filtroAr', 'filtroCombustivel', 'filtroArCondicionado', 'filtroHidraulico'].forEach(id => {
+        document.getElementById(id).checked = false;
+    });
+    
+    if (troca.filtros) {
+        troca.filtros.forEach(f => {
+            const map = {
+                'filtro_oleo': 'filtroOleo',
+                'filtro_ar': 'filtroAr',
+                'filtro_combustivel': 'filtroCombustivel',
+                'filtro_ar_condicionado': 'filtroArCondicionado',
+                'filtro_hidraulico': 'filtroHidraulico'
+            };
+            if (map[f.tipo]) document.getElementById(map[f.tipo]).checked = true;
+        });
+    }
+    
+    document.getElementById('modalTrocaTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Troca de Óleo';
+    document.getElementById('modalTrocaOleo').style.display = 'flex';
+}
+
+function editarManutencao(id) {
+    const manutencao = manutencoes.find(m => m.id === id);
+    if (!manutencao) return;
+    
+    document.getElementById('manutencaoId').value = manutencao.id;
+    document.getElementById('veiculoManutencao').value = manutencao.veiculoPlaca;
+    document.getElementById('tipoManutencao').value = manutencao.tipo;
+    document.getElementById('dataManutencao').value = manutencao.data;
+    document.getElementById('kmManutencao').value = manutencao.km || '';
+    document.getElementById('descricaoManutencao').value = manutencao.descricao;
+    document.getElementById('custoManutencao').value = manutencao.custo || '';
+    document.getElementById('fornecedorManutencao').value = manutencao.fornecedor || '';
+    document.getElementById('observacoesManutencao').value = manutencao.observacoes || '';
+    
+    document.getElementById('modalManutencaoTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Manutenção';
+    document.getElementById('modalManutencaoGeral').style.display = 'flex';
+}
+
+async function excluirTrocaOleo(id) {
+    if (!confirm('Excluir esta troca de óleo?')) return;
     
     const troca = trocasOleo.find(t => t.id === id);
     if (!troca) return;
     
     if (window.firebaseDB && troca.firebaseId) {
-        try {
-            await window.firebaseDB.collection('trocasOleo').doc(troca.firebaseId).delete();
-            console.log('🗑️ Excluído do Firebase');
-        } catch (error) {
-            console.error('Erro:', error);
-        }
+        await window.firebaseDB.collection('trocasOleo').doc(troca.firebaseId).delete();
     }
     
     trocasOleo = trocasOleo.filter(t => t.id !== id);
     localStorage.setItem('trocasOleo', JSON.stringify(trocasOleo));
     
-    alert('Troca de óleo excluída!');
+    alert('Troca excluída!');
     await carregarTabelaOleo();
     await carregarProgramadas();
-};
+}
 
-// 9. EXCLUIR MANUTENÇÃO
-window.excluirManutencao = async function(id) {
-    if (!confirm('Tem certeza que deseja excluir esta manutenção?')) return;
+async function excluirManutencao(id) {
+    if (!confirm('Excluir esta manutenção?')) return;
     
     const manutencao = manutencoes.find(m => m.id === id);
     if (!manutencao) return;
     
     if (window.firebaseDB && manutencao.firebaseId) {
-        try {
-            await window.firebaseDB.collection('manutencoes').doc(manutencao.firebaseId).delete();
-            console.log('🗑️ Excluído do Firebase');
-        } catch (error) {
-            console.error('Erro:', error);
-        }
+        await window.firebaseDB.collection('manutencoes').doc(manutencao.firebaseId).delete();
     }
     
     manutencoes = manutencoes.filter(m => m.id !== id);
@@ -674,9 +726,14 @@ window.excluirManutencao = async function(id) {
     
     alert('Manutenção excluída!');
     await carregarTabelaManutencoes();
-};
+}
 
-// 10. VERIFICAR ALERTAS (COM CÁLCULO CORRIGIDO)
+function abrirNovaTroca(placa) {
+    document.getElementById('veiculoOleo').value = placa;
+    document.getElementById('modalTrocaOleo').style.display = 'flex';
+}
+
+// ================== VERIFICAR ALERTAS ==================
 async function verificarAlertas() {
     const alertas = [];
     
@@ -688,14 +745,10 @@ async function verificarAlertas() {
         }
     });
     
-    const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
-    
     for (const [placa, troca] of Object.entries(trocasPorVeiculo)) {
         const kmAtual = obterKmAtualVeiculo(placa);
         const proximaKm = troca.kmTroca + troca.intervaloProxima;
-        const kmRestantes = proximaKm - kmAtual; // CORRETO
-        
-        console.log(`🔔 Alerta ${placa}: Atual=${kmAtual}, Próx=${proximaKm}, Restam=${kmRestantes}`);
+        const kmRestantes = proximaKm - kmAtual;
         
         const veiculo = veiculos.find(v => v.placa === placa);
         const nomeVeiculo = veiculo ? `${placa} - ${veiculo.nome || veiculo.modelo}` : placa;
@@ -703,19 +756,19 @@ async function verificarAlertas() {
         if (kmRestantes <= 0) {
             alertas.push({
                 tipo: 'urgente',
-                texto: `${nomeVeiculo} - ⚠️ Troca de óleo VENCIDA há ${Math.abs(kmRestantes).toLocaleString('pt-BR')} KM/Horas`,
+                texto: `${nomeVeiculo} - ⚠️ Troca VENCIDA há ${Math.abs(kmRestantes).toLocaleString('pt-BR')} KM`,
                 id: troca.id
             });
         } else if (kmRestantes <= 50) {
             alertas.push({
                 tipo: 'warning',
-                texto: `${nomeVeiculo} - ⚠️ URGENTE! Troca em ${kmRestantes.toLocaleString('pt-BR')} KM/Horas`,
+                texto: `${nomeVeiculo} - ⚠️ URGENTE! Troca em ${kmRestantes.toLocaleString('pt-BR')} KM`,
                 id: troca.id
             });
         } else if (kmRestantes <= 100) {
             alertas.push({
                 tipo: 'info',
-                texto: `${nomeVeiculo} - 📢 Próxima troca em ${kmRestantes.toLocaleString('pt-BR')} KM/Horas`,
+                texto: `${nomeVeiculo} - 📢 Próxima troca em ${kmRestantes.toLocaleString('pt-BR')} KM`,
                 id: troca.id
             });
         }
@@ -745,12 +798,8 @@ function exibirAlertas(alertas) {
                 <div class="alerta-descricao">${alerta.texto}</div>
             </div>
             <div class="alerta-acoes">
-                <button class="btn-icon btn-sm btn-primary" onclick="verDetalhesTroca(${alerta.id})" title="Ver detalhes">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="btn-icon btn-sm btn-warning" onclick="abrirEdicaoTroca(${JSON.stringify(trocasOleo.find(t => t.id === alerta.id)).replace(/"/g, '&quot;')})" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
+                <button class="btn-icon btn-sm" onclick="verDetalhesTroca(${alerta.id})"><i class="fas fa-eye"></i></button>
+                <button class="btn-icon btn-sm" onclick="editarTrocaOleo(${alerta.id})"><i class="fas fa-edit"></i></button>
             </div>
         `;
         container.appendChild(div);
@@ -759,91 +808,120 @@ function exibirAlertas(alertas) {
     card.style.display = 'block';
 }
 
-// 11. FUNÇÕES AUXILIARES
-function preencherVeiculos(idSelect) {
-    const select = document.getElementById(idSelect);
-    if (!select) return;
+// ================== FUNÇÕES DE DETALHES ==================
+function verDetalhesTroca(id) {
+    const troca = trocasOleo.find(t => t.id === id);
+    if (!troca) return;
     
-    try {
-        const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
-        select.innerHTML = '<option value="">Selecione um veículo...</option>';
-        
-        veiculos.forEach(veiculo => {
-            const option = document.createElement('option');
-            option.value = veiculo.placa;
-            option.textContent = `${veiculo.placa} - ${veiculo.nome || veiculo.modelo}`;
-            select.appendChild(option);
-        });
-    } catch (e) {
-        console.error('Erro:', e);
+    const veiculo = veiculos.find(v => v.placa === troca.veiculoPlaca);
+    const kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
+    const proximaKm = troca.kmTroca + troca.intervaloProxima;
+    const kmRestantes = proximaKm - kmAtual;
+    
+    let statusHtml = '';
+    if (kmRestantes <= 0) {
+        statusHtml = `<span class="text-danger">VENCIDA há ${Math.abs(kmRestantes)} KM</span>`;
+    } else if (kmRestantes <= 50) {
+        statusHtml = `<span class="text-warning">URGENTE - ${kmRestantes} KM</span>`;
+    } else {
+        statusHtml = `<span class="text-success">${kmRestantes} KM restantes</span>`;
     }
+    
+    const html = `
+        <h4>Detalhes da Troca de Óleo</h4>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div><strong>Veículo:</strong><br>${veiculo?.nome} (${troca.veiculoPlaca})</div>
+            <div><strong>Data:</strong><br>${new Date(troca.data).toLocaleDateString('pt-BR')}</div>
+            <div><strong>KM da Troca:</strong><br>${troca.kmTroca.toLocaleString('pt-BR')}</div>
+            <div><strong>KM Atual:</strong><br>${kmAtual.toLocaleString('pt-BR')}</div>
+            <div><strong>Tipo de Óleo:</strong><br>${troca.tipoOleo}</div>
+            <div><strong>Marca:</strong><br>${troca.marcaOleo || '-'}</div>
+            <div><strong>Intervalo:</strong><br>${troca.intervaloProxima.toLocaleString('pt-BR')} KM</div>
+            <div><strong>Próxima Troca:</strong><br>${proximaKm.toLocaleString('pt-BR')} KM</div>
+            <div><strong>Status:</strong><br>${statusHtml}</div>
+        </div>
+        <div class="form-actions" style="margin-top:20px;">
+            <button class="btn btn-warning" onclick="editarTrocaOleo(${troca.id}); fecharModais();">Editar</button>
+            <button class="btn btn-danger" onclick="excluirTrocaOleo(${troca.id}); fecharModais();">Excluir</button>
+            <button class="btn btn-secondary" onclick="fecharModais()">Fechar</button>
+        </div>
+    `;
+    
+    document.getElementById('modalDetalhesBody').innerHTML = html;
+    document.getElementById('modalDetalhes').style.display = 'flex';
 }
 
+function verDetalhesManutencao(id) {
+    const manutencao = manutencoes.find(m => m.id === id);
+    if (!manutencao) return;
+    
+    const veiculo = veiculos.find(v => v.placa === manutencao.veiculoPlaca);
+    const tipoTraduzido = {
+        'pneus': 'Pneus', 'freios': 'Freios', 'suspensao': 'Suspensão',
+        'motor': 'Motor', 'bateria': 'Bateria', 'eletrica': 'Elétrica',
+        'ar_condicionado': 'Ar Condicionado', 'corpo': 'Funilaria/Pintura',
+        'preventiva': 'Preventiva', 'corretiva': 'Corretiva',
+        'hidraulica': 'Hidráulica', 'outros': 'Outros'
+    }[manutencao.tipo] || manutencao.tipo;
+    
+    const html = `
+        <h4>Detalhes da Manutenção</h4>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div><strong>Veículo:</strong><br>${veiculo?.nome} (${manutencao.veiculoPlaca})</div>
+            <div><strong>Tipo:</strong><br>${tipoTraduzido}</div>
+            <div><strong>Data:</strong><br>${new Date(manutencao.data).toLocaleDateString('pt-BR')}</div>
+            ${manutencao.km > 0 ? `<div><strong>KM/Hora:</strong><br>${manutencao.km.toLocaleString('pt-BR')}</div>` : ''}
+            ${manutencao.custo > 0 ? `<div><strong>Custo:</strong><br>${manutencao.custo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div>` : ''}
+            ${manutencao.fornecedor ? `<div><strong>Fornecedor:</strong><br>${manutencao.fornecedor}</div>` : ''}
+        </div>
+        <div><strong>Descrição:</strong><br>${manutencao.descricao}</div>
+        <div class="form-actions" style="margin-top:20px;">
+            <button class="btn btn-warning" onclick="editarManutencao(${manutencao.id}); fecharModais();">Editar</button>
+            <button class="btn btn-danger" onclick="excluirManutencao(${manutencao.id}); fecharModais();">Excluir</button>
+            <button class="btn btn-secondary" onclick="fecharModais()">Fechar</button>
+        </div>
+    `;
+    
+    document.getElementById('modalDetalhesBody').innerHTML = html;
+    document.getElementById('modalDetalhes').style.display = 'flex';
+}
+
+// ================== EVENTOS ==================
 function configurarEventos() {
-    const btnTrocaOleo = document.getElementById('btnNovaTrocaOleo');
-    if (btnTrocaOleo) {
-        btnTrocaOleo.addEventListener('click', function() {
-            limparFormTrocaOleo();
-            preencherVeiculos('veiculoOleo');
-            abrirModal('modalTrocaOleo');
-        });
-    }
+    document.getElementById('btnNovaTrocaOleo')?.addEventListener('click', () => {
+        document.getElementById('formTrocaOleo').reset();
+        document.getElementById('trocaId').value = '';
+        document.getElementById('modalTrocaTitulo').innerHTML = '<i class="fas fa-oil-can"></i> Nova Troca de Óleo';
+        document.getElementById('modalTrocaOleo').style.display = 'flex';
+    });
     
-    const btnManutencao = document.getElementById('btnNovaManutencao');
-    if (btnManutencao) {
-        btnManutencao.addEventListener('click', function() {
-            limparFormManutencao();
-            preencherVeiculos('veiculoManutencao');
-            abrirModal('modalManutencaoGeral');
-        });
-    }
+    document.getElementById('btnNovaManutencao')?.addEventListener('click', () => {
+        document.getElementById('formManutencaoGeral').reset();
+        document.getElementById('manutencaoId').value = '';
+        document.getElementById('modalManutencaoTitulo').innerHTML = '<i class="fas fa-tools"></i> Nova Manutenção';
+        document.getElementById('modalManutencaoGeral').style.display = 'flex';
+    });
     
-    const btnCheckAlertas = document.getElementById('btnCheckAlertas');
-    if (btnCheckAlertas) btnCheckAlertas.addEventListener('click', verificarAlertas);
-    
-    const btnFecharAlertas = document.getElementById('btnFecharAlertas');
-    if (btnFecharAlertas) {
-        btnFecharAlertas.addEventListener('click', function() {
-            document.getElementById('cardAlertas').style.display = 'none';
-        });
-    }
+    document.getElementById('btnCheckAlertas')?.addEventListener('click', verificarAlertas);
+    document.getElementById('btnFecharAlertas')?.addEventListener('click', () => {
+        document.getElementById('cardAlertas').style.display = 'none';
+    });
     
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', fecharModais);
     });
     
     document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) fecharModais();
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) fecharModais();
         });
     });
     
-    const formTrocaOleo = document.getElementById('formTrocaOleo');
-    if (formTrocaOleo) formTrocaOleo.addEventListener('submit', salvarTrocaOleo);
+    document.getElementById('formTrocaOleo')?.addEventListener('submit', salvarTrocaOleo);
+    document.getElementById('formManutencaoGeral')?.addEventListener('submit', salvarManutencaoGeral);
     
-    const formManutencao = document.getElementById('formManutencaoGeral');
-    if (formManutencao) formManutencao.addEventListener('submit', salvarManutencaoGeral);
-    
-    const filterOleo = document.getElementById('filterOleo');
-    if (filterOleo) filterOleo.addEventListener('input', filtrarTabelaOleo);
-    
-    const filterManutencoes = document.getElementById('filterManutencoes');
-    if (filterManutencoes) filterManutencoes.addEventListener('input', filtrarTabelaManutencoes);
-}
-
-function abrirModal(idModal) {
-    const modal = document.getElementById(idModal);
-    if (modal) {
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-}
-
-function fecharModais() {
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.style.display = 'none';
-    });
-    document.body.style.overflow = 'auto';
+    document.getElementById('filterOleo')?.addEventListener('input', filtrarTabelaOleo);
+    document.getElementById('filterManutencoes')?.addEventListener('input', filtrarTabelaManutencoes);
 }
 
 function configurarAbas() {
@@ -855,14 +933,20 @@ function configurarAbas() {
             tabs.forEach(t => t.classList.remove('active'));
             contents.forEach(c => c.classList.remove('active'));
             this.classList.add('active');
-            const tabId = this.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
+            document.getElementById(this.dataset.tab).classList.add('active');
         });
     });
 }
 
+function fecharModais() {
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.style.display = 'none';
+    });
+    document.body.style.overflow = 'auto';
+}
+
 function filtrarTabelaOleo() {
-    const filtro = document.getElementById('filterOleo').value.toLowerCase();
+    const filtro = document.getElementById('filterOleo')?.value.toLowerCase() || '';
     const linhas = document.querySelectorAll('#tabelaOleoBody tr');
     linhas.forEach(linha => {
         const texto = linha.textContent.toLowerCase();
@@ -871,7 +955,7 @@ function filtrarTabelaOleo() {
 }
 
 function filtrarTabelaManutencoes() {
-    const filtro = document.getElementById('filterManutencoes').value.toLowerCase();
+    const filtro = document.getElementById('filterManutencoes')?.value.toLowerCase() || '';
     const linhas = document.querySelectorAll('#tabelaManutencoesBody tr');
     linhas.forEach(linha => {
         const texto = linha.textContent.toLowerCase();
@@ -879,139 +963,15 @@ function filtrarTabelaManutencoes() {
     });
 }
 
-// 12. FUNÇÕES DE DETALHES
-window.verDetalhesTroca = function(id) {
-    const troca = trocasOleo.find(t => t.id === id);
-    if (!troca) return;
-    
-    const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
-    const veiculo = veiculos.find(v => v.placa === troca.veiculoPlaca);
-    const dataFormatada = new Date(troca.data).toLocaleDateString('pt-BR');
-    const kmAtual = obterKmAtualVeiculo(troca.veiculoPlaca);
-    const proximaKm = troca.kmTroca + troca.intervaloProxima;
-    const kmRestantes = proximaKm - kmAtual; // CORRETO
-    
-    let statusHtml = '';
-    if (kmRestantes <= 0) {
-        statusHtml = `<span class="text-danger">⚠️ VENCIDA há ${Math.abs(kmRestantes).toLocaleString('pt-BR')} KM</span>`;
-    } else if (kmRestantes <= 50) {
-        statusHtml = `<span class="text-warning">⚠️ URGENTE - ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
-    } else if (kmRestantes <= 100) {
-        statusHtml = `<span class="text-info">📢 Próxima em ${kmRestantes.toLocaleString('pt-BR')} KM</span>`;
-    } else {
-        statusHtml = `<span class="text-success">✅ ${kmRestantes.toLocaleString('pt-BR')} KM restantes</span>`;
-    }
-    
-    let html = `
-        <h4><i class="fas fa-oil-can"></i> Detalhes da Troca de Óleo</h4>
-        <div class="detalhes-grid">
-            <div class="detalhe-item"><label>Veículo:</label><div><strong>${veiculo ? `${troca.veiculoPlaca} - ${veiculo.nome || veiculo.modelo}` : troca.veiculoPlaca}</strong></div></div>
-            <div class="detalhe-item"><label>Data:</label><div>${dataFormatada}</div></div>
-            <div class="detalhe-item"><label>KM da Troca:</label><div>${troca.kmTroca.toLocaleString('pt-BR')}</div></div>
-            <div class="detalhe-item"><label>KM Atual:</label><div>${kmAtual.toLocaleString('pt-BR')}</div></div>
-            <div class="detalhe-item"><label>Tipo de Óleo:</label><div>${troca.tipoOleo}</div></div>
-            ${troca.marcaOleo ? `<div class="detalhe-item"><label>Marca:</label><div>${troca.marcaOleo}</div></div>` : ''}
-            ${troca.viscosidadeOleo ? `<div class="detalhe-item"><label>Viscosidade:</label><div>${troca.viscosidadeOleo}</div></div>` : ''}
-            ${troca.quantidadeOleo > 0 ? `<div class="detalhe-item"><label>Quantidade:</label><div>${troca.quantidadeOleo}L</div></div>` : ''}
-            <div class="detalhe-item"><label>Intervalo:</label><div>${troca.intervaloProxima.toLocaleString('pt-BR')} KM/Horas</div></div>
-            <div class="detalhe-item"><label>Próxima Troca:</label><div>${proximaKm.toLocaleString('pt-BR')} KM/Horas</div></div>
-            <div class="detalhe-item"><label>Status:</label><div>${statusHtml}</div></div>
-        </div>
-    `;
-    
-    if (troca.filtros?.length > 0) {
-        html += `<div class="detalhe-item"><label>Filtros Trocados:</label><div>`;
-        troca.filtros.forEach(filtro => {
-            const tipos = {
-                'filtro_oleo': 'Filtro de Óleo', 'filtro_ar': 'Filtro de Ar',
-                'filtro_combustivel': 'Filtro de Combustível',
-                'filtro_ar_condicionado': 'Filtro de Ar Condicionado',
-                'filtro_hidraulico': 'Filtro Hidráulico'
-            };
-            html += `${tipos[filtro.tipo] || filtro.tipo}${filtro.modelo ? ` (${filtro.modelo})` : ''}<br>`;
-        });
-        html += `</div></div>`;
-    }
-    
-    if (troca.observacoes) {
-        html += `<div class="detalhe-item"><label>Observações:</label><div>${troca.observacoes}</div></div>`;
-    }
-    
-    html += `
-        <div class="form-actions" style="margin-top: 20px;">
-            <button class="btn btn-warning" onclick="abrirEdicaoTroca(${JSON.stringify(troca).replace(/"/g, '&quot;')}); fecharModais();">
-                <i class="fas fa-edit"></i> Editar
-            </button>
-            <button class="btn btn-danger" onclick="excluirTrocaOleo(${troca.id}); fecharModais();">
-                <i class="fas fa-trash"></i> Excluir
-            </button>
-            <button class="btn btn-secondary" onclick="fecharModais()">
-                <i class="fas fa-times"></i> Fechar
-            </button>
-        </div>
-    `;
-    
-    document.getElementById('modalDetalhesBody').innerHTML = html;
-    document.getElementById('modalDetalhes').style.display = 'flex';
-};
-
-window.verDetalhesManutencao = function(id) {
-    const manutencao = manutencoes.find(m => m.id === id);
-    if (!manutencao) return;
-    
-    const veiculos = JSON.parse(localStorage.getItem('veiculos')) || [];
-    const veiculo = veiculos.find(v => v.placa === manutencao.veiculoPlaca);
-    const dataFormatada = new Date(manutencao.data).toLocaleDateString('pt-BR');
-    
-    const tipoTraduzido = {
-        'pneus': 'Pneus', 'freios': 'Freios', 'suspensao': 'Suspensão',
-        'motor': 'Motor', 'bateria': 'Bateria', 'eletrica': 'Elétrica',
-        'ar_condicionado': 'Ar Condicionado', 'corpo': 'Funilaria/Pintura',
-        'preventiva': 'Preventiva', 'corretiva': 'Corretiva',
-        'hidraulica': 'Hidráulica', 'outros': 'Outros'
-    }[manutencao.tipo] || manutencao.tipo;
-    
-    let html = `
-        <h4><i class="fas fa-tools"></i> Detalhes da Manutenção</h4>
-        <div class="detalhes-grid">
-            <div class="detalhe-item"><label>Veículo:</label><div><strong>${veiculo ? `${manutencao.veiculoPlaca} - ${veiculo.nome || veiculo.modelo}` : manutencao.veiculoPlaca}</strong></div></div>
-            <div class="detalhe-item"><label>Tipo:</label><div>${tipoTraduzido}</div></div>
-            <div class="detalhe-item"><label>Data:</label><div>${dataFormatada}</div></div>
-            ${manutencao.km > 0 ? `<div class="detalhe-item"><label>KM/Hora:</label><div>${manutencao.km.toLocaleString('pt-BR')}</div></div>` : ''}
-            ${manutencao.custo > 0 ? `<div class="detalhe-item"><label>Custo:</label><div>${manutencao.custo.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</div></div>` : ''}
-            ${manutencao.fornecedor ? `<div class="detalhe-item"><label>Fornecedor:</label><div>${manutencao.fornecedor}</div></div>` : ''}
-        </div>
-        <div class="detalhe-item"><label>Descrição:</label><div>${manutencao.descricao}</div></div>
-    `;
-    
-    if (manutencao.observacoes) {
-        html += `<div class="detalhe-item"><label>Observações:</label><div>${manutencao.observacoes}</div></div>`;
-    }
-    
-    html += `
-        <div class="form-actions" style="margin-top: 20px;">
-            <button class="btn btn-warning" onclick="abrirEdicaoManutencao(${JSON.stringify(manutencao).replace(/"/g, '&quot;')}); fecharModais();">
-                <i class="fas fa-edit"></i> Editar
-            </button>
-            <button class="btn btn-danger" onclick="excluirManutencao(${manutencao.id}); fecharModais();">
-                <i class="fas fa-trash"></i> Excluir
-            </button>
-            <button class="btn btn-secondary" onclick="fecharModais()">
-                <i class="fas fa-times"></i> Fechar
-            </button>
-        </div>
-    `;
-    
-    document.getElementById('modalDetalhesBody').innerHTML = html;
-    document.getElementById('modalDetalhes').style.display = 'flex';
-};
-
-// Exportar funções para uso global
-window.abrirEdicaoTroca = abrirEdicaoTroca;
-window.abrirEdicaoManutencao = abrirEdicaoManutencao;
+// Exportar funções globais
+window.editarTrocaOleo = editarTrocaOleo;
+window.editarManutencao = editarManutencao;
+window.excluirTrocaOleo = excluirTrocaOleo;
+window.excluirManutencao = excluirManutencao;
+window.verDetalhesTroca = verDetalhesTroca;
+window.verDetalhesManutencao = verDetalhesManutencao;
 window.fecharModais = fecharModais;
-window.abrirModal = abrirModal;
-window.obterKmAtualVeiculo = obterKmAtualVeiculo;
+window.abrirNovaTroca = abrirNovaTroca;
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', inicializar);
