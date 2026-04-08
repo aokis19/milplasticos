@@ -16,65 +16,8 @@
     <!-- jsPDF para gerar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // Firebase Config
-        const firebaseConfig = {
-            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-            authDomain: "system-mil.firebaseapp.com",
-            projectId: "system-mil",
-            storageBucket: "system-mil.firebasestorage.app",
-            messagingSenderId: "138426359863",
-            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
-            measurementId: "G-DYCDBRZSHZ"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // Tornar disponível globalmente
-        window.db = db;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.query = query;
-        window.orderBy = orderBy;
-        window.limit = limit;
-        window.deleteDoc = deleteDoc;
-        window.doc = doc;
-        window.updateDoc = updateDoc;
-        window.getDoc = getDoc;
-    </script>
-
     <style>
-        /* Estilos complementares */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-        }
-
-        .main-container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .content {
-            flex: 1;
-            padding: 20px;
-            margin-left: 250px;
-        }
-
-        /* Modal Styles */
+        /* Estilos complementares do modal */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -464,6 +407,7 @@
 </head>
 
 <body>
+    <!-- SIDEBAR E TOPBAR VÃO AQUI (seu main.js cuida disso) -->
     <div class="main-container">
         <div class="content">
             <button class="open-modal-btn" id="openModalBtn">
@@ -591,795 +535,621 @@
         <i class="fas fa-exclamation-triangle"></i> <span id="mensagemAlerta"></span>
     </div>
 
+    <!-- FIREBASE CONFIG (carregado primeiro) -->
     <script type="module">
-        // Variáveis globais
-        let materiaisCadastrados = [];
-        let fornecedoresCadastrados = [];
-        let modoEdicao = false;
-        let idEditando = null;
-
-        // Elementos DOM
-        const materiaisListDiv = document.getElementById('materiaisList');
-        const addMaterialBtn = document.getElementById('addMaterialBtn');
-        const somaMateriaisSpan = document.getElementById('somaMateriais');
-        const comparativoDiv = document.getElementById('comparativoDiv');
-        const pesoBalancaoInput = document.getElementById('pesoBalancao');
-        const fornecedorSelect = document.getElementById('fornecedorSelect');
-
-        // Função para mostrar alerta flutuante
-        function mostrarAlerta(mensagem, tipo = 'erro') {
-            const alerta = document.getElementById('alertaFlutuante');
-            const mensagemSpan = document.getElementById('mensagemAlerta');
-            mensagemSpan.textContent = mensagem;
-            alerta.classList.remove('sucesso');
-            if (tipo === 'sucesso') {
-                alerta.classList.add('sucesso');
-            }
-            alerta.classList.add('show');
-            setTimeout(() => {
-                alerta.classList.remove('show');
-                alerta.classList.remove('sucesso');
-            }, 4000);
-        }
-
-        // Função para formatar número sem decimais
-        function formatarNumero(valor) {
-            return Math.round(valor);
-        }
-
-        // Função para carregar fornecedores do Firebase
-        async function carregarFornecedores() {
-            try {
-                const q = query(collection(window.db, "fornecedores"), orderBy("nome"));
-                const querySnapshot = await getDocs(q);
-                fornecedoresCadastrados = [];
-                querySnapshot.forEach((doc) => {
-                    fornecedoresCadastrados.push({ id: doc.id, nome: doc.data().nome });
-                });
-                atualizarSelectFornecedores();
-            } catch (error) {
-                console.error("Erro ao carregar fornecedores:", error);
-            }
-        }
-
-        // Atualizar select de fornecedores
-        function atualizarSelectFornecedores() {
-            fornecedorSelect.innerHTML = '<option value="">Selecione um fornecedor</option>';
-            fornecedoresCadastrados.forEach(forn => {
-                const option = document.createElement('option');
-                option.value = forn.nome;
-                option.textContent = forn.nome;
-                fornecedorSelect.appendChild(option);
-            });
-        }
-
-        // Função para carregar materiais do Firebase
-        async function carregarMateriais() {
-            try {
-                const q = query(collection(window.db, "materiais"), orderBy("nome"));
-                const querySnapshot = await getDocs(q);
-                materiaisCadastrados = [];
-                querySnapshot.forEach((doc) => {
-                    materiaisCadastrados.push({ id: doc.id, nome: doc.data().nome });
-                });
-                atualizarSelectsMateriais();
-            } catch (error) {
-                console.error("Erro ao carregar materiais:", error);
-            }
-        }
-
-        // Atualizar todos os selects de materiais
-        function atualizarSelectsMateriais() {
-            const selects = document.querySelectorAll('.material-select');
-            selects.forEach(select => {
-                const valorAtual = select.value;
-                select.innerHTML = '<option value="">Selecione um material</option>';
-                materiaisCadastrados.forEach(mat => {
-                    const option = document.createElement('option');
-                    option.value = mat.nome;
-                    option.textContent = mat.nome;
-                    if (valorAtual === mat.nome) option.selected = true;
-                    select.appendChild(option);
-                });
-            });
-        }
-
-        // Criar novo card de material
-        function criarMaterialCard(materialNome = '', pesos = []) {
-            const cardId = Date.now() + Math.random();
-            const div = document.createElement('div');
-            div.className = 'material-card';
-            div.dataset.id = cardId;
-
-            div.innerHTML = `
-                <div class="material-header">
-                    <select class="material-select" data-id="${cardId}">
-                        <option value="">Selecione um material</option>
-                        ${materiaisCadastrados.map(m => `<option value="${m.nome}" ${materialNome === m.nome ? 'selected' : ''}>${m.nome}</option>`).join('')}
-                    </select>
-                    <button type="button" class="btn-remove-material">
-                        <i class="fas fa-trash"></i> Remover Material
-                    </button>
-                </div>
-                <div class="pesos-container" data-card="${cardId}">
-                    <div class="pesos-list"></div>
-                    <button type="button" class="btn-add-peso">
-                        <i class="fas fa-plus"></i> Incluir Peso
-                    </button>
-                </div>
-                <div class="material-total" data-total="${cardId}">
-                    Total do Material: 0 kg
-                </div>
-            `;
-
-            const select = div.querySelector('.material-select');
-            const removeBtn = div.querySelector('.btn-remove-material');
-            const addPesoBtn = div.querySelector('.btn-add-peso');
-            const pesosList = div.querySelector('.pesos-list');
-
-            // Adicionar pesos existentes ou um padrão
-            if (pesos.length > 0) {
-                pesos.forEach(peso => {
-                    adicionarCampoPeso(pesosList, cardId, peso);
-                });
-            } else {
-                adicionarCampoPeso(pesosList, cardId);
-            }
-
-            select.addEventListener('change', () => calcularSomaEComparativo());
-            removeBtn.addEventListener('click', () => {
-                div.remove();
-                calcularSomaEComparativo();
-            });
-
-            addPesoBtn.addEventListener('click', () => {
-                adicionarCampoPeso(pesosList, cardId);
-            });
-
-            return div;
-        }
-
-        // Adicionar campo de peso individual
-        function adicionarCampoPeso(pesosList, cardId, valorInicial = '') {
-            const pesoDiv = document.createElement('div');
-            pesoDiv.className = 'peso-item';
-            pesoDiv.innerHTML = `
-                <input type="number" step="1" placeholder="Peso (kg)" class="peso-input" data-card="${cardId}" value="${valorInicial}">
-                <button type="button" class="btn-remove-peso">
-                    <i class="fas fa-times"></i> Remover
-                </button>
-            `;
-
-            const pesoInput = pesoDiv.querySelector('.peso-input');
-            const removePesoBtn = pesoDiv.querySelector('.btn-remove-peso');
-
-            pesoInput.addEventListener('input', () => calcularSomaEComparativo());
-            removePesoBtn.addEventListener('click', () => {
-                pesoDiv.remove();
-                calcularSomaEComparativo();
-            });
-
-            pesosList.appendChild(pesoDiv);
-            calcularSomaEComparativo();
-        }
-
-        // Calcular soma total e comparativo
-        function calcularSomaEComparativo() {
-            let somaTotalGeral = 0;
-            const cards = document.querySelectorAll('#materiaisList .material-card');
-            const dadosMateriais = [];
-
-            cards.forEach(card => {
-                const select = card.querySelector('.material-select');
-                const materialNome = select ? select.value : '';
-                const pesos = card.querySelectorAll('.peso-input');
-                let somaMaterial = 0;
-                const pesosIndividuais = [];
-
-                pesos.forEach(pesoInput => {
-                    const peso = parseFloat(pesoInput.value) || 0;
-                    somaMaterial += peso;
-                    if (peso > 0) pesosIndividuais.push(peso);
-                });
-
-                somaTotalGeral += somaMaterial;
-
-                const totalSpan = card.querySelector('.material-total');
-                if (totalSpan) {
-                    totalSpan.textContent = `Total do Material: ${formatarNumero(somaMaterial)} kg`;
-                }
-
-                if (materialNome && somaMaterial > 0) {
-                    dadosMateriais.push({
-                        nome: materialNome,
-                        pesoTotal: somaMaterial,
-                        pesosIndividuais: pesosIndividuais
-                    });
-                }
-            });
-
-            somaMateriaisSpan.textContent = formatarNumero(somaTotalGeral);
-
-            const pesoBalancao = parseFloat(pesoBalancaoInput.value) || 0;
-            const diferenca = somaTotalGeral - pesoBalancao;
-
-            let htmlComparativo = `
-                <strong>📊 Comparativo Balanção vs Materiais</strong><br>
-                Peso Balança: ${formatarNumero(pesoBalancao)} kg | 
-                Soma Materiais: ${formatarNumero(somaTotalGeral)} kg<br>
-            `;
-
-            if (pesoBalancao > 0) {
-                const diferencaPercentual = (Math.abs(diferenca) / pesoBalancao) * 100;
-                const percentualBalanca = (somaTotalGeral / pesoBalancao) * 100;
-
-                htmlComparativo += `Diferença: ${diferenca >= 0 ? '+' : ''}${formatarNumero(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}% de variação)<br>`;
-                htmlComparativo += `Percentual da balança: ${percentualBalanca.toFixed(1)}%<br>`;
-
-                if (diferencaPercentual <= 5) {
-                    comparativoDiv.className = 'comparativo verde';
-                    htmlComparativo += '✅ COMPATÍVEL: Dentro da tolerância de 5%';
-                } else {
-                    comparativoDiv.className = 'comparativo vermelho';
-                    htmlComparativo += '❌ INCOMPATÍVEL: Variação superior a 5% - Verificar pesos';
-                }
-
-                htmlComparativo += `<hr><strong>Detalhamento por Material:</strong><br>`;
-                dadosMateriais.forEach(mat => {
-                    const percMaterial = (mat.pesoTotal / pesoBalancao) * 100;
-                    htmlComparativo += `• ${mat.nome}: ${formatarNumero(mat.pesoTotal)} kg (${percMaterial.toFixed(1)}% do balanção)<br>`;
-                });
-            } else {
-                comparativoDiv.className = 'comparativo';
-                htmlComparativo += '⚠️ Informe o peso da balança para comparação';
-            }
-
-            comparativoDiv.innerHTML = htmlComparativo;
-            window.dadosMateriaisCompletos = dadosMateriais;
-        }
-
-        // Gerar PDF
-        async function gerarPDF(fornecedor, dataEntrada, pesoBalancao, somaTotal, estado, materiais) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            // URL DA  IMAGEM
-            const urlImagem = 'https://th.bing.com/th/id/OIP.vKHn8lz4KqgdC4ORa0AbqQAAAA?w=252&h=89&c=7&r=0&o=7&pid=1.7&rm=3';
-
-            // Função para converter imagem URL para Base64
-            function urlToBase64(url) {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous"; // Importante para evitar problemas de CORS
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0);
-                        const base64 = canvas.toDataURL('image/png');
-                        resolve(base64);
-                    };
-                    img.onerror = (error) => {
-                        console.error('Erro ao carregar imagem:', error);
-                        reject(error);
-                    };
-                    img.src = url;
-                });
-            }
-
-            try {
-                // Carregar a imagem
-                const logoBase64 = await urlToBase64(urlImagem);
-
-                // Fundo azul do cabeçalho
-                doc.setFillColor(44, 62, 80);
-                doc.rect(0, 0, 210, 45, 'F');
-
-                // Adicionar a imagem (ajuste x, y, largura, altura conforme necessário)
-                // doc.addImage(imagemBase64, formato, x, y, largura, altura)
-                doc.addImage(logoBase64, 'PNG', 15, 8, 50, 25); // Ajuste a altura para caber no cabeçalho
-
-                // Título e data (ajustado para não sobrepor a logo)
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "normal");
-                doc.text('Relatório de Balanção de Materiais', 75, 22);
-                doc.text(`Data do Documento: ${new Date().toLocaleString('pt-BR')}`, 75, 32);
-
-            } catch (error) {
-                console.error('Erro ao carregar imagem, usando fallback:', error);
-                // Fallback caso a imagem não carregue
-                doc.setFillColor(44, 62, 80);
-                doc.rect(0, 0, 210, 45, 'F');
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(18);
-                doc.setFont("helvetica", "bold");
-                doc.text('MIL PLÁSTICOS', 20, 25);
-
-                doc.setFontSize(10);
-                doc.setFont("helvetica", "normal");
-                doc.text('Soluções em Plásticos', 20, 35);
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
-                doc.text('Relatório de Balanção de Materiais', 20, 45);
-            }
-
-            // Linha divisória
-            doc.setDrawColor(200, 200, 200);
-            doc.line(20, 55, 190, 55);
-
-            // INFORMAÇÕES DA CARGA
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(11);
-            doc.setFont("helvetica", "bold");
-            doc.text('INFORMAÇÕES DA CARGA', 20, 70);
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            doc.text(`Fornecedor: ${fornecedor}`, 20, 83);
-            doc.text(`Data de Entrada: ${new Date(dataEntrada).toLocaleDateString('pt-BR')}`, 20, 91);
-            doc.text(`Estado do Material: ${estado}`, 20, 99);
-            doc.text(`Peso da Balança: ${formatarNumero(pesoBalancao)} kg`, 20, 107);
-            doc.text(`Soma Total dos Materiais: ${formatarNumero(somaTotal)} kg`, 20, 115);
-
-            const diferenca = somaTotal - pesoBalancao;
-            const diferencaPercentual = pesoBalancao > 0 ? (Math.abs(diferenca) / pesoBalancao) * 100 : 0;
-            const statusCompativel = diferencaPercentual <= 5;
-            const statusColor = statusCompativel ? [40, 167, 69] : [220, 53, 69];
-
-            doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
-            doc.text(`Status: ${statusCompativel ? 'Compatível' : 'Incompatível'}`, 20, 123);
-            doc.text(`Diferença: ${diferenca >= 0 ? '+' : ''}${formatarNumero(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}% de variação)`, 20, 131);
-
-            // DETALHAMENTO DOS MATERIAIS
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "bold");
-            doc.text('DETALHAMENTO DOS MATERIAIS', 20, 148);
-
-            // Cabeçalho da tabela
-            doc.setFillColor(52, 73, 94);
-            doc.rect(20, 154, 170, 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(9);
-            doc.text('Material', 22, 160);
-            doc.text('Pesos Individuais (kg)', 90, 160);
-            doc.text('Total (kg)', 160, 160);
-            doc.text('%', 178, 160);
-
-            let y = 166;
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "normal");
-
-            materiais.forEach((mat, idx) => {
-                if (y > 260) {
-                    doc.addPage();
-                    y = 20;
-                }
-
-                const percentual = pesoBalancao > 0 ? (mat.pesoTotal / pesoBalancao) * 100 : 0;
-                const pesosStr = mat.pesos.map(p => formatarNumero(p)).join(' + ');
-
-                if (idx % 2 === 0) {
-                    doc.setFillColor(245, 245, 245);
-                    doc.rect(20, y - 3, 170, 8, 'F');
-                }
-
-                doc.text(mat.nome.substring(0, 25), 22, y);
-                doc.text(pesosStr.substring(0, 35), 90, y);
-                doc.text(`${formatarNumero(mat.pesoTotal)} kg`, 160, y);
-                doc.text(`${percentual.toFixed(1)}%`, 178, y);
-
-                y += 8;
-            });
-
-            // Rodapé
-            y += 10;
-            doc.setDrawColor(200, 200, 200);
-            doc.line(20, y, 190, y);
-
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text('Documento gerado pelo Sistema Mil Plásticos', 20, y + 6);
-            doc.text(`Total de materiais: ${materiais.length} | Peso total processado: ${formatarNumero(somaTotal)} kg`, 20, y + 12);
-
-            return doc.output('datauristring');
-        }
-
-        // Salvar ou atualizar balanção no Firebase
-        async function salvarOuAtualizarBalancao(dados, pdfBase64, id = null) {
-            try {
-                if (id) {
-                    const docRef = doc(window.db, "balancoes", id);
-                    await updateDoc(docRef, {
-                        ...dados,
-                        pdfBase64: pdfBase64,
-                        dataAtualizacao: new Date().toISOString()
-                    });
-                    return id;
-                } else {
-                    const docRef = await addDoc(collection(window.db, "balancoes"), {
-                        ...dados,
-                        pdfBase64: pdfBase64,
-                        dataCriacao: new Date().toISOString()
-                    });
-                    return docRef.id;
-                }
-            } catch (error) {
-                console.error("Erro ao salvar/atualizar:", error);
-                throw error;
-            }
-        }
-
-        // Carregar dados para edição
-        async function carregarParaEdicao(id) {
-            try {
-                const docRef = doc(window.db, "balancoes", id);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    modoEdicao = true;
-                    idEditando = id;
-
-                    document.getElementById('editandoId').value = id;
-                    fornecedorSelect.value = data.fornecedor;
-                    document.getElementById('dataEntrada').value = data.dataEntrada;
-                    document.getElementById('pesoBalancao').value = data.pesoBalancao;
-                    document.getElementById('estado').value = data.estado || '';
-
-                    // Limpar materiais atuais
-                    materiaisListDiv.innerHTML = '';
-
-                    // Recriar cards com os dados existentes
-                    data.materiais.forEach(material => {
-                        const novoCard = criarMaterialCard(material.nome, material.pesos || [material.pesoTotal]);
-                        materiaisListDiv.appendChild(novoCard);
-                    });
-
-                    if (data.materiais.length === 0) {
-                        adicionarMaterialExemplo();
-                    }
-
-                    calcularSomaEComparativo();
-
-                    // Abrir modal
-                    document.getElementById('modalBalanco').classList.add('active');
-                    mostrarAlerta('Carregando dados para edição...', 'sucesso');
-                }
-            } catch (error) {
-                console.error("Erro ao carregar para edição:", error);
-                mostrarAlerta('Erro ao carregar dados para edição');
-            }
-        }
-
-        // Carregar histórico do Firebase
-        async function carregarHistorico() {
-            const listaDiv = document.getElementById('listaHistorico');
-            listaDiv.innerHTML = '<p>Carregando...</p>';
-
-            try {
-                const q = query(collection(window.db, "balancoes"), orderBy("dataCriacao", "desc"), limit(30));
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    listaDiv.innerHTML = '<p>Nenhum registro encontrado.</p>';
-                    return;
-                }
-
-                listaDiv.innerHTML = '';
-                for (const docSnap of querySnapshot.docs) {
-                    const data = docSnap.data();
-                    const docId = docSnap.id;
-                    const diferencaPercentual = data.pesoBalancao > 0 ? (Math.abs(data.somaTotal - data.pesoBalancao) / data.pesoBalancao) * 100 : 0;
-                    const statusIcon = diferencaPercentual <= 5 ? '✅' : '⚠️';
-
-                    const item = document.createElement('div');
-                    item.className = 'historico-item';
-                    item.innerHTML = `
-                        <strong>${data.fornecedor}</strong> - ${new Date(data.dataEntrada).toLocaleDateString('pt-BR')}<br>
-                        <small>Estado: ${data.estado || 'N/A'} | Bal: ${formatarNumero(data.pesoBalancao)}kg | Soma: ${formatarNumero(data.somaTotal)}kg | Variação: ${diferencaPercentual.toFixed(1)}% ${statusIcon}</small>
-                        <div class="historico-botoes">
-                            <button class="btn-ver-pdf" data-id="${docId}">
-                                <i class="fas fa-file-pdf"></i> Ver PDF
-                            </button>
-                            <button class="btn-editar-historico" data-id="${docId}">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
-                            <button class="btn-excluir-historico" data-id="${docId}">
-                                <i class="fas fa-trash"></i> Excluir
-                            </button>
-                        </div>
-                    `;
-
-                    // Botão Ver PDF
-                    const btnVerPdf = item.querySelector('.btn-ver-pdf');
-                    btnVerPdf.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        try {
-                            const docRef = doc(window.db, "balancoes", docId);
-                            const docSnap = await getDoc(docRef);
-                            if (docSnap.exists() && docSnap.data().pdfBase64) {
-                                const link = document.createElement('a');
-                                link.href = docSnap.data().pdfBase64;
-                                link.download = `balancao_${data.fornecedor.replace(/\s/g, '_')}_${data.dataEntrada}.pdf`;
-                                link.click();
-                                mostrarAlerta('PDF baixado com sucesso!', 'sucesso');
-                            } else {
-                                // Gerar PDF novamente se não existir
-                                const pdfBase64 = await gerarPDF(
-                                    data.fornecedor, data.dataEntrada, data.pesoBalancao,
-                                    data.somaTotal, data.estado, data.materiais
-                                );
-                                await updateDoc(docRef, { pdfBase64: pdfBase64 });
-                                const link = document.createElement('a');
-                                link.href = pdfBase64;
-                                link.download = `balancao_${data.fornecedor.replace(/\s/g, '_')}_${data.dataEntrada}.pdf`;
-                                link.click();
-                                mostrarAlerta('PDF gerado e baixado!', 'sucesso');
-                            }
-                        } catch (error) {
-                            console.error('Erro ao buscar PDF:', error);
-                            mostrarAlerta('Erro ao recuperar PDF');
-                        }
-                    });
-
-                    // Botão Editar
-                    const btnEditar = item.querySelector('.btn-editar-historico');
-                    btnEditar.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        await carregarParaEdicao(docId);
-                    });
-
-                    // Botão Excluir
-                    const btnExcluir = item.querySelector('.btn-excluir-historico');
-                    btnExcluir.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        if (confirm('⚠️ Tem certeza que deseja excluir este registro permanentemente?\n\nEsta ação não pode ser desfeita!')) {
-                            try {
-                                await deleteDoc(doc(window.db, "balancoes", docId));
-                                await carregarHistorico();
-                                mostrarAlerta('Registro excluído com sucesso!', 'sucesso');
-                            } catch (error) {
-                                console.error('Erro ao excluir:', error);
-                                mostrarAlerta('Erro ao excluir registro. Tente novamente.');
-                            }
-                        }
-                    });
-
-                    listaDiv.appendChild(item);
-                }
-            } catch (error) {
-                console.error("Erro ao carregar histórico:", error);
-                listaDiv.innerHTML = '<p>Erro ao carregar histórico. Verifique sua conexão.</p>';
-            }
-        }
-
-        // Finalizar carga e gerar PDF
-        async function finalizarCarga() {
-            const fornecedor = fornecedorSelect.value;
-            const dataEntrada = document.getElementById('dataEntrada').value;
-            const pesoBalancao = parseFloat(document.getElementById('pesoBalancao').value) || 0;
-            const estado = document.getElementById('estado').value;
-            const editandoId = document.getElementById('editandoId').value;
-
-            if (!fornecedor) {
-                mostrarAlerta('Selecione um fornecedor');
-                return;
-            }
-
-            if (!dataEntrada) {
-                mostrarAlerta('Selecione a data de entrada');
-                return;
-            }
-
-            if (!estado) {
-                mostrarAlerta('Selecione o estado do material');
-                return;
-            }
-
-            const cards = document.querySelectorAll('#materiaisList .material-card');
-            const materiais = [];
-            let somaTotal = 0;
-
-            cards.forEach(card => {
-                const select = card.querySelector('.material-select');
-                const materialNome = select ? select.value : '';
-                const pesos = card.querySelectorAll('.peso-input');
-                let somaMaterial = 0;
-                const pesosLista = [];
-
-                pesos.forEach(pesoInput => {
-                    const peso = parseFloat(pesoInput.value) || 0;
-                    somaMaterial += peso;
-                    if (peso > 0) pesosLista.push(peso);
-                });
-
-                if (materialNome && somaMaterial > 0) {
-                    materiais.push({
-                        nome: materialNome,
-                        pesoTotal: somaMaterial,
-                        pesos: pesosLista
-                    });
-                    somaTotal += somaMaterial;
-                }
-            });
-
-            if (materiais.length === 0) {
-                mostrarAlerta('Adicione pelo menos um material com peso');
-                return;
-            }
-
-            const diferencaPercentual = pesoBalancao > 0 ? (Math.abs(somaTotal - pesoBalancao) / pesoBalancao) * 100 : 0;
-
-            if (pesoBalancao > 0 && diferencaPercentual > 5) {
-                const confirmar = confirm(`⚠️ ATENÇÃO! Variação de ${diferencaPercentual.toFixed(1)}% ultrapassou os 5% permitidos!\n\nDeseja continuar mesmo assim?`);
-                if (!confirmar) {
-                    return;
-                }
-            }
-
-            const pdfBase64 = await gerarPDF(fornecedor, dataEntrada, pesoBalancao, somaTotal, estado, materiais);
-
-            const balancaoData = {
-                fornecedor,
-                dataEntrada,
-                pesoBalancao,
-                somaTotal,
-                estado,
-                materiais: materiais.map(m => ({ nome: m.nome, pesoTotal: m.pesoTotal, pesos: m.pesos })),
-                status: diferencaPercentual <= 5 ? 'Compatível' : 'Incompatível'
-            };
-
-            try {
-                await salvarOuAtualizarBalancao(balancaoData, pdfBase64, editandoId || null);
-                mostrarAlerta(editandoId ? 'Registro atualizado com sucesso!' : 'Registro salvo no Firebase com sucesso!', 'sucesso');
-                await carregarHistorico();
-
-                const link = document.createElement('a');
-                link.href = pdfBase64;
-                link.download = `balancao_${fornecedor.replace(/\s/g, '_')}_${dataEntrada}.pdf`;
-                link.click();
-
-                fecharModal();
-                resetModal();
-
-            } catch (error) {
-                mostrarAlerta('Erro ao salvar: ' + error.message);
-            }
-        }
-
-        function resetModal() {
-            modoEdicao = false;
-            idEditando = null;
-            document.getElementById('editandoId').value = '';
-            fornecedorSelect.value = '';
-            document.getElementById('dataEntrada').value = new Date().toISOString().split('T')[0];
-            document.getElementById('pesoBalancao').value = '';
-            document.getElementById('estado').value = '';
-            materiaisListDiv.innerHTML = '';
-            adicionarMaterialExemplo();
-            calcularSomaEComparativo();
-        }
-
-        function adicionarMaterialExemplo() {
-            if (materiaisCadastrados.length > 0) {
-                const novoCard = criarMaterialCard(materiaisCadastrados[0].nome);
-                materiaisListDiv.appendChild(novoCard);
-            }
-        }
-
-        function fecharModal() {
-            document.getElementById('modalBalanco').classList.remove('active');
-            resetModal();
-        }
-
-        // Configurar modais
-        const modal = document.getElementById('modalBalanco');
-        const modalCadastro = document.getElementById('modalCadastroMaterial');
-        const modalCadastroFornecedor = document.getElementById('modalCadastroFornecedor');
-        const openBtn = document.getElementById('openModalBtn');
-        const openCadastroBtn = document.getElementById('openCadastroMaterialBtn');
-        const openCadastroFornecedorBtn = document.getElementById('openCadastroFornecedorBtn');
-        const closeBtn = document.getElementById('closeModalBtn');
-        const closeCadastroBtn = document.getElementById('closeCadastroModalBtn');
-        const closeFornecedorBtn = document.getElementById('closeFornecedorModalBtn');
-        const cancelarBtn = document.getElementById('cancelarBtn');
-        const finalizarBtn = document.getElementById('finalizarCargaBtn');
-        const salvarMaterialBtn = document.getElementById('salvarMaterialBtn');
-        const salvarFornecedorBtn = document.getElementById('salvarFornecedorBtn');
-
-        openBtn.addEventListener('click', () => {
-            resetModal();
-            modal.classList.add('active');
-        });
-
-        openCadastroBtn.addEventListener('click', () => {
-            modalCadastro.classList.add('active');
-        });
-
-        openCadastroFornecedorBtn.addEventListener('click', () => {
-            modalCadastroFornecedor.classList.add('active');
-        });
-
-        closeBtn.addEventListener('click', fecharModal);
-        closeCadastroBtn.addEventListener('click', () => {
-            modalCadastro.classList.remove('active');
-        });
-        closeFornecedorBtn.addEventListener('click', () => {
-            modalCadastroFornecedor.classList.remove('active');
-        });
-        cancelarBtn.addEventListener('click', fecharModal);
-        finalizarBtn.addEventListener('click', finalizarCarga);
-
-        addMaterialBtn.addEventListener('click', () => {
-            const novoCard = criarMaterialCard('');
-            materiaisListDiv.appendChild(novoCard);
-            calcularSomaEComparativo();
-        });
-
-        pesoBalancaoInput.addEventListener('input', calcularSomaEComparativo);
-
-        // Salvar novo material
-        salvarMaterialBtn.addEventListener('click', async () => {
-            const nomeMaterial = document.getElementById('novoMaterialNome').value.trim();
-            if (!nomeMaterial) {
-                alert('Digite o nome do material');
-                return;
-            }
-
-            try {
-                await addDoc(collection(window.db, "materiais"), { nome: nomeMaterial });
-                document.getElementById('mensagemSucesso').style.display = 'block';
-                document.getElementById('mensagemSucesso').textContent = 'Material cadastrado com sucesso!';
-                setTimeout(() => {
-                    document.getElementById('mensagemSucesso').style.display = 'none';
-                }, 3000);
-                document.getElementById('novoMaterialNome').value = '';
-                await carregarMateriais();
-                mostrarAlerta('Material cadastrado!', 'sucesso');
-            } catch (error) {
-                alert('Erro ao cadastrar: ' + error.message);
-            }
-        });
-
-        // Salvar novo fornecedor
-        salvarFornecedorBtn.addEventListener('click', async () => {
-            const nomeFornecedor = document.getElementById('novoFornecedorNome').value.trim();
-            if (!nomeFornecedor) {
-                alert('Digite o nome do fornecedor');
-                return;
-            }
-
-            try {
-                await addDoc(collection(window.db, "fornecedores"), { nome: nomeFornecedor });
-                document.getElementById('mensagemSucessoFornecedor').style.display = 'block';
-                document.getElementById('mensagemSucessoFornecedor').textContent = 'Fornecedor cadastrado com sucesso!';
-                setTimeout(() => {
-                    document.getElementById('mensagemSucessoFornecedor').style.display = 'none';
-                }, 3000);
-                document.getElementById('novoFornecedorNome').value = '';
-                await carregarFornecedores();
-                mostrarAlerta('Fornecedor cadastrado!', 'sucesso');
-            } catch (error) {
-                alert('Erro ao cadastrar: ' + error.message);
-            }
-        });
-
-        // Inicialização
-        async function init() {
-            document.getElementById('dataEntrada').value = new Date().toISOString().split('T')[0];
-            await carregarMateriais();
-            await carregarFornecedores();
-            await carregarHistorico();
-            adicionarMaterialExemplo();
-        }
-
-        init();
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+            authDomain: "system-mil.firebaseapp.com",
+            projectId: "system-mil",
+            storageBucket: "system-mil.firebasestorage.app",
+            messagingSenderId: "138426359863",
+            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
+            measurementId: "G-DYCDBRZSHZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.limit = limit;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+        window.updateDoc = updateDoc;
+        window.getDoc = getDoc;
+
+        // Disparar evento quando Firebase estiver pronto
+        window.dispatchEvent(new Event('firebaseReady'));
     </script>
+
+    <!-- MAIN.JS (sidebar e topbar) -->
     <script src="/js/main.js"></script>
+
+    <!-- MODAL BALANÇÃO (código isolado) -->
+    <script>
+        // Aguardar Firebase e DOM carregarem
+        let firebasePronto = false;
+        let domPronto = false;
+
+        function iniciarModal() {
+            if (!firebasePronto || !domPronto) return;
+            
+            console.log('Iniciando Modal de Balanção...');
+            
+            // Variáveis globais do modal
+            let materiaisCadastrados = [];
+            let fornecedoresCadastrados = [];
+            let modoEdicao = false;
+            let idEditando = null;
+
+            // Elementos DOM
+            const materiaisListDiv = document.getElementById('materiaisList');
+            const addMaterialBtn = document.getElementById('addMaterialBtn');
+            const somaMateriaisSpan = document.getElementById('somaMateriais');
+            const comparativoDiv = document.getElementById('comparativoDiv');
+            const pesoBalancaoInput = document.getElementById('pesoBalancao');
+            const fornecedorSelect = document.getElementById('fornecedorSelect');
+
+            // Função para mostrar alerta flutuante
+            function mostrarAlerta(mensagem, tipo = 'erro') {
+                const alerta = document.getElementById('alertaFlutuante');
+                const mensagemSpan = document.getElementById('mensagemAlerta');
+                mensagemSpan.textContent = mensagem;
+                alerta.classList.remove('sucesso');
+                if (tipo === 'sucesso') {
+                    alerta.classList.add('sucesso');
+                }
+                alerta.classList.add('show');
+                setTimeout(() => {
+                    alerta.classList.remove('show');
+                    alerta.classList.remove('sucesso');
+                }, 4000);
+            }
+
+            // Função para formatar número sem decimais
+            function formatarNumero(valor) {
+                return Math.round(valor);
+            }
+
+            // Função para carregar fornecedores
+            async function carregarFornecedores() {
+                try {
+                    const q = query(collection(window.db, "fornecedores"), orderBy("nome"));
+                    const querySnapshot = await getDocs(q);
+                    fornecedoresCadastrados = [];
+                    querySnapshot.forEach((doc) => {
+                        fornecedoresCadastrados.push({ id: doc.id, nome: doc.data().nome });
+                    });
+                    atualizarSelectFornecedores();
+                } catch (error) {
+                    console.error("Erro ao carregar fornecedores:", error);
+                }
+            }
+
+            function atualizarSelectFornecedores() {
+                fornecedorSelect.innerHTML = '<option value="">Selecione um fornecedor</option>';
+                fornecedoresCadastrados.forEach(forn => {
+                    const option = document.createElement('option');
+                    option.value = forn.nome;
+                    option.textContent = forn.nome;
+                    fornecedorSelect.appendChild(option);
+                });
+            }
+
+            async function carregarMateriais() {
+                try {
+                    const q = query(collection(window.db, "materiais"), orderBy("nome"));
+                    const querySnapshot = await getDocs(q);
+                    materiaisCadastrados = [];
+                    querySnapshot.forEach((doc) => {
+                        materiaisCadastrados.push({ id: doc.id, nome: doc.data().nome });
+                    });
+                    atualizarSelectsMateriais();
+                } catch (error) {
+                    console.error("Erro ao carregar materiais:", error);
+                }
+            }
+
+            function atualizarSelectsMateriais() {
+                const selects = document.querySelectorAll('.material-select');
+                selects.forEach(select => {
+                    const valorAtual = select.value;
+                    select.innerHTML = '<option value="">Selecione um material</option>';
+                    materiaisCadastrados.forEach(mat => {
+                        const option = document.createElement('option');
+                        option.value = mat.nome;
+                        option.textContent = mat.nome;
+                        if (valorAtual === mat.nome) option.selected = true;
+                        select.appendChild(option);
+                    });
+                });
+            }
+
+            function adicionarCampoPeso(pesosList, cardId, valorInicial = '') {
+                const pesoDiv = document.createElement('div');
+                pesoDiv.className = 'peso-item';
+                pesoDiv.innerHTML = `
+                    <input type="number" step="1" placeholder="Peso (kg)" class="peso-input" data-card="${cardId}" value="${valorInicial}">
+                    <button type="button" class="btn-remove-peso">
+                        <i class="fas fa-times"></i> Remover
+                    </button>
+                `;
+                const pesoInput = pesoDiv.querySelector('.peso-input');
+                const removePesoBtn = pesoDiv.querySelector('.btn-remove-peso');
+                pesoInput.addEventListener('input', () => calcularSomaEComparativo());
+                removePesoBtn.addEventListener('click', () => {
+                    pesoDiv.remove();
+                    calcularSomaEComparativo();
+                });
+                pesosList.appendChild(pesoDiv);
+                calcularSomaEComparativo();
+            }
+
+            function criarMaterialCard(materialNome = '', pesos = []) {
+                const cardId = Date.now() + Math.random();
+                const div = document.createElement('div');
+                div.className = 'material-card';
+                div.dataset.id = cardId;
+                div.innerHTML = `
+                    <div class="material-header">
+                        <select class="material-select" data-id="${cardId}">
+                            <option value="">Selecione um material</option>
+                            ${materiaisCadastrados.map(m => `<option value="${m.nome}" ${materialNome === m.nome ? 'selected' : ''}>${m.nome}</option>`).join('')}
+                        </select>
+                        <button type="button" class="btn-remove-material">
+                            <i class="fas fa-trash"></i> Remover Material
+                        </button>
+                    </div>
+                    <div class="pesos-container" data-card="${cardId}">
+                        <div class="pesos-list"></div>
+                        <button type="button" class="btn-add-peso">
+                            <i class="fas fa-plus"></i> Incluir Peso
+                        </button>
+                    </div>
+                    <div class="material-total" data-total="${cardId}">
+                        Total do Material: 0 kg
+                    </div>
+                `;
+                const select = div.querySelector('.material-select');
+                const removeBtn = div.querySelector('.btn-remove-material');
+                const addPesoBtn = div.querySelector('.btn-add-peso');
+                const pesosList = div.querySelector('.pesos-list');
+                if (pesos.length > 0) {
+                    pesos.forEach(peso => adicionarCampoPeso(pesosList, cardId, peso));
+                } else {
+                    adicionarCampoPeso(pesosList, cardId);
+                }
+                select.addEventListener('change', () => calcularSomaEComparativo());
+                removeBtn.addEventListener('click', () => {
+                    div.remove();
+                    calcularSomaEComparativo();
+                });
+                addPesoBtn.addEventListener('click', () => adicionarCampoPeso(pesosList, cardId));
+                return div;
+            }
+
+            function calcularSomaEComparativo() {
+                let somaTotalGeral = 0;
+                const cards = document.querySelectorAll('#materiaisList .material-card');
+                const dadosMateriais = [];
+                cards.forEach(card => {
+                    const select = card.querySelector('.material-select');
+                    const materialNome = select ? select.value : '';
+                    const pesos = card.querySelectorAll('.peso-input');
+                    let somaMaterial = 0;
+                    const pesosIndividuais = [];
+                    pesos.forEach(pesoInput => {
+                        const peso = parseFloat(pesoInput.value) || 0;
+                        somaMaterial += peso;
+                        if (peso > 0) pesosIndividuais.push(peso);
+                    });
+                    somaTotalGeral += somaMaterial;
+                    const totalSpan = card.querySelector('.material-total');
+                    if (totalSpan) totalSpan.textContent = `Total do Material: ${formatarNumero(somaMaterial)} kg`;
+                    if (materialNome && somaMaterial > 0) {
+                        dadosMateriais.push({ nome: materialNome, pesoTotal: somaMaterial, pesosIndividuais: pesosIndividuais });
+                    }
+                });
+                somaMateriaisSpan.textContent = formatarNumero(somaTotalGeral);
+                const pesoBalancao = parseFloat(pesoBalancaoInput.value) || 0;
+                const diferenca = somaTotalGeral - pesoBalancao;
+                let htmlComparativo = `<strong>📊 Comparativo Balanção vs Materiais</strong><br>Peso Balança: ${formatarNumero(pesoBalancao)} kg | Soma Materiais: ${formatarNumero(somaTotalGeral)} kg<br>`;
+                if (pesoBalancao > 0) {
+                    const diferencaPercentual = (Math.abs(diferenca) / pesoBalancao) * 100;
+                    const percentualBalanca = (somaTotalGeral / pesoBalancao) * 100;
+                    htmlComparativo += `Diferença: ${diferenca >= 0 ? '+' : ''}${formatarNumero(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}% de variação)<br>`;
+                    htmlComparativo += `Percentual da balança: ${percentualBalanca.toFixed(1)}%<br>`;
+                    if (diferencaPercentual <= 5) {
+                        comparativoDiv.className = 'comparativo verde';
+                        htmlComparativo += '✅ COMPATÍVEL: Dentro da tolerância de 5%';
+                    } else {
+                        comparativoDiv.className = 'comparativo vermelho';
+                        htmlComparativo += '❌ INCOMPATÍVEL: Variação superior a 5% - Verificar pesos';
+                    }
+                    htmlComparativo += `<hr><strong>Detalhamento por Material:</strong><br>`;
+                    dadosMateriais.forEach(mat => {
+                        const percMaterial = (mat.pesoTotal / pesoBalancao) * 100;
+                        htmlComparativo += `• ${mat.nome}: ${formatarNumero(mat.pesoTotal)} kg (${percMaterial.toFixed(1)}% do balanção)<br>`;
+                    });
+                } else {
+                    comparativoDiv.className = 'comparativo';
+                    htmlComparativo += '⚠️ Informe o peso da balança para comparação';
+                }
+                comparativoDiv.innerHTML = htmlComparativo;
+                window.dadosMateriaisCompletos = dadosMateriais;
+            }
+
+            async function gerarPDF(fornecedor, dataEntrada, pesoBalancao, somaTotal, estado, materiais) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const urlImagem = 'https://th.bing.com/th/id/OIP.vKHn8lz4KqgdC4ORa0AbqQAAAA?w=252&h=89&c=7&r=0&o=7&pid=1.7&rm=3';
+                function urlToBase64(url) {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+                            resolve(canvas.toDataURL('image/png'));
+                        };
+                        img.onerror = reject;
+                        img.src = url;
+                    });
+                }
+                try {
+                    const logoBase64 = await urlToBase64(urlImagem);
+                    doc.setFillColor(44, 62, 80);
+                    doc.rect(0, 0, 210, 45, 'F');
+                    doc.addImage(logoBase64, 'PNG', 15, 8, 50, 25);
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(12);
+                    doc.setFont("helvetica", "normal");
+                    doc.text('Relatório de Balanção de Materiais', 75, 22);
+                    doc.text(`Data do Documento: ${new Date().toLocaleString('pt-BR')}`, 75, 32);
+                } catch (error) {
+                    doc.setFillColor(44, 62, 80);
+                    doc.rect(0, 0, 210, 45, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(18);
+                    doc.setFont("helvetica", "bold");
+                    doc.text('MIL PLÁSTICOS', 20, 25);
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.text('Soluções em Plásticos', 20, 35);
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(12);
+                    doc.text('Relatório de Balanção de Materiais', 20, 45);
+                }
+                doc.setDrawColor(200, 200, 200);
+                doc.line(20, 55, 190, 55);
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.text('INFORMAÇÕES DA CARGA', 20, 70);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.text(`Fornecedor: ${fornecedor}`, 20, 83);
+                doc.text(`Data de Entrada: ${new Date(dataEntrada).toLocaleDateString('pt-BR')}`, 20, 91);
+                doc.text(`Estado do Material: ${estado}`, 20, 99);
+                doc.text(`Peso da Balança: ${formatarNumero(pesoBalancao)} kg`, 20, 107);
+                doc.text(`Soma Total dos Materiais: ${formatarNumero(somaTotal)} kg`, 20, 115);
+                const diferenca = somaTotal - pesoBalancao;
+                const diferencaPercentual = pesoBalancao > 0 ? (Math.abs(diferenca) / pesoBalancao) * 100 : 0;
+                const statusCompativel = diferencaPercentual <= 5;
+                const statusColor = statusCompativel ? [40, 167, 69] : [220, 53, 69];
+                doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+                doc.text(`Status: ${statusCompativel ? 'Compatível' : 'Incompatível'}`, 20, 123);
+                doc.text(`Diferença: ${diferenca >= 0 ? '+' : ''}${formatarNumero(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}% de variação)`, 20, 131);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "bold");
+                doc.text('DETALHAMENTO DOS MATERIAIS', 20, 148);
+                doc.setFillColor(52, 73, 94);
+                doc.rect(20, 154, 170, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.text('Material', 22, 160);
+                doc.text('Pesos Individuais (kg)', 90, 160);
+                doc.text('Total (kg)', 160, 160);
+                doc.text('%', 178, 160);
+                let y = 166;
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "normal");
+                materiais.forEach((mat, idx) => {
+                    if (y > 260) { doc.addPage(); y = 20; }
+                    const percentual = pesoBalancao > 0 ? (mat.pesoTotal / pesoBalancao) * 100 : 0;
+                    const pesosStr = mat.pesos.map(p => formatarNumero(p)).join(' + ');
+                    if (idx % 2 === 0) {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(20, y - 3, 170, 8, 'F');
+                    }
+                    doc.text(mat.nome.substring(0, 25), 22, y);
+                    doc.text(pesosStr.substring(0, 35), 90, y);
+                    doc.text(`${formatarNumero(mat.pesoTotal)} kg`, 160, y);
+                    doc.text(`${percentual.toFixed(1)}%`, 178, y);
+                    y += 8;
+                });
+                y += 10;
+                doc.setDrawColor(200, 200, 200);
+                doc.line(20, y, 190, y);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Documento gerado pelo Sistema Mil Plásticos', 20, y + 6);
+                doc.text(`Total de materiais: ${materiais.length} | Peso total processado: ${formatarNumero(somaTotal)} kg`, 20, y + 12);
+                return doc.output('datauristring');
+            }
+
+            async function salvarOuAtualizarBalancao(dados, pdfBase64, id = null) {
+                try {
+                    if (id) {
+                        const docRef = doc(window.db, "balancoes", id);
+                        await updateDoc(docRef, { ...dados, pdfBase64: pdfBase64, dataAtualizacao: new Date().toISOString() });
+                        return id;
+                    } else {
+                        const docRef = await addDoc(collection(window.db, "balancoes"), { ...dados, pdfBase64: pdfBase64, dataCriacao: new Date().toISOString() });
+                        return docRef.id;
+                    }
+                } catch (error) {
+                    console.error("Erro ao salvar/atualizar:", error);
+                    throw error;
+                }
+            }
+
+            async function carregarHistorico() {
+                const listaDiv = document.getElementById('listaHistorico');
+                listaDiv.innerHTML = '<p>Carregando...</p>';
+                try {
+                    const q = query(collection(window.db, "balancoes"), orderBy("dataCriacao", "desc"), limit(30));
+                    const querySnapshot = await getDocs(q);
+                    if (querySnapshot.empty) {
+                        listaDiv.innerHTML = '<p>Nenhum registro encontrado.</p>';
+                        return;
+                    }
+                    listaDiv.innerHTML = '';
+                    for (const docSnap of querySnapshot.docs) {
+                        const data = docSnap.data();
+                        const docId = docSnap.id;
+                        const diferencaPercentual = data.pesoBalancao > 0 ? (Math.abs(data.somaTotal - data.pesoBalancao) / data.pesoBalancao) * 100 : 0;
+                        const statusIcon = diferencaPercentual <= 5 ? '✅' : '⚠️';
+                        const item = document.createElement('div');
+                        item.className = 'historico-item';
+                        item.innerHTML = `
+                            <strong>${data.fornecedor}</strong> - ${new Date(data.dataEntrada).toLocaleDateString('pt-BR')}<br>
+                            <small>Estado: ${data.estado || 'N/A'} | Bal: ${formatarNumero(data.pesoBalancao)}kg | Soma: ${formatarNumero(data.somaTotal)}kg | Variação: ${diferencaPercentual.toFixed(1)}% ${statusIcon}</small>
+                            <div class="historico-botoes">
+                                <button class="btn-ver-pdf" data-id="${docId}"><i class="fas fa-file-pdf"></i> Ver PDF</button>
+                                <button class="btn-editar-historico" data-id="${docId}"><i class="fas fa-edit"></i> Editar</button>
+                                <button class="btn-excluir-historico" data-id="${docId}"><i class="fas fa-trash"></i> Excluir</button>
+                            </div>
+                        `;
+                        item.querySelector('.btn-ver-pdf').addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            try {
+                                const docRef = doc(window.db, "balancoes", docId);
+                                const docSnap = await getDoc(docRef);
+                                if (docSnap.exists() && docSnap.data().pdfBase64) {
+                                    const link = document.createElement('a');
+                                    link.href = docSnap.data().pdfBase64;
+                                    link.download = `balancao_${data.fornecedor.replace(/\s/g, '_')}_${data.dataEntrada}.pdf`;
+                                    link.click();
+                                    mostrarAlerta('PDF baixado com sucesso!', 'sucesso');
+                                } else {
+                                    const pdfBase64 = await gerarPDF(data.fornecedor, data.dataEntrada, data.pesoBalancao, data.somaTotal, data.estado, data.materiais);
+                                    await updateDoc(docRef, { pdfBase64: pdfBase64 });
+                                    const link = document.createElement('a');
+                                    link.href = pdfBase64;
+                                    link.download = `balancao_${data.fornecedor.replace(/\s/g, '_')}_${data.dataEntrada}.pdf`;
+                                    link.click();
+                                    mostrarAlerta('PDF gerado e baixado!', 'sucesso');
+                                }
+                            } catch (error) {
+                                mostrarAlerta('Erro ao recuperar PDF');
+                            }
+                        });
+                        item.querySelector('.btn-editar-historico').addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            await carregarParaEdicao(docId);
+                        });
+                        item.querySelector('.btn-excluir-historico').addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            if (confirm('⚠️ Tem certeza que deseja excluir este registro permanentemente?')) {
+                                try {
+                                    await deleteDoc(doc(window.db, "balancoes", docId));
+                                    await carregarHistorico();
+                                    mostrarAlerta('Registro excluído com sucesso!', 'sucesso');
+                                } catch (error) {
+                                    mostrarAlerta('Erro ao excluir registro.');
+                                }
+                            }
+                        });
+                        listaDiv.appendChild(item);
+                    }
+                } catch (error) {
+                    listaDiv.innerHTML = '<p>Erro ao carregar histórico.</p>';
+                }
+            }
+
+            async function carregarParaEdicao(id) {
+                try {
+                    const docRef = doc(window.db, "balancoes", id);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        modoEdicao = true;
+                        idEditando = id;
+                        document.getElementById('editandoId').value = id;
+                        fornecedorSelect.value = data.fornecedor;
+                        document.getElementById('dataEntrada').value = data.dataEntrada;
+                        document.getElementById('pesoBalancao').value = data.pesoBalancao;
+                        document.getElementById('estado').value = data.estado || '';
+                        materiaisListDiv.innerHTML = '';
+                        data.materiais.forEach(material => {
+                            const novoCard = criarMaterialCard(material.nome, material.pesos || [material.pesoTotal]);
+                            materiaisListDiv.appendChild(novoCard);
+                        });
+                        if (data.materiais.length === 0) adicionarMaterialExemplo();
+                        calcularSomaEComparativo();
+                        document.getElementById('modalBalanco').classList.add('active');
+                        mostrarAlerta('Carregando dados para edição...', 'sucesso');
+                    }
+                } catch (error) {
+                    mostrarAlerta('Erro ao carregar dados para edição');
+                }
+            }
+
+            async function finalizarCarga() {
+                const fornecedor = fornecedorSelect.value;
+                const dataEntrada = document.getElementById('dataEntrada').value;
+                const pesoBalancao = parseFloat(document.getElementById('pesoBalancao').value) || 0;
+                const estado = document.getElementById('estado').value;
+                const editandoId = document.getElementById('editandoId').value;
+                if (!fornecedor) { mostrarAlerta('Selecione um fornecedor'); return; }
+                if (!dataEntrada) { mostrarAlerta('Selecione a data de entrada'); return; }
+                if (!estado) { mostrarAlerta('Selecione o estado do material'); return; }
+                const cards = document.querySelectorAll('#materiaisList .material-card');
+                const materiais = [];
+                let somaTotal = 0;
+                cards.forEach(card => {
+                    const select = card.querySelector('.material-select');
+                    const materialNome = select ? select.value : '';
+                    const pesos = card.querySelectorAll('.peso-input');
+                    let somaMaterial = 0;
+                    const pesosLista = [];
+                    pesos.forEach(pesoInput => {
+                        const peso = parseFloat(pesoInput.value) || 0;
+                        somaMaterial += peso;
+                        if (peso > 0) pesosLista.push(peso);
+                    });
+                    if (materialNome && somaMaterial > 0) {
+                        materiais.push({ nome: materialNome, pesoTotal: somaMaterial, pesos: pesosLista });
+                        somaTotal += somaMaterial;
+                    }
+                });
+                if (materiais.length === 0) { mostrarAlerta('Adicione pelo menos um material com peso'); return; }
+                const diferencaPercentual = pesoBalancao > 0 ? (Math.abs(somaTotal - pesoBalancao) / pesoBalancao) * 100 : 0;
+                if (pesoBalancao > 0 && diferencaPercentual > 5) {
+                    if (!confirm(`⚠️ ATENÇÃO! Variação de ${diferencaPercentual.toFixed(1)}% ultrapassou os 5% permitidos!\n\nDeseja continuar mesmo assim?`)) return;
+                }
+                const pdfBase64 = await gerarPDF(fornecedor, dataEntrada, pesoBalancao, somaTotal, estado, materiais);
+                const balancaoData = { fornecedor, dataEntrada, pesoBalancao, somaTotal, estado, materiais: materiais.map(m => ({ nome: m.nome, pesoTotal: m.pesoTotal, pesos: m.pesos })), status: diferencaPercentual <= 5 ? 'Compatível' : 'Incompatível' };
+                try {
+                    await salvarOuAtualizarBalancao(balancaoData, pdfBase64, editandoId || null);
+                    mostrarAlerta(editandoId ? 'Registro atualizado com sucesso!' : 'Registro salvo com sucesso!', 'sucesso');
+                    await carregarHistorico();
+                    const link = document.createElement('a');
+                    link.href = pdfBase64;
+                    link.download = `balancao_${fornecedor.replace(/\s/g, '_')}_${dataEntrada}.pdf`;
+                    link.click();
+                    fecharModal();
+                    resetModal();
+                } catch (error) {
+                    mostrarAlerta('Erro ao salvar: ' + error.message);
+                }
+            }
+
+            function resetModal() {
+                modoEdicao = false;
+                idEditando = null;
+                document.getElementById('editandoId').value = '';
+                fornecedorSelect.value = '';
+                document.getElementById('dataEntrada').value = new Date().toISOString().split('T')[0];
+                document.getElementById('pesoBalancao').value = '';
+                document.getElementById('estado').value = '';
+                materiaisListDiv.innerHTML = '';
+                adicionarMaterialExemplo();
+                calcularSomaEComparativo();
+            }
+
+            function adicionarMaterialExemplo() {
+                if (materiaisCadastrados.length > 0) {
+                    const novoCard = criarMaterialCard(materiaisCadastrados[0].nome);
+                    materiaisListDiv.appendChild(novoCard);
+                }
+            }
+
+            function fecharModal() {
+                document.getElementById('modalBalanco').classList.remove('active');
+                resetModal();
+            }
+
+            // Configurar eventos
+            document.getElementById('openModalBtn').addEventListener('click', () => { resetModal(); document.getElementById('modalBalanco').classList.add('active'); });
+            document.getElementById('openCadastroMaterialBtn').addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.add('active'));
+            document.getElementById('openCadastroFornecedorBtn').addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.add('active'));
+            document.getElementById('closeModalBtn').addEventListener('click', fecharModal);
+            document.getElementById('closeCadastroModalBtn').addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.remove('active'));
+            document.getElementById('closeFornecedorModalBtn').addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.remove('active'));
+            document.getElementById('cancelarBtn').addEventListener('click', fecharModal);
+            document.getElementById('finalizarCargaBtn').addEventListener('click', finalizarCarga);
+            addMaterialBtn.addEventListener('click', () => { const novoCard = criarMaterialCard(''); materiaisListDiv.appendChild(novoCard); calcularSomaEComparativo(); });
+            pesoBalancaoInput.addEventListener('input', calcularSomaEComparativo);
+
+            document.getElementById('salvarMaterialBtn').addEventListener('click', async () => {
+                const nomeMaterial = document.getElementById('novoMaterialNome').value.trim();
+                if (!nomeMaterial) { alert('Digite o nome do material'); return; }
+                try {
+                    await addDoc(collection(window.db, "materiais"), { nome: nomeMaterial });
+                    document.getElementById('mensagemSucesso').style.display = 'block';
+                    document.getElementById('mensagemSucesso').textContent = 'Material cadastrado com sucesso!';
+                    setTimeout(() => { document.getElementById('mensagemSucesso').style.display = 'none'; }, 3000);
+                    document.getElementById('novoMaterialNome').value = '';
+                    await carregarMateriais();
+                    mostrarAlerta('Material cadastrado!', 'sucesso');
+                } catch (error) { alert('Erro ao cadastrar: ' + error.message); }
+            });
+
+            document.getElementById('salvarFornecedorBtn').addEventListener('click', async () => {
+                const nomeFornecedor = document.getElementById('novoFornecedorNome').value.trim();
+                if (!nomeFornecedor) { alert('Digite o nome do fornecedor'); return; }
+                try {
+                    await addDoc(collection(window.db, "fornecedores"), { nome: nomeFornecedor });
+                    document.getElementById('mensagemSucessoFornecedor').style.display = 'block';
+                    document.getElementById('mensagemSucessoFornecedor').textContent = 'Fornecedor cadastrado com sucesso!';
+                    setTimeout(() => { document.getElementById('mensagemSucessoFornecedor').style.display = 'none'; }, 3000);
+                    document.getElementById('novoFornecedorNome').value = '';
+                    await carregarFornecedores();
+                    mostrarAlerta('Fornecedor cadastrado!', 'sucesso');
+                } catch (error) { alert('Erro ao cadastrar: ' + error.message); }
+            });
+
+            // Inicialização
+            async function init() {
+                document.getElementById('dataEntrada').value = new Date().toISOString().split('T')[0];
+                await carregarMateriais();
+                await carregarFornecedores();
+                await carregarHistorico();
+                adicionarMaterialExemplo();
+            }
+            init();
+        }
+
+        // Aguardar eventos
+        window.addEventListener('firebaseReady', () => {
+            firebasePronto = true;
+            iniciarModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            domPronto = true;
+            iniciarModal();
+        });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => { domPronto = true; iniciarModal(); });
+        } else {
+            domPronto = true;
+            iniciarModal();
+        }
+    </script>
 </body>
 
 </html>
