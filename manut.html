@@ -5,22 +5,492 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de Manutenção | Mil Plásticos</title>
     
-    <!-- CSS -->
+    <!-- CSS Principal -->
     <link rel="stylesheet" href="/assets/css/main.css">
     <link rel="stylesheet" href="/assets/css/sidebar.css">
     <link rel="stylesheet" href="/assets/css/topbar.css">
-    <link rel="stylesheet" href="/assets/css/manut.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Estilos específicos do sistema de manutenção */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            margin-left: 250px;
+        }
+        
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            margin-bottom: 25px;
+        }
+        
+        .page-header h1 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .page-header p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .page-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        /* Botões */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #219a52; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-warning:hover { background: #e67e22; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            background: white;
+            border-radius: 10px 10px 0 0;
+            padding: 0 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: #3498db;
+        }
+        
+        .tab-btn.active {
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+            margin-bottom: -2px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: #f8f9fa;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #2c3e50;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* Tabela */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* Search box */
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+        }
+        
+        .search-box input {
+            border: none;
+            background: none;
+            padding: 8px;
+            outline: none;
+            width: 200px;
+        }
+        
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-proximo { background: #fff3cd; color: #856404; }
+        .status-urgente { background: #f8d7da; color: #721c24; }
+        .status-atrasada { background: #f8d7da; color: #721c24; }
+        
+        /* Veículo card */
+        .veiculo-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+        }
+        
+        .veiculo-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .veiculo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .veiculo-header h4 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .veiculo-body small {
+            color: #666;
+        }
+        
+        .tipos-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .tipo-tag {
+            background: #e8f4fd;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #2980b9;
+        }
+        
+        /* Programadas */
+        .programada-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .programada-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .programada-info {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        /* Tipo item */
+        .tipo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            margin-bottom: 8px;
+            border-radius: 6px;
+        }
+        
+        .tipo-info {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        .modal-container.modal-lg {
+            max-width: 800px;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px 12px 0 0;
+            position: sticky;
+            top: 0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+        }
+        
+        .modal-body {
+            padding: 25px;
+        }
+        
+        .modal-footer {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            border-radius: 0 0 12px 12px;
+            position: sticky;
+            bottom: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+        
+        .modal-close:hover {
+            opacity: 1;
+        }
+        
+        /* Formulário */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .form-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        /* Alertas */
+        .alertas-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        
+        /* Animações */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(100%); }
+            15% { opacity: 1; transform: translateX(0); }
+            85% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(100%); }
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+                border-bottom: none;
+            }
+            
+            .tab-btn {
+                border-bottom: 1px solid #eee;
+            }
+            
+            .tab-btn.active {
+                border-bottom: 1px solid #3498db;
+            }
+            
+            .veiculo-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
 </head>
 <body>
+    <!-- Topbar -->
     <div id="topbar-container"></div>
+    
+    <!-- Container principal -->
     <div class="container">
+        <!-- Sidebar -->
         <div id="sidebar-container"></div>
+        
+        <!-- Conteúdo principal -->
         <main class="main-content">
             <div class="page-container">
                 <!-- Cabeçalho -->
                 <div class="page-header">
                     <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
+                    <p>Gerencie múltiplos tipos de manutenção para cada veículo (óleo motor, óleo hidráulico, filtros, etc.)</p>
                     <div class="page-actions">
                         <button class="btn btn-success" id="btnNovaManutencao">
                             <i class="fas fa-plus"></i> Registrar Manutenção
@@ -28,25 +498,32 @@
                         <button class="btn btn-primary" id="btnConfigurarTipos">
                             <i class="fas fa-cog"></i> Configurar Tipos
                         </button>
+                        <button class="btn btn-warning" id="btnCheckAlertas">
+                            <i class="fas fa-bell"></i> Verificar Alertas
+                        </button>
                     </div>
                 </div>
                 
-                <!-- Alertas -->
-                <div id="alertasContainer" style="display: none;"></div>
-                
                 <!-- Tabs -->
                 <div class="tabs">
-                    <button class="tab-btn active" data-tab="historico">📋 Histórico</button>
-                    <button class="tab-btn" data-tab="proximas">⏰ Próximas</button>
-                    <button class="tab-btn" data-tab="config">⚙️ Configurações</button>
+                    <button class="tab-btn active" data-tab="historico">
+                        <i class="fas fa-history"></i> Histórico
+                    </button>
+                    <button class="tab-btn" data-tab="proximas">
+                        <i class="fas fa-calendar-alt"></i> Próximas Manutenções
+                    </button>
+                    <button class="tab-btn" data-tab="config">
+                        <i class="fas fa-cog"></i> Configurações
+                    </button>
                 </div>
                 
-                <!-- Tab Histórico -->
+                <!-- Tab: Histórico -->
                 <div class="tab-content active" id="tab-historico">
                     <div class="card">
                         <div class="card-header">
                             <h2><i class="fas fa-history"></i> Histórico de Manutenções</h2>
                             <div class="search-box">
+                                <i class="fas fa-search"></i>
                                 <input type="text" id="searchHistorico" placeholder="Buscar...">
                             </div>
                         </div>
@@ -56,40 +533,48 @@
                                     <tr>
                                         <th>Data</th>
                                         <th>Veículo</th>
-                                        <th>Tipo</th>
+                                        <th>Tipo de Manutenção</th>
                                         <th>KM/Hora</th>
-                                        <th>Próxima</th>
+                                        <th>Próxima Manutenção</th>
                                         <th>Status</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="historicoBody"></tbody>
+                                <tbody id="historicoBody">
+                                    <tr>
+                                        <td colspan="7" style="text-align:center;">Carregando...</td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Tab Próximas -->
+                <!-- Tab: Próximas Manutenções -->
                 <div class="tab-content" id="tab-proximas">
                     <div class="card">
                         <div class="card-header">
-                            <h2><i class="fas fa-calendar-alt"></i> Próximas Manutenções</h2>
+                            <h2><i class="fas fa-calendar-alt"></i> Próximas Manutenções Programadas</h2>
+                            <span class="badge" id="totalProgramadas">0 programadas</span>
                         </div>
-                        <div class="card-body" id="proximasBody"></div>
+                        <div class="card-body" id="proximasBody">
+                            <p style="text-align:center;color:#999;">Carregando...</p>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Tab Configurações -->
+                <!-- Tab: Configurações -->
                 <div class="tab-content" id="tab-config">
-                    <!-- Veículos -->
                     <div class="card">
                         <div class="card-header">
-                            <h2><i class="fas fa-truck"></i> Veículos</h2>
+                            <h2><i class="fas fa-truck"></i> Veículos da Frota</h2>
                             <button class="btn btn-primary btn-sm" id="btnNovoVeiculo">
                                 <i class="fas fa-plus"></i> Novo Veículo
                             </button>
                         </div>
-                        <div class="card-body" id="veiculosList"></div>
+                        <div class="card-body" id="veiculosList">
+                            <p style="text-align:center;color:#999;">Carregando...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -106,41 +591,43 @@
             <div class="modal-body">
                 <form id="formManutencao">
                     <div class="form-group">
-                        <label>Veículo *</label>
+                        <label><i class="fas fa-truck"></i> Veículo *</label>
                         <select id="veiculoSelect" required>
-                            <option value="">Selecione...</option>
+                            <option value="">Selecione um veículo...</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Tipo de Manutenção *</label>
+                        <label><i class="fas fa-cog"></i> Tipo de Manutenção *</label>
                         <select id="tipoSelect" required>
                             <option value="">Selecione primeiro o veículo</option>
                         </select>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Data *</label>
+                            <label><i class="fas fa-calendar-alt"></i> Data *</label>
                             <input type="date" id="dataManutencao" required>
                         </div>
                         <div class="form-group">
-                            <label>KM/Hora Atual *</label>
-                            <input type="number" id="kmAtual" step="1" required>
+                            <label><i class="fas fa-tachometer-alt"></i> KM/Hora Atual *</label>
+                            <input type="number" id="kmAtual" step="1" required placeholder="Ex: 15000">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Observações</label>
-                        <textarea id="obsManutencao" rows="3"></textarea>
+                        <label><i class="fas fa-comment"></i> Observações</label>
+                        <textarea id="obsManutencao" rows="3" placeholder="Detalhes do serviço realizado, peças trocadas, etc..."></textarea>
                     </div>
                     <div class="form-footer">
                         <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">Salvar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Salvar Manutenção
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
-    <!-- MODAL: Configurar Tipos -->
+    <!-- MODAL: Configurar Tipos de Manutenção -->
     <div id="modalConfigTipos" class="modal-overlay">
         <div class="modal-container modal-lg">
             <div class="modal-header">
@@ -149,15 +636,20 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Veículo</label>
+                    <label><i class="fas fa-truck"></i> Selecione o Veículo</label>
                     <select id="configVeiculoSelect">
-                        <option value="">Selecione um veículo</option>
+                        <option value="">Selecione um veículo...</option>
                     </select>
                 </div>
-                <div id="tiposList" style="margin-top: 20px;"></div>
+                <div id="tiposList" style="margin-top: 20px;">
+                    <p class="text-muted" style="text-align:center;">Selecione um veículo para ver os tipos</p>
+                </div>
                 <button class="btn btn-success btn-sm" id="btnAddTipo" style="margin-top: 15px;">
-                    <i class="fas fa-plus"></i> Adicionar Tipo
+                    <i class="fas fa-plus"></i> Adicionar Tipo de Manutenção
                 </button>
+                <small class="hint" style="display: block; margin-top: 10px; color: #666;">
+                    <i class="fas fa-info-circle"></i> Exemplos: Troca de Óleo Motor (200h), Óleo Hidráulico (5000h), Filtro de Ar (200h)
+                </small>
             </div>
         </div>
     </div>
@@ -166,42 +658,46 @@
     <div id="modalNovoVeiculo" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h3><i class="fas fa-plus"></i> Novo Veículo</h3>
+                <h3><i class="fas fa-plus-circle"></i> Novo Veículo</h3>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Nome do Veículo *</label>
-                    <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01">
+                    <label><i class="fas fa-tag"></i> Nome do Veículo *</label>
+                    <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01, Caminhão SCANIA, Pá Carregadeira">
                 </div>
                 <div class="form-group">
-                    <label>Tipo de Unidade</label>
+                    <label><i class="fas fa-clock"></i> Tipo de Unidade</label>
                     <select id="novoVeiculoUnidade">
-                        <option value="KM">KM (Quilômetros)</option>
-                        <option value="HORAS">Horas (Máquinas)</option>
+                        <option value="KM">KM (Quilômetros - para veículos rodoviários)</option>
+                        <option value="HORAS">Horas (Horas de uso - para máquinas/empilhadeiras)</option>
                     </select>
+                    <small class="hint" style="display: block; margin-top: 5px; color: #666;">
+                        Escolha KM para caminhões/carros ou HORAS para empilhadeiras/máquinas
+                    </small>
                 </div>
                 <div class="form-footer">
                     <button class="btn btn-secondary modal-close">Cancelar</button>
-                    <button class="btn btn-primary" id="salvarNovoVeiculo">Salvar</button>
+                    <button class="btn btn-primary" id="salvarNovoVeiculo">
+                        <i class="fas fa-save"></i> Salvar Veículo
+                    </button>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- Scripts -->
-<!-- Firebase -->
-<!-- Firebase (primeiro) -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
-<!-- Helper do Firebase -->
+    
+    <!-- Helper Firebase -->
     <script src="/assets/js/manutencao-helper.js"></script>
-
-<!-- Seu main.js (sidebar/topbar) -->
+    
+    <!-- Main JS (sidebar e topbar) -->
     <script src="/assets/js/main.js"></script>
-
-<!-- Sistema de manutenção (por último) -->
+    
+    <!-- Sistema de Manutenção -->
     <script src="/assets/js/manut.js"></script>
 </body>
 </html>
