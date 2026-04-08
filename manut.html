@@ -9,448 +9,603 @@
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/topbar.css">
   <link rel="stylesheet" href="/assets/css/sidebar.css">
-  <link rel="stylesheet" href="/assets/css/manut.css">
   
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    /* Estilos adicionais */
-    .filtros-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
-        margin-top: 10px;
-    }
-    .filtro-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .filtro-item input[type="checkbox"] {
-        width: auto;
-        margin-right: 5px;
-    }
-    .filtro-modelo {
-        width: 150px;
-        padding: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 0.85rem;
-    }
-    .btn-edit {
-        background-color: #ffc107;
-        color: #000;
-    }
-    .btn-edit:hover {
-        background-color: #e0a800;
-    }
-    .status-badge {
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: bold;
-    }
-    .status-ok { background-color: #d4edda; color: #155724; }
-    .status-proximo { background-color: #fff3cd; color: #856404; }
-    .status-urgente { background-color: #f8d7da; color: #721c24; }
-    .status-atrasada { background-color: #f8d7da; color: #721c24; }
-    .text-warning { color: #ffc107; }
-    .text-danger { color: #dc3545; }
-    .text-success { color: #28a745; }
-    .text-info { color: #17a2b8; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+    .main-container { display: flex; min-height: 100vh; }
+    .content { flex: 1; padding: 20px; margin-left: 250px; }
+    
+    .page-header { margin-bottom: 25px; }
+    .page-header h1 { font-size: 1.8rem; color: #2c3e50; margin-bottom: 5px; }
+    .page-actions { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+    
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-warning { background: #f39c12; color: white; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    
+    .card { background: white; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .card-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .card-header h2, .card-header h3 { margin: 0; font-size: 1.2rem; }
+    .card-body { padding: 20px; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; visibility: hidden; opacity: 0; transition: all 0.3s; }
+    .modal-overlay.active { visibility: visible; opacity: 1; }
+    .modal-container { background: white; border-radius: 12px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; }
+    .modal-header { padding: 20px 25px; background: #2c3e50; color: white; display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 25px; }
+    .modal-footer { padding: 15px 25px; background: #f8f9fa; display: flex; justify-content: flex-end; gap: 12px; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    tr:hover { background: #f8f9fa; }
+    
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+    .status-ok { background: #d4edda; color: #155724; }
+    .status-proximo { background: #fff3cd; color: #856404; }
+    .status-urgente { background: #f8d7da; color: #721c24; }
+    
+    .tab-buttons { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+    .tab-btn { padding: 12px 24px; background: none; border: none; cursor: pointer; font-size: 1rem; font-weight: 600; color: #666; transition: all 0.2s; }
+    .tab-btn.active { color: #3498db; border-bottom: 2px solid #3498db; margin-bottom: -2px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .search-box { display: flex; align-items: center; gap: 8px; background: #f8f9fa; padding: 5px 12px; border-radius: 20px; }
+    .search-box input { border: none; background: none; padding: 8px; outline: none; }
+    
+    .tipo-manutencao-card { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #3498db; }
+    .tipo-manutencao-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+    .tipo-manutencao-nome { font-weight: bold; font-size: 1.1rem; }
+    .tipo-manutencao-intervalo { color: #666; font-size: 0.9rem; }
+    
+    .btn-add-tipo { background: #27ae60; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+    .btn-remove-tipo { background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    
+    .alerta-flutuante { position: fixed; top: 20px; right: 20px; padding: 15px 20px; border-radius: 8px; z-index: 2000; display: none; font-weight: bold; }
+    .alerta-flutuante.show { display: block; animation: slideInRight 0.3s ease; }
+    .alerta-flutuante.sucesso { background: #27ae60; color: white; }
+    .alerta-flutuante.erro { background: #e74c3c; color: white; }
+    @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
   </style>
 </head>
 <body>
-  <!-- Topbar Container -->
-  <div id="topbar-container"></div>
-  
-  <!-- Container principal -->
-  <div class="container">
-    <!-- Sidebar Container -->
-    <div id="sidebar-container"></div>
-    
-    <!-- Conteúdo principal -->
-    <main class="main-content">
-      
-      <div class="page-container">
-        
-        <!-- Cabeçalho da página -->
-        <div class="page-header">
-          <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
-          <p>Gerencie trocas de óleo e manutenções da frota</p>
-          <div class="page-actions">
-            <button class="btn btn-warning" id="btnCheckAlertas">
-              <i class="fas fa-bell"></i> Verificar Alertas
-            </button>
-            <button class="btn btn-success" id="btnNovaTrocaOleo">
-              <i class="fas fa-oil-can"></i> Nova Troca de Óleo
-            </button>
-            <button class="btn btn-primary" id="btnNovaManutencao">
-              <i class="fas fa-plus"></i> Nova Manutenção
-            </button>
-          </div>
+  <div class="main-container">
+    <div class="content">
+      <div class="page-header">
+        <h1><i class="fas fa-tools"></i> Controle de Manutenção por Tipo</h1>
+        <p>Gerencie múltiplos tipos de manutenção para cada veículo</p>
+        <div class="page-actions">
+          <button class="btn btn-primary" id="btnConfigurarVeiculo">
+            <i class="fas fa-cog"></i> Configurar Tipos por Veículo
+          </button>
+          <button class="btn btn-success" id="btnRegistrarManutencao">
+            <i class="fas fa-plus"></i> Registrar Manutenção
+          </button>
         </div>
-        
-        <!-- Card de Alertas -->
-        <div class="card card-alertas" id="cardAlertas" style="display: none;">
+      </div>
+      
+      <!-- Abas -->
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="historico">📋 Histórico de Manutenções</button>
+        <button class="tab-btn" data-tab="proximas">⏰ Próximas Manutenções</button>
+        <button class="tab-btn" data-tab="veiculos">🚗 Configurar Veículos</button>
+      </div>
+      
+      <!-- Aba: Histórico -->
+      <div class="tab-content active" id="tab-historico">
+        <div class="card">
           <div class="card-header">
-            <h3><i class="fas fa-exclamation-triangle"></i> Alertas de Manutenção</h3>
-            <button class="btn-icon" id="btnFecharAlertas">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <div class="card-body">
-            <div class="alertas-container" id="alertasContainer">
-              <!-- Alertas carregados via JS -->
+            <h2><i class="fas fa-history"></i> Histórico de Manutenções</h2>
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="searchHistorico" placeholder="Buscar...">
             </div>
           </div>
-        </div>
-        
-        <!-- Abas -->
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="trocas-oleo">
-            <i class="fas fa-oil-can"></i> Trocas de Óleo
-          </button>
-          <button class="tab-btn" data-tab="manutencoes-gerais">
-            <i class="fas fa-tools"></i> Manutenções Gerais
-          </button>
-          <button class="tab-btn" data-tab="programadas">
-            <i class="fas fa-calendar-alt"></i> Programadas
-          </button>
-        </div>
-        
-        <!-- Aba: Trocas de Óleo -->
-        <div class="tab-content active" id="trocas-oleo">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-oil-can"></i> Histórico de Trocas de Óleo</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="filterOleo" placeholder="Buscar trocas...">
-                </div>
-                <span class="badge" id="totalTrocasOleo">0 trocas</span>
-              </div>
-            </div>
-            <div class="card-body table-responsive">
-              <table id="tabelaOleo">
-                <thead>
-                  <tr>
-                    <th><i class="fas fa-calendar"></i> Data</th>
-                    <th><i class="fas fa-truck"></i> Veículo</th>
-                    <th><i class="fas fa-tachometer-alt"></i> KM/Hora</th>
-                    <th><i class="fas fa-oil-can"></i> Óleo</th>
-                    <th><i class="fas fa-filter"></i> Filtros</th>
-                    <th><i class="fas fa-redo"></i> Próxima em</th>
-                    <th><i class="fas fa-cogs"></i> Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="tabelaOleoBody">
-                  <!-- Dados carregados via JS -->
-                </tbody>
-              </table>
-            </div>
+          <div class="card-body table-responsive">
+            <table id="tabelaHistorico">
+              <thead>
+                <tr><th>Data</th><th>Veículo</th><th>Tipo Manutenção</th><th>KM/Hora</th><th>Próxima em</th><th>Status</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="historicoBody"></tbody>
+            </table>
           </div>
         </div>
-        
-        <!-- Aba: Manutenções Gerais -->
-        <div class="tab-content" id="manutencoes-gerais">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-tools"></i> Histórico de Manutenções</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="filterManutencoes" placeholder="Buscar manutenções...">
-                </div>
-                <span class="badge" id="totalManutencoes">0 manutenções</span>
-              </div>
-            </div>
-            <div class="card-body table-responsive">
-              <table id="tabelaManutencoes">
-                <thead>
-                  <tr>
-                    <th><i class="fas fa-calendar"></i> Data</th>
-                    <th><i class="fas fa-truck"></i> Veículo</th>
-                    <th><i class="fas fa-cog"></i> Tipo</th>
-                    <th><i class="fas fa-sticky-note"></i> Descrição</th>
-                    <th><i class="fas fa-money-bill-wave"></i> Custo</th>
-                    <th><i class="fas fa-cogs"></i> Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="tabelaManutencoesBody">
-                  <!-- Dados carregados via JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Aba: Programadas -->
-        <div class="tab-content" id="programadas">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-calendar-alt"></i> Manutenções Programadas</h2>
-              <span class="badge badge-warning" id="totalProgramadas">0 programadas</span>
-            </div>
-            <div class="card-body">
-              <div class="programadas-container" id="programadasContainer">
-                <!-- Programadas carregadas via JS -->
-              </div>
-            </div>
-          </div>
-        </div>
-        
-      </div> <!-- Fim do page-container -->
+      </div>
       
-    </main> <!-- Fim do main-content -->
-    
-  </div> <!-- Fim do container -->
+      <!-- Aba: Próximas Manutenções -->
+      <div class="tab-content" id="tab-proximas">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-calendar-alt"></i> Próximas Manutenções Programadas</h2>
+          </div>
+          <div class="card-body" id="proximasContainer"></div>
+        </div>
+      </div>
+      
+      <!-- Aba: Configurar Veículos -->
+      <div class="tab-content" id="tab-veiculos">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-truck"></i> Veículos Cadastrados</h2>
+            <button class="btn btn-primary btn-sm" id="btnNovoVeiculo"><i class="fas fa-plus"></i> Novo Veículo</button>
+          </div>
+          <div class="card-body" id="veiculosContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
   
-  <!-- Modais -->
-  
-  <!-- Modal Troca de Óleo -->
-  <div id="modalTrocaOleo" class="modal">
-    <div class="modal-content">
+  <!-- MODAL: Configurar Tipos por Veículo -->
+  <div id="modalConfigurarTipos" class="modal-overlay">
+    <div class="modal-container">
       <div class="modal-header">
-        <h3 id="modalTrocaTitulo"><i class="fas fa-oil-can"></i> Nova Troca de Óleo</h3>
-        <button class="btn-icon close-modal">&times;</button>
+        <h3><i class="fas fa-cog"></i> Configurar Tipos de Manutenção</h3>
+        <button class="modal-close" id="closeConfigModal">&times;</button>
       </div>
       <div class="modal-body">
-        <form id="formTrocaOleo">
-          <input type="hidden" id="trocaId" value="">
-          
+        <input type="hidden" id="veiculoConfigId">
+        <h4 id="veiculoConfigNome" style="margin-bottom: 20px;"></h4>
+        <div id="tiposManutencaoList"></div>
+        <button class="btn-add-tipo" id="btnAddTipoManutencao"><i class="fas fa-plus"></i> Adicionar Tipo de Manutenção</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelConfigBtn">Cancelar</button>
+        <button class="btn btn-success" id="saveConfigBtn">Salvar Configurações</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: Registrar Manutenção -->
+  <div id="modalRegistrarManutencao" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fas fa-tools"></i> Registrar Manutenção</h3>
+        <button class="modal-close" id="closeRegistroModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formRegistroManutencao">
+          <input type="hidden" id="registroId">
           <div class="form-group">
-            <label for="veiculoOleo"><i class="fas fa-truck"></i> Veículo *</label>
-            <select id="veiculoOleo" required>
-              <option value="">Selecione...</option>
-            </select>
+            <label>Veículo *</label>
+            <select id="registroVeiculo" required></select>
           </div>
-          
           <div class="form-group">
-            <label for="dataTrocaOleo"><i class="fas fa-calendar-alt"></i> Data da Troca *</label>
-            <input type="date" id="dataTrocaOleo" required>
+            <label>Tipo de Manutenção *</label>
+            <select id="registroTipo" required></select>
           </div>
-          
-          <div class="form-group">
-            <label for="kmTrocaOleo"><i class="fas fa-tachometer-alt"></i> KM/Hora da Troca *</label>
-            <input type="number" id="kmTrocaOleo" min="0" required>
-          </div>
-          
           <div class="form-grid">
             <div class="form-group">
-              <label for="tipoOleo">Tipo de Óleo *</label>
-              <select id="tipoOleo" required>
-                <option value="">Selecione...</option>
-                <option value="mineral">Mineral</option>
-                <option value="sintetico">Sintético</option>
-                <option value="semissintetico">Semissintético</option>
-              </select>
+              <label>Data *</label>
+              <input type="date" id="registroData" required>
             </div>
-            
             <div class="form-group">
-              <label for="marcaOleo">Marca do Óleo</label>
-              <input type="text" id="marcaOleo" placeholder="Ex: Shell Helix">
-            </div>
-            
-            <div class="form-group">
-              <label for="viscosidadeOleo">Viscosidade</label>
-              <input type="text" id="viscosidadeOleo" placeholder="Ex: 5W30">
-            </div>
-            
-            <div class="form-group">
-              <label for="quantidadeOleo">Quantidade (L)</label>
-              <input type="number" id="quantidadeOleo" min="0" step="0.5" placeholder="Ex: 5.0">
+              <label>KM/Hora Atual *</label>
+              <input type="number" id="registroKm" step="1" required placeholder="KM ou Horas">
             </div>
           </div>
-          
           <div class="form-group">
-            <label for="intervaloProximaOleo">Intervalo para Próxima Troca (KM/Horas) *</label>
-            <input type="number" id="intervaloProximaOleo" min="0" required value="10000">
-            <small class="hint">Geralmente 10.000 KM para óleo sintético</small>
+            <label>Observações</label>
+            <textarea id="registroObs" rows="3" placeholder="Detalhes do serviço realizado..."></textarea>
           </div>
-          
-          <div class="form-group">
-            <h4><i class="fas fa-filter"></i> Filtros Trocados</h4>
-            <div class="filtros-grid">
-              <div class="filtro-item">
-                <input type="checkbox" id="filtroOleo" value="filtro_oleo">
-                <label for="filtroOleo">Filtro de Óleo</label>
-                <input type="text" id="modeloFiltroOleo" placeholder="Modelo" class="filtro-modelo">
-              </div>
-              
-              <div class="filtro-item">
-                <input type="checkbox" id="filtroAr" value="filtro_ar">
-                <label for="filtroAr">Filtro de Ar</label>
-                <input type="text" id="modeloFiltroAr" placeholder="Modelo" class="filtro-modelo">
-              </div>
-              
-              <div class="filtro-item">
-                <input type="checkbox" id="filtroCombustivel" value="filtro_combustivel">
-                <label for="filtroCombustivel">Filtro de Combustível</label>
-                <input type="text" id="modeloFiltroCombustivel" placeholder="Modelo" class="filtro-modelo">
-              </div>
-              
-              <div class="filtro-item">
-                <input type="checkbox" id="filtroArCondicionado" value="filtro_ar_condicionado">
-                <label for="filtroArCondicionado">Filtro Ar Cond.</label>
-                <input type="text" id="modeloFiltroArCondicionado" placeholder="Modelo" class="filtro-modelo">
-              </div>
-              
-              <div class="filtro-item">
-                <input type="checkbox" id="filtroHidraulico" value="filtro_hidraulico">
-                <label for="filtroHidraulico">Filtro Hidráulico</label>
-                <input type="text" id="modeloFiltroHidraulico" placeholder="Modelo" class="filtro-modelo">
-              </div>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="observacoesOleo"><i class="fas fa-comment"></i> Observações</label>
-            <textarea id="observacoesOleo" rows="2" placeholder="Observações sobre a troca..."></textarea>
-          </div>
-          
-          <div class="form-footer">
-            <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-            <button type="submit" class="btn btn-success">
-              <i class="fas fa-save"></i> Salvar Troca de Óleo
-            </button>
+          <div class="form-footer" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+            <button type="button" class="btn btn-secondary" id="cancelRegistroBtn">Cancelar</button>
+            <button type="submit" class="btn btn-success">Salvar Registro</button>
           </div>
         </form>
       </div>
     </div>
   </div>
   
-  <!-- Modal Manutenção Geral -->
-  <div id="modalManutencaoGeral" class="modal">
-    <div class="modal-content">
+  <!-- MODAL: Novo Veículo -->
+  <div id="modalNovoVeiculo" class="modal-overlay">
+    <div class="modal-container modal-cadastro">
       <div class="modal-header">
-        <h3 id="modalManutencaoTitulo"><i class="fas fa-tools"></i> Nova Manutenção</h3>
-        <button class="btn-icon close-modal">&times;</button>
+        <h3><i class="fas fa-plus-circle"></i> Novo Veículo</h3>
+        <button class="modal-close" id="closeNovoVeiculoModal">&times;</button>
       </div>
       <div class="modal-body">
-        <form id="formManutencaoGeral">
-          <input type="hidden" id="manutencaoId" value="">
-          
-          <div class="form-group">
-            <label for="veiculoManutencao"><i class="fas fa-truck"></i> Veículo *</label>
-            <select id="veiculoManutencao" required>
-              <option value="">Selecione...</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="tipoManutencao"><i class="fas fa-cog"></i> Tipo de Manutenção *</label>
-            <select id="tipoManutencao" required>
-              <option value="">Selecione...</option>
-              <option value="pneus">Pneus</option>
-              <option value="freios">Freios</option>
-              <option value="suspensao">Suspensão</option>
-              <option value="motor">Motor</option>
-              <option value="bateria">Bateria</option>
-              <option value="eletrica">Elétrica</option>
-              <option value="ar_condicionado">Ar Condicionado</option>
-              <option value="corpo">Funilaria/Pintura</option>
-              <option value="preventiva">Preventiva</option>
-              <option value="corretiva">Corretiva</option>
-              <option value="hidraulica">Hidráulica</option>
-              <option value="outros">Outros</option>
-            </select>
-          </div>
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="dataManutencao"><i class="fas fa-calendar-alt"></i> Data *</label>
-              <input type="date" id="dataManutencao" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="kmManutencao"><i class="fas fa-tachometer-alt"></i> KM/Hora</label>
-              <input type="number" id="kmManutencao" min="0">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="descricaoManutencao"><i class="fas fa-sticky-note"></i> Descrição *</label>
-            <textarea id="descricaoManutencao" rows="3" required 
-                      placeholder="Descreva o serviço realizado ou peças trocadas..."></textarea>
-          </div>
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="custoManutencao"><i class="fas fa-money-bill-wave"></i> Custo (R$)</label>
-              <input type="number" id="custoManutencao" min="0" step="0.01" placeholder="0,00">
-            </div>
-            
-            <div class="form-group">
-              <label for="fornecedorManutencao"><i class="fas fa-store"></i> Oficina/Fornecedor</label>
-              <input type="text" id="fornecedorManutencao" placeholder="Nome da oficina">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="observacoesManutencao"><i class="fas fa-comment"></i> Observações</label>
-            <textarea id="observacoesManutencao" rows="2" placeholder="Observações adicionais..."></textarea>
-          </div>
-          
-          <div class="form-footer">
-            <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-            <button type="submit" class="btn btn-success">
-              <i class="fas fa-save"></i> Salvar Manutenção
-            </button>
-          </div>
-        </form>
+        <div class="form-group">
+          <label>Nome/Identificação *</label>
+          <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01, Caminhão SCANIA...">
+        </div>
+        <div class="form-group">
+          <label>Tipo de Unidade</label>
+          <select id="novoVeiculoUnidade">
+            <option value="KM">KM (Quilômetros)</option>
+            <option value="HORAS">Horas (Empilhadeiras/Máquinas)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="salvarNovoVeiculoBtn" style="width:100%">Salvar Veículo</button>
       </div>
     </div>
   </div>
   
-  <!-- Modal Detalhes -->
-  <div id="modalDetalhes" class="modal">
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <h3 id="modalDetalhesTitulo"><i class="fas fa-info-circle"></i> Detalhes</h3>
-        <button class="btn-icon close-modal">&times;</button>
-      </div>
-      <div class="modal-body" id="modalDetalhesBody">
-        <!-- Detalhes carregados via JS -->
-      </div>
-    </div>
-  </div>
+  <div id="alertaFlutuante" class="alerta-flutuante"><span id="alertaMsg"></span></div>
   
-  <!-- ========== FIREBASE - CORRIGIDO ========== -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   
   <script>
-    // Configuração CORRIGIDA do Firebase
     const firebaseConfig = {
-        apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",  // CORRIGIDO: AIza (não Alza)
-        authDomain: "system-mil.firebaseapp.com",
-        projectId: "system-mil",
-        storageBucket: "system-mil.firebasestorage.app",
-        messagingSenderId: "138426359863",
-        appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+      authDomain: "system-mil.firebaseapp.com",
+      projectId: "system-mil",
+      storageBucket: "system-mil.firebasestorage.app",
+      messagingSenderId: "138426359863",
+      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
     };
-    
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
-    // Disponibilizar globalmente
-    window.firebaseDB = db;
+    function mostrarAlerta(msg, tipo) {
+      const alerta = document.getElementById('alertaFlutuante');
+      const msgSpan = document.getElementById('alertaMsg');
+      msgSpan.textContent = msg;
+      alerta.className = `alerta-flutuante ${tipo} show`;
+      setTimeout(() => alerta.classList.remove('show'), 4000);
+    }
     
-    console.log('🔥 Firebase conectado com sucesso!');
-    console.log('📁 Projeto:', firebaseConfig.projectId);
+    function formatarNumero(val) { return Math.round(val); }
+    
+    // Carregar veículos e seus tipos de manutenção
+    async function carregarVeiculos() {
+      const snapshot = await db.collection('veiculos').orderBy('nome').get();
+      const veiculos = [];
+      snapshot.forEach(doc => veiculos.push({ id: doc.id, ...doc.data() }));
+      
+      const container = document.getElementById('veiculosContainer');
+      if (veiculos.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.</p>';
+        return;
+      }
+      
+      container.innerHTML = '';
+      for (const veic of veiculos) {
+        const tiposSnapshot = await db.collection('tiposManutencao').where('veiculoId', '==', veic.id).get();
+        const tipos = [];
+        tiposSnapshot.forEach(doc => tipos.push({ id: doc.id, ...doc.data() }));
+        
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-header">
+            <h3><i class="fas fa-truck"></i> ${veic.nome} <small style="color:#666;">(${veic.unidade || 'KM'})</small></h3>
+            <div>
+              <button class="btn btn-warning btn-sm btn-config-tipos" data-id="${veic.id}" data-nome="${veic.nome}"><i class="fas fa-cog"></i> Tipos</button>
+              <button class="btn btn-danger btn-sm btn-excluir-veiculo" data-id="${veic.id}"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+          <div class="card-body">
+            <strong>Tipos de Manutenção Configurados:</strong>
+            <div style="margin-top: 10px;">${tipos.map(t => `<span style="display:inline-block;background:#e8f4fd;padding:5px 12px;border-radius:20px;margin:3px;font-size:12px;">${t.nome} (a cada ${formatarNumero(t.intervalo)} ${veic.unidade || 'KM'})</span>`).join('') || '<span style="color:#999;">Nenhum tipo configurado</span>'}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+      
+      document.querySelectorAll('.btn-config-tipos').forEach(btn => {
+        btn.addEventListener('click', () => abrirConfigTipos(btn.dataset.id, btn.dataset.nome));
+      });
+      document.querySelectorAll('.btn-excluir-veiculo').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Excluir este veículo e todos os registros?')) {
+            const registros = await db.collection('manutencoes').where('veiculoId', '==', btn.dataset.id).get();
+            for (const doc of registros.docs) await doc.ref.delete();
+            const tipos = await db.collection('tiposManutencao').where('veiculoId', '==', btn.dataset.id).get();
+            for (const doc of tipos.docs) await doc.ref.delete();
+            await db.collection('veiculos').doc(btn.dataset.id).delete();
+            mostrarAlerta('Veículo excluído!', 'sucesso');
+            carregarVeiculos();
+            carregarSelects();
+          }
+        });
+      });
+    }
+    
+    async function abrirConfigTipos(veiculoId, veiculoNome) {
+      document.getElementById('veiculoConfigId').value = veiculoId;
+      document.getElementById('veiculoConfigNome').textContent = veiculoNome;
+      
+      const snapshot = await db.collection('tiposManutencao').where('veiculoId', '==', veiculoId).get();
+      const tipos = [];
+      snapshot.forEach(doc => tipos.push({ id: doc.id, ...doc.data() }));
+      
+      const container = document.getElementById('tiposManutencaoList');
+      container.innerHTML = tipos.map((tipo, idx) => `
+        <div class="tipo-manutencao-card" data-id="${tipo.id}">
+          <div class="tipo-manutencao-header">
+            <span class="tipo-manutencao-nome">${tipo.nome}</span>
+            <button class="btn-remove-tipo" data-id="${tipo.id}"><i class="fas fa-trash"></i> Remover</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nome do Tipo</label>
+              <input type="text" class="tipo-nome-input" value="${tipo.nome}" data-id="${tipo.id}">
+            </div>
+            <div class="form-group">
+              <label>Intervalo (${tipo.unidade || 'KM/HORAS'})</label>
+              <input type="number" class="tipo-intervalo-input" value="${tipo.intervalo}" data-id="${tipo.id}">
+            </div>
+          </div>
+        </div>
+      `).join('');
+      
+      document.querySelectorAll('.btn-remove-tipo').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await db.collection('tiposManutencao').doc(btn.dataset.id).delete();
+          abrirConfigTipos(veiculoId, veiculoNome);
+          mostrarAlerta('Tipo removido!', 'sucesso');
+        });
+      });
+      
+      document.getElementById('modalConfigurarTipos').classList.add('active');
+    }
+    
+    document.getElementById('btnAddTipoManutencao').addEventListener('click', () => {
+      const container = document.getElementById('tiposManutencaoList');
+      const novoId = 'temp_' + Date.now();
+      const div = document.createElement('div');
+      div.className = 'tipo-manutencao-card';
+      div.dataset.id = novoId;
+      div.innerHTML = `
+        <div class="tipo-manutencao-header">
+          <span class="tipo-manutencao-nome">Novo Tipo</span>
+          <button class="btn-remove-tipo temp-remove"><i class="fas fa-trash"></i> Remover</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nome do Tipo</label>
+            <input type="text" class="tipo-nome-input" value="" placeholder="Ex: Troca Óleo Motor">
+          </div>
+          <div class="form-group">
+            <label>Intervalo</label>
+            <input type="number" class="tipo-intervalo-input" value="" placeholder="Ex: 200">
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+    
+    document.getElementById('saveConfigBtn').addEventListener('click', async () => {
+      const veiculoId = document.getElementById('veiculoConfigId').value;
+      const veiculoSnap = await db.collection('veiculos').doc(veiculoId).get();
+      const unidade = veiculoSnap.exists ? veiculoSnap.data().unidade || 'KM' : 'KM';
+      
+      const tiposExistentes = await db.collection('tiposManutencao').where('veiculoId', '==', veiculoId).get();
+      for (const doc of tiposExistentes.docs) await doc.ref.delete();
+      
+      const cards = document.querySelectorAll('#tiposManutencaoList .tipo-manutencao-card');
+      for (const card of cards) {
+        const nomeInput = card.querySelector('.tipo-nome-input');
+        const intervaloInput = card.querySelector('.tipo-intervalo-input');
+        const nome = nomeInput?.value.trim();
+        const intervalo = parseInt(intervaloInput?.value);
+        if (nome && intervalo > 0) {
+          await db.collection('tiposManutencao').add({
+            veiculoId: veiculoId,
+            nome: nome,
+            intervalo: intervalo,
+            unidade: unidade,
+            dataCriacao: new Date().toISOString()
+          });
+        }
+      }
+      mostrarAlerta('Tipos de manutenção salvos!', 'sucesso');
+      document.getElementById('modalConfigurarTipos').classList.remove('active');
+      carregarVeiculos();
+      carregarSelects();
+      carregarProximasManutencoes();
+    });
+    
+    async function carregarSelects() {
+      const veiculosSnap = await db.collection('veiculos').orderBy('nome').get();
+      const veiculos = [];
+      veiculosSnap.forEach(doc => veiculos.push({ id: doc.id, ...doc.data() }));
+      
+      const veiculoSelect = document.getElementById('registroVeiculo');
+      veiculoSelect.innerHTML = '<option value="">Selecione...</option>';
+      veiculos.forEach(v => {
+        veiculoSelect.innerHTML += `<option value="${v.id}" data-unidade="${v.unidade || 'KM'}">${v.nome} (${v.unidade || 'KM'})</option>`;
+      });
+    }
+    
+    document.getElementById('registroVeiculo').addEventListener('change', async (e) => {
+      const veiculoId = e.target.value;
+      const tipoSelect = document.getElementById('registroTipo');
+      tipoSelect.innerHTML = '<option value="">Selecione...</option>';
+      if (veiculoId) {
+        const tipos = await db.collection('tiposManutencao').where('veiculoId', '==', veiculoId).get();
+        tipos.forEach(doc => {
+          const tipo = doc.data();
+          tipoSelect.innerHTML += `<option value="${doc.id}" data-intervalo="${tipo.intervalo}">${tipo.nome} (a cada ${formatarNumero(tipo.intervalo)} ${tipo.unidade || 'KM/HORAS'})</option>`;
+        });
+      }
+    });
+    
+    async function registrarManutencao(event) {
+      event.preventDefault();
+      const veiculoId = document.getElementById('registroVeiculo').value;
+      const tipoId = document.getElementById('registroTipo').value;
+      const data = document.getElementById('registroData').value;
+      const kmAtual = parseInt(document.getElementById('registroKm').value);
+      const obs = document.getElementById('registroObs').value;
+      
+      if (!veiculoId || !tipoId || !data || !kmAtual) {
+        mostrarAlerta('Preencha todos os campos obrigatórios!', 'erro');
+        return;
+      }
+      
+      const tipoSnap = await db.collection('tiposManutencao').doc(tipoId).get();
+      const tipo = tipoSnap.data();
+      const proximaManutencao = kmAtual + tipo.intervalo;
+      
+      await db.collection('manutencoes').add({
+        veiculoId: veiculoId,
+        tipoId: tipoId,
+        tipoNome: tipo.nome,
+        data: data,
+        kmAtual: kmAtual,
+        proximaManutencao: proximaManutencao,
+        intervalo: tipo.intervalo,
+        observacoes: obs,
+        dataRegistro: new Date().toISOString()
+      });
+      
+      mostrarAlerta('Manutenção registrada com sucesso!', 'sucesso');
+      document.getElementById('modalRegistrarManutencao').classList.remove('active');
+      document.getElementById('formRegistroManutencao').reset();
+      carregarHistorico();
+      carregarProximasManutencoes();
+    }
+    
+    async function carregarHistorico() {
+      const manutencoes = await db.collection('manutencoes').orderBy('data', 'desc').get();
+      const veiculos = {};
+      (await db.collection('veiculos').get()).forEach(doc => veiculos[doc.id] = doc.data());
+      
+      const tbody = document.getElementById('historicoBody');
+      tbody.innerHTML = '';
+      for (const doc of manutencoes.docs) {
+        const m = doc.data();
+        const veiculo = veiculos[m.veiculoId] || { nome: 'Desconhecido', unidade: 'KM' };
+        const kmAtual = m.kmAtual;
+        const proxima = m.proximaManutencao;
+        const diferenca = proxima - kmAtual;
+        let status = '', statusClass = '';
+        if (diferenca <= 0) { status = 'Atrasada'; statusClass = 'status-urgente'; }
+        else if (diferenca <= m.intervalo * 0.1) { status = 'Urgente'; statusClass = 'status-urgente'; }
+        else if (diferenca <= m.intervalo * 0.2) { status = 'Próximo'; statusClass = 'status-proximo'; }
+        else { status = 'OK'; statusClass = 'status-ok'; }
+        
+        tbody.innerHTML += `
+          <tr>
+            <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
+            <td>${veiculo.nome}</td>
+            <td>${m.tipoNome}</td>
+            <td>${formatarNumero(m.kmAtual)} ${veiculo.unidade || 'KM'}</td>
+            <td>${formatarNumero(proxima)} ${veiculo.unidade || 'KM'}</td>
+            <td><span class="status-badge ${statusClass}">${status}</span></td>
+            <td><button class="btn btn-danger btn-sm btn-excluir-manutencao" data-id="${doc.id}"><i class="fas fa-trash"></i></button></td>
+          </tr>
+        `;
+      }
+      
+      document.querySelectorAll('.btn-excluir-manutencao').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (confirm('Excluir este registro?')) {
+            await db.collection('manutencoes').doc(btn.dataset.id).delete();
+            carregarHistorico();
+            carregarProximasManutencoes();
+            mostrarAlerta('Registro excluído!', 'sucesso');
+          }
+        });
+      });
+    }
+    
+    async function carregarProximasManutencoes() {
+      const container = document.getElementById('proximasContainer');
+      const veiculos = {};
+      (await db.collection('veiculos').get()).forEach(doc => veiculos[doc.id] = doc.data());
+      
+      const manutencoes = await db.collection('manutencoes').get();
+      const ultimasPorTipo = {};
+      manutencoes.forEach(doc => {
+        const m = doc.data();
+        const key = `${m.veiculoId}_${m.tipoId}`;
+        if (!ultimasPorTipo[key] || new Date(m.data) > new Date(ultimasPorTipo[key].data)) {
+          ultimasPorTipo[key] = m;
+        }
+      });
+      
+      const tipos = await db.collection('tiposManutencao').get();
+      const proximas = [];
+      for (const tipoDoc of tipos.docs) {
+        const tipo = tipoDoc.data();
+        const key = `${tipo.veiculoId}_${tipoDoc.id}`;
+        const ultima = ultimasPorTipo[key];
+        const veiculo = veiculos[tipo.veiculoId];
+        if (veiculo) {
+          let kmAtual = ultima ? ultima.kmAtual + tipo.intervalo : tipo.intervalo;
+          let dataReferencia = ultima ? new Date(ultima.data) : new Date();
+          if (!ultima) kmAtual = tipo.intervalo;
+          proximas.push({
+            veiculoNome: veiculo.nome,
+            tipoNome: tipo.nome,
+            unidade: veiculo.unidade || 'KM',
+            proximoKm: kmAtual,
+            intervalo: tipo.intervalo,
+            ultimaData: ultima ? new Date(ultima.data).toLocaleDateString('pt-BR') : 'Nunca'
+          });
+        }
+      }
+      
+      proximas.sort((a, b) => a.proximoKm - b.proximoKm);
+      container.innerHTML = proximas.map(p => `
+        <div class="tipo-manutencao-card">
+          <div class="tipo-manutencao-header">
+            <span class="tipo-manutencao-nome">${p.veiculoNome} - ${p.tipoNome}</span>
+            <span class="status-badge ${p.proximoKm <= p.intervalo * 0.1 ? 'status-urgente' : 'status-proximo'}">Próxima em ${formatarNumero(p.proximoKm)} ${p.unidade}</span>
+          </div>
+          <div class="tipo-manutencao-intervalo">Última: ${p.ultimaData} | Intervalo: ${formatarNumero(p.intervalo)} ${p.unidade}</div>
+        </div>
+      `).join('');
+      if (proximas.length === 0) container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada.</p>';
+    }
+    
+    document.getElementById('btnConfigurarVeiculo').addEventListener('click', () => carregarVeiculos());
+    document.getElementById('btnRegistrarManutencao').addEventListener('click', () => document.getElementById('modalRegistrarManutencao').classList.add('active'));
+    document.getElementById('btnNovoVeiculo').addEventListener('click', () => document.getElementById('modalNovoVeiculo').classList.add('active'));
+    document.getElementById('salvarNovoVeiculoBtn').addEventListener('click', async () => {
+      const nome = document.getElementById('novoVeiculoNome').value.trim();
+      const unidade = document.getElementById('novoVeiculoUnidade').value;
+      if (!nome) { alert('Digite o nome do veículo'); return; }
+      await db.collection('veiculos').add({ nome: nome, unidade: unidade, dataCriacao: new Date().toISOString() });
+      mostrarAlerta('Veículo cadastrado!', 'sucesso');
+      document.getElementById('modalNovoVeiculo').classList.remove('active');
+      document.getElementById('novoVeiculoNome').value = '';
+      carregarVeiculos();
+      carregarSelects();
+    });
+    
+    document.getElementById('formRegistroManutencao').addEventListener('submit', registrarManutencao);
+    
+    function fecharModais() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    }
+    document.querySelectorAll('.modal-close, #closeConfigModal, #closeRegistroModal, #cancelRegistroBtn, #cancelConfigBtn, #closeNovoVeiculoModal').forEach(btn => {
+      btn.addEventListener('click', fecharModais);
+    });
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+    
+    async function init() {
+      await carregarVeiculos();
+      await carregarSelects();
+      await carregarHistorico();
+      await carregarProximasManutencoes();
+    }
+    init();
   </script>
-  <!-- ========== FIM FIREBASE ========== -->
-  
-  <!-- Helper para manutenção -->
-  <script src="/js/manutencao-helper.js"></script>
-  
-  <!-- Scripts -->
-  <script src="/js/main.js"></script>
-  <script src="/js/manut.js"></script>
 </body>
 </html>
