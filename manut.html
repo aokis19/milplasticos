@@ -79,9 +79,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="historicoBody">
-                                    <tr>
-                                        <td colspan="7" style="text-align:center;">Carregando...</td>
-                                    </tr>
+                                    <tr><td colspan="7" style="text-align:center;">Carregando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -224,18 +222,37 @@
         </div>
     </div>
     
-    <!-- Scripts -->
-    <!-- Firebase -->
+    <!-- ========== FIREBASE ========== -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
-    <!-- Helper Firebase -->
-    <script src="/assets/js/manutencao-helper.js"></script>
+    <script>
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+            authDomain: "system-mil.firebaseapp.com",
+            projectId: "system-mil",
+            storageBucket: "system-mil.firebasestorage.app",
+            messagingSenderId: "138426359863",
+            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+        };
+        
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        window.firebaseDB = db;
+        
+        console.log('🔥 Firebase conectado com sucesso!');
+        console.log('📁 Projeto:', firebaseConfig.projectId);
+    </script>
+    
+    <!-- Helper para manutenção -->
+    <script src="/js/manutencao-helper.js"></script>
     
     <!-- Main JS (sidebar e topbar) -->
-    <script src="/assets/js/main.js"></script>
+    <script src="/js/main.js"></script>
     
     <!-- Sistema de Manutenção -->
-    <script src="/assets/js/manut.js"></script>
+    <script src="/js/manut.js"></script>
 </body>
 </html>
