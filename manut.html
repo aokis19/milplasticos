@@ -12,6 +12,78 @@
     <link rel="stylesheet" href="/assets/css/manut.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <style>
+        /* Estilos (mantenha os seus) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-container.modal-lg { max-width: 900px; }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; }
+        .form-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-warning { background: #ffc107; color: #000; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn-icon { background: none; border: none; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .btn-icon:hover { background: #f0f0f0; }
+        .badge { background: #007bff; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .tabs { display: flex; gap: 5px; border-bottom: 1px solid #dee2e6; margin-bottom: 20px; }
+        .tab-btn { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 14px; }
+        .tab-btn.active { color: #007bff; border-bottom: 2px solid #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card-header { padding: 15px 20px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .card-body { padding: 20px; }
+        .table-responsive { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        .data-table th { background: #f8f9fa; font-weight: 600; }
+        .search-box { display: flex; align-items: center; gap: 8px; border: 1px solid #ddd; padding: 5px 10px; border-radius: 6px; }
+        .search-box input { border: none; outline: none; padding: 5px; width: 200px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .page-actions { display: flex; gap: 10px; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-urgente { background: #f8d7da; color: #721c24; }
+        .status-proximo { background: #fff3cd; color: #856404; }
+        .programada-card { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+        .programada-card.urgente { border-left: 4px solid #dc3545; background: #fff5f5; }
+        .programada-card.proximo { border-left: 4px solid #ffc107; background: #fffbf0; }
+        .programada-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .programada-veiculo { font-weight: bold; }
+        .programada-tipo { font-size: 12px; color: #666; }
+        .veiculo-card { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .veiculo-card h4 { margin: 0 0 5px 0; }
+        .text-muted { color: #6c757d; }
+        .hint { font-size: 11px; color: #6c757d; margin-top: 4px; display: block; }
+    </style>
 </head>
 <body>
     <!-- Topbar -->
@@ -28,7 +100,7 @@
                 <!-- Cabeçalho -->
                 <div class="page-header">
                     <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
-                    <p>Gerencie múltiplos tipos de manutenção para cada veículo (óleo motor, óleo hidráulico, filtros, etc.)</p>
+                    <p>Gerencie múltiplos tipos de manutenção para cada veículo</p>
                     <div class="page-actions">
                         <button class="btn btn-success" id="btnNovaManutencao">
                             <i class="fas fa-plus"></i> Registrar Manutenção
@@ -145,25 +217,23 @@
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-tachometer-alt"></i> KM/Hora Atual *</label>
-                            <input type="number" id="kmAtual" step="1" required placeholder="Ex: 15000">
+                            <input type="number" id="kmAtual" step="1" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label><i class="fas fa-comment"></i> Observações</label>
-                        <textarea id="obsManutencao" rows="3" placeholder="Detalhes do serviço realizado, peças trocadas, etc..."></textarea>
+                        <textarea id="obsManutencao" rows="3"></textarea>
                     </div>
                     <div class="form-footer">
                         <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Salvar Manutenção
-                        </button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
-    <!-- MODAL: Configurar Tipos de Manutenção -->
+    <!-- MODAL: Configurar Tipos -->
     <div id="modalConfigTipos" class="modal-overlay">
         <div class="modal-container modal-lg">
             <div class="modal-header">
@@ -173,19 +243,10 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label><i class="fas fa-truck"></i> Selecione o Veículo</label>
-                    <select id="configVeiculoSelect">
-                        <option value="">Selecione um veículo...</option>
-                    </select>
+                    <select id="configVeiculoSelect"><option value="">Selecione...</option></select>
                 </div>
-                <div id="tiposList" style="margin-top: 20px;">
-                    <p class="text-muted" style="text-align:center;">Selecione um veículo para ver os tipos</p>
-                </div>
-                <button class="btn btn-success btn-sm" id="btnAddTipo" style="margin-top: 15px;">
-                    <i class="fas fa-plus"></i> Adicionar Tipo de Manutenção
-                </button>
-                <small class="hint" style="display: block; margin-top: 10px; color: #666;">
-                    <i class="fas fa-info-circle"></i> Exemplos: Troca de Óleo Motor (200h), Óleo Hidráulico (5000h), Filtro de Ar (200h)
-                </small>
+                <div id="tiposList" style="margin-top:20px;"><p class="text-muted" style="text-align:center;">Selecione um veículo</p></div>
+                <button class="btn btn-success btn-sm" id="btnAddTipo"><i class="fas fa-plus"></i> Adicionar Tipo</button>
             </div>
         </div>
     </div>
@@ -200,34 +261,28 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label><i class="fas fa-tag"></i> Nome do Veículo *</label>
-                    <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01, Caminhão SCANIA, Pá Carregadeira">
+                    <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01">
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-clock"></i> Tipo de Unidade</label>
                     <select id="novoVeiculoUnidade">
-                        <option value="KM">KM (Quilômetros - para veículos rodoviários)</option>
-                        <option value="HORAS">Horas (Horas de uso - para máquinas/empilhadeiras)</option>
+                        <option value="KM">KM (Quilômetros)</option>
+                        <option value="HORAS">Horas</option>
                     </select>
-                    <small class="hint" style="display: block; margin-top: 5px; color: #666;">
-                        Escolha KM para caminhões/carros ou HORAS para empilhadeiras/máquinas
-                    </small>
                 </div>
                 <div class="form-footer">
                     <button class="btn btn-secondary modal-close">Cancelar</button>
-                    <button class="btn btn-primary" id="salvarNovoVeiculo">
-                        <i class="fas fa-save"></i> Salvar Veículo
-                    </button>
+                    <button class="btn btn-primary" id="salvarNovoVeiculo"><i class="fas fa-save"></i> Salvar</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- ========== FIREBASE ========== -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <!-- ========== FIREBASE - VERSÃO COMPATÍVEL ========== -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
     <script>
-        // Configuração do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
             authDomain: "system-mil.firebaseapp.com",
@@ -237,16 +292,15 @@
             appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
         };
         
-        // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         window.firebaseDB = db;
         
-        console.log('🔥 Firebase conectado com sucesso!');
+        console.log('🔥 Firebase conectado!');
         console.log('📁 Projeto:', firebaseConfig.projectId);
     </script>
     
-    <!-- Helper para manutenção -->
+    <!-- Helper -->
     <script src="/js/manutencao-helper.js"></script>
     
     <!-- Main JS (sidebar e topbar) -->
