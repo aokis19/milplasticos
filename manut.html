@@ -29,11 +29,14 @@
                     <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
                     <p>Gerencie manutenções preventivas (com alertas) e corretivas (histórico de serviços)</p>
                     <div class="page-actions">
-                        <button class="btn btn-success" id="btnNovaManutencao">
+                        <button class="btn btn-success" id="btnNovaPreventiva">
                             <i class="fas fa-plus"></i> Preventiva
                         </button>
                         <button class="btn btn-primary" id="btnNovaCorretiva">
                             <i class="fas fa-wrench"></i> Corretiva
+                        </button>
+                        <button class="btn btn-warning" id="btnConfigurarTipos">
+                            <i class="fas fa-cog"></i> Configurar Tipos
                         </button>
                         <button class="btn btn-warning" id="btnCheckAlertas">
                             <i class="fas fa-bell"></i> Verificar Alertas
@@ -81,9 +84,9 @@
                                     </tr>
                                 </thead>
                                 <tbody id="preventivaBody">
-                                    <tr><td colspan="7" style="text-align:center;">Carregando...</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;">Carregando...<\/td><\/tr>
                                 </tbody>
-                            </table>
+                            建立
                         </div>
                     </div>
                 </div>
@@ -126,9 +129,9 @@
                                     </tr>
                                 </thead>
                                 <tbody id="corretivaBody">
-                                    <tr><td colspan="8" style="text-align:center;">Carregando...</td></tr>
+                                    <tr><td colspan="8" style="text-align:center;">Carregando...<\/td><\/tr>
                                 </tbody>
-                            </table>
+                            建立
                         </div>
                     </div>
                 </div>
@@ -378,7 +381,7 @@
     </script>
     
     <!-- Helper -->
-    <script src="/js/manutencao-helper.js"></script>
+    <script src="js/manutencao-helper.js"></script>
     
     <!-- Main JS (sidebar e topbar) -->
     <script src="/js/main.js"></script>
