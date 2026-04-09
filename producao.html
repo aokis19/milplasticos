@@ -452,6 +452,16 @@
                 opacity: 1;
             }
         }
+
+        /* Mensagem de sucesso */
+        .mensagem-sucesso {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 
@@ -482,7 +492,7 @@
         <div class="modal-container modal-cadastro">
             <div class="modal-header">
                 <h3><i class="fas fa-folder-plus"></i> Novo Fechamento</h3>
-                <button class="modal-close" id="closeNovoFechamentoBtn">&times;</button>
+                <button class="modal-close close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -507,7 +517,7 @@
         <div class="modal-container">
             <div class="modal-header">
                 <h3><i class="fas fa-file-alt"></i> <span id="modalFolhaTitulo">Adicionar Folha</span></h3>
-                <button class="modal-close" id="closeFolhaModalBtn">&times;</button>
+                <button class="modal-close close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="fechamentoAtualId" value="">
@@ -561,7 +571,7 @@
         <div class="modal-container modal-cadastro">
             <div class="modal-header">
                 <h3><i class="fas fa-box"></i> Cadastrar Novo Material</h3>
-                <button class="modal-close" id="closeCadastroModalBtn">&times;</button>
+                <button class="modal-close close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -581,7 +591,7 @@
         <div class="modal-container modal-cadastro">
             <div class="modal-header">
                 <h3><i class="fas fa-truck"></i> Cadastrar Novo Fornecedor</h3>
-                <button class="modal-close" id="closeFornecedorModalBtn">&times;</button>
+                <button class="modal-close close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -601,7 +611,11 @@
         <i class="fas fa-exclamation-triangle"></i> <span id="mensagemAlerta"></span>
     </div>
 
-    <!-- FIREBASE CONFIG -->
+    <!-- ============================================ -->
+    <!-- SCRIPTS - ORDEM CORRETA É FUNDAMENTAL -->
+    <!-- ============================================ -->
+    
+    <!-- 1. Firebase (primeiro) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc, updateDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -632,26 +646,41 @@
         window.getDoc = getDoc;
         window.where = where;
 
+        console.log('🔥 Firebase inicializado');
         window.dispatchEvent(new Event('firebaseReady'));
     </script>
 
-    <script src="/js/main.js"></script>
+    <!-- 2. Main.js (sidebar e topbar) - AGUARDA O DOM -->
+    <script>
+        // Função para carregar o main.js depois que o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            const script = document.createElement('script');
+            script.src = '/js/main.js';
+            script.onload = function() {
+                console.log('✅ main.js carregado');
+            };
+            document.body.appendChild(script);
+        });
+    </script>
 
+    <!-- 3. Script principal do sistema -->
     <script>
         let modalInicializado = false;
 
         function iniciarSistema() {
             if (modalInicializado) return;
             if (typeof window.db === 'undefined') {
+                console.log('Aguardando Firebase...');
                 setTimeout(iniciarSistema, 500);
                 return;
             }
+            
             modalInicializado = true;
+            console.log('🚀 Iniciando sistema de fechamentos...');
 
             // Variáveis globais
             let materiaisCadastrados = [];
             let fornecedoresCadastrados = [];
-            let fechamentos = [];
             let folhaEditandoId = null;
 
             // Elementos DOM
@@ -693,19 +722,16 @@
             }
 
             function atualizarSelectFornecedores() {
-                const selects = ['fornecedorSelect', 'fechamentoFornecedor'];
-                selects.forEach(selectId => {
-                    const select = document.getElementById(selectId);
-                    if (select) {
-                        select.innerHTML = '<option value="">Selecione um fornecedor</option>';
-                        fornecedoresCadastrados.forEach(forn => {
-                            const option = document.createElement('option');
-                            option.value = forn.nome;
-                            option.textContent = forn.nome;
-                            select.appendChild(option);
-                        });
-                    }
-                });
+                const fechamentoFornecedor = document.getElementById('fechamentoFornecedor');
+                if (fechamentoFornecedor) {
+                    fechamentoFornecedor.innerHTML = '<option value="">Selecione um fornecedor</option>';
+                    fornecedoresCadastrados.forEach(forn => {
+                        const option = document.createElement('option');
+                        option.value = forn.nome;
+                        option.textContent = forn.nome;
+                        fechamentoFornecedor.appendChild(option);
+                    });
+                }
             }
 
             async function carregarMateriais() {
@@ -1007,6 +1033,7 @@
             }
 
             async function carregarFechamentos() {
+                if (!listaFechamentosDiv) return;
                 listaFechamentosDiv.innerHTML = '<p>Carregando...</p>';
                 try {
                     const q = query(collection(window.db, "fechamentos"), orderBy("dataCriacao", "desc"));
@@ -1073,6 +1100,7 @@
                         listaFechamentosDiv.appendChild(card);
                     }
 
+                    // Eventos dinâmicos
                     document.querySelectorAll('.btn-abrir-folha').forEach(btn => {
                         btn.addEventListener('click', () => abrirModalFolha(btn.dataset.id, null));
                     });
@@ -1134,6 +1162,7 @@
                         });
                     });
                 } catch (error) {
+                    console.error('Erro:', error);
                     listaFechamentosDiv.innerHTML = '<p>Erro ao carregar fechamentos.</p>';
                 }
             }
@@ -1180,15 +1209,6 @@
                 folhaEditandoId = null;
             }
 
-            function resetModalFolha() {
-                document.getElementById('folhaData').value = new Date().toISOString().split('T')[0];
-                document.getElementById('folhaPesoBalancao').value = '';
-                document.getElementById('folhaEstado').value = '';
-                materiaisListDiv.innerHTML = '';
-                adicionarMaterialExemplo();
-                calcularSomaFolha();
-            }
-
             function adicionarMaterialExemplo() {
                 if (materiaisCadastrados.length > 0) {
                     const novoCard = criarMaterialCard(materiaisCadastrados[0].nome);
@@ -1196,42 +1216,60 @@
                 }
             }
 
-            document.getElementById('novoFechamentoBtn').addEventListener('click', () => {
-                document.getElementById('nomeFechamento').value = '';
-                document.getElementById('fechamentoFornecedor').value = '';
-                document.getElementById('modalNovoFechamento').classList.add('active');
+            // Eventos dos botões
+            const novoFechamentoBtn = document.getElementById('novoFechamentoBtn');
+            if (novoFechamentoBtn) {
+                novoFechamentoBtn.addEventListener('click', () => {
+                    document.getElementById('nomeFechamento').value = '';
+                    document.getElementById('fechamentoFornecedor').value = '';
+                    document.getElementById('modalNovoFechamento').classList.add('active');
+                });
+            }
+
+            const criarFechamentoBtn = document.getElementById('criarFechamentoBtn');
+            if (criarFechamentoBtn) {
+                criarFechamentoBtn.addEventListener('click', async () => {
+                    const nome = document.getElementById('nomeFechamento').value.trim();
+                    const fornecedor = document.getElementById('fechamentoFornecedor').value;
+                    if (!nome) { alert('Digite o nome do fechamento'); return; }
+                    if (!fornecedor) { alert('Selecione um fornecedor'); return; }
+                    try {
+                        await addDoc(collection(window.db, "fechamentos"), {
+                            nome: nome,
+                            fornecedor: fornecedor,
+                            folhas: [],
+                            status: 'aberto',
+                            concluido: false,
+                            dataCriacao: new Date().toISOString()
+                        });
+                        mostrarAlerta('Fechamento criado com sucesso!', 'sucesso');
+                        document.getElementById('modalNovoFechamento').classList.remove('active');
+                        await carregarFechamentos();
+                    } catch (error) { alert('Erro: ' + error.message); }
+                });
+            }
+
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+                });
             });
 
-            document.getElementById('criarFechamentoBtn').addEventListener('click', async () => {
-                const nome = document.getElementById('nomeFechamento').value.trim();
-                const fornecedor = document.getElementById('fechamentoFornecedor').value;
-                if (!nome) { alert('Digite o nome do fechamento'); return; }
-                if (!fornecedor) { alert('Selecione um fornecedor'); return; }
-                try {
-                    await addDoc(collection(window.db, "fechamentos"), {
-                        nome: nome,
-                        fornecedor: fornecedor,
-                        folhas: [],
-                        status: 'aberto',
-                        concluido: false,
-                        dataCriacao: new Date().toISOString()
-                    });
-                    mostrarAlerta('Fechamento criado com sucesso!', 'sucesso');
-                    document.getElementById('modalNovoFechamento').classList.remove('active');
-                    await carregarFechamentos();
-                } catch (error) { alert('Erro: ' + error.message); }
-            });
-
-            document.getElementById('closeNovoFechamentoBtn').addEventListener('click', () => document.getElementById('modalNovoFechamento').classList.remove('active'));
-            document.getElementById('closeFolhaModalBtn').addEventListener('click', fecharModalFolha);
-            document.getElementById('cancelarFolhaBtn').addEventListener('click', fecharModalFolha);
-            document.getElementById('salvarFolhaBtn').addEventListener('click', salvarFolha);
-            document.getElementById('addMaterialBtn').addEventListener('click', () => { const card = criarMaterialCard(''); materiaisListDiv.appendChild(card); calcularSomaFolha(); });
-            document.getElementById('openCadastroMaterialBtn').addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.add('active'));
-            document.getElementById('openCadastroFornecedorBtn').addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.add('active'));
-            document.getElementById('closeCadastroModalBtn').addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.remove('active'));
-            document.getElementById('closeFornecedorModalBtn').addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.remove('active'));
-            document.getElementById('salvarMaterialBtn').addEventListener('click', async () => {
+            document.getElementById('closeNovoFechamentoBtn')?.addEventListener('click', () => document.getElementById('modalNovoFechamento').classList.remove('active'));
+            document.getElementById('closeFolhaModalBtn')?.addEventListener('click', fecharModalFolha);
+            document.getElementById('cancelarFolhaBtn')?.addEventListener('click', fecharModalFolha);
+            document.getElementById('salvarFolhaBtn')?.addEventListener('click', salvarFolha);
+            
+            if (addMaterialBtn) {
+                addMaterialBtn.addEventListener('click', () => { const card = criarMaterialCard(''); materiaisListDiv.appendChild(card); calcularSomaFolha(); });
+            }
+            
+            document.getElementById('openCadastroMaterialBtn')?.addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.add('active'));
+            document.getElementById('openCadastroFornecedorBtn')?.addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.add('active'));
+            document.getElementById('closeCadastroModalBtn')?.addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.remove('active'));
+            document.getElementById('closeFornecedorModalBtn')?.addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.remove('active'));
+            
+            document.getElementById('salvarMaterialBtn')?.addEventListener('click', async () => {
                 const nome = document.getElementById('novoMaterialNome').value.trim();
                 if (!nome) return alert('Digite o nome');
                 await addDoc(collection(window.db, "materiais"), { nome: nome });
@@ -1242,7 +1280,8 @@
                 await carregarMateriais();
                 mostrarAlerta('Material cadastrado!', 'sucesso');
             });
-            document.getElementById('salvarFornecedorBtn').addEventListener('click', async () => {
+            
+            document.getElementById('salvarFornecedorBtn')?.addEventListener('click', async () => {
                 const nome = document.getElementById('novoFornecedorNome').value.trim();
                 if (!nome) return alert('Digite o nome');
                 await addDoc(collection(window.db, "fornecedores"), { nome: nome });
@@ -1262,18 +1301,16 @@
             init();
         }
 
+        // Inicializar quando o DOM estiver pronto
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', iniciarSistema);
         } else {
             iniciarSistema();
         }
+        
+        // Também iniciar quando o Firebase estiver pronto
         window.addEventListener('firebaseReady', iniciarSistema);
     </script>
-    
-    <!-- Main JS (sidebar e topbar) -->
-    <script src="/firebase-config.js"></script>
-    
-    <!-- Sistema de Manutenção -->
-    <script src="/js/manut.js"></script>
 </body>
+
 </html>
