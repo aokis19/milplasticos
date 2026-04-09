@@ -1,479 +1,434 @@
-// ============================================
-// MANUT.JS - Controle de Manutenção com Múltiplos Tipos
-// ============================================
+// manut.js - Gerenciador de Manutenção
 
-(function() {
-    'use strict';
-    
-    let inicializado = false;
-    let veiculosLista = [];
-    let tiposManutencaoLista = [];
-    
-    function mostrarAlerta(mensagem, tipo) {
-        let alertaContainer = document.querySelector('.alertas-container');
-        if (!alertaContainer) {
-            alertaContainer = document.createElement('div');
-            alertaContainer.className = 'alertas-container';
-            document.body.appendChild(alertaContainer);
-        }
-        
-        const alerta = document.createElement('div');
-        alerta.style.cssText = `
-            background: ${tipo === 'sucesso' ? '#27ae60' : '#e74c3c'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-weight: bold;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            animation: fadeInOut 3s ease forwards;
-        `;
-        alerta.innerHTML = `<i class="fas ${tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${mensagem}`;
-        alertaContainer.appendChild(alerta);
-        setTimeout(() => alerta.remove(), 3000);
-    }
-    
-    function formatarNumero(valor) {
-        return Math.round(valor);
-    }
-    
-    function calcularStatus(kmAtual, proximaManutencao, intervalo) {
-        const diferenca = proximaManutencao - kmAtual;
-        if (diferenca <= 0) return { texto: 'Atrasada', classe: 'status-atrasada' };
-        if (diferenca <= intervalo * 0.1) return { texto: 'Urgente', classe: 'status-urgente' };
-        if (diferenca <= intervalo * 0.2) return { texto: 'Próximo', classe: 'status-proximo' };
-        return { texto: 'OK', classe: 'status-ok' };
-    }
-    
-    async function carregarVeiculos() {
-        try {
-            const snapshot = await db.collection('veiculos').orderBy('nome').get();
-            veiculosLista = [];
-            snapshot.forEach(doc => veiculosLista.push({ id: doc.id, ...doc.data() }));
-            
-            const veiculoSelect = document.getElementById('veiculoSelect');
-            const configVeiculoSelect = document.getElementById('configVeiculoSelect');
-            const options = '<option value="">Selecione...</option>' + 
-                veiculosLista.map(v => `<option value="${v.id}">${v.nome} (${v.unidade || 'KM'})</option>`).join('');
-            
-            if (veiculoSelect) veiculoSelect.innerHTML = options;
-            if (configVeiculoSelect) configVeiculoSelect.innerHTML = options;
-            
-            renderizarListaVeiculos();
-        } catch (error) {
-            console.error('Erro ao carregar veículos:', error);
-        }
-    }
-    
-    async function carregarTiposManutencao() {
-        try {
-            const snapshot = await db.collection('tiposManutencao').get();
-            tiposManutencaoLista = [];
-            snapshot.forEach(doc => tiposManutencaoLista.push({ id: doc.id, ...doc.data() }));
-        } catch (error) {
-            console.error('Erro ao carregar tipos:', error);
-        }
-    }
-    
-    async function carregarHistoricoManutencoes() {
-        const tbody = document.getElementById('historicoBody');
-        if (!tbody) return;
-        
-        try {
-            const snapshot = await db.collection('manutencoes').orderBy('data', 'desc').limit(100).get();
-            tbody.innerHTML = '';
-            
-            if (snapshot.empty) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma manutenção registrada</td></tr>';
+let manutencoes = [];
+let veiculos = [];
+let tiposManutencao = {};
+let editingId = null;
+
+async function inicializar() {
+    console.log('🚀 Inicializando manutenção...');
+    await aguardarFirebase();
+    await carregarVeiculos();
+    await carregarManutencoes();
+    await carregarTiposConfig();
+    configurarEventos();
+    configurarAbas();
+    await renderHistorico();
+    await renderProximas();
+    await renderVeiculosList();
+    console.log('✅ Manutenção pronto!');
+}
+
+function aguardarFirebase() {
+    return new Promise((resolve) => {
+        if (window.firebaseDB) { resolve(); return; }
+        const verificar = setInterval(() => {
+            if (window.firebaseDB) { clearInterval(verificar); resolve(); }
+        }, 100);
+        setTimeout(() => { clearInterval(verificar); resolve(); }, 3000);
+    });
+}
+
+async function carregarVeiculos() {
+    try {
+        if (window.firebaseDB) {
+            const snapshot = await window.firebaseDB.collection('veiculos').get();
+            veiculos = [];
+            snapshot.forEach(doc => veiculos.push({ firebaseId: doc.id, ...doc.data() }));
+            if (veiculos.length > 0) {
+                localStorage.setItem('veiculos', JSON.stringify(veiculos));
+                atualizarSelectsVeiculos();
                 return;
             }
-            
-            for (const doc of snapshot.docs) {
-                const manut = doc.data();
-                const veiculo = veiculosLista.find(v => v.id === manut.veiculoId);
-                const tipo = tiposManutencaoLista.find(t => t.id === manut.tipoId);
-                
-                if (!veiculo) continue;
-                
-                const status = calcularStatus(manut.kmAtual, manut.proximaManutencao, manut.intervalo);
-                const unidade = veiculo.unidade || 'KM';
-                
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${new Date(manut.data).toLocaleDateString('pt-BR')}</td>
-                    <td>${veiculo.nome}</td>
-                    <td>${tipo ? tipo.nome : manut.tipoNome || 'N/A'}</td>
-                    <td>${formatarNumero(manut.kmAtual)} ${unidade}</td>
-                    <td>${formatarNumero(manut.proximaManutencao)} ${unidade}</td>
-                    <td><span class="status-badge ${status.classe}">${status.texto}</span></td>
-                    <td><button class="btn-excluir-manutencao btn-sm" data-id="${doc.id}"><i class="fas fa-trash"></i></button></td>
-                `;
-            }
-            
-            document.querySelectorAll('.btn-excluir-manutencao').forEach(btn => {
-                btn.addEventListener('click', () => excluirManutencao(btn.dataset.id));
+        }
+        const salvos = localStorage.getItem('veiculos');
+        veiculos = salvos ? JSON.parse(salvos) : [];
+        atualizarSelectsVeiculos();
+    } catch (error) { console.error('Erro:', error); veiculos = []; }
+}
+
+async function carregarManutencoes() {
+    if (window.firebaseDB) {
+        try {
+            const snapshot = await window.firebaseDB.collection('manutencoes').orderBy('data', 'desc').get();
+            manutencoes = [];
+            snapshot.forEach(doc => manutencoes.push({ firebaseId: doc.id, ...doc.data() }));
+            localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
+        } catch (error) { carregarManutencoesLocal(); }
+    } else { carregarManutencoesLocal(); }
+}
+
+function carregarManutencoesLocal() {
+    try { manutencoes = JSON.parse(localStorage.getItem('manutencoes')) || []; }
+    catch (e) { manutencoes = []; }
+}
+
+async function carregarTiposConfig() {
+    if (window.firebaseDB) {
+        try {
+            const snapshot = await window.firebaseDB.collection('tiposManutencao').get();
+            tiposManutencao = {};
+            snapshot.forEach(doc => { tiposManutencao[doc.id] = doc.data(); });
+            localStorage.setItem('tiposManutencao', JSON.stringify(tiposManutencao));
+        } catch (error) { carregarTiposLocal(); }
+    } else { carregarTiposLocal(); }
+}
+
+function carregarTiposLocal() {
+    try { tiposManutencao = JSON.parse(localStorage.getItem('tiposManutencao')) || {}; }
+    catch (e) { tiposManutencao = {}; }
+}
+
+function atualizarSelectsVeiculos() {
+    const selects = ['veiculoSelect', 'configVeiculoSelect'];
+    selects.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+            select.innerHTML = '<option value="">Selecione...</option>';
+            veiculos.forEach(v => {
+                select.innerHTML += `<option value="${v.placa}">${v.placa} - ${v.nome}</option>`;
             });
-        } catch (error) {
-            console.error('Erro:', error);
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Erro ao carregar histórico</td></tr>';
         }
-    }
-    
-    async function carregarProximasManutencoes() {
-        const container = document.getElementById('proximasBody');
-        if (!container) return;
-        
-        try {
-            const tiposSnapshot = await db.collection('tiposManutencao').where('ativo', '==', true).get();
-            const proximas = [];
-            
-            for (const tipoDoc of tiposSnapshot.docs) {
-                const tipo = tipoDoc.data();
-                const veiculo = veiculosLista.find(v => v.id === tipo.veiculoId);
-                if (!veiculo) continue;
-                
-                const ultimaSnap = await db.collection('manutencoes')
-                    .where('veiculoId', '==', tipo.veiculoId)
-                    .where('tipoId', '==', tipoDoc.id)
-                    .orderBy('data', 'desc')
-                    .limit(1)
-                    .get();
-                
-                let proximoKm = tipo.intervalo;
-                let ultimaData = 'Nunca';
-                let ultimoKm = 0;
-                
-                if (!ultimaSnap.empty) {
-                    const ultima = ultimaSnap.docs[0].data();
-                    proximoKm = ultima.kmAtual + tipo.intervalo;
-                    ultimaData = new Date(ultima.data).toLocaleDateString('pt-BR');
-                    ultimoKm = ultima.kmAtual;
-                }
-                
-                const status = calcularStatus(ultimoKm, proximoKm, tipo.intervalo);
-                const unidade = veiculo.unidade || 'KM';
-                
-                proximas.push({
-                    veiculoNome: veiculo.nome,
-                    tipoNome: tipo.nome,
-                    proximoKm: proximoKm,
-                    intervalo: tipo.intervalo,
-                    unidade: unidade,
-                    ultimaData: ultimaData,
-                    status: status
-                });
-            }
-            
-            proximas.sort((a, b) => a.proximoKm - b.proximoKm);
-            
-            if (proximas.length === 0) {
-                container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada</p>';
-            } else {
-                container.innerHTML = proximas.map(p => `
-                    <div class="programada-item">
-                        <div class="programada-header">
-                            <strong>${p.veiculoNome}</strong> - ${p.tipoNome}
-                            <span class="status-badge ${p.status.classe}">${p.status.texto}</span>
-                        </div>
-                        <div class="programada-info">
-                            Próxima: ${formatarNumero(p.proximoKm)} ${p.unidade} | 
-                            Intervalo: ${p.intervalo} ${p.unidade} |
-                            Última: ${p.ultimaData}
-                        </div>
-                    </div>
-                `).join('');
-            }
-            
-            const totalSpan = document.getElementById('totalProgramadas');
-            if (totalSpan) totalSpan.textContent = `${proximas.length} programadas`;
-            
-        } catch (error) {
-            console.error('Erro:', error);
-            container.innerHTML = '<p style="text-align:center;color:#999;">Erro ao carregar próximas manutenções</p>';
-        }
-    }
-    
-    function renderizarListaVeiculos() {
-        const container = document.getElementById('veiculosList');
-        if (!container) return;
-        
-        if (veiculosLista.length === 0) {
-            container.innerHTML = '<p style="text-align:center;color:#999;">Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.</p>';
-            return;
-        }
-        
-        container.innerHTML = '';
-        for (const veic of veiculosLista) {
-            const tipos = tiposManutencaoLista.filter(t => t.veiculoId === veic.id);
-            
-            const card = document.createElement('div');
-            card.className = 'veiculo-card';
-            card.innerHTML = `
-                <div class="veiculo-header">
-                    <h4><i class="fas fa-truck"></i> ${veic.nome} <small style="color:#666;">(${veic.unidade || 'KM'})</small></h4>
-                    <div>
-                        <button class="btn-config-tipos btn-sm btn-warning" data-id="${veic.id}" data-nome="${veic.nome}">
-                            <i class="fas fa-cog"></i> Tipos
-                        </button>
-                        <button class="btn-excluir-veiculo btn-sm btn-danger" data-id="${veic.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="veiculo-body">
-                    <small>Tipos de manutenção configurados:</small>
-                    <div class="tipos-list">
-                        ${tipos.map(t => `<span class="tipo-tag">${t.nome} (a cada ${t.intervalo} ${veic.unidade || 'KM'})</span>`).join('') || '<span style="color:#999;">Nenhum tipo configurado</span>'}
-                    </div>
-                </div>
-            `;
-            container.appendChild(card);
-        }
-        
-        document.querySelectorAll('.btn-config-tipos').forEach(btn => {
-            btn.addEventListener('click', () => abrirModalTipos(btn.dataset.id, btn.dataset.nome));
-        });
-        document.querySelectorAll('.btn-excluir-veiculo').forEach(btn => {
-            btn.addEventListener('click', () => excluirVeiculo(btn.dataset.id));
-        });
-    }
-    
-    async function carregarTiposPorVeiculo(veiculoId) {
-        const tipoSelect = document.getElementById('tipoSelect');
-        if (!tipoSelect) return;
-        
-        const tipos = tiposManutencaoLista.filter(t => t.veiculoId === veiculoId);
-        tipoSelect.innerHTML = '<option value="">Selecione o tipo...</option>';
-        tipos.forEach(t => {
-            tipoSelect.innerHTML += `<option value="${t.id}">${t.nome} (a cada ${t.intervalo} ${t.unidade})</option>`;
-        });
-    }
-    
-    async function adicionarVeiculo(nome, unidade) {
-        try {
-            await db.collection('veiculos').add({ nome, unidade, ativo: true, dataCriacao: new Date().toISOString() });
-            await carregarVeiculos();
-            mostrarAlerta('Veículo cadastrado com sucesso!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao cadastrar veículo!', 'erro');
-        }
-    }
-    
-    async function excluirVeiculo(veiculoId) {
-        if (!confirm('⚠️ Excluir este veículo e TODOS os registros de manutenção?')) return;
-        
-        try {
-            const tipos = await db.collection('tiposManutencao').where('veiculoId', '==', veiculoId).get();
-            for (const tipo of tipos.docs) {
-                const manutencoes = await db.collection('manutencoes').where('tipoId', '==', tipo.id).get();
-                for (const manut of manutencoes.docs) await manut.ref.delete();
-                await tipo.ref.delete();
-            }
-            await db.collection('veiculos').doc(veiculoId).delete();
-            await carregarVeiculos();
-            await carregarHistoricoManutencoes();
-            await carregarProximasManutencoes();
-            mostrarAlerta('Veículo excluído!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao excluir!', 'erro');
-        }
-    }
-    
-    async function adicionarTipo(veiculoId, nome, intervalo) {
-        try {
-            const veiculo = veiculosLista.find(v => v.id === veiculoId);
-            await db.collection('tiposManutencao').add({
-                veiculoId, nome, intervalo: parseInt(intervalo),
-                unidade: veiculo?.unidade || 'KM', ativo: true,
-                dataCriacao: new Date().toISOString()
-            });
-            await carregarTiposManutencao();
-            await carregarVeiculos();
-            await carregarProximasManutencoes();
-            mostrarAlerta('Tipo adicionado!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao adicionar tipo!', 'erro');
-        }
-    }
-    
-    async function removerTipo(tipoId) {
-        if (!confirm('Remover este tipo e todos os registros?')) return;
-        try {
-            const manutencoes = await db.collection('manutencoes').where('tipoId', '==', tipoId).get();
-            for (const manut of manutencoes.docs) await manut.ref.delete();
-            await db.collection('tiposManutencao').doc(tipoId).delete();
-            await carregarTiposManutencao();
-            await carregarVeiculos();
-            await carregarHistoricoManutencoes();
-            await carregarProximasManutencoes();
-            mostrarAlerta('Tipo removido!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao remover tipo!', 'erro');
-        }
-    }
-    
-    async function registrarManutencao(veiculoId, tipoId, data, kmAtual, observacoes) {
-        try {
-            const tipo = tiposManutencaoLista.find(t => t.id === tipoId);
-            if (!tipo) throw new Error('Tipo não encontrado');
-            
-            await db.collection('manutencoes').add({
-                veiculoId, tipoId, tipoNome: tipo.nome, data,
-                kmAtual: parseInt(kmAtual),
-                proximaManutencao: parseInt(kmAtual) + tipo.intervalo,
-                intervalo: tipo.intervalo, observacoes,
-                dataRegistro: new Date().toISOString()
-            });
-            await carregarHistoricoManutencoes();
-            await carregarProximasManutencoes();
-            mostrarAlerta('Manutenção registrada!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao registrar!', 'erro');
-        }
-    }
-    
-    async function excluirManutencao(id) {
-        if (!confirm('Excluir este registro?')) return;
-        try {
-            await db.collection('manutencoes').doc(id).delete();
-            await carregarHistoricoManutencoes();
-            await carregarProximasManutencoes();
-            mostrarAlerta('Registro excluído!', 'sucesso');
-        } catch (error) {
-            mostrarAlerta('Erro ao excluir!', 'erro');
-        }
-    }
-    
-    function abrirModalTipos(veiculoId, veiculoNome) {
-        const modal = document.getElementById('modalConfigTipos');
-        if (!modal) return;
-        
-        document.getElementById('configVeiculoSelect').value = veiculoId;
-        
-        const tipos = tiposManutencaoLista.filter(t => t.veiculoId === veiculoId);
-        const container = document.getElementById('tiposList');
-        
-        if (tipos.length === 0) {
-            container.innerHTML = '<p style="text-align:center;color:#999;">Nenhum tipo configurado. Clique em "Adicionar" para começar.</p>';
+    });
+}
+
+function obterKmAtualVeiculo(placa) {
+    const kmSalvo = localStorage.getItem(`km_atual_${placa}`);
+    return kmSalvo ? parseInt(kmSalvo) : 0;
+}
+
+async function salvarNoFirebase(colecao, dados) {
+    if (!window.firebaseDB) return null;
+    try {
+        const { firebaseId, ...dadosSalvar } = dados;
+        if (dados.firebaseId) {
+            await window.firebaseDB.collection(colecao).doc(dados.firebaseId).update(dadosSalvar);
+            return dados.firebaseId;
         } else {
-            container.innerHTML = tipos.map(tipo => `
-                <div class="tipo-item">
-                    <div class="tipo-info">
-                        <strong>${tipo.nome}</strong>
-                        <span>Intervalo: ${tipo.intervalo} ${tipo.unidade}</span>
-                    </div>
-                    <button class="btn-remover-tipo btn-sm btn-danger" data-id="${tipo.id}">
-                        <i class="fas fa-trash"></i> Remover
-                    </button>
-                </div>
-            `).join('');
+            const docRef = await window.firebaseDB.collection(colecao).add(dadosSalvar);
+            return docRef.id;
         }
-        
-        modal.classList.add('active');
-        
-        document.querySelectorAll('.btn-remover-tipo').forEach(btn => {
-            btn.addEventListener('click', () => removerTipo(btn.dataset.id));
-        });
+    } catch (error) { console.error('Erro:', error); return null; }
+}
+
+async function salvarManutencao(e) {
+    e.preventDefault();
+    const veiculoPlaca = document.getElementById('veiculoSelect').value;
+    if (!veiculoPlaca) { alert('Selecione um veículo'); return; }
+    
+    const veiculo = veiculos.find(v => v.placa === veiculoPlaca);
+    const tipo = document.getElementById('tipoSelect').value;
+    const data = document.getElementById('dataManutencao').value;
+    const kmAtual = parseInt(document.getElementById('kmAtual').value);
+    const observacoes = document.getElementById('obsManutencao').value;
+    
+    if (!data || !kmAtual) { alert('Preencha todos os campos'); return; }
+    
+    const tipoConfig = (tiposManutencao[veiculoPlaca] || []).find(t => t.nome === tipo);
+    const intervaloProximo = tipoConfig?.intervalo || 200;
+    const proximaManutencao = kmAtual + intervaloProximo;
+    
+    const manutencaoData = {
+        id: editingId || Date.now(),
+        veiculoPlaca, veiculoNome: veiculo?.nome,
+        tipo, data, kmAtual, proximaManutencao, intervaloProximo, observacoes,
+        dataRegistro: new Date().toISOString(), status: "ativo"
+    };
+    
+    if (editingId) {
+        const existente = manutencoes.find(m => m.id === editingId);
+        if (existente?.firebaseId) manutencaoData.firebaseId = existente.firebaseId;
     }
     
-    function fecharModais() {
-        document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-    }
+    const firebaseId = await salvarNoFirebase('manutencoes', manutencaoData);
+    if (firebaseId) manutencaoData.firebaseId = firebaseId;
     
-    function iniciarSistema() {
-        if (inicializado) return;
-        if (typeof db === 'undefined') {
-            setTimeout(iniciarSistema, 500);
-            return;
-        }
-        
-        inicializado = true;
-        console.log('✅ Sistema de Manutenção iniciado');
-        
-        carregarVeiculos();
-        carregarTiposManutencao();
-        carregarHistoricoManutencoes();
-        carregarProximasManutencoes();
-        
-        // Eventos
-        document.getElementById('btnNovaManutencao')?.addEventListener('click', () => {
-            document.getElementById('modalManutencao').classList.add('active');
-            document.getElementById('formManutencao').reset();
-            document.getElementById('dataManutencao').value = new Date().toISOString().split('T')[0];
-        });
-        
-        document.getElementById('btnConfigurarTipos')?.addEventListener('click', () => {
-            document.getElementById('modalConfigTipos').classList.add('active');
-        });
-        
-        document.getElementById('btnCheckAlertas')?.addEventListener('click', () => {
-            carregarProximasManutencoes();
-            document.querySelector('.tab-btn[data-tab="proximas"]').click();
-            mostrarAlerta('Alertas atualizados!', 'sucesso');
-        });
-        
-        document.getElementById('btnNovoVeiculo')?.addEventListener('click', () => {
-            document.getElementById('modalNovoVeiculo').classList.add('active');
-        });
-        
-        document.querySelectorAll('.modal-close').forEach(btn => btn.addEventListener('click', fecharModais));
-        
-        document.getElementById('veiculoSelect')?.addEventListener('change', (e) => {
-            if (e.target.value) carregarTiposPorVeiculo(e.target.value);
-        });
-        
-        document.getElementById('formManutencao')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await registrarManutencao(
-                document.getElementById('veiculoSelect').value,
-                document.getElementById('tipoSelect').value,
-                document.getElementById('dataManutencao').value,
-                document.getElementById('kmAtual').value,
-                document.getElementById('obsManutencao').value
-            );
-            fecharModais();
-            e.target.reset();
-        });
-        
-        document.getElementById('salvarNovoVeiculo')?.addEventListener('click', async () => {
-            const nome = document.getElementById('novoVeiculoNome').value.trim();
-            const unidade = document.getElementById('novoVeiculoUnidade').value;
-            if (nome) {
-                await adicionarVeiculo(nome, unidade);
-                fecharModais();
-                document.getElementById('novoVeiculoNome').value = '';
-            } else {
-                mostrarAlerta('Digite o nome do veículo!', 'erro');
-            }
-        });
-        
-        document.getElementById('btnAddTipo')?.addEventListener('click', () => {
-            const veiculoId = document.getElementById('configVeiculoSelect').value;
-            if (!veiculoId) {
-                mostrarAlerta('Selecione um veículo primeiro!', 'erro');
-                return;
-            }
-            const nome = prompt('Nome do tipo de manutenção:', 'Ex: Troca Óleo Motor');
-            if (nome) {
-                const intervalo = prompt('Intervalo (KM/Horas):', '200');
-                if (intervalo) adicionarTipo(veiculoId, nome, intervalo);
-            }
-        });
-        
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tabId = btn.dataset.tab;
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById(`tab-${tabId}`)?.classList.add('active');
-            });
-        });
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', iniciarSistema);
+    if (editingId) {
+        const index = manutencoes.findIndex(m => m.id === editingId);
+        if (index !== -1) manutencoes[index] = manutencaoData;
     } else {
-        iniciarSistema();
+        manutencoes.push(manutencaoData);
     }
-})();
+    
+    localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
+    localStorage.setItem(`km_atual_${veiculoPlaca}`, kmAtual.toString());
+    
+    alert(editingId ? 'Manutenção atualizada!' : 'Manutenção registrada!');
+    document.getElementById('formManutencao').reset();
+    document.getElementById('modalManutencao').style.display = 'none';
+    editingId = null;
+    
+    await renderHistorico();
+    await renderProximas();
+}
+
+function editarManutencao(id) {
+    const m = manutencoes.find(m => m.id === id);
+    if (!m) return;
+    editingId = m.id;
+    document.getElementById('veiculoSelect').value = m.veiculoPlaca;
+    document.getElementById('tipoSelect').value = m.tipo;
+    document.getElementById('dataManutencao').value = m.data;
+    document.getElementById('kmAtual').value = m.kmAtual;
+    document.getElementById('obsManutencao').value = m.observacoes || '';
+    document.getElementById('modalManutencao').style.display = 'flex';
+}
+
+async function excluirManutencao(id) {
+    if (!confirm('Excluir esta manutenção?')) return;
+    const m = manutencoes.find(m => m.id === id);
+    if (m?.firebaseId && window.firebaseDB) {
+        await window.firebaseDB.collection('manutencoes').doc(m.firebaseId).delete();
+    }
+    manutencoes = manutencoes.filter(m => m.id !== id);
+    localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
+    alert('Excluído!');
+    await renderHistorico();
+    await renderProximas();
+}
+
+async function renderHistorico() {
+    const tbody = document.getElementById('historicoBody');
+    if (!tbody) return;
+    if (manutencoes.length === 0) {
+        tbody.innerHTML = '发展<td colspan="7" style="text-align:center;">Nenhuma manutenção registrada</td></tr>';
+        return;
+    }
+    let html = '';
+    for (const m of manutencoes) {
+        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
+        const restantes = m.proximaManutencao - kmAtual;
+        let statusClass = 'status-ok', statusText = 'OK';
+        if (restantes <= 0) { statusClass = 'status-urgente'; statusText = 'VENCIDA'; }
+        else if (restantes <= 50) { statusClass = 'status-urgente'; statusText = 'URGENTE'; }
+        else if (restantes <= 100) { statusClass = 'status-proximo'; statusText = 'PRÓXIMO'; }
+        
+        html += `<tr>
+            <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
+            <td><strong>${m.veiculoNome}</strong><br><small>${m.veiculoPlaca}</small></td>
+            <td>${m.tipo}</td>
+            <td>${m.kmAtual.toLocaleString('pt-BR')}</td>
+            <td>${m.proximaManutencao.toLocaleString('pt-BR')}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td><button class="btn-icon" onclick="editarManutencao(${m.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon" onclick="excluirManutencao(${m.id})"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+async function renderProximas() {
+    const container = document.getElementById('proximasBody');
+    if (!container) return;
+    const agora = Date.now();
+    const programadas = manutencoes.filter(m => m.proximaManutencao > 0).sort((a,b) => a.proximaManutencao - b.proximaManutencao);
+    if (programadas.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada</p>';
+        document.getElementById('totalProgramadas').textContent = '0';
+        return;
+    }
+    let html = '';
+    for (const m of programadas) {
+        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
+        const restantes = m.proximaManutencao - kmAtual;
+        let classe = '';
+        if (restantes <= 0) classe = 'urgente';
+        else if (restantes <= 50) classe = 'urgente';
+        else if (restantes <= 100) classe = 'proximo';
+        
+        html += `<div class="programada-card ${classe}">
+            <div class="programada-header">
+                <div class="programada-veiculo">${m.veiculoPlaca} - ${m.veiculoNome}</div>
+                <span class="programada-tipo">${m.tipo}</span>
+            </div>
+            <div>📅 Última: ${new Date(m.data).toLocaleDateString('pt-BR')} (${m.kmAtual.toLocaleString('pt-BR')})</div>
+            <div>⚠️ Próxima: ${m.proximaManutencao.toLocaleString('pt-BR')} (${restantes <= 0 ? 'VENCIDA' : `em ${restantes.toLocaleString('pt-BR')}`})</div>
+            <div style="margin-top:10px;"><button class="btn btn-sm btn-primary" onclick="editarManutencao(${m.id})">Registrar Troca</button></div>
+        </div>`;
+    }
+    container.innerHTML = html;
+    document.getElementById('totalProgramadas').textContent = programadas.length;
+}
+
+async function renderVeiculosList() {
+    const container = document.getElementById('veiculosList');
+    if (!container) return;
+    if (veiculos.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhum veículo cadastrado</p>';
+        return;
+    }
+    let html = '';
+    for (const v of veiculos) {
+        const kmAtual = obterKmAtualVeiculo(v.placa);
+        html += `<div class="veiculo-card">
+            <div><h4>${v.nome}</h4><div>Placa: ${v.placa} | Unidade: ${v.tipoMedidor || 'KM'} | KM Atual: ${kmAtual.toLocaleString('pt-BR')}</div></div>
+            <button class="btn btn-sm btn-primary" onclick="configurarTiposVeiculo('${v.placa}')"><i class="fas fa-cog"></i> Tipos</button>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+async function configurarTiposVeiculo(placa) {
+    currentVeiculoPlaca = placa;
+    document.getElementById('configVeiculoSelect').value = placa;
+    await carregarTiposVeiculo(placa);
+    document.getElementById('modalConfigTipos').style.display = 'flex';
+}
+
+async function carregarTiposVeiculo(placa) {
+    const container = document.getElementById('tiposList');
+    const tipos = tiposManutencao[placa] || [];
+    if (tipos.length === 0) {
+        container.innerHTML = '<p class="text-muted" style="text-align:center;">Nenhum tipo cadastrado. Clique em "Adicionar".</p>';
+        return;
+    }
+    let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+    tipos.forEach((t, idx) => {
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f9f9f9;border-radius:6px;">
+            <div><strong>${t.nome}</strong><br><small>Intervalo: ${t.intervalo} ${unidade}</small></div>
+            <button class="btn-icon" onclick="removerTipoManutencao('${placa}', ${idx})"><i class="fas fa-trash text-danger"></i></button>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function abrirModalAddTipo() {
+    const nome = prompt('Nome do tipo de manutenção (ex: Troca de Óleo Motor, Filtro de Ar):');
+    if (!nome) return;
+    const intervalo = prompt('Intervalo para próxima manutenção (em KM ou Horas):');
+    if (!intervalo) return;
+    const placa = document.getElementById('configVeiculoSelect').value;
+    if (!placa) { alert('Selecione um veículo primeiro'); return; }
+    
+    if (!tiposManutencao[placa]) tiposManutencao[placa] = [];
+    tiposManutencao[placa].push({ nome, intervalo: parseInt(intervalo) });
+    localStorage.setItem('tiposManutencao', JSON.stringify(tiposManutencao));
+    if (window.firebaseDB) {
+        window.firebaseDB.collection('tiposManutencao').doc(placa).set(tiposManutencao[placa]);
+    }
+    carregarTiposVeiculo(placa);
+    atualizarSelectTipos();
+}
+
+function removerTipoManutencao(placa, idx) {
+    if (!confirm('Remover este tipo de manutenção?')) return;
+    tiposManutencao[placa].splice(idx, 1);
+    if (tiposManutencao[placa].length === 0) delete tiposManutencao[placa];
+    localStorage.setItem('tiposManutencao', JSON.stringify(tiposManutencao));
+    if (window.firebaseDB && tiposManutencao[placa]) {
+        window.firebaseDB.collection('tiposManutencao').doc(placa).set(tiposManutencao[placa]);
+    } else if (window.firebaseDB) {
+        window.firebaseDB.collection('tiposManutencao').doc(placa).delete();
+    }
+    carregarTiposVeiculo(placa);
+    atualizarSelectTipos();
+}
+
+function atualizarSelectTipos() {
+    const veiculoPlaca = document.getElementById('veiculoSelect').value;
+    const select = document.getElementById('tipoSelect');
+    if (!veiculoPlaca) {
+        select.innerHTML = '<option value="">Selecione primeiro o veículo</option>';
+        return;
+    }
+    const tipos = tiposManutencao[veiculoPlaca] || [];
+    if (tipos.length === 0) {
+        select.innerHTML = '<option value="">Nenhum tipo configurado</option>';
+    } else {
+        select.innerHTML = '<option value="">Selecione...</option>' + tipos.map(t => `<option value="${t.nome}">${t.nome} (intervalo: ${t.intervalo})</option>`).join('');
+    }
+}
+
+async function salvarNovoVeiculo() {
+    const nome = document.getElementById('novoVeiculoNome').value.trim();
+    if (!nome) { alert('Informe o nome do veículo'); return; }
+    const unidade = document.getElementById('novoVeiculoUnidade').value;
+    const novoVeiculo = {
+        id: Date.now(),
+        nome: nome,
+        placa: nome.substring(0, 8).toUpperCase().replace(/\s/g, ''),
+        tipoMedidor: unidade === 'KM' ? 'km' : 'horas',
+        combustivel: 'Não definido',
+        status: 'Ativo'
+    };
+    
+    const firebaseId = await salvarNoFirebase('veiculos', novoVeiculo);
+    if (firebaseId) novoVeiculo.firebaseId = firebaseId;
+    veiculos.push(novoVeiculo);
+    localStorage.setItem('veiculos', JSON.stringify(veiculos));
+    
+    document.getElementById('modalNovoVeiculo').style.display = 'none';
+    document.getElementById('novoVeiculoNome').value = '';
+    await carregarVeiculos();
+    await renderVeiculosList();
+    alert('Veículo cadastrado!');
+}
+
+function configurarEventos() {
+    document.getElementById('btnNovaManutencao')?.addEventListener('click', () => {
+        document.getElementById('formManutencao').reset();
+        editingId = null;
+        document.getElementById('modalManutencao').style.display = 'flex';
+    });
+    document.getElementById('btnConfigurarTipos')?.addEventListener('click', () => {
+        document.getElementById('modalConfigTipos').style.display = 'flex';
+    });
+    document.getElementById('btnCheckAlertas')?.addEventListener('click', verificarAlertas);
+    document.getElementById('btnNovoVeiculo')?.addEventListener('click', () => {
+        document.getElementById('modalNovoVeiculo').style.display = 'flex';
+    });
+    document.getElementById('salvarNovoVeiculo')?.addEventListener('click', salvarNovoVeiculo);
+    document.getElementById('btnAddTipo')?.addEventListener('click', abrirModalAddTipo);
+    document.getElementById('formManutencao')?.addEventListener('submit', salvarManutencao);
+    document.getElementById('veiculoSelect')?.addEventListener('change', atualizarSelectTipos);
+    document.getElementById('configVeiculoSelect')?.addEventListener('change', (e) => {
+        if (e.target.value) carregarTiposVeiculo(e.target.value);
+    });
+    
+    document.querySelectorAll('.modal-close, .modal-overlay').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (e.target === el || e.target.classList.contains('modal-close')) {
+                el.closest('.modal-overlay').style.display = 'none';
+            }
+        });
+    });
+}
+
+function configurarAbas() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        });
+    });
+}
+
+async function verificarAlertas() {
+    const alertas = [];
+    for (const m of manutencoes) {
+        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
+        const restantes = m.proximaManutencao - kmAtual;
+        if (restantes <= 100) {
+            alertas.push({ veiculo: m.veiculoPlaca, tipo: m.tipo, restantes });
+        }
+    }
+    if (alertas.length === 0) {
+        alert('✅ Nenhum alerta de manutenção pendente!');
+    } else {
+        let msg = '⚠️ ALERTAS DE MANUTENÇÃO:\n\n';
+        alertas.forEach(a => {
+            msg += `📌 ${a.veiculo} - ${a.tipo}\n   ${a.restantes <= 0 ? 'VENCIDA!' : `Próxima em ${a.restantes} KM/Horas`}\n\n`;
+        });
+        alert(msg);
+    }
+}
+
+window.editarManutencao = editarManutencao;
+window.excluirManutencao = excluirManutencao;
+window.configurarTiposVeiculo = configurarTiposVeiculo;
+window.removerTipoManutencao = removerTipoManutencao;
+
+document.addEventListener('DOMContentLoaded', inicializar);
