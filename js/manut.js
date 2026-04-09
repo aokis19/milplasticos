@@ -22,14 +22,15 @@ async function inicializar() {
     configurarEventos();
     configurarAbas();
     
-    await renderHistorico();
+    await renderPreventivas();
     await renderProximas();
     await renderVeiculosList();
-    await renderManutencoesCorretivas();
+    await renderCorretivas();
     
     // Atualizar selects
     atualizarSelectsVeiculos();
     atualizarSelectCorretivaVeiculos();
+    atualizarSelectPreventivaVeiculos();
     
     console.log('✅ Sistema de manutenção pronto!');
 }
@@ -177,7 +178,7 @@ function obterKmAtualVeiculo(placa) {
 }
 
 function atualizarSelectsVeiculos() {
-    const selects = ['veiculoSelect', 'configVeiculoSelect'];
+    const selects = ['preventivaVeiculo', 'configVeiculoSelect'];
     selects.forEach(id => {
         const select = document.getElementById(id);
         if (select) {
@@ -187,6 +188,16 @@ function atualizarSelectsVeiculos() {
             });
         }
     });
+}
+
+function atualizarSelectPreventivaVeiculos() {
+    const select = document.getElementById('preventivaVeiculo');
+    if (select) {
+        select.innerHTML = '<option value="">Selecione um veículo...</option>';
+        veiculos.forEach(v => {
+            select.innerHTML += `<option value="${v.placa}">${v.placa} - ${v.nome}</option>`;
+        });
+    }
 }
 
 function atualizarSelectCorretivaVeiculos() {
@@ -199,9 +210,9 @@ function atualizarSelectCorretivaVeiculos() {
     }
 }
 
-function atualizarSelectTipos() {
-    const veiculoPlaca = document.getElementById('veiculoSelect').value;
-    const select = document.getElementById('tipoSelect');
+function atualizarSelectTiposPreventiva() {
+    const veiculoPlaca = document.getElementById('preventivaVeiculo').value;
+    const select = document.getElementById('preventivaTipo');
     if (!veiculoPlaca) {
         select.innerHTML = '<option value="">Selecione primeiro o veículo</option>';
         return;
@@ -232,17 +243,18 @@ async function salvarNoFirebase(colecao, dados) {
 }
 
 // ================== MANUTENÇÕES PREVENTIVAS ==================
-async function salvarManutencao(e) {
+async function salvarPreventiva(e) {
     e.preventDefault();
+    console.log('Salvando manutenção preventiva...');
     
-    const veiculoPlaca = document.getElementById('veiculoSelect').value;
+    const veiculoPlaca = document.getElementById('preventivaVeiculo').value;
     if (!veiculoPlaca) { alert('Selecione um veículo'); return; }
     
     const veiculo = veiculos.find(v => v.placa === veiculoPlaca);
-    const tipo = document.getElementById('tipoSelect').value;
-    const data = document.getElementById('dataManutencao').value;
-    const kmAtual = parseInt(document.getElementById('kmAtual').value);
-    const observacoes = document.getElementById('obsManutencao').value;
+    const tipo = document.getElementById('preventivaTipo').value;
+    const data = document.getElementById('preventivaData').value;
+    const kmAtual = parseInt(document.getElementById('preventivaKm').value);
+    const observacoes = document.getElementById('preventivaObs').value;
     
     if (!data || !kmAtual) { alert('Preencha todos os campos obrigatórios'); return; }
     if (!tipo) { alert('Selecione o tipo de manutenção'); return; }
@@ -285,28 +297,33 @@ async function salvarManutencao(e) {
     
     alert(editingId ? 'Manutenção atualizada!' : 'Manutenção registrada!');
     
-    document.getElementById('formManutencao').reset();
-    document.getElementById('modalManutencao').style.display = 'none';
+    document.getElementById('formPreventiva').reset();
+    document.getElementById('modalPreventiva').style.display = 'none';
     editingId = null;
     
-    await renderHistorico();
+    await renderPreventivas();
     await renderProximas();
 }
 
-function editarManutencao(id) {
+function editarPreventiva(id) {
     const m = manutencoes.find(m => m.id === id);
     if (!m) return;
     editingId = m.id;
-    document.getElementById('veiculoSelect').value = m.veiculoPlaca;
-    document.getElementById('tipoSelect').value = m.tipo;
-    document.getElementById('dataManutencao').value = m.data;
-    document.getElementById('kmAtual').value = m.kmAtual;
-    document.getElementById('obsManutencao').value = m.observacoes || '';
-    document.getElementById('modalManutencao').style.display = 'flex';
-    atualizarSelectTipos();
+    document.getElementById('preventivaVeiculo').value = m.veiculoPlaca;
+    document.getElementById('preventivaData').value = m.data;
+    document.getElementById('preventivaKm').value = m.kmAtual;
+    document.getElementById('preventivaObs').value = m.observacoes || '';
+    
+    // Forçar atualização do select de tipos
+    setTimeout(() => {
+        document.getElementById('preventivaTipo').value = m.tipo;
+    }, 100);
+    
+    document.getElementById('modalPreventiva').style.display = 'flex';
+    atualizarSelectTiposPreventiva();
 }
 
-async function excluirManutencao(id) {
+async function excluirPreventiva(id) {
     if (!confirm('Excluir esta manutenção?')) return;
     const m = manutencoes.find(m => m.id === id);
     if (m?.firebaseId && window.firebaseDB) {
@@ -315,17 +332,19 @@ async function excluirManutencao(id) {
     manutencoes = manutencoes.filter(m => m.id !== id);
     localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
     alert('Excluído!');
-    await renderHistorico();
+    await renderPreventivas();
     await renderProximas();
 }
 
-async function renderHistorico() {
-    const tbody = document.getElementById('historicoBody');
+async function renderPreventivas() {
+    const tbody = document.getElementById('preventivaBody');
     if (!tbody) return;
+    
     if (manutencoes.length === 0) {
         tbody.innerHTML = '发展<td colspan="7" style="text-align:center;">Nenhuma manutenção preventiva registrada.发展</tr>';
         return;
     }
+    
     let html = '';
     for (const m of manutencoes) {
         const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
@@ -343,8 +362,8 @@ async function renderHistorico() {
             <td>${m.proximaManutencao.toLocaleString('pt-BR')}</td>
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td>
-                <button class="btn-icon" onclick="editarManutencao(${m.id})"><i class="fas fa-edit"></i></button>
-                <button class="btn-icon delete" onclick="excluirManutencao(${m.id})"><i class="fas fa-trash"></i></button>
+                <button class="btn-icon" onclick="editarPreventiva(${m.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon delete" onclick="excluirPreventiva(${m.id})"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }
@@ -354,20 +373,31 @@ async function renderHistorico() {
 async function renderProximas() {
     const container = document.getElementById('proximasBody');
     if (!container) return;
-    const programadas = manutencoes.filter(m => m.proximaManutencao > 0).sort((a, b) => a.proximaManutencao - b.proximaManutencao);
+    
+    // Filtrar apenas manutenções que estão próximas (restantes <= 200)
+    const programadas = [];
+    for (const m of manutencoes) {
+        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
+        const restantes = m.proximaManutencao - kmAtual;
+        if (restantes <= 200) {
+            programadas.push({ ...m, kmAtual, restantes });
+        }
+    }
+    
+    programadas.sort((a, b) => a.restantes - b.restantes);
+    
     if (programadas.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada</p>';
+        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada nas próximas 200 unidades</p>';
         document.getElementById('totalProgramadas').textContent = '0';
         return;
     }
+    
     let html = '<div class="programadas-container">';
     for (const m of programadas) {
-        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
-        const restantes = m.proximaManutencao - kmAtual;
         let classe = '';
-        if (restantes <= 0) classe = 'urgente';
-        else if (restantes <= 50) classe = 'urgente';
-        else if (restantes <= 100) classe = 'proximo';
+        if (m.restantes <= 0) classe = 'urgente';
+        else if (m.restantes <= 50) classe = 'urgente';
+        else if (m.restantes <= 100) classe = 'proximo';
         
         html += `<div class="programada-card ${classe}">
             <div class="programada-header">
@@ -379,10 +409,10 @@ async function renderProximas() {
             </div>
             <div class="programada-km">
                 ⚠️ Próxima: ${m.proximaManutencao.toLocaleString('pt-BR')} 
-                ${restantes <= 0 ? '<span class="text-danger">(VENCIDA!)</span>' : `(em ${restantes.toLocaleString('pt-BR')})`}
+                ${m.restantes <= 0 ? '<span class="text-danger">(VENCIDA!)</span>' : `(em ${m.restantes.toLocaleString('pt-BR')})`}
             </div>
             <div class="programada-acoes">
-                <button class="btn btn-sm btn-primary" onclick="editarManutencao(${m.id})">Registrar Troca</button>
+                <button class="btn btn-sm btn-primary" onclick="editarPreventiva(${m.id})">Registrar Troca</button>
             </div>
         </div>`;
     }
@@ -392,8 +422,9 @@ async function renderProximas() {
 }
 
 // ================== MANUTENÇÕES CORRETIVAS ==================
-async function salvarManutencaoCorretiva(e) {
+async function salvarCorretiva(e) {
     e.preventDefault();
+    console.log('Salvando manutenção corretiva...');
     
     const veiculoPlaca = document.getElementById('corretivaVeiculo').value;
     if (!veiculoPlaca) { alert('Selecione um veículo'); return; }
@@ -474,10 +505,10 @@ async function salvarManutencaoCorretiva(e) {
     document.getElementById('modalCorretiva').style.display = 'none';
     editingCorretivaId = null;
     
-    await renderManutencoesCorretivas();
+    await renderCorretivas();
 }
 
-function editarManutencaoCorretiva(id) {
+function editarCorretiva(id) {
     const m = manutencoesCorretivas.find(m => m.id === id);
     if (!m) return;
     
@@ -503,7 +534,7 @@ function editarManutencaoCorretiva(id) {
     document.getElementById('modalCorretiva').style.display = 'flex';
 }
 
-async function excluirManutencaoCorretiva(id) {
+async function excluirCorretiva(id) {
     if (!confirm('Excluir esta manutenção?')) return;
     const m = manutencoesCorretivas.find(m => m.id === id);
     if (m?.firebaseId && window.firebaseDB) {
@@ -512,7 +543,7 @@ async function excluirManutencaoCorretiva(id) {
     manutencoesCorretivas = manutencoesCorretivas.filter(m => m.id !== id);
     localStorage.setItem('manutencoesCorretivas', JSON.stringify(manutencoesCorretivas));
     alert('Excluído!');
-    await renderManutencoesCorretivas();
+    await renderCorretivas();
 }
 
 function verificarGarantia(garantiaFim) {
@@ -525,12 +556,12 @@ function verificarGarantia(garantiaFim) {
     return { status: 'ok', texto: `Garantia até ${new Date(garantiaFim).toLocaleDateString('pt-BR')}`, classe: 'status-ok' };
 }
 
-async function renderManutencoesCorretivas() {
+async function renderCorretivas() {
     const tbody = document.getElementById('corretivaBody');
     if (!tbody) return;
     
     if (manutencoesCorretivas.length === 0) {
-        tbody.innerHTML = '发展<td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.发展</td>';
+        tbody.innerHTML = '发展<td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.发展</tr>';
         return;
     }
     
@@ -548,8 +579,8 @@ async function renderManutencoesCorretivas() {
             <td class="${garantia.classe}">${garantia.texto}</td>
             <td>${anexoHtml}</td>
             <td>
-                <button class="btn-icon" onclick="editarManutencaoCorretiva(${m.id})"><i class="fas fa-edit"></i></button>
-                <button class="btn-icon delete" onclick="excluirManutencaoCorretiva(${m.id})"><i class="fas fa-trash"></i></button>
+                <button class="btn-icon" onclick="editarCorretiva(${m.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon delete" onclick="excluirCorretiva(${m.id})"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }
@@ -666,7 +697,7 @@ function abrirModalAddTipo() {
         window.firebaseDB.collection('tiposManutencao').doc(placa).set(tiposManutencao[placa]);
     }
     carregarTiposVeiculo(placa);
-    atualizarSelectTipos();
+    atualizarSelectTiposPreventiva();
 }
 
 function removerTipoManutencao(placa, idx) {
@@ -680,7 +711,7 @@ function removerTipoManutencao(placa, idx) {
         window.firebaseDB.collection('tiposManutencao').doc(placa).delete();
     }
     carregarTiposVeiculo(placa);
-    atualizarSelectTipos();
+    atualizarSelectTiposPreventiva();
 }
 
 async function salvarNovoVeiculo() {
@@ -731,24 +762,50 @@ async function verificarAlertas() {
 // ================== EVENTOS ==================
 function configurarEventos() {
     // Preventivas
-    document.getElementById('btnNovaManutencao')?.addEventListener('click', () => {
-        document.getElementById('formManutencao').reset();
-        editingId = null;
-        document.getElementById('modalManutencao').style.display = 'flex';
-    });
-    document.getElementById('formManutencao')?.addEventListener('submit', salvarManutencao);
-    document.getElementById('veiculoSelect')?.addEventListener('change', atualizarSelectTipos);
+    const btnPreventiva = document.getElementById('btnNovaManutencao');
+    if (btnPreventiva) {
+        btnPreventiva.addEventListener('click', () => {
+            document.getElementById('formPreventiva').reset();
+            editingId = null;
+            document.getElementById('modalPreventiva').style.display = 'flex';
+        });
+    }
+    
+    const formPreventiva = document.getElementById('formPreventiva');
+    if (formPreventiva) {
+        formPreventiva.addEventListener('submit', salvarPreventiva);
+    }
+    
+    const preventivaVeiculo = document.getElementById('preventivaVeiculo');
+    if (preventivaVeiculo) {
+        preventivaVeiculo.addEventListener('change', atualizarSelectTiposPreventiva);
+    }
     
     // Corretivas
-    document.getElementById('btnNovaCorretiva')?.addEventListener('click', () => {
-        document.getElementById('formCorretiva').reset();
-        document.getElementById('corretivaAnexoPreview').style.display = 'none';
-        editingCorretivaId = null;
-        document.getElementById('modalCorretiva').style.display = 'flex';
-    });
-    document.getElementById('formCorretiva')?.addEventListener('submit', salvarManutencaoCorretiva);
-    document.getElementById('corretivaGarantiaMeses')?.addEventListener('input', calcularGarantiaFim);
-    document.getElementById('corretivaData')?.addEventListener('change', calcularGarantiaFim);
+    const btnCorretiva = document.getElementById('btnNovaCorretiva');
+    if (btnCorretiva) {
+        btnCorretiva.addEventListener('click', () => {
+            document.getElementById('formCorretiva').reset();
+            document.getElementById('corretivaAnexoPreview').style.display = 'none';
+            editingCorretivaId = null;
+            document.getElementById('modalCorretiva').style.display = 'flex';
+        });
+    }
+    
+    const formCorretiva = document.getElementById('formCorretiva');
+    if (formCorretiva) {
+        formCorretiva.addEventListener('submit', salvarCorretiva);
+    }
+    
+    const garantiaMeses = document.getElementById('corretivaGarantiaMeses');
+    if (garantiaMeses) {
+        garantiaMeses.addEventListener('input', calcularGarantiaFim);
+    }
+    
+    const corretivaData = document.getElementById('corretivaData');
+    if (corretivaData) {
+        corretivaData.addEventListener('change', calcularGarantiaFim);
+    }
     
     // Preview do anexo
     const anexoInput = document.getElementById('corretivaAnexo');
@@ -761,24 +818,51 @@ function configurarEventos() {
             }
         });
     }
-    document.getElementById('corretivaRemoverAnexo')?.addEventListener('click', () => {
-        document.getElementById('corretivaAnexo').value = '';
-        document.getElementById('corretivaAnexoPreview').style.display = 'none';
-    });
+    
+    const removerAnexo = document.getElementById('corretivaRemoverAnexo');
+    if (removerAnexo) {
+        removerAnexo.addEventListener('click', () => {
+            document.getElementById('corretivaAnexo').value = '';
+            document.getElementById('corretivaAnexoPreview').style.display = 'none';
+        });
+    }
     
     // Configurações
-    document.getElementById('btnConfigurarTipos')?.addEventListener('click', () => {
-        document.getElementById('modalConfigTipos').style.display = 'flex';
-    });
-    document.getElementById('btnCheckAlertas')?.addEventListener('click', verificarAlertas);
-    document.getElementById('btnNovoVeiculo')?.addEventListener('click', () => {
-        document.getElementById('modalNovoVeiculo').style.display = 'flex';
-    });
-    document.getElementById('salvarNovoVeiculo')?.addEventListener('click', salvarNovoVeiculo);
-    document.getElementById('btnAddTipo')?.addEventListener('click', abrirModalAddTipo);
-    document.getElementById('configVeiculoSelect')?.addEventListener('change', (e) => {
-        if (e.target.value) carregarTiposVeiculo(e.target.value);
-    });
+    const btnConfigTipos = document.getElementById('btnConfigurarTipos');
+    if (btnConfigTipos) {
+        btnConfigTipos.addEventListener('click', () => {
+            document.getElementById('modalConfigTipos').style.display = 'flex';
+        });
+    }
+    
+    const btnCheckAlertas = document.getElementById('btnCheckAlertas');
+    if (btnCheckAlertas) {
+        btnCheckAlertas.addEventListener('click', verificarAlertas);
+    }
+    
+    const btnNovoVeiculo = document.getElementById('btnNovoVeiculo');
+    if (btnNovoVeiculo) {
+        btnNovoVeiculo.addEventListener('click', () => {
+            document.getElementById('modalNovoVeiculo').style.display = 'flex';
+        });
+    }
+    
+    const salvarVeiculo = document.getElementById('salvarNovoVeiculo');
+    if (salvarVeiculo) {
+        salvarVeiculo.addEventListener('click', salvarNovoVeiculo);
+    }
+    
+    const btnAddTipo = document.getElementById('btnAddTipo');
+    if (btnAddTipo) {
+        btnAddTipo.addEventListener('click', abrirModalAddTipo);
+    }
+    
+    const configVeiculoSelect = document.getElementById('configVeiculoSelect');
+    if (configVeiculoSelect) {
+        configVeiculoSelect.addEventListener('change', (e) => {
+            if (e.target.value) carregarTiposVeiculo(e.target.value);
+        });
+    }
     
     // Fechar modais
     document.querySelectorAll('.modal-close, .modal-overlay').forEach(el => {
@@ -800,19 +884,19 @@ function configurarAbas() {
             document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
             
             // Recarregar dados específicos da aba
-            if (btn.dataset.tab === 'historico') renderHistorico();
+            if (btn.dataset.tab === 'preventiva') renderPreventivas();
             if (btn.dataset.tab === 'proximas') renderProximas();
             if (btn.dataset.tab === 'config') renderVeiculosList();
-            if (btn.dataset.tab === 'corretiva') renderManutencoesCorretivas();
+            if (btn.dataset.tab === 'corretiva') renderCorretivas();
         });
     });
 }
 
 // Exportar funções globais
-window.editarManutencao = editarManutencao;
-window.excluirManutencao = excluirManutencao;
-window.editarManutencaoCorretiva = editarManutencaoCorretiva;
-window.excluirManutencaoCorretiva = excluirManutencaoCorretiva;
+window.editarPreventiva = editarPreventiva;
+window.excluirPreventiva = excluirPreventiva;
+window.editarCorretiva = editarCorretiva;
+window.excluirCorretiva = excluirCorretiva;
 window.visualizarAnexo = visualizarAnexo;
 window.configurarTiposVeiculo = configurarTiposVeiculo;
 window.removerTipoManutencao = removerTipoManutencao;
