@@ -477,7 +477,7 @@ async function renderCorretivas() {
     if (!tbody) return;
     
     if (manutencoesCorretivas.length === 0) {
-        tbody.innerHTML = '发展<td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.发展</tr>';
+        tbody.innerHTML = '<td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.</tr>';
         return;
     }
     
