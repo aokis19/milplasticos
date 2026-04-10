@@ -29,7 +29,7 @@
                     <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
                     <p>Gerencie manutenções preventivas (com alertas) e corretivas (histórico de serviços)</p>
                     <div class="page-actions">
-                        <button class="btn btn-success" id="btnNovaManutencao">
+                        <button class="btn btn-success" id="btnNovaPreventiva">
                             <i class="fas fa-plus"></i> Preventiva
                         </button>
                         <button class="btn btn-primary" id="btnNovaCorretiva">
@@ -154,7 +154,7 @@
         </main>
     </div>
     
-    <!-- ========== MODAL: MANUTENÇÃO PREVENTIVA ========== -->
+    <!-- MODAL: MANUTENÇÃO PREVENTIVA -->
     <div id="modalPreventiva" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -182,25 +182,23 @@
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-tachometer-alt"></i> KM/Hora Atual *</label>
-                            <input type="number" id="preventivaKm" step="1" required placeholder="Ex: 15000">
+                            <input type="number" id="preventivaKm" step="1" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label><i class="fas fa-comment"></i> Observações</label>
-                        <textarea id="preventivaObs" rows="3" placeholder="Detalhes do serviço realizado..."></textarea>
+                        <textarea id="preventivaObs" rows="3"></textarea>
                     </div>
                     <div class="form-footer">
                         <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Salvar
-                        </button>
+                        <button type="submit" class="btn btn-success">Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
-    <!-- ========== MODAL: MANUTENÇÃO CORRETIVA ========== -->
+    <!-- MODAL: MANUTENÇÃO CORRETIVA -->
     <div id="modalCorretiva" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -233,87 +231,76 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label><i class="fas fa-calendar-alt"></i> Data do Serviço *</label>
+                            <label><i class="fas fa-calendar-alt"></i> Data *</label>
                             <input type="date" id="corretivaData" required>
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-tachometer-alt"></i> KM/Hora (opcional)</label>
-                            <input type="number" id="corretivaKm" step="1" placeholder="Opcional">
+                            <label><i class="fas fa-tachometer-alt"></i> KM/Hora</label>
+                            <input type="number" id="corretivaKm" step="1">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label><i class="fas fa-sticky-note"></i> Descrição do Serviço *</label>
-                        <textarea id="corretivaDescricao" rows="3" required placeholder="Descreva o serviço realizado, peças trocadas, etc..."></textarea>
+                        <label><i class="fas fa-sticky-note"></i> Descrição *</label>
+                        <textarea id="corretivaDescricao" rows="3" required></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label><i class="fas fa-money-bill-wave"></i> Valor (R$)</label>
-                            <input type="number" id="corretivaValor" step="0.01" placeholder="0,00">
+                            <input type="number" id="corretivaValor" step="0.01">
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-store"></i> Oficina/Fornecedor</label>
-                            <input type="text" id="corretivaOficina" placeholder="Nome da oficina">
+                            <label><i class="fas fa-store"></i> Oficina</label>
+                            <input type="text" id="corretivaOficina">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label><i class="fas fa-calendar-check"></i> Garantia (meses)</label>
-                            <input type="number" id="corretivaGarantiaMeses" min="0" placeholder="Ex: 12">
+                            <input type="number" id="corretivaGarantiaMeses" min="0">
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-calendar-alt"></i> Data fim da garantia</label>
+                            <label><i class="fas fa-calendar-alt"></i> Fim da Garantia</label>
                             <input type="date" id="corretivaGarantiaFim" readonly>
-                            <small class="hint">Calculado automaticamente</small>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label><i class="fas fa-file-pdf"></i> Anexar Recibo/Nota Fiscal</label>
+                        <label><i class="fas fa-file-pdf"></i> Anexo</label>
                         <input type="file" id="corretivaAnexo" accept=".pdf,.jpg,.png">
-                        <small class="hint">PDF, JPG ou PNG - Máx 5MB</small>
                         <div id="corretivaAnexoPreview" style="display:none; margin-top:10px; padding:8px; background:#f0f0f0; border-radius:4px;">
-                            <i class="fas fa-file"></i> <span id="corretivaAnexoNome"></span>
-                            <button type="button" class="btn-icon" id="corretivaRemoverAnexo"><i class="fas fa-times"></i></button>
+                            <span id="corretivaAnexoNome"></span>
+                            <button type="button" class="btn-icon" id="corretivaRemoverAnexo">X</button>
                         </div>
                     </div>
                     <div class="form-footer">
                         <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save"></i> Salvar
-                        </button>
+                        <button type="submit" class="btn btn-success">Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
-    <!-- ========== MODAL: CONFIGURAR TIPOS ========== -->
+    <!-- MODAL: CONFIGURAR TIPOS -->
     <div id="modalConfigTipos" class="modal-overlay">
         <div class="modal-container modal-lg">
             <div class="modal-header">
-                <h3><i class="fas fa-cog"></i> Configurar Tipos de Manutenção Preventiva</h3>
+                <h3><i class="fas fa-cog"></i> Configurar Tipos de Manutenção</h3>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label><i class="fas fa-truck"></i> Selecione o Veículo</label>
+                    <label>Veículo</label>
                     <select id="configVeiculoSelect">
-                        <option value="">Selecione um veículo...</option>
+                        <option value="">Selecione...</option>
                     </select>
                 </div>
-                <div id="tiposList" style="margin-top: 20px;">
-                    <p class="text-muted" style="text-align:center;">Selecione um veículo para ver os tipos</p>
-                </div>
-                <button class="btn btn-success btn-sm" id="btnAddTipo" style="margin-top: 15px;">
-                    <i class="fas fa-plus"></i> Adicionar Tipo
-                </button>
-                <small class="hint" style="display: block; margin-top: 10px;">
-                    <i class="fas fa-info-circle"></i> Exemplos: Troca de Óleo Motor (200h), Óleo Hidráulico (5000h), Filtro de Ar (200h)
-                </small>
+                <div id="tiposList" style="margin-top:20px;"></div>
+                <button class="btn btn-success btn-sm" id="btnAddTipo">+ Adicionar Tipo</button>
             </div>
         </div>
     </div>
     
-    <!-- ========== MODAL: NOVO VEÍCULO ========== -->
+    <!-- MODAL: NOVO VEÍCULO -->
     <div id="modalNovoVeiculo" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
@@ -322,45 +309,42 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label><i class="fas fa-tag"></i> Nome do Veículo *</label>
-                    <input type="text" id="novoVeiculoNome" placeholder="Ex: Empilhadeira 01, Caminhão SCANIA">
+                    <label>Nome do Veículo *</label>
+                    <input type="text" id="novoVeiculoNome">
                 </div>
                 <div class="form-group">
-                    <label><i class="fas fa-clock"></i> Tipo de Unidade</label>
+                    <label>Tipo de Unidade</label>
                     <select id="novoVeiculoUnidade">
-                        <option value="KM">KM (Quilômetros - para veículos rodoviários)</option>
-                        <option value="HORAS">Horas (Horas de uso - para máquinas/empilhadeiras)</option>
+                        <option value="KM">KM (Quilômetros)</option>
+                        <option value="HORAS">Horas</option>
                     </select>
-                    <small class="hint">Escolha KM para caminhões/carros ou HORAS para empilhadeiras/máquinas</small>
                 </div>
                 <div class="form-footer">
                     <button class="btn btn-secondary modal-close">Cancelar</button>
-                    <button class="btn btn-primary" id="salvarNovoVeiculo">
-                        <i class="fas fa-save"></i> Salvar Veículo
-                    </button>
+                    <button class="btn btn-primary" id="salvarNovoVeiculo">Salvar</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- ========== MODAL: VISUALIZAR ANEXO ========== -->
+    <!-- MODAL: VISUALIZAR ANEXO -->
     <div id="modalVisualizarAnexo" class="modal-overlay">
         <div class="modal-container">
             <div class="modal-header">
-                <h3><i class="fas fa-file"></i> Visualizar Anexo</h3>
+                <h3>Visualizar Anexo</h3>
                 <button class="modal-close">&times;</button>
             </div>
-            <div class="modal-body" style="text-align:center;">
+            <div class="modal-body">
                 <iframe id="visualizarAnexoIframe" style="width:100%; height:400px; border:none;"></iframe>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" id="baixarAnexoBtn"><i class="fas fa-download"></i> Baixar Arquivo</button>
+                <button class="btn btn-primary" id="baixarAnexoBtn">Baixar</button>
                 <button class="btn btn-secondary modal-close">Fechar</button>
             </div>
         </div>
     </div>
     
-    <!-- ========== FIREBASE ========== -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
@@ -373,20 +357,13 @@
             messagingSenderId: "138426359863",
             appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
         };
-        
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        window.firebaseDB = db;
+        window.firebaseDB = firebase.firestore();
         console.log('🔥 Firebase conectado!');
     </script>
     
-    <!-- Helper -->
     <script src="/js/manutencao-helper.js"></script>
-    
-    <!-- Main JS (sidebar e topbar) -->
     <script src="/js/main.js"></script>
-    
-    <!-- Sistema de Manutenção -->
     <script src="/js/manut.js"></script>
 </body>
 </html>
