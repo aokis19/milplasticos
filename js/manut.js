@@ -7,7 +7,6 @@ let veiculos = [];
 let tiposManutencao = {};
 let editingId = null;
 let editingCorretivaId = null;
-let currentVeiculoPlaca = null;
 
 // ================== INICIALIZAÇÃO ==================
 async function inicializar() {
@@ -27,33 +26,23 @@ async function inicializar() {
     await renderVeiculosList();
     await renderCorretivas();
     
-    // Atualizar selects
-    atualizarSelectsVeiculos();
-    atualizarSelectCorretivaVeiculos();
-    atualizarSelectPreventivaVeiculos();
-    
     console.log('✅ Sistema de manutenção pronto!');
 }
 
 function aguardarFirebase() {
     return new Promise((resolve) => {
         if (window.firebaseDB) {
-            console.log('🔥 Firebase disponível');
             resolve();
             return;
         }
-        
         const verificar = setInterval(() => {
             if (window.firebaseDB) {
                 clearInterval(verificar);
-                console.log('🔥 Firebase conectado');
                 resolve();
             }
         }, 100);
-        
         setTimeout(() => {
             clearInterval(verificar);
-            console.log('⚠️ Firebase não disponível, usando localStorage');
             resolve();
         }, 3000);
     });
@@ -69,21 +58,16 @@ async function carregarVeiculos() {
                 veiculos.push({ firebaseId: doc.id, ...doc.data() });
             });
             if (veiculos.length > 0) {
-                console.log(`✅ ${veiculos.length} veículos do Firebase`);
                 localStorage.setItem('veiculos', JSON.stringify(veiculos));
+                atualizarSelectsVeiculos();
                 return;
             }
         }
-        
         const veiculosSalvos = localStorage.getItem('veiculos');
-        if (veiculosSalvos) {
-            veiculos = JSON.parse(veiculosSalvos);
-            console.log(`💾 ${veiculos.length} veículos do localStorage`);
-        } else {
-            veiculos = [];
-        }
+        veiculos = veiculosSalvos ? JSON.parse(veiculosSalvos) : [];
+        atualizarSelectsVeiculos();
     } catch (error) {
-        console.error('Erro ao carregar veículos:', error);
+        console.error('Erro:', error);
         veiculos = [];
     }
 }
@@ -96,10 +80,8 @@ async function carregarManutencoes() {
             snapshot.forEach(doc => {
                 manutencoes.push({ firebaseId: doc.id, ...doc.data() });
             });
-            console.log(`✅ ${manutencoes.length} manutenções preventivas do Firebase`);
             localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
         } catch (error) {
-            console.error('Erro:', error);
             carregarManutencoesLocal();
         }
     } else {
@@ -108,12 +90,7 @@ async function carregarManutencoes() {
 }
 
 function carregarManutencoesLocal() {
-    try {
-        manutencoes = JSON.parse(localStorage.getItem('manutencoes')) || [];
-        console.log(`💾 ${manutencoes.length} manutenções preventivas do localStorage`);
-    } catch (e) {
-        manutencoes = [];
-    }
+    manutencoes = JSON.parse(localStorage.getItem('manutencoes')) || [];
 }
 
 async function carregarManutencoesCorretivas() {
@@ -124,10 +101,8 @@ async function carregarManutencoesCorretivas() {
             snapshot.forEach(doc => {
                 manutencoesCorretivas.push({ firebaseId: doc.id, ...doc.data() });
             });
-            console.log(`✅ ${manutencoesCorretivas.length} manutenções corretivas do Firebase`);
             localStorage.setItem('manutencoesCorretivas', JSON.stringify(manutencoesCorretivas));
         } catch (error) {
-            console.error('Erro:', error);
             carregarManutencoesCorretivasLocal();
         }
     } else {
@@ -136,12 +111,7 @@ async function carregarManutencoesCorretivas() {
 }
 
 function carregarManutencoesCorretivasLocal() {
-    try {
-        manutencoesCorretivas = JSON.parse(localStorage.getItem('manutencoesCorretivas')) || [];
-        console.log(`💾 ${manutencoesCorretivas.length} manutenções corretivas do localStorage`);
-    } catch (e) {
-        manutencoesCorretivas = [];
-    }
+    manutencoesCorretivas = JSON.parse(localStorage.getItem('manutencoesCorretivas')) || [];
 }
 
 async function carregarTiposConfig() {
@@ -152,10 +122,8 @@ async function carregarTiposConfig() {
             snapshot.forEach(doc => {
                 tiposManutencao[doc.id] = doc.data();
             });
-            console.log(`✅ Tipos de manutenção carregados`);
             localStorage.setItem('tiposManutencao', JSON.stringify(tiposManutencao));
         } catch (error) {
-            console.error('Erro:', error);
             carregarTiposLocal();
         }
     } else {
@@ -164,11 +132,7 @@ async function carregarTiposConfig() {
 }
 
 function carregarTiposLocal() {
-    try {
-        tiposManutencao = JSON.parse(localStorage.getItem('tiposManutencao')) || {};
-    } catch (e) {
-        tiposManutencao = {};
-    }
+    tiposManutencao = JSON.parse(localStorage.getItem('tiposManutencao')) || {};
 }
 
 // ================== FUNÇÕES AUXILIARES ==================
@@ -178,7 +142,7 @@ function obterKmAtualVeiculo(placa) {
 }
 
 function atualizarSelectsVeiculos() {
-    const selects = ['preventivaVeiculo', 'configVeiculoSelect'];
+    const selects = ['preventivaVeiculo', 'corretivaVeiculo', 'configVeiculoSelect'];
     selects.forEach(id => {
         const select = document.getElementById(id);
         if (select) {
@@ -188,26 +152,6 @@ function atualizarSelectsVeiculos() {
             });
         }
     });
-}
-
-function atualizarSelectPreventivaVeiculos() {
-    const select = document.getElementById('preventivaVeiculo');
-    if (select) {
-        select.innerHTML = '<option value="">Selecione um veículo...</option>';
-        veiculos.forEach(v => {
-            select.innerHTML += `<option value="${v.placa}">${v.placa} - ${v.nome}</option>`;
-        });
-    }
-}
-
-function atualizarSelectCorretivaVeiculos() {
-    const select = document.getElementById('corretivaVeiculo');
-    if (select) {
-        select.innerHTML = '<option value="">Selecione um veículo...</option>';
-        veiculos.forEach(v => {
-            select.innerHTML += `<option value="${v.placa}">${v.placa} - ${v.nome}</option>`;
-        });
-    }
 }
 
 function atualizarSelectTiposPreventiva() {
@@ -221,7 +165,7 @@ function atualizarSelectTiposPreventiva() {
     if (tipos.length === 0) {
         select.innerHTML = '<option value="">Nenhum tipo configurado</option>';
     } else {
-        select.innerHTML = '<option value="">Selecione...</option>' + tipos.map(t => `<option value="${t.nome}">${t.nome} (intervalo: ${t.intervalo})</option>`).join('');
+        select.innerHTML = '<option value="">Selecione...</option>' + tipos.map(t => `<option value="${t.nome}">${t.nome} (${t.intervalo})</option>`).join('');
     }
 }
 
@@ -237,7 +181,6 @@ async function salvarNoFirebase(colecao, dados) {
             return docRef.id;
         }
     } catch (error) {
-        console.error('Erro Firebase:', error);
         return null;
     }
 }
@@ -245,7 +188,6 @@ async function salvarNoFirebase(colecao, dados) {
 // ================== MANUTENÇÕES PREVENTIVAS ==================
 async function salvarPreventiva(e) {
     e.preventDefault();
-    console.log('Salvando manutenção preventiva...');
     
     const veiculoPlaca = document.getElementById('preventivaVeiculo').value;
     if (!veiculoPlaca) { alert('Selecione um veículo'); return; }
@@ -256,8 +198,10 @@ async function salvarPreventiva(e) {
     const kmAtual = parseInt(document.getElementById('preventivaKm').value);
     const observacoes = document.getElementById('preventivaObs').value;
     
-    if (!data || !kmAtual) { alert('Preencha todos os campos obrigatórios'); return; }
-    if (!tipo) { alert('Selecione o tipo de manutenção'); return; }
+    if (!data || !kmAtual || !tipo) {
+        alert('Preencha todos os campos');
+        return;
+    }
     
     const tipoConfig = (tiposManutencao[veiculoPlaca] || []).find(t => t.nome === tipo);
     const intervaloProximo = tipoConfig?.intervalo || 200;
@@ -273,8 +217,7 @@ async function salvarPreventiva(e) {
         proximaManutencao,
         intervaloProximo,
         observacoes,
-        dataRegistro: new Date().toISOString(),
-        status: "ativo"
+        dataRegistro: new Date().toISOString()
     };
     
     if (editingId) {
@@ -293,9 +236,9 @@ async function salvarPreventiva(e) {
     }
     
     localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
-    localStorage.setItem(`km_atual_${veiculoPlaca}`, kmAtual.toString());
+    localStorage.setItem(`km_atual_${veiculoPlaca}`, kmAtual);
     
-    alert(editingId ? 'Manutenção atualizada!' : 'Manutenção registrada!');
+    alert(editingId ? 'Atualizada!' : 'Registrada!');
     
     document.getElementById('formPreventiva').reset();
     document.getElementById('modalPreventiva').style.display = 'none';
@@ -313,18 +256,15 @@ function editarPreventiva(id) {
     document.getElementById('preventivaData').value = m.data;
     document.getElementById('preventivaKm').value = m.kmAtual;
     document.getElementById('preventivaObs').value = m.observacoes || '';
-    
-    // Forçar atualização do select de tipos
     setTimeout(() => {
         document.getElementById('preventivaTipo').value = m.tipo;
     }, 100);
-    
     document.getElementById('modalPreventiva').style.display = 'flex';
     atualizarSelectTiposPreventiva();
 }
 
 async function excluirPreventiva(id) {
-    if (!confirm('Excluir esta manutenção?')) return;
+    if (!confirm('Excluir?')) return;
     const m = manutencoes.find(m => m.id === id);
     if (m?.firebaseId && window.firebaseDB) {
         await window.firebaseDB.collection('manutencoes').doc(m.firebaseId).delete();
@@ -341,7 +281,7 @@ async function renderPreventivas() {
     if (!tbody) return;
     
     if (manutencoes.length === 0) {
-        tbody.innerHTML = '发展<td colspan="7" style="text-align:center;">Nenhuma manutenção preventiva registrada.发展</tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma manutenção preventiva registrada.</td></tr>';
         return;
     }
     
@@ -374,7 +314,6 @@ async function renderProximas() {
     const container = document.getElementById('proximasBody');
     if (!container) return;
     
-    // Filtrar apenas manutenções que estão próximas (restantes <= 200)
     const programadas = [];
     for (const m of manutencoes) {
         const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
@@ -387,7 +326,7 @@ async function renderProximas() {
     programadas.sort((a, b) => a.restantes - b.restantes);
     
     if (programadas.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada nas próximas 200 unidades</p>';
+        container.innerHTML = '<p style="text-align:center;">Nenhuma manutenção programada</p>';
         document.getElementById('totalProgramadas').textContent = '0';
         return;
     }
@@ -404,16 +343,9 @@ async function renderProximas() {
                 <div class="programada-veiculo">${m.veiculoPlaca} - ${m.veiculoNome}</div>
                 <span class="programada-tipo">${m.tipo}</span>
             </div>
-            <div class="programada-detalhes">
-                📅 Última: ${new Date(m.data).toLocaleDateString('pt-BR')} (${m.kmAtual.toLocaleString('pt-BR')})
-            </div>
-            <div class="programada-km">
-                ⚠️ Próxima: ${m.proximaManutencao.toLocaleString('pt-BR')} 
-                ${m.restantes <= 0 ? '<span class="text-danger">(VENCIDA!)</span>' : `(em ${m.restantes.toLocaleString('pt-BR')})`}
-            </div>
-            <div class="programada-acoes">
-                <button class="btn btn-sm btn-primary" onclick="editarPreventiva(${m.id})">Registrar Troca</button>
-            </div>
+            <div class="programada-detalhes">Última: ${new Date(m.data).toLocaleDateString('pt-BR')} (${m.kmAtual.toLocaleString('pt-BR')})</div>
+            <div class="programada-km">Próxima: ${m.proximaManutencao.toLocaleString('pt-BR')} ${m.restantes <= 0 ? '<span class="text-danger">(VENCIDA!)</span>' : `(em ${m.restantes.toLocaleString('pt-BR')})`}</div>
+            <div class="programada-acoes"><button class="btn btn-sm btn-primary" onclick="editarPreventiva(${m.id})">Registrar</button></div>
         </div>`;
     }
     html += '</div>';
@@ -424,7 +356,6 @@ async function renderProximas() {
 // ================== MANUTENÇÕES CORRETIVAS ==================
 async function salvarCorretiva(e) {
     e.preventDefault();
-    console.log('Salvando manutenção corretiva...');
     
     const veiculoPlaca = document.getElementById('corretivaVeiculo').value;
     if (!veiculoPlaca) { alert('Selecione um veículo'); return; }
@@ -438,12 +369,8 @@ async function salvarCorretiva(e) {
     const oficina = document.getElementById('corretivaOficina').value;
     const garantiaMeses = parseInt(document.getElementById('corretivaGarantiaMeses').value) || 0;
     
-    if (!data || !descricao) {
-        alert('Preencha data e descrição do serviço');
-        return;
-    }
-    if (!tipo) {
-        alert('Selecione o tipo de serviço');
+    if (!data || !descricao || !tipo) {
+        alert('Preencha data, tipo e descrição');
         return;
     }
     
@@ -457,12 +384,7 @@ async function salvarCorretiva(e) {
     let anexoData = null;
     const fileInput = document.getElementById('corretivaAnexo');
     if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Arquivo muito grande. Máximo 5MB');
-            return;
-        }
-        anexoData = await anexarArquivo(file);
+        anexoData = await anexarArquivo(fileInput.files[0]);
     }
     
     const manutencaoData = {
@@ -498,7 +420,7 @@ async function salvarCorretiva(e) {
     
     localStorage.setItem('manutencoesCorretivas', JSON.stringify(manutencoesCorretivas));
     
-    alert(editingCorretivaId ? 'Manutenção atualizada!' : 'Manutenção registrada!');
+    alert(editingCorretivaId ? 'Atualizada!' : 'Registrada!');
     
     document.getElementById('formCorretiva').reset();
     document.getElementById('corretivaAnexoPreview').style.display = 'none';
@@ -511,7 +433,6 @@ async function salvarCorretiva(e) {
 function editarCorretiva(id) {
     const m = manutencoesCorretivas.find(m => m.id === id);
     if (!m) return;
-    
     editingCorretivaId = m.id;
     document.getElementById('corretivaVeiculo').value = m.veiculoPlaca;
     document.getElementById('corretivaTipo').value = m.tipo;
@@ -521,21 +442,16 @@ function editarCorretiva(id) {
     document.getElementById('corretivaValor').value = m.valor || '';
     document.getElementById('corretivaOficina').value = m.oficina || '';
     document.getElementById('corretivaGarantiaMeses').value = m.garantiaMeses || '';
-    
-    if (m.garantiaFim) {
-        document.getElementById('corretivaGarantiaFim').value = m.garantiaFim;
-    }
-    
+    if (m.garantiaFim) document.getElementById('corretivaGarantiaFim').value = m.garantiaFim;
     if (m.anexo) {
         document.getElementById('corretivaAnexoPreview').style.display = 'flex';
         document.getElementById('corretivaAnexoNome').textContent = m.anexo.nome;
     }
-    
     document.getElementById('modalCorretiva').style.display = 'flex';
 }
 
 async function excluirCorretiva(id) {
-    if (!confirm('Excluir esta manutenção?')) return;
+    if (!confirm('Excluir?')) return;
     const m = manutencoesCorretivas.find(m => m.id === id);
     if (m?.firebaseId && window.firebaseDB) {
         await window.firebaseDB.collection('manutencoesCorretivas').doc(m.firebaseId).delete();
@@ -547,13 +463,13 @@ async function excluirCorretiva(id) {
 }
 
 function verificarGarantia(garantiaFim) {
-    if (!garantiaFim) return { status: 'sem', texto: 'Sem garantia', classe: '' };
+    if (!garantiaFim) return { texto: 'Sem garantia', classe: '' };
     const hoje = new Date();
     const dataFim = new Date(garantiaFim);
-    if (dataFim < hoje) return { status: 'expirada', texto: 'Garantia expirada', classe: 'status-urgente' };
+    if (dataFim < hoje) return { texto: 'Garantia expirada', classe: 'status-urgente' };
     const diasRestantes = Math.ceil((dataFim - hoje) / (1000 * 60 * 60 * 24));
-    if (diasRestantes <= 30) return { status: 'proximo', texto: `Garantia: ${diasRestantes} dias`, classe: 'status-proximo' };
-    return { status: 'ok', texto: `Garantia até ${new Date(garantiaFim).toLocaleDateString('pt-BR')}`, classe: 'status-ok' };
+    if (diasRestantes <= 30) return { texto: `Garantia: ${diasRestantes} dias`, classe: 'status-proximo' };
+    return { texto: `Garantia até ${new Date(garantiaFim).toLocaleDateString('pt-BR')}`, classe: 'status-ok' };
 }
 
 async function renderCorretivas() {
@@ -568,7 +484,7 @@ async function renderCorretivas() {
     let html = '';
     for (const m of manutencoesCorretivas) {
         const garantia = verificarGarantia(m.garantiaFim);
-        const anexoHtml = m.anexo ? `<button class="btn-icon" onclick="visualizarAnexo(${m.id})" title="Ver anexo"><i class="fas fa-paperclip"></i></button>` : '-';
+        const anexoHtml = m.anexo ? `<button class="btn-icon" onclick="visualizarAnexo(${m.id})"><i class="fas fa-paperclip"></i></button>` : '-';
         
         html += `<tr>
             <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
@@ -590,13 +506,9 @@ async function renderCorretivas() {
 function visualizarAnexo(id) {
     const m = manutencoesCorretivas.find(m => m.id === id);
     if (!m || !m.anexo) return;
-    
-    const iframe = document.getElementById('visualizarAnexoIframe');
-    iframe.src = m.anexo.base64;
+    document.getElementById('visualizarAnexoIframe').src = m.anexo.base64;
     document.getElementById('modalVisualizarAnexo').style.display = 'flex';
-    
-    const baixarBtn = document.getElementById('baixarAnexoBtn');
-    baixarBtn.onclick = () => {
+    document.getElementById('baixarAnexoBtn').onclick = () => {
         const link = document.createElement('a');
         link.href = m.anexo.base64;
         link.download = m.anexo.nome;
@@ -619,14 +531,7 @@ function calcularGarantiaFim() {
 async function anexarArquivo(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = function(e) {
-            resolve({
-                nome: file.name,
-                tipo: file.type,
-                tamanho: file.size,
-                base64: e.target.result
-            });
-        };
+        reader.onload = (e) => resolve({ nome: file.name, base64: e.target.result });
         reader.readAsDataURL(file);
     });
 }
@@ -636,17 +541,14 @@ async function renderVeiculosList() {
     const container = document.getElementById('veiculosList');
     if (!container) return;
     if (veiculos.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhum veículo cadastrado</p>';
+        container.innerHTML = '<p style="text-align:center;">Nenhum veículo cadastrado</p>';
         return;
     }
     let html = '<div class="veiculos-list">';
     for (const v of veiculos) {
         const kmAtual = obterKmAtualVeiculo(v.placa);
         html += `<div class="veiculo-card">
-            <div>
-                <h4>${v.nome}</h4>
-                <p>Placa: ${v.placa} | Unidade: ${v.tipoMedidor || 'KM'} | KM Atual: ${kmAtual.toLocaleString('pt-BR')}</p>
-            </div>
+            <div><h4>${v.nome}</h4><p>Placa: ${v.placa} | Unidade: ${v.tipoMedidor || 'KM'} | KM Atual: ${kmAtual.toLocaleString('pt-BR')}</p></div>
             <button class="btn btn-sm btn-primary" onclick="configurarTiposVeiculo('${v.placa}')"><i class="fas fa-cog"></i> Tipos</button>
         </div>`;
     }
@@ -655,7 +557,6 @@ async function renderVeiculosList() {
 }
 
 async function configurarTiposVeiculo(placa) {
-    currentVeiculoPlaca = placa;
     document.getElementById('configVeiculoSelect').value = placa;
     await carregarTiposVeiculo(placa);
     document.getElementById('modalConfigTipos').style.display = 'flex';
@@ -665,16 +566,13 @@ async function carregarTiposVeiculo(placa) {
     const container = document.getElementById('tiposList');
     const tipos = tiposManutencao[placa] || [];
     if (tipos.length === 0) {
-        container.innerHTML = '<p class="text-muted" style="text-align:center;">Nenhum tipo cadastrado. Clique em "Adicionar".</p>';
+        container.innerHTML = '<p class="text-muted">Nenhum tipo cadastrado. Clique em "Adicionar".</p>';
         return;
     }
     let html = '<div class="tipos-list">';
     tipos.forEach((t, idx) => {
         html += `<div class="tipo-item">
-            <div class="tipo-info">
-                <strong>${t.nome}</strong>
-                <small>Intervalo: ${t.intervalo} ${veiculos.find(v => v.placa === placa)?.tipoMedidor || 'KM'}</small>
-            </div>
+            <div><strong>${t.nome}</strong><br><small>Intervalo: ${t.intervalo}</small></div>
             <button class="btn-icon delete" onclick="removerTipoManutencao('${placa}', ${idx})"><i class="fas fa-trash"></i></button>
         </div>`;
     });
@@ -683,12 +581,12 @@ async function carregarTiposVeiculo(placa) {
 }
 
 function abrirModalAddTipo() {
-    const nome = prompt('Nome do tipo de manutenção (ex: Troca de Óleo Motor, Filtro de Ar):');
+    const nome = prompt('Nome do tipo de manutenção:');
     if (!nome) return;
-    const intervalo = prompt('Intervalo para próxima manutenção (em KM ou Horas):');
+    const intervalo = prompt('Intervalo (KM/Horas):');
     if (!intervalo) return;
     const placa = document.getElementById('configVeiculoSelect').value;
-    if (!placa) { alert('Selecione um veículo primeiro'); return; }
+    if (!placa) { alert('Selecione um veículo'); return; }
     
     if (!tiposManutencao[placa]) tiposManutencao[placa] = [];
     tiposManutencao[placa].push({ nome, intervalo: parseInt(intervalo) });
@@ -701,7 +599,7 @@ function abrirModalAddTipo() {
 }
 
 function removerTipoManutencao(placa, idx) {
-    if (!confirm('Remover este tipo de manutenção?')) return;
+    if (!confirm('Remover?')) return;
     tiposManutencao[placa].splice(idx, 1);
     if (tiposManutencao[placa].length === 0) delete tiposManutencao[placa];
     localStorage.setItem('tiposManutencao', JSON.stringify(tiposManutencao));
@@ -716,14 +614,13 @@ function removerTipoManutencao(placa, idx) {
 
 async function salvarNovoVeiculo() {
     const nome = document.getElementById('novoVeiculoNome').value.trim();
-    if (!nome) { alert('Informe o nome do veículo'); return; }
+    if (!nome) { alert('Informe o nome'); return; }
     const unidade = document.getElementById('novoVeiculoUnidade').value;
     const novoVeiculo = {
         id: Date.now(),
-        nome: nome,
+        nome,
         placa: nome.substring(0, 8).toUpperCase().replace(/\s/g, ''),
         tipoMedidor: unidade === 'KM' ? 'km' : 'horas',
-        combustivel: 'Não definido',
         status: 'Ativo'
     };
     
@@ -749,11 +646,11 @@ async function verificarAlertas() {
         }
     }
     if (alertas.length === 0) {
-        alert('✅ Nenhum alerta de manutenção pendente!');
+        alert('✅ Nenhum alerta pendente!');
     } else {
-        let msg = '⚠️ ALERTAS DE MANUTENÇÃO:\n\n';
+        let msg = '⚠️ ALERTAS:\n\n';
         alertas.forEach(a => {
-            msg += `📌 ${a.veiculo} - ${a.tipo}\n   ${a.restantes <= 0 ? 'VENCIDA!' : `Próxima em ${a.restantes} KM/Horas`}\n\n`;
+            msg += `${a.veiculo} - ${a.tipo}\n   ${a.restantes <= 0 ? 'VENCIDA!' : `Próxima em ${a.restantes}`}\n\n`;
         });
         alert(msg);
     }
@@ -761,97 +658,51 @@ async function verificarAlertas() {
 
 // ================== EVENTOS ==================
 function configurarEventos() {
-    // Preventivas - Usando o ID correto do botão
-    const btnPreventiva = document.getElementById('btnNovaManutencao');
-    if (btnPreventiva) {
-        btnPreventiva.addEventListener('click', () => {
-            console.log('Abrindo modal preventiva');
-            document.getElementById('formPreventiva').reset();
-            editingId = null;
-            document.getElementById('modalPreventiva').style.display = 'flex';
-        });
-    } else {
-        console.log('Botão btnNovaManutencao não encontrado');
-    }
+    // Preventiva
+    document.getElementById('btnNovaPreventiva')?.addEventListener('click', () => {
+        document.getElementById('formPreventiva').reset();
+        editingId = null;
+        document.getElementById('modalPreventiva').style.display = 'flex';
+    });
+    document.getElementById('formPreventiva')?.addEventListener('submit', salvarPreventiva);
+    document.getElementById('preventivaVeiculo')?.addEventListener('change', atualizarSelectTiposPreventiva);
     
-    const formPreventiva = document.getElementById('formPreventiva');
-    if (formPreventiva) {
-        formPreventiva.addEventListener('submit', salvarPreventiva);
-    }
+    // Corretiva
+    document.getElementById('btnNovaCorretiva')?.addEventListener('click', () => {
+        document.getElementById('formCorretiva').reset();
+        document.getElementById('corretivaAnexoPreview').style.display = 'none';
+        editingCorretivaId = null;
+        document.getElementById('modalCorretiva').style.display = 'flex';
+    });
+    document.getElementById('formCorretiva')?.addEventListener('submit', salvarCorretiva);
+    document.getElementById('corretivaGarantiaMeses')?.addEventListener('input', calcularGarantiaFim);
+    document.getElementById('corretivaData')?.addEventListener('change', calcularGarantiaFim);
     
-    const preventivaVeiculo = document.getElementById('preventivaVeiculo');
-    if (preventivaVeiculo) {
-        preventivaVeiculo.addEventListener('change', atualizarSelectTiposPreventiva);
-    }
-    
-    // Corretivas
-    const btnCorretiva = document.getElementById('btnNovaCorretiva');
-    if (btnCorretiva) {
-        btnCorretiva.addEventListener('click', () => {
-            console.log('Abrindo modal corretiva');
-            document.getElementById('formCorretiva').reset();
-            document.getElementById('corretivaAnexoPreview').style.display = 'none';
-            editingCorretivaId = null;
-            document.getElementById('modalCorretiva').style.display = 'flex';
-        });
-    }
-    
-    // Preview do anexo
-    const anexoInput = document.getElementById('corretivaAnexo');
-    if (anexoInput) {
-        anexoInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                const file = e.target.files[0];
-                document.getElementById('corretivaAnexoPreview').style.display = 'flex';
-                document.getElementById('corretivaAnexoNome').textContent = file.name;
-            }
-        });
-    }
-    
-    const removerAnexo = document.getElementById('corretivaRemoverAnexo');
-    if (removerAnexo) {
-        removerAnexo.addEventListener('click', () => {
-            document.getElementById('corretivaAnexo').value = '';
-            document.getElementById('corretivaAnexoPreview').style.display = 'none';
-        });
-    }
+    // Anexo
+    document.getElementById('corretivaAnexo')?.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            document.getElementById('corretivaAnexoPreview').style.display = 'flex';
+            document.getElementById('corretivaAnexoNome').textContent = e.target.files[0].name;
+        }
+    });
+    document.getElementById('corretivaRemoverAnexo')?.addEventListener('click', () => {
+        document.getElementById('corretivaAnexo').value = '';
+        document.getElementById('corretivaAnexoPreview').style.display = 'none';
+    });
     
     // Configurações
-    const btnConfigTipos = document.getElementById('btnConfigurarTipos');
-    if (btnConfigTipos) {
-        btnConfigTipos.addEventListener('click', () => {
-            document.getElementById('modalConfigTipos').style.display = 'flex';
-        });
-    }
-    
-    const btnCheckAlertas = document.getElementById('btnCheckAlertas');
-    if (btnCheckAlertas) {
-        btnCheckAlertas.addEventListener('click', verificarAlertas);
-    }
-    
-    const btnNovoVeiculo = document.getElementById('btnNovoVeiculo');
-    if (btnNovoVeiculo) {
-        btnNovoVeiculo.addEventListener('click', () => {
-            document.getElementById('modalNovoVeiculo').style.display = 'flex';
-        });
-    }
-    
-    const salvarVeiculo = document.getElementById('salvarNovoVeiculo');
-    if (salvarVeiculo) {
-        salvarVeiculo.addEventListener('click', salvarNovoVeiculo);
-    }
-    
-    const btnAddTipo = document.getElementById('btnAddTipo');
-    if (btnAddTipo) {
-        btnAddTipo.addEventListener('click', abrirModalAddTipo);
-    }
-    
-    const configVeiculoSelect = document.getElementById('configVeiculoSelect');
-    if (configVeiculoSelect) {
-        configVeiculoSelect.addEventListener('change', (e) => {
-            if (e.target.value) carregarTiposVeiculo(e.target.value);
-        });
-    }
+    document.getElementById('btnConfigurarTipos')?.addEventListener('click', () => {
+        document.getElementById('modalConfigTipos').style.display = 'flex';
+    });
+    document.getElementById('btnCheckAlertas')?.addEventListener('click', verificarAlertas);
+    document.getElementById('btnNovoVeiculo')?.addEventListener('click', () => {
+        document.getElementById('modalNovoVeiculo').style.display = 'flex';
+    });
+    document.getElementById('salvarNovoVeiculo')?.addEventListener('click', salvarNovoVeiculo);
+    document.getElementById('btnAddTipo')?.addEventListener('click', abrirModalAddTipo);
+    document.getElementById('configVeiculoSelect')?.addEventListener('change', (e) => {
+        if (e.target.value) carregarTiposVeiculo(e.target.value);
+    });
     
     // Fechar modais
     document.querySelectorAll('.modal-close, .modal-overlay').forEach(el => {
@@ -864,15 +715,13 @@ function configurarEventos() {
 }
 
 function configurarAbas() {
-    const tabs = document.querySelectorAll('.tab-btn');
-    tabs.forEach(btn => {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            tabs.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
             
-            // Recarregar dados específicos da aba
             if (btn.dataset.tab === 'preventiva') renderPreventivas();
             if (btn.dataset.tab === 'proximas') renderProximas();
             if (btn.dataset.tab === 'config') renderVeiculosList();
