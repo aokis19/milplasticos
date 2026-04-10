@@ -761,14 +761,17 @@ async function verificarAlertas() {
 
 // ================== EVENTOS ==================
 function configurarEventos() {
-    // Preventivas
+    // Preventivas - Usando o ID correto do botão
     const btnPreventiva = document.getElementById('btnNovaManutencao');
     if (btnPreventiva) {
         btnPreventiva.addEventListener('click', () => {
+            console.log('Abrindo modal preventiva');
             document.getElementById('formPreventiva').reset();
             editingId = null;
             document.getElementById('modalPreventiva').style.display = 'flex';
         });
+    } else {
+        console.log('Botão btnNovaManutencao não encontrado');
     }
     
     const formPreventiva = document.getElementById('formPreventiva');
@@ -785,26 +788,12 @@ function configurarEventos() {
     const btnCorretiva = document.getElementById('btnNovaCorretiva');
     if (btnCorretiva) {
         btnCorretiva.addEventListener('click', () => {
+            console.log('Abrindo modal corretiva');
             document.getElementById('formCorretiva').reset();
             document.getElementById('corretivaAnexoPreview').style.display = 'none';
             editingCorretivaId = null;
             document.getElementById('modalCorretiva').style.display = 'flex';
         });
-    }
-    
-    const formCorretiva = document.getElementById('formCorretiva');
-    if (formCorretiva) {
-        formCorretiva.addEventListener('submit', salvarCorretiva);
-    }
-    
-    const garantiaMeses = document.getElementById('corretivaGarantiaMeses');
-    if (garantiaMeses) {
-        garantiaMeses.addEventListener('input', calcularGarantiaFim);
-    }
-    
-    const corretivaData = document.getElementById('corretivaData');
-    if (corretivaData) {
-        corretivaData.addEventListener('change', calcularGarantiaFim);
     }
     
     // Preview do anexo
