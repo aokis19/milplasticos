@@ -1,1316 +1,444 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Produção | Mil Plásticos</title>
-
-    <!-- CSS Principal -->
-    <link rel="stylesheet" href="/assets/css/main.css">
-    <link rel="stylesheet" href="/assets/css/sidebar.css">
-    <link rel="stylesheet" href="/assets/css/topbar.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- jsPDF para gerar PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-    <style>
-        /* Estilos complementares do modal */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-        }
-
-        .main-container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .content {
-            flex: 1;
-            padding: 20px;
-            margin-left: 250px;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            visibility: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        .modal-container {
-            background: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 900px;
-            max-height: 85vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            padding: 20px 25px;
-            background: #2c3e50;
-            color: white;
-            border-radius: 12px 12px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.3rem;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-        }
-
-        .modal-body {
-            padding: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        input[type=number] {
-            -moz-appearance: textfield;
-            appearance: textfield;
-        }
-
-        input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .materiais-container {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-
-        .material-card {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .material-header {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .material-select {
-            flex: 2;
-            min-width: 200px;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .btn-remove-material {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .pesos-container {
-            margin-left: 20px;
-            padding-left: 15px;
-            border-left: 2px solid #3498db;
-        }
-
-        .peso-item {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-
-        .peso-item input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-
-        .btn-add-peso {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        .btn-remove-peso {
-            background: #e67e22;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .material-total {
-            margin-top: 10px;
-            padding: 8px;
-            background: #ecf0f1;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        .btn-add-material {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
-            font-weight: 600;
-        }
-
-        .total-soma {
-            background: #2c3e50;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            text-align: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-
-        .comparativo {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 6px;
-        }
-
-        .comparativo.verde {
-            background: #d4edda;
-            border-left-color: #28a745;
-        }
-
-        .comparativo.vermelho {
-            background: #f8d7da;
-            border-left-color: #dc3545;
-        }
-
-        .modal-footer {
-            padding: 15px 25px;
-            background: #f8f9fa;
-            border-radius: 0 0 12px 12px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            position: sticky;
-            bottom: 0;
-        }
-
-        .btn-primary {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .btn-pdf {
-            background: #e74c3c;
-        }
-
-        .btn-cadastrar-material {
-            background: #27ae60;
-            margin-left: 10px;
-        }
-
-        .open-modal-btn {
-            background: #2c3e50;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-bottom: 20px;
-        }
-
-        .fechamento-card {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .fechamento-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
-        }
-
-        .fechamento-titulo {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .fechamento-status {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .status-aberto {
-            background: #f39c12;
-            color: white;
-        }
-
-        .status-concluido {
-            background: #27ae60;
-            color: white;
-        }
-
-        .folha-item {
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-left: 3px solid #3498db;
-        }
-
-        .btn-abrir-folha {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-right: 5px;
-        }
-
-        .btn-gerar-pdf-fechamento {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .historico-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-excluir-fechamento {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-left: 5px;
-        }
-
-        .btn-editar-fechamento {
-            background: #f39c12;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-left: 5px;
-        }
-
-        .alerta-flutuante {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #e74c3c;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            z-index: 2000;
-            animation: slideInRight 0.3s ease;
-            display: none;
-            font-weight: bold;
-        }
-
-        .alerta-flutuante.show {
-            display: block;
-        }
-
-        .alerta-flutuante.sucesso {
-            background: #27ae60;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Mensagem de sucesso */
-        .mensagem-sucesso {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produção | Mil Plásticos</title>
+  
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/sidebar.css">
+  <link rel="stylesheet" href="assets/css/topbar.css">
+  <link rel="stylesheet" href="assets/css/producao.css">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- jsPDF para gerar PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-
 <body>
-    <div class="main-container">
-        <div class="content">
-            <button class="open-modal-btn" id="novoFechamentoBtn">
-                <i class="fas fa-plus-circle"></i> Novo Fechamento
-            </button>
-
-            <button class="open-modal-btn btn-cadastrar-material" id="openCadastroMaterialBtn">
-                <i class="fas fa-box"></i> Cadastrar Material
-            </button>
-
-            <button class="open-modal-btn" id="openCadastroFornecedorBtn" style="background: #16a085;">
-                <i class="fas fa-truck"></i> Cadastrar Fornecedor
-            </button>
-
-            <div class="historico-container">
-                <h3><i class="fas fa-folder-open"></i> Meus Fechamentos</h3>
-                <div id="listaFechamentos"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL PARA NOVO FECHAMENTO -->
-    <div id="modalNovoFechamento" class="modal-overlay">
-        <div class="modal-container modal-cadastro">
-            <div class="modal-header">
-                <h3><i class="fas fa-folder-plus"></i> Novo Fechamento</h3>
-                <button class="modal-close close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Nome do Fechamento</label>
-                    <input type="text" id="nomeFechamento" placeholder="Ex: Fechamento Janeiro, Fechamento 001...">
-                </div>
-                <div class="form-group">
-                    <label>Fornecedor</label>
-                    <select id="fechamentoFornecedor">
-                        <option value="">Selecione um fornecedor</option>
-                    </select>
-                </div>
-                <button class="btn-primary" id="criarFechamentoBtn" style="width:100%">
-                    <i class="fas fa-save"></i> Criar Fechamento
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL PARA ADICIONAR FOLHA -->
-    <div id="modalFolha" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3><i class="fas fa-file-alt"></i> <span id="modalFolhaTitulo">Adicionar Folha</span></h3>
-                <button class="modal-close close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="fechamentoAtualId" value="">
-                <div class="form-group">
-                    <label><i class="fas fa-calendar-alt"></i> Data da Folha</label>
-                    <input type="date" id="folhaData">
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-weight-hanging"></i> Peso Balanção (kg)</label>
-                    <input type="number" id="folhaPesoBalancao" step="1" placeholder="Peso total da balança">
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-tag"></i> Estado do Material</label>
-                    <select id="folhaEstado">
-                        <option value="">Selecione o estado</option>
-                        <option value="Separado">Separado</option>
-                        <option value="Sucata">Sucata</option>
-                        <option value="Moído">Moído</option>
-                    </select>
-                </div>
-
-                <label><i class="fas fa-boxes"></i> Materiais e Pesos Individuais</label>
-                <div class="materiais-container" id="materiaisContainer">
-                    <div id="materiaisList"></div>
-                    <button type="button" class="btn-add-material" id="addMaterialBtn">
-                        <i class="fas fa-plus"></i> Adicionar Material
-                    </button>
-                </div>
-
-                <div class="total-soma" id="totalSomaDiv">
-                    Soma Total dos Materiais: <strong id="somaMateriais">0</strong> kg
-                </div>
-
-                <div id="comparativoDiv" class="comparativo">
-                    Aguardando preenchimento...
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" id="cancelarFolhaBtn">Cancelar</button>
-                <button class="btn-primary" id="salvarFolhaBtn">
-                    <i class="fas fa-save"></i> Salvar Folha
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL PARA CADASTRAR MATERIAL -->
-    <div id="modalCadastroMaterial" class="modal-overlay">
-        <div class="modal-container modal-cadastro">
-            <div class="modal-header">
-                <h3><i class="fas fa-box"></i> Cadastrar Novo Material</h3>
-                <button class="modal-close close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Nome do Material</label>
-                    <input type="text" id="novoMaterialNome" placeholder="Ex: ABS Preto, PP Branco...">
-                </div>
-                <button class="btn-primary" id="salvarMaterialBtn" style="width:100%">
-                    <i class="fas fa-save"></i> Salvar Material
-                </button>
-                <div id="mensagemSucesso" class="mensagem-sucesso"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL PARA CADASTRAR FORNECEDOR -->
-    <div id="modalCadastroFornecedor" class="modal-overlay">
-        <div class="modal-container modal-cadastro">
-            <div class="modal-header">
-                <h3><i class="fas fa-truck"></i> Cadastrar Novo Fornecedor</h3>
-                <button class="modal-close close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Nome do Fornecedor</label>
-                    <input type="text" id="novoFornecedorNome" placeholder="Ex: Plásticos Silva Ltda">
-                </div>
-                <button class="btn-primary" id="salvarFornecedorBtn" style="width:100%">
-                    <i class="fas fa-save"></i> Salvar Fornecedor
-                </button>
-                <div id="mensagemSucessoFornecedor" class="mensagem-sucesso"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Alerta flutuante -->
-    <div id="alertaFlutuante" class="alerta-flutuante">
-        <i class="fas fa-exclamation-triangle"></i> <span id="mensagemAlerta"></span>
-    </div>
-
-    <!-- ============================================ -->
-    <!-- SCRIPTS - ORDEM CORRETA É FUNDAMENTAL -->
-    <!-- ============================================ -->
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+  
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
     
-    <!-- 1. Firebase (primeiro) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc, updateDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-            authDomain: "system-mil.firebaseapp.com",
-            projectId: "system-mil",
-            storageBucket: "system-mil.firebasestorage.app",
-            messagingSenderId: "138426359863",
-            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
-            measurementId: "G-DYCDBRZSHZ"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        window.db = db;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.getDocs = getDocs;
-        window.query = query;
-        window.orderBy = orderBy;
-        window.limit = limit;
-        window.deleteDoc = deleteDoc;
-        window.doc = doc;
-        window.updateDoc = updateDoc;
-        window.getDoc = getDoc;
-        window.where = where;
-
-        console.log('🔥 Firebase inicializado');
-        window.dispatchEvent(new Event('firebaseReady'));
-    </script>
-
-    <!-- 2. Main.js (sidebar e topbar) - AGUARDA O DOM -->
-    <script>
-        // Função para carregar o main.js depois que o DOM estiver pronto
-        document.addEventListener('DOMContentLoaded', function() {
-            const script = document.createElement('script');
-            script.src = '/js/main.js';
-            script.onload = function() {
-                console.log('✅ main.js carregado');
-            };
-            document.body.appendChild(script);
-        });
-    </script>
-
-    <!-- 3. Script principal do sistema -->
-    <script>
-        let modalInicializado = false;
-
-        function iniciarSistema() {
-            if (modalInicializado) return;
-            if (typeof window.db === 'undefined') {
-                console.log('Aguardando Firebase...');
-                setTimeout(iniciarSistema, 500);
-                return;
-            }
-            
-            modalInicializado = true;
-            console.log('🚀 Iniciando sistema de fechamentos...');
-
-            // Variáveis globais
-            let materiaisCadastrados = [];
-            let fornecedoresCadastrados = [];
-            let folhaEditandoId = null;
-
-            // Elementos DOM
-            const materiaisListDiv = document.getElementById('materiaisList');
-            const addMaterialBtn = document.getElementById('addMaterialBtn');
-            const somaMateriaisSpan = document.getElementById('somaMateriais');
-            const comparativoDiv = document.getElementById('comparativoDiv');
-            const listaFechamentosDiv = document.getElementById('listaFechamentos');
-
-            function mostrarAlerta(mensagem, tipo = 'erro') {
-                const alerta = document.getElementById('alertaFlutuante');
-                const mensagemSpan = document.getElementById('mensagemAlerta');
-                mensagemSpan.textContent = mensagem;
-                alerta.classList.remove('sucesso');
-                if (tipo === 'sucesso') alerta.classList.add('sucesso');
-                alerta.classList.add('show');
-                setTimeout(() => {
-                    alerta.classList.remove('show');
-                    alerta.classList.remove('sucesso');
-                }, 4000);
-            }
-
-            function formatarNumero(valor) {
-                return Math.round(valor);
-            }
-
-            async function carregarFornecedores() {
-                try {
-                    const q = query(collection(window.db, "fornecedores"), orderBy("nome"));
-                    const querySnapshot = await getDocs(q);
-                    fornecedoresCadastrados = [];
-                    querySnapshot.forEach((doc) => {
-                        fornecedoresCadastrados.push({ id: doc.id, nome: doc.data().nome });
-                    });
-                    atualizarSelectFornecedores();
-                } catch (error) {
-                    console.error("Erro ao carregar fornecedores:", error);
-                }
-            }
-
-            function atualizarSelectFornecedores() {
-                const fechamentoFornecedor = document.getElementById('fechamentoFornecedor');
-                if (fechamentoFornecedor) {
-                    fechamentoFornecedor.innerHTML = '<option value="">Selecione um fornecedor</option>';
-                    fornecedoresCadastrados.forEach(forn => {
-                        const option = document.createElement('option');
-                        option.value = forn.nome;
-                        option.textContent = forn.nome;
-                        fechamentoFornecedor.appendChild(option);
-                    });
-                }
-            }
-
-            async function carregarMateriais() {
-                try {
-                    const q = query(collection(window.db, "materiais"), orderBy("nome"));
-                    const querySnapshot = await getDocs(q);
-                    materiaisCadastrados = [];
-                    querySnapshot.forEach((doc) => {
-                        materiaisCadastrados.push({ id: doc.id, nome: doc.data().nome });
-                    });
-                    atualizarSelectsMateriais();
-                } catch (error) {
-                    console.error("Erro ao carregar materiais:", error);
-                }
-            }
-
-            function atualizarSelectsMateriais() {
-                const selects = document.querySelectorAll('.material-select');
-                selects.forEach(select => {
-                    const valorAtual = select.value;
-                    select.innerHTML = '<option value="">Selecione um material</option>';
-                    materiaisCadastrados.forEach(mat => {
-                        const option = document.createElement('option');
-                        option.value = mat.nome;
-                        option.textContent = mat.nome;
-                        if (valorAtual === mat.nome) option.selected = true;
-                        select.appendChild(option);
-                    });
-                });
-            }
-
-            function adicionarCampoPeso(pesosList, cardId, valorInicial = '') {
-                const pesoDiv = document.createElement('div');
-                pesoDiv.className = 'peso-item';
-                pesoDiv.innerHTML = `
-                    <input type="number" step="1" placeholder="Peso (kg)" class="peso-input" data-card="${cardId}" value="${valorInicial}">
-                    <button type="button" class="btn-remove-peso"><i class="fas fa-times"></i> Remover</button>
-                `;
-                const pesoInput = pesoDiv.querySelector('.peso-input');
-                const removePesoBtn = pesoDiv.querySelector('.btn-remove-peso');
-                pesoInput.addEventListener('input', () => calcularSomaFolha());
-                removePesoBtn.addEventListener('click', () => {
-                    pesoDiv.remove();
-                    calcularSomaFolha();
-                });
-                pesosList.appendChild(pesoDiv);
-                calcularSomaFolha();
-            }
-
-            function criarMaterialCard(materialNome = '', pesos = []) {
-                const cardId = Date.now() + Math.random();
-                const div = document.createElement('div');
-                div.className = 'material-card';
-                div.dataset.id = cardId;
-                div.innerHTML = `
-                    <div class="material-header">
-                        <select class="material-select" data-id="${cardId}">
-                            <option value="">Selecione um material</option>
-                            ${materiaisCadastrados.map(m => `<option value="${m.nome}" ${materialNome === m.nome ? 'selected' : ''}>${m.nome}</option>`).join('')}
-                        </select>
-                        <button type="button" class="btn-remove-material"><i class="fas fa-trash"></i> Remover Material</button>
-                    </div>
-                    <div class="pesos-container" data-card="${cardId}">
-                        <div class="pesos-list"></div>
-                        <button type="button" class="btn-add-peso"><i class="fas fa-plus"></i> Incluir Peso</button>
-                    </div>
-                    <div class="material-total" data-total="${cardId}">Total do Material: 0 kg</div>
-                `;
-                const select = div.querySelector('.material-select');
-                const removeBtn = div.querySelector('.btn-remove-material');
-                const addPesoBtn = div.querySelector('.btn-add-peso');
-                const pesosList = div.querySelector('.pesos-list');
-                if (pesos.length > 0) {
-                    pesos.forEach(peso => adicionarCampoPeso(pesosList, cardId, peso));
-                } else {
-                    adicionarCampoPeso(pesosList, cardId);
-                }
-                select.addEventListener('change', () => calcularSomaFolha());
-                removeBtn.addEventListener('click', () => {
-                    div.remove();
-                    calcularSomaFolha();
-                });
-                addPesoBtn.addEventListener('click', () => adicionarCampoPeso(pesosList, cardId));
-                return div;
-            }
-
-            function calcularSomaFolha() {
-                let somaTotalGeral = 0;
-                const cards = document.querySelectorAll('#materiaisList .material-card');
-                cards.forEach(card => {
-                    const pesos = card.querySelectorAll('.peso-input');
-                    let somaMaterial = 0;
-                    pesos.forEach(pesoInput => {
-                        somaMaterial += parseFloat(pesoInput.value) || 0;
-                    });
-                    somaTotalGeral += somaMaterial;
-                    const totalSpan = card.querySelector('.material-total');
-                    if (totalSpan) totalSpan.textContent = `Total do Material: ${formatarNumero(somaMaterial)} kg`;
-                });
-                somaMateriaisSpan.textContent = formatarNumero(somaTotalGeral);
-                const pesoBalancao = parseFloat(document.getElementById('folhaPesoBalancao').value) || 0;
-                const diferenca = somaTotalGeral - pesoBalancao;
-                let htmlComparativo = `<strong>📊 Comparativo</strong><br>Peso Balança: ${formatarNumero(pesoBalancao)} kg | Soma: ${formatarNumero(somaTotalGeral)} kg<br>`;
-                if (pesoBalancao > 0) {
-                    const diferencaPercentual = (Math.abs(diferenca) / pesoBalancao) * 100;
-                    htmlComparativo += `Diferença: ${diferenca >= 0 ? '+' : ''}${formatarNumero(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}% variação)<br>`;
-                    if (diferencaPercentual <= 5) {
-                        comparativoDiv.className = 'comparativo verde';
-                        htmlComparativo += '✅ COMPATÍVEL: Dentro da tolerância de 5%';
-                    } else {
-                        comparativoDiv.className = 'comparativo vermelho';
-                        htmlComparativo += '❌ INCOMPATÍVEL: Variação superior a 5%';
-                    }
-                } else {
-                    comparativoDiv.className = 'comparativo';
-                    htmlComparativo += '⚠️ Informe o peso da balança';
-                }
-                comparativoDiv.innerHTML = htmlComparativo;
-            }
-
-            async function gerarPDFFechamento(fechamentoId) {
-                const docRef = doc(window.db, "fechamentos", fechamentoId);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) return;
-
-                const fechamento = docSnap.data();
-                const { jsPDF } = window.jspdf;
-                const pdfDoc = new jsPDF();
-
-                pdfDoc.setFillColor(44, 62, 80);
-                pdfDoc.rect(0, 0, 210, 45, 'F');
-                pdfDoc.setTextColor(255, 255, 255);
-                pdfDoc.setFontSize(18);
-                pdfDoc.setFont("helvetica", "bold");
-                pdfDoc.text('MIL PLÁSTICOS', 20, 25);
-                pdfDoc.setFontSize(10);
-                pdfDoc.text('Relatório Consolidado de Fechamento', 20, 35);
-                pdfDoc.text(`Data: ${new Date().toLocaleString('pt-BR')}`, 20, 42);
-
-                pdfDoc.setDrawColor(200, 200, 200);
-                pdfDoc.line(20, 50, 190, 50);
-
-                pdfDoc.setTextColor(0, 0, 0);
-                pdfDoc.setFontSize(12);
-                pdfDoc.setFont("helvetica", "bold");
-                pdfDoc.text(`FECHAMENTO: ${fechamento.nome}`, 20, 65);
-                pdfDoc.setFontSize(10);
-                pdfDoc.setFont("helvetica", "normal");
-                pdfDoc.text(`Fornecedor: ${fechamento.fornecedor}`, 20, 75);
-                pdfDoc.text(`Total de Folhas: ${fechamento.folhas.length}`, 20, 83);
-
-                let y = 100;
-                let somaGeralTodosMateriais = 0;
-                const consolidadoMateriais = {};
-
-                for (let i = 0; i < fechamento.folhas.length; i++) {
-                    const folha = fechamento.folhas[i];
-                    if (y > 260) {
-                        pdfDoc.addPage();
-                        y = 20;
-                    }
-
-                    pdfDoc.setFontSize(11);
-                    pdfDoc.setFont("helvetica", "bold");
-                    pdfDoc.setTextColor(52, 73, 94);
-                    pdfDoc.text(`Folha ${i + 1} - ${new Date(folha.data).toLocaleDateString('pt-BR')}`, 20, y);
-                    y += 7;
-
-                    pdfDoc.setFontSize(9);
-                    pdfDoc.setFont("helvetica", "normal");
-                    pdfDoc.text(`Peso Balança: ${formatarNumero(folha.pesoBalancao)} kg | Estado: ${folha.estado}`, 25, y);
-                    y += 6;
-
-                    pdfDoc.text('Materiais:', 25, y);
-                    y += 5;
-
-                    folha.materiais.forEach(mat => {
-                        if (y > 270) {
-                            pdfDoc.addPage();
-                            y = 20;
-                        }
-                        const pesosStr = mat.pesos.map(p => formatarNumero(p)).join(' + ');
-                        pdfDoc.text(`  • ${mat.nome}: ${pesosStr} = ${formatarNumero(mat.pesoTotal)} kg`, 30, y);
-                        y += 5;
-                        somaGeralTodosMateriais += mat.pesoTotal;
-
-                        if (consolidadoMateriais[mat.nome]) {
-                            consolidadoMateriais[mat.nome] += mat.pesoTotal;
-                        } else {
-                            consolidadoMateriais[mat.nome] = mat.pesoTotal;
-                        }
-                    });
-                    y += 5;
-                }
-
-                y += 10;
-                pdfDoc.setDrawColor(200, 200, 200);
-                pdfDoc.line(20, y, 190, y);
-                y += 8;
-
-                pdfDoc.setFontSize(11);
-                pdfDoc.setFont("helvetica", "bold");
-                pdfDoc.setTextColor(44, 62, 80);
-                pdfDoc.text('RESUMO CONSOLIDADO', 20, y);
-                y += 8;
-
-                pdfDoc.setFontSize(9);
-                pdfDoc.setFont("helvetica", "normal");
-                pdfDoc.text(`Peso Total Processado: ${formatarNumero(somaGeralTodosMateriais)} kg`, 25, y);
-                y += 6;
-
-                pdfDoc.text('Total por Material:', 25, y);
-                y += 5;
-
-                for (const [material, peso] of Object.entries(consolidadoMateriais)) {
-                    if (y > 270) {
-                        pdfDoc.addPage();
-                        y = 20;
-                    }
-                    pdfDoc.text(`  • ${material}: ${formatarNumero(peso)} kg`, 30, y);
-                    y += 5;
-                }
-
-                y += 10;
-                pdfDoc.setFontSize(8);
-                pdfDoc.setTextColor(150, 150, 150);
-                pdfDoc.text('Documento gerado pelo Sistema Mil Plásticos', 20, y + 6);
-                pdfDoc.text(`Total de folhas: ${fechamento.folhas.length} | Status: ${fechamento.status}`, 20, y + 12);
-
-                const pdfBase64 = pdfDoc.output('datauristring');
-                await updateDoc(docRef, { pdfGerado: pdfBase64, concluido: true, dataConclusao: new Date().toISOString() });
-
-                const link = document.createElement('a');
-                link.href = pdfBase64;
-                link.download = `fechamento_${fechamento.nome.replace(/\s/g, '_')}.pdf`;
-                link.click();
-
-                mostrarAlerta('PDF gerado e fechamento concluído!', 'sucesso');
-                await carregarFechamentos();
-            }
-
-            async function salvarFolha() {
-                const fechamentoId = document.getElementById('fechamentoAtualId').value;
-                const folhaData = document.getElementById('folhaData').value;
-                const folhaPesoBalancao = parseFloat(document.getElementById('folhaPesoBalancao').value) || 0;
-                const folhaEstado = document.getElementById('folhaEstado').value;
-
-                if (!folhaData) { mostrarAlerta('Selecione a data da folha'); return; }
-                if (!folhaEstado) { mostrarAlerta('Selecione o estado do material'); return; }
-
-                const cards = document.querySelectorAll('#materiaisList .material-card');
-                const materiais = [];
-                cards.forEach(card => {
-                    const select = card.querySelector('.material-select');
-                    const materialNome = select ? select.value : '';
-                    const pesos = card.querySelectorAll('.peso-input');
-                    let somaMaterial = 0;
-                    const pesosLista = [];
-                    pesos.forEach(pesoInput => {
-                        const peso = parseFloat(pesoInput.value) || 0;
-                        somaMaterial += peso;
-                        if (peso > 0) pesosLista.push(peso);
-                    });
-                    if (materialNome && somaMaterial > 0) {
-                        materiais.push({ nome: materialNome, pesoTotal: somaMaterial, pesos: pesosLista });
-                    }
-                });
-
-                if (materiais.length === 0) { mostrarAlerta('Adicione pelo menos um material'); return; }
-
-                const novaFolha = {
-                    id: Date.now().toString(),
-                    data: folhaData,
-                    pesoBalancao: folhaPesoBalancao,
-                    estado: folhaEstado,
-                    materiais: materiais,
-                    dataCriacao: new Date().toISOString()
-                };
-
-                const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-                const fechamentoSnap = await getDoc(fechamentoRef);
-                if (fechamentoSnap.exists()) {
-                    const fechamento = fechamentoSnap.data();
-                    const folhasAtuais = fechamento.folhas || [];
-
-                    if (folhaEditandoId) {
-                        const index = folhasAtuais.findIndex(f => f.id === folhaEditandoId);
-                        if (index !== -1) folhasAtuais[index] = novaFolha;
-                        folhaEditandoId = null;
-                    } else {
-                        folhasAtuais.push(novaFolha);
-                    }
-
-                    await updateDoc(fechamentoRef, { folhas: folhasAtuais });
-                    mostrarAlerta('Folha salva com sucesso!', 'sucesso');
-                    fecharModalFolha();
-                    await carregarFechamentos();
-                }
-            }
-
-            async function carregarFechamentos() {
-                if (!listaFechamentosDiv) return;
-                listaFechamentosDiv.innerHTML = '<p>Carregando...</p>';
-                try {
-                    const q = query(collection(window.db, "fechamentos"), orderBy("dataCriacao", "desc"));
-                    const querySnapshot = await getDocs(q);
-                    if (querySnapshot.empty) {
-                        listaFechamentosDiv.innerHTML = '<p>Nenhum fechamento encontrado. Clique em "Novo Fechamento" para começar.</p>';
-                        return;
-                    }
-
-                    listaFechamentosDiv.innerHTML = '';
-                    for (const docSnap of querySnapshot.docs) {
-                        const fechamento = docSnap.data();
-                        const fechamentoId = docSnap.id;
-                        const totalFolhas = fechamento.folhas?.length || 0;
-                        let somaTotalPesos = 0;
-                        fechamento.folhas?.forEach(folha => {
-                            folha.materiais?.forEach(mat => { somaTotalPesos += mat.pesoTotal; });
-                        });
-
-                        const card = document.createElement('div');
-                        card.className = 'fechamento-card';
-                        card.innerHTML = `
-                            <div class="fechamento-header">
-                                <span class="fechamento-titulo"><i class="fas fa-folder"></i> ${fechamento.nome}</span>
-                                <span class="fechamento-status ${fechamento.concluido ? 'status-concluido' : 'status-aberto'}">
-                                    ${fechamento.concluido ? '✓ Concluído' : '📝 Em aberto'}
-                                </span>
-                            </div>
-                            <div><strong>Fornecedor:</strong> ${fechamento.fornecedor}</div>
-                            <div><strong>Folhas:</strong> ${totalFolhas} | <strong>Peso Total:</strong> ${formatarNumero(somaTotalPesos)} kg</div>
-                            <div id="folhas-${fechamentoId}" style="margin-top: 10px;"></div>
-                            <div style="margin-top: 15px;">
-                                <button class="btn-abrir-folha" data-id="${fechamentoId}"><i class="fas fa-plus"></i> Nova Folha</button>
-                                ${!fechamento.concluido ? `<button class="btn-gerar-pdf-fechamento" data-id="${fechamentoId}"><i class="fas fa-file-pdf"></i> Gerar PDF e Concluir</button>` : `<button class="btn-ver-pdf" data-id="${fechamentoId}"><i class="fas fa-eye"></i> Ver PDF</button>`}
-                                <button class="btn-editar-fechamento" data-id="${fechamentoId}"><i class="fas fa-edit"></i> Editar Nome</button>
-                                <button class="btn-excluir-fechamento" data-id="${fechamentoId}"><i class="fas fa-trash"></i> Excluir</button>
-                            </div>
-                        `;
-
-                        const folhasDiv = card.querySelector(`#folhas-${fechamentoId}`);
-                        if (fechamento.folhas && fechamento.folhas.length > 0) {
-                            fechamento.folhas.forEach((folha, idx) => {
-                                const folhaDiv = document.createElement('div');
-                                folhaDiv.className = 'folha-item';
-                                let materiaisStr = '';
-                                folha.materiais.forEach(mat => {
-                                    const pesosStr = mat.pesos.map(p => formatarNumero(p)).join('+');
-                                    materiaisStr += `${mat.nome}: ${pesosStr}=${formatarNumero(mat.pesoTotal)}kg `;
-                                });
-                                folhaDiv.innerHTML = `
-                                    <small><strong>Folha ${idx + 1}</strong> - ${new Date(folha.data).toLocaleDateString('pt-BR')}</small><br>
-                                    <small>Bal: ${formatarNumero(folha.pesoBalancao)}kg | ${materiaisStr}</small>
-                                    <div style="margin-top: 5px;">
-                                        <button class="btn-editar-folha" data-fechamento="${fechamentoId}" data-folha-id="${folha.id}" style="background:#3498db;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:11px;"><i class="fas fa-edit"></i> Editar</button>
-                                        <button class="btn-excluir-folha" data-fechamento="${fechamentoId}" data-folha-id="${folha.id}" style="background:#e74c3c;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:11px;"><i class="fas fa-trash"></i> Excluir</button>
-                                    </div>
-                                `;
-                                folhasDiv.appendChild(folhaDiv);
-                            });
-                        } else {
-                            folhasDiv.innerHTML = '<small style="color:#999;">Nenhuma folha adicionada</small>';
-                        }
-
-                        listaFechamentosDiv.appendChild(card);
-                    }
-
-                    // Eventos dinâmicos
-                    document.querySelectorAll('.btn-abrir-folha').forEach(btn => {
-                        btn.addEventListener('click', () => abrirModalFolha(btn.dataset.id, null));
-                    });
-                    document.querySelectorAll('.btn-editar-folha').forEach(btn => {
-                        btn.addEventListener('click', () => abrirModalFolha(btn.dataset.fechamento, btn.dataset.folhaId));
-                    });
-                    document.querySelectorAll('.btn-excluir-folha').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            if (confirm('Excluir esta folha?')) {
-                                const fechamentoId = btn.dataset.fechamento;
-                                const folhaId = btn.dataset.folhaId;
-                                const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-                                const fechamentoSnap = await getDoc(fechamentoRef);
-                                if (fechamentoSnap.exists()) {
-                                    const fechamento = fechamentoSnap.data();
-                                    const folhasAtuais = fechamento.folhas.filter(f => f.id !== folhaId);
-                                    await updateDoc(fechamentoRef, { folhas: folhasAtuais });
-                                    mostrarAlerta('Folha excluída!', 'sucesso');
-                                    await carregarFechamentos();
-                                }
-                            }
-                        });
-                    });
-                    document.querySelectorAll('.btn-gerar-pdf-fechamento').forEach(btn => {
-                        btn.addEventListener('click', () => gerarPDFFechamento(btn.dataset.id));
-                    });
-                    document.querySelectorAll('.btn-ver-pdf').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            const fechamentoRef = doc(window.db, "fechamentos", btn.dataset.id);
-                            const fechamentoSnap = await getDoc(fechamentoRef);
-                            if (fechamentoSnap.exists() && fechamentoSnap.data().pdfGerado) {
-                                const link = document.createElement('a');
-                                link.href = fechamentoSnap.data().pdfGerado;
-                                link.download = `fechamento_${fechamentoSnap.data().nome.replace(/\s/g, '_')}.pdf`;
-                                link.click();
-                            } else {
-                                mostrarAlerta('PDF não encontrado');
-                            }
-                        });
-                    });
-                    document.querySelectorAll('.btn-editar-fechamento').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            const novoNome = prompt('Digite o novo nome do fechamento:');
-                            if (novoNome) {
-                                await updateDoc(doc(window.db, "fechamentos", btn.dataset.id), { nome: novoNome });
-                                await carregarFechamentos();
-                                mostrarAlerta('Nome atualizado!', 'sucesso');
-                            }
-                        });
-                    });
-                    document.querySelectorAll('.btn-excluir-fechamento').forEach(btn => {
-                        btn.addEventListener('click', async () => {
-                            if (confirm('⚠️ Excluir este fechamento e todas as folhas?')) {
-                                await deleteDoc(doc(window.db, "fechamentos", btn.dataset.id));
-                                await carregarFechamentos();
-                                mostrarAlerta('Fechamento excluído!', 'sucesso');
-                            }
-                        });
-                    });
-                } catch (error) {
-                    console.error('Erro:', error);
-                    listaFechamentosDiv.innerHTML = '<p>Erro ao carregar fechamentos.</p>';
-                }
-            }
-
-            function abrirModalFolha(fechamentoId, folhaId) {
-                document.getElementById('fechamentoAtualId').value = fechamentoId;
-                document.getElementById('modalFolhaTitulo').textContent = folhaId ? 'Editar Folha' : 'Nova Folha';
-                document.getElementById('folhaData').value = new Date().toISOString().split('T')[0];
-                document.getElementById('folhaPesoBalancao').value = '';
-                document.getElementById('folhaEstado').value = '';
-                materiaisListDiv.innerHTML = '';
-                folhaEditandoId = folhaId;
-
-                if (folhaId) {
-                    carregarFolhaParaEdicao(fechamentoId, folhaId);
-                } else {
-                    adicionarMaterialExemplo();
-                }
-                document.getElementById('modalFolha').classList.add('active');
-            }
-
-            async function carregarFolhaParaEdicao(fechamentoId, folhaId) {
-                const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-                const fechamentoSnap = await getDoc(fechamentoRef);
-                if (fechamentoSnap.exists()) {
-                    const folha = fechamentoSnap.data().folhas?.find(f => f.id === folhaId);
-                    if (folha) {
-                        document.getElementById('folhaData').value = folha.data;
-                        document.getElementById('folhaPesoBalancao').value = folha.pesoBalancao;
-                        document.getElementById('folhaEstado').value = folha.estado;
-                        materiaisListDiv.innerHTML = '';
-                        folha.materiais.forEach(mat => {
-                            const card = criarMaterialCard(mat.nome, mat.pesos);
-                            materiaisListDiv.appendChild(card);
-                        });
-                        calcularSomaFolha();
-                    }
-                }
-            }
-
-            function fecharModalFolha() {
-                document.getElementById('modalFolha').classList.remove('active');
-                materiaisListDiv.innerHTML = '';
-                folhaEditandoId = null;
-            }
-
-            function adicionarMaterialExemplo() {
-                if (materiaisCadastrados.length > 0) {
-                    const novoCard = criarMaterialCard(materiaisCadastrados[0].nome);
-                    materiaisListDiv.appendChild(novoCard);
-                }
-            }
-
-            // Eventos dos botões
-            const novoFechamentoBtn = document.getElementById('novoFechamentoBtn');
-            if (novoFechamentoBtn) {
-                novoFechamentoBtn.addEventListener('click', () => {
-                    document.getElementById('nomeFechamento').value = '';
-                    document.getElementById('fechamentoFornecedor').value = '';
-                    document.getElementById('modalNovoFechamento').classList.add('active');
-                });
-            }
-
-            const criarFechamentoBtn = document.getElementById('criarFechamentoBtn');
-            if (criarFechamentoBtn) {
-                criarFechamentoBtn.addEventListener('click', async () => {
-                    const nome = document.getElementById('nomeFechamento').value.trim();
-                    const fornecedor = document.getElementById('fechamentoFornecedor').value;
-                    if (!nome) { alert('Digite o nome do fechamento'); return; }
-                    if (!fornecedor) { alert('Selecione um fornecedor'); return; }
-                    try {
-                        await addDoc(collection(window.db, "fechamentos"), {
-                            nome: nome,
-                            fornecedor: fornecedor,
-                            folhas: [],
-                            status: 'aberto',
-                            concluido: false,
-                            dataCriacao: new Date().toISOString()
-                        });
-                        mostrarAlerta('Fechamento criado com sucesso!', 'sucesso');
-                        document.getElementById('modalNovoFechamento').classList.remove('active');
-                        await carregarFechamentos();
-                    } catch (error) { alert('Erro: ' + error.message); }
-                });
-            }
-
-            document.querySelectorAll('.close-modal').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
-                });
-            });
-
-            document.getElementById('closeNovoFechamentoBtn')?.addEventListener('click', () => document.getElementById('modalNovoFechamento').classList.remove('active'));
-            document.getElementById('closeFolhaModalBtn')?.addEventListener('click', fecharModalFolha);
-            document.getElementById('cancelarFolhaBtn')?.addEventListener('click', fecharModalFolha);
-            document.getElementById('salvarFolhaBtn')?.addEventListener('click', salvarFolha);
-            
-            if (addMaterialBtn) {
-                addMaterialBtn.addEventListener('click', () => { const card = criarMaterialCard(''); materiaisListDiv.appendChild(card); calcularSomaFolha(); });
-            }
-            
-            document.getElementById('openCadastroMaterialBtn')?.addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.add('active'));
-            document.getElementById('openCadastroFornecedorBtn')?.addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.add('active'));
-            document.getElementById('closeCadastroModalBtn')?.addEventListener('click', () => document.getElementById('modalCadastroMaterial').classList.remove('active'));
-            document.getElementById('closeFornecedorModalBtn')?.addEventListener('click', () => document.getElementById('modalCadastroFornecedor').classList.remove('active'));
-            
-            document.getElementById('salvarMaterialBtn')?.addEventListener('click', async () => {
-                const nome = document.getElementById('novoMaterialNome').value.trim();
-                if (!nome) return alert('Digite o nome');
-                await addDoc(collection(window.db, "materiais"), { nome: nome });
-                document.getElementById('mensagemSucesso').style.display = 'block';
-                document.getElementById('mensagemSucesso').textContent = 'Material cadastrado!';
-                setTimeout(() => document.getElementById('mensagemSucesso').style.display = 'none', 3000);
-                document.getElementById('novoMaterialNome').value = '';
-                await carregarMateriais();
-                mostrarAlerta('Material cadastrado!', 'sucesso');
-            });
-            
-            document.getElementById('salvarFornecedorBtn')?.addEventListener('click', async () => {
-                const nome = document.getElementById('novoFornecedorNome').value.trim();
-                if (!nome) return alert('Digite o nome');
-                await addDoc(collection(window.db, "fornecedores"), { nome: nome });
-                document.getElementById('mensagemSucessoFornecedor').style.display = 'block';
-                document.getElementById('mensagemSucessoFornecedor').textContent = 'Fornecedor cadastrado!';
-                setTimeout(() => document.getElementById('mensagemSucessoFornecedor').style.display = 'none', 3000);
-                document.getElementById('novoFornecedorNome').value = '';
-                await carregarFornecedores();
-                mostrarAlerta('Fornecedor cadastrado!', 'sucesso');
-            });
-
-            async function init() {
-                await carregarMateriais();
-                await carregarFornecedores();
-                await carregarFechamentos();
-            }
-            init();
-        }
-
-        // Inicializar quando o DOM estiver pronto
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', iniciarSistema);
-        } else {
-            iniciarSistema();
-        }
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      
+      <div class="page-container">
         
-        // Também iniciar quando o Firebase estiver pronto
-        window.addEventListener('firebaseReady', iniciarSistema);
-    </script>
-</body>
+        <!-- Cabeçalho da página -->
+        <div class="page-header">
+          <div>
+            <h1><i class="fas fa-industry"></i> Controle de Produção</h1>
+            <p>Gerencie fechamentos, materiais e fornecedores</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-success" id="btnCadastrarMaterial">
+              <i class="fas fa-box"></i> Cadastrar Material
+            </button>
+            <button class="btn btn-info" id="btnCadastrarFornecedor">
+              <i class="fas fa-truck"></i> Cadastrar Fornecedor
+            </button>
+            <button class="btn btn-primary" id="btnNovoFechamento">
+              <i class="fas fa-plus-circle"></i> Novo Fechamento
+            </button>
+          </div>
+        </div>
+        
+        <!-- Abas de Navegação -->
+        <div class="tabs-container">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="fechamentos">
+              <i class="fas fa-folder-open"></i> Fechamentos
+            </button>
+            <button class="tab-btn" data-tab="materiais">
+              <i class="fas fa-boxes"></i> Materiais
+            </button>
+            <button class="tab-btn" data-tab="fornecedores">
+              <i class="fas fa-truck"></i> Fornecedores
+            </button>
+          </div>
+        </div>
+        
+        <!-- Conteúdo da Aba: Fechamentos -->
+        <div class="tab-content active" id="tab-fechamentos">
+          
+          <!-- Card de Filtros -->
+          <div class="card card-filters">
+            <div class="card-header">
+              <h3><i class="fas fa-filter"></i> Filtros</h3>
+            </div>
+            <div class="card-body">
+              <div class="filter-grid">
+                <div class="form-group">
+                  <label for="filtroFornecedor"><i class="fas fa-truck"></i> Fornecedor</label>
+                  <select id="filtroFornecedor">
+                    <option value="">Todos os fornecedores</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="filtroStatus"><i class="fas fa-tag"></i> Status</label>
+                  <select id="filtroStatus">
+                    <option value="">Todos</option>
+                    <option value="aberto">Em aberto</option>
+                    <option value="finalizado">Finalizados</option>
+                    <option value="concluido">Concluídos</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="filtroPeriodo"><i class="fas fa-calendar-alt"></i> Período</label>
+                  <select id="filtroPeriodo">
+                    <option value="30">Últimos 30 dias</option>
+                    <option value="7">Última semana</option>
+                    <option value="hoje">Hoje</option>
+                    <option value="todos">Todos</option>
+                  </select>
+                </div>
+                
+                <div class="form-actions">
+                  <button class="btn btn-secondary" id="btnLimparFiltros">
+                    <i class="fas fa-broom"></i> Limpar
+                  </button>
+                  <button class="btn btn-primary" id="btnAplicarFiltros">
+                    <i class="fas fa-search"></i> Filtrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card de Estatísticas -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-folder"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="totalFechamentos">0</h3>
+                <p>Fechamentos</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-file-alt"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="totalFolhas">0</h3>
+                <p>Total de Folhas</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-weight-hanging"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="totalPeso">0 kg</h3>
+                <p>Peso Total</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-hourglass-half"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="fechamentosAbertos">0</h3>
+                <p>Em Aberto</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card da Lista de Fechamentos -->
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-history"></i> Histórico de Fechamentos</h2>
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="searchFechamentos" placeholder="Buscar fechamentos...">
+                </div>
+                <span class="badge" id="totalRegistros">0 registros</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="listaFechamentos">
+                <div class="empty-state">
+                  <i class="fas fa-folder-open"></i>
+                  <p>Nenhum fechamento encontrado</p>
+                  <small>Clique em "Novo Fechamento" para começar</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Conteúdo da Aba: Materiais -->
+        <div class="tab-content" id="tab-materiais">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-boxes"></i> Materiais Cadastrados</h2>
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="searchMateriais" placeholder="Buscar materiais...">
+                </div>
+                <span class="badge" id="totalMateriais">0 materiais</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="listaMateriaisCadastrados" class="cadastros-grid">
+                <div class="empty-state">
+                  <i class="fas fa-box-open"></i>
+                  <p>Nenhum material cadastrado</p>
+                  <small>Clique em "Cadastrar Material" para adicionar</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Conteúdo da Aba: Fornecedores -->
+        <div class="tab-content" id="tab-fornecedores">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-truck"></i> Fornecedores Cadastrados</h2>
+              <div class="table-actions">
+                <div class="search-box">
+                  <i class="fas fa-search"></i>
+                  <input type="text" id="searchFornecedores" placeholder="Buscar fornecedores...">
+                </div>
+                <span class="badge" id="totalFornecedores">0 fornecedores</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="listaFornecedoresCadastrados" class="cadastros-grid">
+                <div class="empty-state">
+                  <i class="fas fa-truck"></i>
+                  <p>Nenhum fornecedor cadastrado</p>
+                  <small>Clique em "Cadastrar Fornecedor" para adicionar</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+    </main>
+    
+  </div>
+  
+  <!-- Modal: Novo Fechamento -->
+  <div id="modalNovoFechamento" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-folder-plus"></i> Novo Fechamento</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formNovoFechamento">
+          <div class="form-group">
+            <label for="dataEntradaFechamento">
+              <i class="fas fa-calendar-alt"></i> Data de Entrada *
+            </label>
+            <input type="date" id="dataEntradaFechamento" required>
+          </div>
+          <div class="form-group">
+            <label for="fechamentoFornecedor">
+              <i class="fas fa-truck"></i> Fornecedor *
+            </label>
+            <select id="fechamentoFornecedor" required>
+              <option value="">Selecione um fornecedor...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pesoBrutoFechamento">
+              <i class="fas fa-weight-hanging"></i> Peso Bruto (kg)
+            </label>
+            <input type="number" id="pesoBrutoFechamento" step="0.01" min="0" placeholder="Peso total da balança">
+          </div>
+          <div class="form-group">
+            <label for="estadoMaterialFechamento">
+              <i class="fas fa-tag"></i> Estado do Material *
+            </label>
+            <select id="estadoMaterialFechamento" required>
+              <option value="">Selecione o estado...</option>
+              <option value="Separado">Separado</option>
+              <option value="Sucata">Sucata</option>
+              <option value="Moído">Moído</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnCriarFechamento">
+          <i class="fas fa-save"></i> Criar Fechamento
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal: Adicionar/Editar Folha -->
+  <div id="modalFolha" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3><i class="fas fa-file-alt"></i> <span id="modalFolhaTitulo">Nova Folha</span></h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="fechamentoAtualId">
+        <input type="hidden" id="folhaEditandoId">
+        
+        <form id="formFolha">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="folhaData">
+                <i class="fas fa-calendar-alt"></i> Data Pesagem *
+              </label>
+              <input type="date" id="folhaData" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="folhaDescricao">
+                <i class="fas fa-file-alt"></i> Descrição da Folha
+              </label>
+              <input type="text" id="folhaDescricao" placeholder="Ex: Folha 01, Lote A...">
+              <small>Use este campo para identificar a folha</small>
+            </div>
+          </div>
+          
+          <div class="materiais-section">
+            <div class="section-header">
+              <h4><i class="fas fa-boxes"></i> Materiais e Pesos Individuais</h4>
+              <button type="button" class="btn btn-sm btn-primary" id="btnAddMaterial">
+                <i class="fas fa-plus"></i> Adicionar Material
+              </button>
+            </div>
+            
+            <div id="materiaisList" class="materiais-list"></div>
+            
+            <div class="total-soma">
+              Soma Total dos Materiais: <strong id="somaMateriais">0,00</strong> kg
+            </div>
+            
+            <div id="comparativoDiv" class="comparativo-box">
+              Aguardando preenchimento...
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarFolha">
+          <i class="fas fa-save"></i> Salvar Folha
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal: Cadastrar Material -->
+  <div id="modalCadastroMaterial" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-box"></i> Cadastrar Material</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formCadastroMaterial">
+          <div class="form-group">
+            <label for="novoMaterialNome">
+              <i class="fas fa-tag"></i> Nome do Material *
+            </label>
+            <input type="text" id="novoMaterialNome" placeholder="Ex: ABS Preto, PP Branco..." required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarMaterial">
+          <i class="fas fa-save"></i> Salvar Material
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal: Cadastrar Fornecedor -->
+  <div id="modalCadastroFornecedor" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-truck"></i> Cadastrar Fornecedor</h3>
+        <button class="btn-icon close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formCadastroFornecedor">
+          <div class="form-group">
+            <label for="novoFornecedorNome">
+              <i class="fas fa-tag"></i> Nome do Fornecedor *
+            </label>
+            <input type="text" id="novoFornecedorNome" placeholder="Ex: Plásticos Silva Ltda" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarFornecedor">
+          <i class="fas fa-save"></i> Salvar Fornecedor
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Alerta Flutuante -->
+  <div id="alertaFlutuante" class="alerta-flutuante">
+    <i class="fas fa-info-circle"></i>
+    <span id="mensagemAlerta"></span>
+  </div>
+  
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+    const firebaseConfig = {
+      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+      authDomain: "system-mil.firebaseapp.com",
+      projectId: "system-mil",
+      storageBucket: "system-mil.firebasestorage.app",
+      messagingSenderId: "138426359863",
+      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
+      measurementId: "G-DYCDBRZSHZ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.collection = collection;
+    window.addDoc = addDoc;
+    window.getDocs = getDocs;
+    window.query = query;
+    window.orderBy = orderBy;
+    window.deleteDoc = deleteDoc;
+    window.doc = doc;
+    window.updateDoc = updateDoc;
+    window.getDoc = getDoc;
+
+    console.log('🔥 Firebase inicializado com sucesso!');
+    window.dispatchEvent(new CustomEvent('firebaseReady'));
+  </script>
+  
+  <!-- Scripts da Aplicação -->
+  <script src="js/main.js"></script>
+  <script src="js/producao.js"></script>
+</body>
 </html>
