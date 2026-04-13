@@ -27,7 +27,6 @@ async function inicializar() {
     await renderCorretivas();
     
     console.log('✅ Sistema de manutenção pronto!');
-    console.log(`📊 Preventivas: ${manutencoes.length}, Corretivas: ${manutencoesCorretivas.length}`);
 }
 
 function aguardarFirebase() {
@@ -81,17 +80,13 @@ async function carregarVeiculos() {
 async function carregarManutencoes() {
     if (window.firebaseDB) {
         try {
-            // Buscar apenas preventivas (com campo preventiva = true ou sem campo corretiva)
             const snapshot = await window.firebaseDB.collection('manutencoes')
                 .orderBy('data', 'desc')
                 .get();
             manutencoes = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // Garantir que é uma manutenção preventiva (não tem campo tipoServico ou tem tipoManutencao)
-                if (!data.tipoServico && (data.tipo || data.tipoManutencao)) {
-                    manutencoes.push({ firebaseId: doc.id, ...data });
-                }
+                manutencoes.push({ firebaseId: doc.id, ...data });
             });
             console.log(`✅ ${manutencoes.length} manutenções preventivas do Firebase`);
             localStorage.setItem('manutencoes', JSON.stringify(manutencoes));
@@ -105,9 +100,7 @@ async function carregarManutencoes() {
 }
 
 function carregarManutencoesLocal() {
-    const todas = JSON.parse(localStorage.getItem('manutencoes')) || [];
-    // Filtrar apenas preventivas (que têm kmAtual e proximaManutencao)
-    manutencoes = todas.filter(m => m.kmAtual !== undefined && m.proximaManutencao !== undefined);
+    manutencoes = JSON.parse(localStorage.getItem('manutencoes')) || [];
     console.log(`💾 ${manutencoes.length} manutenções preventivas do localStorage`);
 }
 
@@ -161,6 +154,7 @@ function carregarTiposLocal() {
 }
 
 // ================== FUNÇÕES AUXILIARES ==================
+// Buscar KM atual do veículo (do último abastecimento)
 function obterKmAtualVeiculo(placa) {
     // Buscar KM do último abastecimento
     const abastecimentos = JSON.parse(localStorage.getItem('abastecimentos')) || [];
@@ -175,7 +169,7 @@ function obterKmAtualVeiculo(placa) {
     const kmSalvo = localStorage.getItem(`km_atual_${placa}`);
     if (kmSalvo) return parseInt(kmSalvo);
     
-    // Buscar na última manutenção preventiva
+    // Buscar na última manutenção preventiva (mais recente)
     const manutVeiculo = manutencoes.filter(m => m.veiculoPlaca === placa);
     if (manutVeiculo.length > 0) {
         manutVeiculo.sort((a, b) => new Date(b.data) - new Date(a.data));
@@ -183,6 +177,18 @@ function obterKmAtualVeiculo(placa) {
     }
     
     return 0;
+}
+
+// Identificar qual é a última manutenção de cada veículo/tipo
+function getUltimaManutencaoPorVeiculoTipo() {
+    const ultimas = {};
+    for (const m of manutencoes) {
+        const key = `${m.veiculoPlaca}_${m.tipo}`;
+        if (!ultimas[key] || new Date(m.data) > new Date(ultimas[key].data)) {
+            ultimas[key] = m;
+        }
+    }
+    return ultimas;
 }
 
 function atualizarSelectsVeiculos() {
@@ -256,14 +262,13 @@ async function salvarPreventiva(e) {
         id: editingId || Date.now(),
         veiculoPlaca,
         veiculoNome: veiculo?.nome,
-        tipo: tipo,
+        tipo,
         data,
         kmAtual,
         proximaManutencao,
         intervaloProximo,
         observacoes,
-        dataRegistro: new Date().toISOString(),
-        tipoManutencao: 'preventiva'  // Marcar como preventiva
+        dataRegistro: new Date().toISOString()
     };
     
     if (editingId) {
@@ -322,23 +327,43 @@ async function excluirPreventiva(id) {
     await renderProximas();
 }
 
+// RENDERIZAÇÃO DO HISTÓRICO PREVENTIVO (SEM STATUS PARA REGISTROS ANTIGOS)
 async function renderPreventivas() {
     const tbody = document.getElementById('preventivaBody');
     if (!tbody) return;
     
     if (manutencoes.length === 0) {
-        tbody.innerHTML = '发展<td colspan="7" style="text-align:center;">Nenhuma manutenção preventiva registrada.发展</tr>';
+        tbody.innerHTML = '发展<td colspan="7" style="text-align:center;">Nenhuma manutenção preventiva registrada.发展</td>';
         return;
     }
     
+    // Identificar a última manutenção de cada veículo/tipo
+    const ultimas = getUltimaManutencaoPorVeiculoTipo();
+    
     let html = '';
     for (const m of manutencoes) {
-        const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
-        const restantes = m.proximaManutencao - kmAtual;
-        let statusClass = 'status-ok', statusText = 'OK';
-        if (restantes <= 0) { statusClass = 'status-urgente'; statusText = 'VENCIDA'; }
-        else if (restantes <= 50) { statusClass = 'status-urgente'; statusText = 'URGENTE'; }
-        else if (restantes <= 100) { statusClass = 'status-proximo'; statusText = 'PRÓXIMO'; }
+        const key = `${m.veiculoPlaca}_${m.tipo}`;
+        const isUltima = ultimas[key]?.id === m.id;
+        
+        let statusHtml = '';
+        if (isUltima) {
+            // Só calcular status para a última manutenção
+            const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
+            const restantes = m.proximaManutencao - kmAtual;
+            
+            if (restantes <= 0) {
+                statusHtml = '<span class="status-badge status-urgente">VENCIDA</span>';
+            } else if (restantes <= 50) {
+                statusHtml = '<span class="status-badge status-urgente">URGENTE</span>';
+            } else if (restantes <= 100) {
+                statusHtml = '<span class="status-badge status-proximo">PRÓXIMO</span>';
+            } else {
+                statusHtml = '<span class="status-badge status-ok">OK</span>';
+            }
+        } else {
+            // Registros antigos - apenas "Concluída" sem status de alerta
+            statusHtml = '<span class="status-badge status-ok" style="background:#d4edda; color:#155724;">✅ CONCLUÍDA</span>';
+        }
         
         html += `<tr>
             <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
@@ -346,7 +371,7 @@ async function renderPreventivas() {
             <td>${m.tipo}</td>
             <td>${m.kmAtual.toLocaleString('pt-BR')}</td>
             <td>${m.proximaManutencao.toLocaleString('pt-BR')}</td>
-            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${statusHtml}</td>
             <td>
                 <button class="btn-icon" onclick="editarPreventiva(${m.id})"><i class="fas fa-edit"></i></button>
                 <button class="btn-icon delete" onclick="excluirPreventiva(${m.id})"><i class="fas fa-trash"></i></button>
@@ -357,37 +382,30 @@ async function renderPreventivas() {
     console.log(`📊 Renderizadas ${manutencoes.length} preventivas`);
 }
 
+// RENDERIZAÇÃO DAS PRÓXIMAS (APENAS ÚLTIMA DE CADA VEÍCULO/TIPO)
 async function renderProximas() {
     const container = document.getElementById('proximasBody');
     if (!container) return;
     
-    // Agrupar por veículo e tipo, pegando apenas a última de cada
-    const ultimasPorVeiculoTipo = {};
-    
-    for (const m of manutencoes) {
-        const key = `${m.veiculoPlaca}_${m.tipo}`;
-        if (!ultimasPorVeiculoTipo[key] || new Date(m.data) > new Date(ultimasPorVeiculoTipo[key].data)) {
-            ultimasPorVeiculoTipo[key] = m;
-        }
-    }
+    // Pegar apenas a última manutenção de cada veículo/tipo
+    const ultimas = getUltimaManutencaoPorVeiculoTipo();
+    const ultimasArray = Object.values(ultimas);
     
     const programadas = [];
-    for (const m of Object.values(ultimasPorVeiculoTipo)) {
+    for (const m of ultimasArray) {
         const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
         const restantes = m.proximaManutencao - kmAtual;
         
         console.log(`🔍 ${m.veiculoPlaca} - ${m.tipo}: Atual=${kmAtual}, Próxima=${m.proximaManutencao}, Restam=${restantes}`);
         
-        // Mostrar se restantes <= 200 OU se já venceu
-        if (restantes <= 200) {
-            programadas.push({ ...m, kmAtual, restantes });
-        }
+        // Mostrar todas (não só as próximas) para debug
+        programadas.push({ ...m, kmAtual, restantes });
     }
     
     programadas.sort((a, b) => a.restantes - b.restantes);
     
     if (programadas.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada nas próximas 200 unidades</p>';
+        container.innerHTML = '<p style="text-align:center;color:#999;">Nenhuma manutenção programada</p>';
         document.getElementById('totalProgramadas').textContent = '0';
         return;
     }
@@ -395,18 +413,30 @@ async function renderProximas() {
     let html = '<div class="programadas-container">';
     for (const m of programadas) {
         let classe = '';
-        if (m.restantes <= 0) classe = 'urgente';
-        else if (m.restantes <= 50) classe = 'urgente';
-        else if (m.restantes <= 100) classe = 'proximo';
+        let statusText = '';
+        if (m.restantes <= 0) {
+            classe = 'urgente';
+            statusText = `<span class="text-danger">VENCIDA! (há ${Math.abs(m.restantes)} unidades)</span>`;
+        } else if (m.restantes <= 50) {
+            classe = 'urgente';
+            statusText = `<span class="text-warning">URGENTE! em ${m.restantes} unidades</span>`;
+        } else if (m.restantes <= 100) {
+            classe = 'proximo';
+            statusText = `<span class="text-info">Próxima em ${m.restantes} unidades</span>`;
+        } else {
+            statusText = `<span class="text-success">OK - ${m.restantes} unidades restantes</span>`;
+        }
         
         html += `<div class="programada-card ${classe}">
             <div class="programada-header">
                 <div class="programada-veiculo">${m.veiculoPlaca} - ${m.veiculoNome}</div>
                 <span class="programada-tipo">${m.tipo}</span>
             </div>
-            <div class="programada-detalhes">📅 Última: ${new Date(m.data).toLocaleDateString('pt-BR')} (${m.kmAtual.toLocaleString('pt-BR')})</div>
-            <div class="programada-km">⚠️ Próxima: ${m.proximaManutencao.toLocaleString('pt-BR')} ${m.restantes <= 0 ? '<span class="text-danger">(VENCIDA!)</span>' : `(em ${m.restantes.toLocaleString('pt-BR')})`}</div>
-            <div class="programada-acoes"><button class="btn btn-sm btn-primary" onclick="editarPreventiva(${m.id})">Registrar Troca</button></div>
+            <div class="programada-detalhes">📅 Última troca: ${new Date(m.data).toLocaleDateString('pt-BR')} (${m.kmAtual.toLocaleString('pt-BR')})</div>
+            <div class="programada-km">⚠️ Próxima troca: ${m.proximaManutencao.toLocaleString('pt-BR')} - ${statusText}</div>
+            <div class="programada-acoes">
+                <button class="btn btn-sm btn-primary" onclick="editarPreventiva(${m.id})">Registrar Troca</button>
+            </div>
         </div>`;
     }
     html += '</div>';
@@ -453,7 +483,7 @@ async function salvarCorretiva(e) {
         id: editingCorretivaId || Date.now(),
         veiculoPlaca,
         veiculoNome: veiculo?.nome,
-        tipoServico: tipo,
+        tipo: tipo,
         data,
         km,
         descricao,
@@ -462,8 +492,7 @@ async function salvarCorretiva(e) {
         garantiaMeses,
         garantiaFim,
         anexo: anexoData,
-        dataRegistro: new Date().toISOString(),
-        tipoManutencao: 'corretiva'  // Marcar como corretiva
+        dataRegistro: new Date().toISOString()
     };
     
     if (editingCorretivaId) {
@@ -498,7 +527,7 @@ function editarCorretiva(id) {
     if (!m) return;
     editingCorretivaId = m.id;
     document.getElementById('corretivaVeiculo').value = m.veiculoPlaca;
-    document.getElementById('corretivaTipo').value = m.tipoServico || m.tipo;
+    document.getElementById('corretivaTipo').value = m.tipo;
     document.getElementById('corretivaData').value = m.data;
     document.getElementById('corretivaKm').value = m.km || '';
     document.getElementById('corretivaDescricao').value = m.descricao;
@@ -537,7 +566,10 @@ function verificarGarantia(garantiaFim) {
 
 async function renderCorretivas() {
     const tbody = document.getElementById('corretivaBody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.log('⚠️ Elemento corretivaBody não encontrado');
+        return;
+    }
     
     if (manutencoesCorretivas.length === 0) {
         tbody.innerHTML = '发展<td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.发展</tr>';
@@ -552,7 +584,7 @@ async function renderCorretivas() {
         html += `<tr>
             <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
             <td><strong>${m.veiculoNome}</strong><br><small>${m.veiculoPlaca}</small></td>
-            <td>${m.tipoServico || m.tipo}</td>
+            <td>${m.tipo}</td>
             <td>${m.descricao.length > 50 ? m.descricao.substring(0, 50) + '...' : m.descricao}</td>
             <td>${m.valor > 0 ? m.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
             <td class="${garantia.classe}">${garantia.texto}</td>
@@ -701,14 +733,17 @@ async function salvarNovoVeiculo() {
 }
 
 async function verificarAlertas() {
+    const ultimas = getUltimaManutencaoPorVeiculoTipo();
     const alertas = [];
-    for (const m of manutencoes) {
+    
+    for (const m of Object.values(ultimas)) {
         const kmAtual = obterKmAtualVeiculo(m.veiculoPlaca);
         const restantes = m.proximaManutencao - kmAtual;
         if (restantes <= 100) {
             alertas.push({ veiculo: m.veiculoPlaca, tipo: m.tipo, restantes });
         }
     }
+    
     if (alertas.length === 0) {
         alert('✅ Nenhum alerta de manutenção pendente!');
     } else {
