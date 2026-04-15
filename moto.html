@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Mil Plásticos | Controle de Horas e Banco de Horas - Firebase</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Firebase configuration - SEU CONFIG ORIGINAL
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+            authDomain: "system-mil.firebaseapp.com",
+            projectId: "system-mil",
+            storageBucket: "system-mil.firebasestorage.app",
+            messagingSenderId: "138426359863",
+            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
+            measurementId: "G-DYCDBRZSHZ"
+        };
+
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        // Expor para uso global
+        window.db = db;
+        window.firebaseReady = true;
+        
+        console.log("Firebase inicializado com sucesso!");
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #eef2f7;
+            padding: 24px 20px;
+            color: #1e2a3e;
+        }
+
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-size: 1.2rem;
+            gap: 12px;
+            display: none;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+            background: white;
+            padding: 18px 24px;
+            border-radius: 28px;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+        }
+
+        .title-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e4b6e, #2c7a4d);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .title-section p {
+            color: #4a627a;
+            font-size: 0.85rem;
+            margin-top: 6px;
+        }
+
+        .stats-summary {
+            display: flex;
+            gap: 24px;
+            background: #f8fafc;
+            padding: 8px 24px;
+            border-radius: 60px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .stat-value {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #0f3b2c;
+        }
+
+        .driver-selector {
+            background: white;
+            border-radius: 24px;
+            padding: 16px 24px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2edf2;
+        }
+
+        .driver-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .driver-btn {
+            background: #f1f5f9;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #1e293b;
+        }
+
+        .driver-btn.active {
+            background: #1e6f3f;
+            color: white;
+            box-shadow: 0 4px 10px rgba(30,111,63,0.3);
+        }
+
+        .year-control {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f1f5f9;
+            padding: 6px 16px;
+            border-radius: 40px;
+        }
+
+        .year-control button {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 28px;
+            font-weight: bold;
+            color: #2c5a3e;
+        }
+
+        .year-display {
+            font-weight: 700;
+            font-size: 1.2rem;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .sync-status {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: #e6f7e6;
+            color: #2e7d32;
+        }
+
+        .month-section {
+            background: white;
+            border-radius: 24px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2edf2;
+        }
+
+        .month-header {
+            background: #f9fbfd;
+            padding: 14px 20px;
+            border-bottom: 2px solid #e0e9f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .month-name {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #0c4e34;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .month-balance {
+            background: #eef2ff;
+            padding: 6px 16px;
+            border-radius: 28px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        th {
+            background: #f1f6fa;
+            padding: 12px 6px;
+            text-align: center;
+            font-weight: 600;
+            color: #1e3a5f;
+            border-bottom: 1px solid #dce5ec;
+        }
+
+        td {
+            padding: 10px 5px;
+            text-align: center;
+            border-bottom: 1px solid #ecf3f8;
+            vertical-align: middle;
+        }
+
+        input.day-input {
+            width: 70px;
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid #cbdde9;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            background: #fff;
+            transition: 0.1s;
+        }
+
+        input.day-input:focus {
+            border-color: #2c7a4d;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(44,122,77,0.2);
+        }
+
+        .hour-badge {
+            font-weight: 600;
+            background: #e9f4ef;
+            border-radius: 20px;
+            padding: 4px 10px;
+            display: inline-block;
+            font-size: 0.75rem;
+        }
+
+        .positive {
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .negative {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+
+        .total-row {
+            background: #fefce8;
+            font-weight: 700;
+            border-top: 2px solid #cbd5e1;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            background: white;
+            border: 1px solid #b9cfdf;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: #1e6f3f;
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0f5a34;
+        }
+
+        .btn-outline {
+            border: 1px solid #2c7a4d;
+            color: #2c7a4d;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.7rem;
+            color: #5b6e8c;
+        }
+
+        @media (max-width: 700px) {
+            .driver-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .year-control {
+                margin-left: 0;
+                justify-content: center;
+            }
+            input.day-input {
+                width: 55px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay">
+    <i class="fas fa-spinner fa-pulse"></i> Sincronizando com Firebase...
+</div>
+
+<div class="dashboard-container">
+    <div class="header">
+        <div class="title-section">
+            <h1><i class="fas fa-truck-fast" style="color:#2c7a4d;"></i> Horas Motorista</h1>
+            <p>Controle com sincronização em tempo real | Firebase Cloud</p>
+        </div>
+        <div class="stats-summary" id="globalStats">
+            <div class="stat-item"><div class="stat-label">Ano atual</div><div class="stat-value" id="yearStat">2025</div></div>
+            <div class="stat-item"><div class="stat-label">Saldo total (h)</div><div class="stat-value" id="totalBalanceStat">0</div></div>
+            <div class="stat-item"><div class="stat-label"><i class="fas fa-cloud"></i> Status</div><div class="stat-value" id="syncStatus">✓ Online</div></div>
+        </div>
+    </div>
+
+    <div class="driver-selector">
+        <div class="driver-buttons" id="driverButtons">
+            <button data-driver="0" class="driver-btn active">🚛 CEZAR RODRIGUES</button>
+            <button data-driver="1" class="driver-btn">🚛 MANOEL CARLOS</button>
+            <button data-driver="2" class="driver-btn">🚛 JOSÉ LUIZ</button>
+            <button data-driver="3" class="driver-btn">🚛 CARLOS ALBERTO</button>
+        </div>
+        <div class="year-control">
+            <button id="prevYearBtn"><i class="fas fa-chevron-left"></i></button>
+            <span class="year-display" id="currentYearDisplay">2025</span>
+            <button id="nextYearBtn"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <div id="monthsContainer"></div>
+
+    <div class="action-buttons">
+        <button class="btn btn-outline" id="resetMonthBtn"><i class="fas fa-undo-alt"></i> Limpar mês atual</button>
+        <button class="btn btn-primary" id="syncNowBtn"><i class="fas fa-cloud-upload-alt"></i> Sincronizar agora</button>
+    </div>
+    <div class="footer-note">
+        <i class="fas fa-database"></i> Dados salvos no Firebase Firestore | Banco de horas acumulado anual<br>
+        Jornada base: 8h (seg-sex) | Sábado: 4h | Domingo: 0h
+    </div>
+</div>
+
+<script type="module">
+    // Motoristas
+    const DRIVERS = [
+        { id: 0, name: "CEZAR RODRIGUES", baseHoursPerDay: 8, saturdayBase: 4 },
+        { id: 1, name: "MANOEL CARLOS", baseHoursPerDay: 8, saturdayBase: 4 },
+        { id: 2, name: "JOSÉ LUIZ", baseHoursPerDay: 8, saturdayBase: 4 },
+        { id: 3, name: "CARLOS ALBERTO", baseHoursPerDay: 8, saturdayBase: 4 }
+    ];
+
+    const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    
+    let currentYear = 2025;
+    let currentDriver = 0;
+    let localData = {}; // cache local
+    
+    // Elementos
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const monthsContainer = document.getElementById('monthsContainer');
+    
+    function showLoading(show) {
+        if(show) loadingOverlay.classList.add('active');
+        else loadingOverlay.classList.remove('active');
+    }
+    
+    // Buscar dados do Firestore
+    async function loadFromFirebase(driverId, year) {
+        showLoading(true);
+        try {
+            const docRef = doc(window.db, "driverHours", `${driverId}_${year}`);
+            const docSnap = await getDoc(docRef);
+            
+            if(docSnap.exists()) {
+                localData = docSnap.data().months || {};
+                console.log(`Dados carregados: motorista ${driverId}, ano ${year}`);
+            } else {
+                // Inicializar estrutura vazia
+                localData = {};
+                for(let m = 0; m < 12; m++) {
+                    localData[m] = {};
+                }
+                console.log("Novo documento criado localmente");
+            }
+            
+            // Garantir que todos os meses existam
+            for(let m = 0; m < 12; m++) {
+                if(!localData[m]) localData[m] = {};
+            }
+            
+            renderAllMonths();
+        } catch(error) {
+            console.error("Erro ao carregar do Firebase:", error);
+            alert("Erro ao carregar dados. Verifique sua conexão.");
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Salvar no Firestore
+    async function saveToFirebase(driverId, year) {
+        showLoading(true);
+        try {
+            const docRef = doc(window.db, "driverHours", `${driverId}_${year}`);
+            await setDoc(docRef, {
+                driverId: driverId,
+                year: year,
+                months: localData,
+                updatedAt: new Date().toISOString()
+            });
+            document.getElementById('syncStatus').innerHTML = '✓ Sincronizado';
+            setTimeout(() => {
+                document.getElementById('syncStatus').innerHTML = '✓ Online';
+            }, 2000);
+            console.log("Dados salvos com sucesso!");
+        } catch(error) {
+            console.error("Erro ao salvar:", error);
+            document.getElementById('syncStatus').innerHTML = '⚠ Offline';
+            alert("Erro ao salvar. Tentando novamente...");
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Helper: hora esperada por dia
+    function getExpectedHoursForDate(year, month, day) {
+        const date = new Date(year, month, day);
+        const weekday = date.getDay();
+        if(weekday === 0) return 0;
+        if(weekday === 6) return 4;
+        return 8;
+    }
+    
+    // Obter hora trabalhada
+    function getHour(driver, year, month, day) {
+        if(driver !== currentDriver) return "";
+        if(!localData[month] || localData[month][day] === undefined) return "";
+        return localData[month][day];
+    }
+    
+    // Definir hora trabalhada
+    async function setHour(driver, year, month, day, value) {
+        if(driver !== currentDriver) return;
+        
+        if(!localData[month]) localData[month] = {};
+        
+        if(value === "" || value === null || isNaN(parseFloat(value))) {
+            delete localData[month][day];
+        } else {
+            let num = parseFloat(value);
+            if(!isNaN(num) && num >= 0) {
+                localData[month][day] = Math.round(num * 100) / 100;
+            }
+        }
+        
+        renderAllMonths(); // re-renderiza visual
+        await saveToFirebase(currentDriver, currentYear); // salva automaticamente
+    }
+    
+    // Calcular saldo do mês
+    function computeMonthBalance(driver, year, month) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        let totalWorked = 0;
+        let totalExpected = 0;
+        
+        for(let d = 1; d <= daysInMonth; d++) {
+            let worked = getHour(driver, year, month, d);
+            let workedNum = (worked !== "" && !isNaN(parseFloat(worked))) ? parseFloat(worked) : 0;
+            let expected = getExpectedHoursForDate(year, month, d);
+            totalWorked += workedNum;
+            totalExpected += expected;
+        }
+        return { balance: totalWorked - totalExpected, totalWorked, totalExpected };
+    }
+    
+    // Saldo anual
+    function computeYearBalance(driver, year) {
+        let yearBalance = 0;
+        for(let m = 0; m < 12; m++) {
+            yearBalance += computeMonthBalance(driver, year, m).balance;
+        }
+        return yearBalance;
+    }
+    
+    // Renderizar todos os meses
+    function renderAllMonths() {
+        if(!monthsContainer) return;
+        let html = "";
+        const annualBalance = computeYearBalance(currentDriver, currentYear);
+        
+        for(let monthIdx = 0; monthIdx < 12; monthIdx++) {
+            const monthName = MONTHS[monthIdx];
+            const daysInMonth = new Date(currentYear, monthIdx + 1, 0).getDate();
+            const { balance, totalWorked, totalExpected } = computeMonthBalance(currentDriver, currentYear, monthIdx);
+            const balanceColor = balance >= 0 ? "positive" : "negative";
+            const balanceText = (balance >= 0 ? `+${balance.toFixed(2)}` : `${balance.toFixed(2)}`);
+            
+            html += `<div class="month-section">
+                        <div class="month-header">
+                            <div class="month-name">
+                                <i class="fas fa-calendar-alt"></i> ${monthName} ${currentYear}
+                                <span class="month-balance">Saldo: <span class="${balanceColor}">${balanceText} h</span></span>
+                            </div>
+                            <div style="font-size:0.7rem;">📊 Trabalhadas: ${totalWorked.toFixed(2)}h / Base: ${totalExpected.toFixed(2)}h</div>
+                        </div>
+                        <div style="overflow-x:auto">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Dia</th>
+                                        <th>Semana</th>
+                                        <th>Esperado</th>
+                                        <th>Trabalhado</th>
+                                        <th>Saldo Dia</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+            
+            for(let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(currentYear, monthIdx, d);
+                const weekdays = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
+                const weekdayName = weekdays[date.getDay()];
+                const expected = getExpectedHoursForDate(currentYear, monthIdx, d);
+                const workedRaw = getHour(currentDriver, currentYear, monthIdx, d);
+                const worked = (workedRaw !== "" && !isNaN(parseFloat(workedRaw))) ? parseFloat(workedRaw) : 0;
+                const dailyBalance = worked - expected;
+                const balanceDailyClass = dailyBalance >= 0 ? "positive" : "negative";
+                const dailyBalanceStr = dailyBalance === 0 ? "0.00" : (dailyBalance > 0 ? `+${dailyBalance.toFixed(2)}` : `${dailyBalance.toFixed(2)}`);
+                
+                html += `<tr>
+                            <td><strong>${d}</strong></td>
+                            <td>${weekdayName}</td>
+                            <td>${expected.toFixed(1)}h</td>
+                            <td><input type="number" step="0.1" class="day-input" data-day="${d}" data-month="${monthIdx}" value="${workedRaw !== "" ? workedRaw : ''}" placeholder="horas"></td>
+                            <td><span class="${balanceDailyClass} hour-badge">${dailyBalanceStr}</span></td>
+                         </tr>`;
+            }
+            
+            html += `</tbody>
+                        <tfoot class="total-row">
+                            <tr><td colspan="3"><strong>Resumo do mês</strong></td><td><strong>${totalWorked.toFixed(2)} h</strong></td><td><strong>${balance >=0 ? '+' : ''}${balance.toFixed(2)} h</strong></td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>`;
+        }
+        
+        monthsContainer.innerHTML = html;
+        document.getElementById("totalBalanceStat").innerHTML = `${annualBalance >=0 ? '+' : ''}${annualBalance.toFixed(2)}`;
+        document.getElementById("yearStat").innerText = currentYear;
+        document.getElementById("currentYearDisplay").innerText = currentYear;
+        
+        // Adicionar listeners
+        document.querySelectorAll('.day-input').forEach(input => {
+            const day = parseInt(input.getAttribute('data-day'));
+            const month = parseInt(input.getAttribute('data-month'));
+            input.addEventListener('change', async (e) => {
+                let val = e.target.value.trim();
+                if(val === "") {
+                    await setHour(currentDriver, currentYear, month, day, "");
+                } else {
+                    let num = parseFloat(val);
+                    if(!isNaN(num) && num >= 0) {
+                        await setHour(currentDriver, currentYear, month, day, num);
+                    } else {
+                        await setHour(currentDriver, currentYear, month, day, "");
+                    }
+                }
+            });
+        });
+    }
+    
+    // Reset mês
+    async function resetCurrentMonth() {
+        let monthIdx = prompt("Digite o número do mês para limpar (1=Janeiro a 12=Dezembro):", "");
+        if(monthIdx === null) return;
+        let m = parseInt(monthIdx) - 1;
+        if(isNaN(m) || m < 0 || m > 11) {
+            alert("Mês inválido.");
+            return;
+        }
+        
+        if(confirm(`Tem certeza que deseja limpar todos os lançamentos de ${MONTHS[m]}?`)) {
+            const daysInMonth = new Date(currentYear, m+1, 0).getDate();
+            for(let d = 1; d <= daysInMonth; d++) {
+                if(localData[m] && localData[m][d] !== undefined) {
+                    delete localData[m][d];
+                }
+            }
+            renderAllMonths();
+            await saveToFirebase(currentDriver, currentYear);
+            alert(`Mês ${MONTHS[m]} limpo com sucesso!`);
+        }
+    }
+    
+    // Trocar motorista
+    async function setDriver(driverIdx) {
+        currentDriver = driverIdx;
+        document.querySelectorAll('.driver-btn').forEach((btn, idx) => {
+            if(parseInt(btn.getAttribute('data-driver')) === driverIdx) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        await loadFromFirebase(currentDriver, currentYear);
+    }
+    
+    // Trocar ano
+    async function changeYear(delta) {
+        let newYear = currentYear + delta;
+        if(newYear < 2023) newYear = 2023;
+        if(newYear > 2030) newYear = 2030;
+        currentYear = newYear;
+        await loadFromFirebase(currentDriver, currentYear);
+    }
+    
+    // Event Listeners
+    document.getElementById("prevYearBtn").addEventListener("click", () => changeYear(-1));
+    document.getElementById("nextYearBtn").addEventListener("click", () => changeYear(1));
+    document.getElementById("resetMonthBtn").addEventListener("click", resetCurrentMonth);
+    document.getElementById("syncNowBtn").addEventListener("click", async () => {
+        await saveToFirebase(currentDriver, currentYear);
+        alert("Sincronização manual concluída!");
+    });
+    
+    // Botões motorista
+    document.querySelectorAll('.driver-btn').forEach(btn => {
+        btn.addEventListener("click", () => {
+            const driverIdx = parseInt(btn.getAttribute("data-driver"));
+            setDriver(driverIdx);
+        });
+    });
+    
+    // Inicialização
+    async function init() {
+        // Aguardar Firebase
+        const waitForFirebase = setInterval(() => {
+            if(window.firebaseReady && window.db) {
+                clearInterval(waitForFirebase);
+                console.log("Firebase pronto, iniciando app...");
+                setDriver(0);
+            }
+        }, 100);
+        
+        setTimeout(() => {
+            if(!window.firebaseReady) {
+                clearInterval(waitForFirebase);
+                alert("Erro ao conectar com Firebase. Recarregue a página.");
+                loadingOverlay.classList.remove('active');
+            }
+        }, 5000);
+    }
+    
+    init();
+</script>
+</body>
+</html>
