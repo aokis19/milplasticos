@@ -1,14 +1,748 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Mil Plásticos | Controle de Horas e Banco de Horas - Firebase</title>
-    <!-- Font Awesome 6 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotação | Mil Plásticos</title>
+
+    <!-- CSS Principal -->
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/assets/css/topbar.css">
+    <link rel="stylesheet" href="/assets/css/cotacao.css">
+    <title>🚛 Controle de Motoristas | Banco de Horas</title>
+
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs -->
-    <script type="module">
-        // Firebase configuration - SEU CONFIG ORIGINAL
+
+    <!-- Firebase SDKs (Compat para navegador) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js">
+    </script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --success: #0d904f;
+            --danger: #d93025;
+            --warning: #f9ab00;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --border: #dadce0;
+            --text: #202124;
+            --text-light: #5f6368;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Status Firebase */
+        .firebase-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .firebase-status.online {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .firebase-status.offline {
+            background: #fce8e6;
+            color: #c5221f;
+        }
+
+        .firebase-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .firebase-status.online .dot {
+            background: #1e7e34;
+            animation: pulse 2s infinite;
+        }
+
+        .firebase-status.offline .dot {
+            background: #c5221f;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a73e8, #1557b0);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Botões */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #e8f0fe;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #0b7d3e;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #1a1a1a;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background: #f1f3f4;
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 0.35rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #e8f0fe;
+            color: var(--primary);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
+        /* Stats */
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success);
+        }
+
+        .stat-card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .stat-card.danger {
+            border-left-color: var(--danger);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
+
+        /* Tabelas */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            background: #f1f3f4;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal h2 {
+            margin-bottom: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar select,
+        .toolbar input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .money {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e0e0e0;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media print {
+
+            .header,
+            .tabs,
+            .btn,
+            .modal-overlay,
+            .toolbar {
+                display: none !important;
+            }
+
+            .card {
+                box-shadow: none;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="font-weight:500;color:var(--text)">Carregando dados do Firebase...</p>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1>🚛 Controle de Motoristas</h1>
+            <span id="firebaseStatus" class="firebase-status offline">
+                <span class="dot"></span> Conectando...
+            </span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="abrirModalMotorista()">+ Motorista</button>
+            <button class="btn btn-outline" onclick="window.print()"
+                style="color:white;border-color:rgba(255,255,255,0.5)">🖨️ Imprimir</button>
+        </div>
+    </header>
+
+    <!-- Container Principal -->
+    <div class="container">
+
+        <!-- Tabs -->
+        <nav class="tabs" id="tabsNav">
+            <button class="tab active" data-tab="painel">📊 Painel</button>
+            <button class="tab" data-tab="cadastro">👥 Motoristas</button>
+            <button class="tab" data-tab="ponto">📅 Ponto Mensal</button>
+            <button class="tab" data-tab="banco">🏦 Banco de Horas</button>
+            <button class="tab" data-tab="pagamentos">💰 Pagamentos</button>
+        </nav>
+
+        <!-- Painel / Dashboard -->
+        <div class="tab-content active" id="tab-painel">
+            <div class="toolbar" style="margin-bottom:1rem">
+                <label>Motorista:</label>
+                <select id="painelMotorista" onchange="atualizarPainel()"></select>
+                <label>Mês:</label>
+                <select id="painelMes" onchange="atualizarPainel()">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <label>Ano:</label>
+                <input type="number" id="painelAno" value="2025" style="width:80px" onchange="atualizarPainel()">
+            </div>
+            <div class="grid grid-4" id="statsContainer"></div>
+        </div>
+
+        <!-- Cadastro Motoristas -->
+        <div class="tab-content" id="tab-cadastro">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Motoristas Cadastrados</span>
+                    <button class="btn btn-success btn-sm" onclick="abrirModalMotorista()">+ Novo</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cód</th>
+                                <th>Nome</th>
+                                <th>Função</th>
+                                <th>Entrada 1</th>
+                                <th>Saída 1</th>
+                                <th>Entrada 2</th>
+                                <th>Saída 2</th>
+                                <th>Tolerância</th>
+                                <th>Ad.Noturno</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaMotoristas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ponto Mensal -->
+        <div class="tab-content" id="tab-ponto">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Registro de Ponto</span>
+                    <div class="toolbar">
+                        <label>Motorista:</label>
+                        <select id="pontoMotorista" onchange="carregarPonto()"></select>
+                        <label>Mês:</label>
+                        <select id="pontoMes" onchange="carregarPonto()">
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                        <label>Ano:</label>
+                        <input type="number" id="pontoAno" value="2025" style="width:80px" onchange="carregarPonto()">
+                        <button class="btn btn-primary btn-sm" onclick="salvarPonto()">💾 Salvar</button>
+                    </div>
+                </div>
+                <div class="table-container" id="pontoContainer"></div>
+                <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap" id="totaisPonto"></div>
+            </div>
+        </div>
+
+        <!-- Banco de Horas -->
+        <div class="tab-content" id="tab-banco">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Saldo Banco de Horas</span>
+                    <button class="btn btn-warning btn-sm" onclick="atualizarBancoHoras()">🔄 Atualizar</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Motorista</th>
+                                <th>Mês/Ano</th>
+                                <th>Horas Trab.</th>
+                                <th>Jornada Normal</th>
+                                <th>H. Extras 50%</th>
+                                <th>H. Extras 100%</th>
+                                <th>Faltas</th>
+                                <th>Ad. Noturno</th>
+                                <th>Saldo Mês</th>
+                                <th>Saldo Acumulado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaBancoHoras"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagamentos -->
+        <div class="tab-content" id="tab-pagamentos">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Pagamentos de Horas</span>
+                    <button class="btn btn-success btn-sm" onclick="abrirModalPagamento()">+ Pagamento</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Motorista</th>
+                                <th>Qtd Horas</th>
+                                <th>Valor/Hora</th>
+                                <th>Valor Total</th>
+                                <th>Saldo Anterior</th>
+                                <th>Saldo Atual</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPagamentos"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Motorista -->
+    <div class="modal-overlay" id="modalMotorista">
+        <div class="modal">
+            <h2 id="modalMotoristaTitulo">Novo Motorista</h2>
+            <input type="hidden" id="motoristaEditId">
+            <div class="grid grid-2">
+                <div class="form-group"><label>Código</label><input type="number" id="motoristaCod"
+                        placeholder="Ex: 139"></div>
+                <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome"
+                        placeholder="Nome completo"></div>
+                <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao"
+                        placeholder="Ex: Gerente"></div>
+                <div class="form-group"><label>Tolerância (minutos)</label><input type="number" id="motoristaTolerancia"
+                        value="10" step="1"></div>
+            </div>
+            <h4 style="margin:1rem 0 0.5rem">Jornada Padrão</h4>
+            <div class="grid grid-2">
+                <div class="form-group"><label>Entrada 1</label><input type="time" id="jornadaE1" value="08:00"></div>
+                <div class="form-group"><label>Saída 1</label><input type="time" id="jornadaS1" value="12:00"></div>
+                <div class="form-group"><label>Entrada 2</label><input type="time" id="jornadaE2" value="13:00"></div>
+                <div class="form-group"><label>Saída 2</label><input type="time" id="jornadaS2" value="18:00"></div>
+            </div>
+            <div class="form-group" style="margin-top:0.5rem">
+                <label><input type="checkbox" id="motoristaAdNoturno"> Aplica Adicional Noturno (22h-5h)</label>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="fecharModal('modalMotorista')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarMotorista()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pagamento -->
+    <div class="modal-overlay" id="modalPagamento">
+        <div class="modal">
+            <h2>Registrar Pagamento</h2>
+            <div class="grid grid-2">
+                <div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
+                <div class="form-group"><label>Data Pagamento</label><input type="date" id="pagData"></div>
+                <div class="form-group"><label>Quantidade Horas</label><input type="number" id="pagHoras" step="0.5"
+                        min="0.5" placeholder="Ex: 5.5"></div>
+                <div class="form-group"><label>Valor por Hora (R$)</label><input type="number" id="pagValorHora"
+                        step="0.01" min="0.01" value="25.00"></div>
+            </div>
+            <div class="form-group"><label>Valor Total: <strong id="pagValorTotal">R$ 0,00</strong></label></div>
+            <div class="form-group"><label>Saldo Atual Banco: <strong id="pagSaldoAtual">0h</strong></label></div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="fecharModal('modalPagamento')">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarPagamento()">Registrar Pagamento</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // ============ CONFIGURAÇÃO FIREBASE ============
         const firebaseConfig = {
             apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
             authDomain: "system-mil.firebaseapp.com",
@@ -19,702 +753,589 @@
             measurementId: "G-DYCDBRZSHZ"
         };
 
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        // Inicializa Firebase
+        let db = null;
+        let usandoFirebase = false;
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const db = getFirestore(app);
+        function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
 
-        // Expor para uso global
-        window.db = db;
-        window.firebaseReady = true;
-        
-        console.log("Firebase inicializado com sucesso!");
-    </script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-        }
+        function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
 
-        body {
-            background: #eef2f7;
-            padding: 24px 20px;
-            color: #1e2a3e;
-        }
-
-        .dashboard-container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            color: white;
-            font-size: 1.2rem;
-            gap: 12px;
-            display: none;
-        }
-
-        .loading-overlay.active {
-            display: flex;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 28px;
-            background: white;
-            padding: 18px 24px;
-            border-radius: 28px;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.03);
-            border: 1px solid #e2e8f0;
-        }
-
-        .title-section h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #1e4b6e, #2c7a4d);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        .title-section p {
-            color: #4a627a;
-            font-size: 0.85rem;
-            margin-top: 6px;
-        }
-
-        .stats-summary {
-            display: flex;
-            gap: 24px;
-            background: #f8fafc;
-            padding: 8px 24px;
-            border-radius: 60px;
-            border: 1px solid #cbd5e1;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            color: #475569;
-        }
-
-        .stat-value {
-            font-weight: 800;
-            font-size: 1.3rem;
-            color: #0f3b2c;
-        }
-
-        .driver-selector {
-            background: white;
-            border-radius: 24px;
-            padding: 16px 24px;
-            margin-bottom: 28px;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            border: 1px solid #e2edf2;
-        }
-
-        .driver-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .driver-btn {
-            background: #f1f5f9;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: 0.2s;
-            color: #1e293b;
-        }
-
-        .driver-btn.active {
-            background: #1e6f3f;
-            color: white;
-            box-shadow: 0 4px 10px rgba(30,111,63,0.3);
-        }
-
-        .year-control {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #f1f5f9;
-            padding: 6px 16px;
-            border-radius: 40px;
-        }
-
-        .year-control button {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            width: 28px;
-            font-weight: bold;
-            color: #2c5a3e;
-        }
-
-        .year-display {
-            font-weight: 700;
-            font-size: 1.2rem;
-            min-width: 80px;
-            text-align: center;
-        }
-
-        .sync-status {
-            font-size: 0.7rem;
-            padding: 4px 12px;
-            border-radius: 20px;
-            background: #e6f7e6;
-            color: #2e7d32;
-        }
-
-        .month-section {
-            background: white;
-            border-radius: 24px;
-            margin-bottom: 30px;
-            overflow-x: auto;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2edf2;
-        }
-
-        .month-header {
-            background: #f9fbfd;
-            padding: 14px 20px;
-            border-bottom: 2px solid #e0e9f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .month-name {
-            font-weight: 700;
-            font-size: 1.2rem;
-            color: #0c4e34;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .month-balance {
-            background: #eef2ff;
-            padding: 6px 16px;
-            border-radius: 28px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-        }
-
-        th {
-            background: #f1f6fa;
-            padding: 12px 6px;
-            text-align: center;
-            font-weight: 600;
-            color: #1e3a5f;
-            border-bottom: 1px solid #dce5ec;
-        }
-
-        td {
-            padding: 10px 5px;
-            text-align: center;
-            border-bottom: 1px solid #ecf3f8;
-            vertical-align: middle;
-        }
-
-        input.day-input {
-            width: 70px;
-            padding: 6px 4px;
-            text-align: center;
-            border: 1px solid #cbdde9;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            background: #fff;
-            transition: 0.1s;
-        }
-
-        input.day-input:focus {
-            border-color: #2c7a4d;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(44,122,77,0.2);
-        }
-
-        .hour-badge {
-            font-weight: 600;
-            background: #e9f4ef;
-            border-radius: 20px;
-            padding: 4px 10px;
-            display: inline-block;
-            font-size: 0.75rem;
-        }
-
-        .positive {
-            color: #15803d;
-            font-weight: 700;
-        }
-
-        .negative {
-            color: #b91c1c;
-            font-weight: 700;
-        }
-
-        .total-row {
-            background: #fefce8;
-            font-weight: 700;
-            border-top: 2px solid #cbd5e1;
-        }
-
-        .action-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            border: none;
-            padding: 10px 24px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-            background: white;
-            border: 1px solid #b9cfdf;
-            transition: 0.2s;
-        }
-
-        .btn-primary {
-            background: #1e6f3f;
-            border: none;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0f5a34;
-        }
-
-        .btn-outline {
-            border: 1px solid #2c7a4d;
-            color: #2c7a4d;
-        }
-
-        .footer-note {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 0.7rem;
-            color: #5b6e8c;
-        }
-
-        @media (max-width: 700px) {
-            .driver-selector {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .year-control {
-                margin-left: 0;
-                justify-content: center;
-            }
-            input.day-input {
-                width: 55px;
-            }
-        }
-    </style>
-</head>
-<body>
-<div class="loading-overlay" id="loadingOverlay">
-    <i class="fas fa-spinner fa-pulse"></i> Sincronizando com Firebase...
-</div>
-
-<div class="dashboard-container">
-    <div class="header">
-        <div class="title-section">
-            <h1><i class="fas fa-truck-fast" style="color:#2c7a4d;"></i> Horas Motorista</h1>
-            <p>Controle com sincronização em tempo real | Firebase Cloud</p>
-        </div>
-        <div class="stats-summary" id="globalStats">
-            <div class="stat-item"><div class="stat-label">Ano atual</div><div class="stat-value" id="yearStat">2025</div></div>
-            <div class="stat-item"><div class="stat-label">Saldo total (h)</div><div class="stat-value" id="totalBalanceStat">0</div></div>
-            <div class="stat-item"><div class="stat-label"><i class="fas fa-cloud"></i> Status</div><div class="stat-value" id="syncStatus">✓ Online</div></div>
-        </div>
-    </div>
-
-    <div class="driver-selector">
-        <div class="driver-buttons" id="driverButtons">
-            <button data-driver="0" class="driver-btn active">🚛 CEZAR RODRIGUES</button>
-            <button data-driver="1" class="driver-btn">🚛 MANOEL CARLOS</button>
-            <button data-driver="2" class="driver-btn">🚛 JOSÉ LUIZ</button>
-            <button data-driver="3" class="driver-btn">🚛 CARLOS ALBERTO</button>
-        </div>
-        <div class="year-control">
-            <button id="prevYearBtn"><i class="fas fa-chevron-left"></i></button>
-            <span class="year-display" id="currentYearDisplay">2025</span>
-            <button id="nextYearBtn"><i class="fas fa-chevron-right"></i></button>
-        </div>
-    </div>
-
-    <div id="monthsContainer"></div>
-
-    <div class="action-buttons">
-        <button class="btn btn-outline" id="resetMonthBtn"><i class="fas fa-undo-alt"></i> Limpar mês atual</button>
-        <button class="btn btn-primary" id="syncNowBtn"><i class="fas fa-cloud-upload-alt"></i> Sincronizar agora</button>
-    </div>
-    <div class="footer-note">
-        <i class="fas fa-database"></i> Dados salvos no Firebase Firestore | Banco de horas acumulado anual<br>
-        Jornada base: 8h (seg-sex) | Sábado: 4h | Domingo: 0h
-    </div>
-</div>
-
-<script type="module">
-    // Motoristas
-    const DRIVERS = [
-        { id: 0, name: "CEZAR RODRIGUES", baseHoursPerDay: 8, saturdayBase: 4 },
-        { id: 1, name: "MANOEL CARLOS", baseHoursPerDay: 8, saturdayBase: 4 },
-        { id: 2, name: "JOSÉ LUIZ", baseHoursPerDay: 8, saturdayBase: 4 },
-        { id: 3, name: "CARLOS ALBERTO", baseHoursPerDay: 8, saturdayBase: 4 }
-    ];
-
-    const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    
-    let currentYear = 2025;
-    let currentDriver = 0;
-    let localData = {}; // cache local
-    
-    // Elementos
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const monthsContainer = document.getElementById('monthsContainer');
-    
-    function showLoading(show) {
-        if(show) loadingOverlay.classList.add('active');
-        else loadingOverlay.classList.remove('active');
-    }
-    
-    // Buscar dados do Firestore
-    async function loadFromFirebase(driverId, year) {
-        showLoading(true);
         try {
-            const docRef = doc(window.db, "driverHours", `${driverId}_${year}`);
-            const docSnap = await getDoc(docRef);
-            
-            if(docSnap.exists()) {
-                localData = docSnap.data().months || {};
-                console.log(`Dados carregados: motorista ${driverId}, ano ${year}`);
-            } else {
-                // Inicializar estrutura vazia
-                localData = {};
-                for(let m = 0; m < 12; m++) {
-                    localData[m] = {};
-                }
-                console.log("Novo documento criado localmente");
-            }
-            
-            // Garantir que todos os meses existam
-            for(let m = 0; m < 12; m++) {
-                if(!localData[m]) localData[m] = {};
-            }
-            
-            renderAllMonths();
-        } catch(error) {
-            console.error("Erro ao carregar do Firebase:", error);
-            alert("Erro ao carregar dados. Verifique sua conexão.");
-        } finally {
-            showLoading(false);
-        }
-    }
-    
-    // Salvar no Firestore
-    async function saveToFirebase(driverId, year) {
-        showLoading(true);
-        try {
-            const docRef = doc(window.db, "driverHours", `${driverId}_${year}`);
-            await setDoc(docRef, {
-                driverId: driverId,
-                year: year,
-                months: localData,
-                updatedAt: new Date().toISOString()
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+                console.warn('Persistence error:', err.code);
             });
-            document.getElementById('syncStatus').innerHTML = '✓ Sincronizado';
-            setTimeout(() => {
-                document.getElementById('syncStatus').innerHTML = '✓ Online';
-            }, 2000);
-            console.log("Dados salvos com sucesso!");
-        } catch(error) {
-            console.error("Erro ao salvar:", error);
-            document.getElementById('syncStatus').innerHTML = '⚠ Offline';
-            alert("Erro ao salvar. Tentando novamente...");
-        } finally {
-            showLoading(false);
+            usandoFirebase = true;
+            document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 🔥 Firebase Online';
+            document.getElementById('firebaseStatus').className = 'firebase-status online';
+        } catch (e) {
+            console.warn('Firebase offline. Usando LocalStorage.');
+            document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 💾 LocalStorage';
+            document.getElementById('firebaseStatus').className = 'firebase-status offline';
         }
-    }
-    
-    // Helper: hora esperada por dia
-    function getExpectedHoursForDate(year, month, day) {
-        const date = new Date(year, month, day);
-        const weekday = date.getDay();
-        if(weekday === 0) return 0;
-        if(weekday === 6) return 4;
-        return 8;
-    }
-    
-    // Obter hora trabalhada
-    function getHour(driver, year, month, day) {
-        if(driver !== currentDriver) return "";
-        if(!localData[month] || localData[month][day] === undefined) return "";
-        return localData[month][day];
-    }
-    
-    // Definir hora trabalhada
-    async function setHour(driver, year, month, day, value) {
-        if(driver !== currentDriver) return;
-        
-        if(!localData[month]) localData[month] = {};
-        
-        if(value === "" || value === null || isNaN(parseFloat(value))) {
-            delete localData[month][day];
-        } else {
-            let num = parseFloat(value);
-            if(!isNaN(num) && num >= 0) {
-                localData[month][day] = Math.round(num * 100) / 100;
+
+        // ============ DADOS LOCAIS (Fallback) ============
+        const STORAGE_KEY = 'controleMotoristas_systemmil';
+
+        function getLocalData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) return JSON.parse(data);
+            return { motoristas: [], ponto: {}, pagamentos: [] };
+        }
+
+        function saveLocalData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        let appData = getLocalData();
+
+        // ============ FUNÇÕES UNIVERSAIS ============
+        async function carregarMotoristas() {
+            if (usandoFirebase && db) {
+                try {
+                    const snapshot = await db.collection('motoristas').where('ativo', '==', true).get();
+                    const motoristas = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+                    appData.motoristas = motoristas;
+                    saveLocalData(appData);
+                    return motoristas;
+                } catch (e) {
+                    console.error('Erro Firebase motoristas:', e);
+                }
             }
+            return appData.motoristas;
         }
-        
-        renderAllMonths(); // re-renderiza visual
-        await saveToFirebase(currentDriver, currentYear); // salva automaticamente
-    }
-    
-    // Calcular saldo do mês
-    function computeMonthBalance(driver, year, month) {
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        let totalWorked = 0;
-        let totalExpected = 0;
-        
-        for(let d = 1; d <= daysInMonth; d++) {
-            let worked = getHour(driver, year, month, d);
-            let workedNum = (worked !== "" && !isNaN(parseFloat(worked))) ? parseFloat(worked) : 0;
-            let expected = getExpectedHoursForDate(year, month, d);
-            totalWorked += workedNum;
-            totalExpected += expected;
-        }
-        return { balance: totalWorked - totalExpected, totalWorked, totalExpected };
-    }
-    
-    // Saldo anual
-    function computeYearBalance(driver, year) {
-        let yearBalance = 0;
-        for(let m = 0; m < 12; m++) {
-            yearBalance += computeMonthBalance(driver, year, m).balance;
-        }
-        return yearBalance;
-    }
-    
-    // Renderizar todos os meses
-    function renderAllMonths() {
-        if(!monthsContainer) return;
-        let html = "";
-        const annualBalance = computeYearBalance(currentDriver, currentYear);
-        
-        for(let monthIdx = 0; monthIdx < 12; monthIdx++) {
-            const monthName = MONTHS[monthIdx];
-            const daysInMonth = new Date(currentYear, monthIdx + 1, 0).getDate();
-            const { balance, totalWorked, totalExpected } = computeMonthBalance(currentDriver, currentYear, monthIdx);
-            const balanceColor = balance >= 0 ? "positive" : "negative";
-            const balanceText = (balance >= 0 ? `+${balance.toFixed(2)}` : `${balance.toFixed(2)}`);
-            
-            html += `<div class="month-section">
-                        <div class="month-header">
-                            <div class="month-name">
-                                <i class="fas fa-calendar-alt"></i> ${monthName} ${currentYear}
-                                <span class="month-balance">Saldo: <span class="${balanceColor}">${balanceText} h</span></span>
-                            </div>
-                            <div style="font-size:0.7rem;">📊 Trabalhadas: ${totalWorked.toFixed(2)}h / Base: ${totalExpected.toFixed(2)}h</div>
-                        </div>
-                        <div style="overflow-x:auto">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Dia</th>
-                                        <th>Semana</th>
-                                        <th>Esperado</th>
-                                        <th>Trabalhado</th>
-                                        <th>Saldo Dia</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-            
-            for(let d = 1; d <= daysInMonth; d++) {
-                const date = new Date(currentYear, monthIdx, d);
-                const weekdays = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
-                const weekdayName = weekdays[date.getDay()];
-                const expected = getExpectedHoursForDate(currentYear, monthIdx, d);
-                const workedRaw = getHour(currentDriver, currentYear, monthIdx, d);
-                const worked = (workedRaw !== "" && !isNaN(parseFloat(workedRaw))) ? parseFloat(workedRaw) : 0;
-                const dailyBalance = worked - expected;
-                const balanceDailyClass = dailyBalance >= 0 ? "positive" : "negative";
-                const dailyBalanceStr = dailyBalance === 0 ? "0.00" : (dailyBalance > 0 ? `+${dailyBalance.toFixed(2)}` : `${dailyBalance.toFixed(2)}`);
-                
-                html += `<tr>
-                            <td><strong>${d}</strong></td>
-                            <td>${weekdayName}</td>
-                            <td>${expected.toFixed(1)}h</td>
-                            <td><input type="number" step="0.1" class="day-input" data-day="${d}" data-month="${monthIdx}" value="${workedRaw !== "" ? workedRaw : ''}" placeholder="horas"></td>
-                            <td><span class="${balanceDailyClass} hour-badge">${dailyBalanceStr}</span></td>
-                         </tr>`;
-            }
-            
-            html += `</tbody>
-                        <tfoot class="total-row">
-                            <tr><td colspan="3"><strong>Resumo do mês</strong></td><td><strong>${totalWorked.toFixed(2)} h</strong></td><td><strong>${balance >=0 ? '+' : ''}${balance.toFixed(2)} h</strong></td></tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>`;
-        }
-        
-        monthsContainer.innerHTML = html;
-        document.getElementById("totalBalanceStat").innerHTML = `${annualBalance >=0 ? '+' : ''}${annualBalance.toFixed(2)}`;
-        document.getElementById("yearStat").innerText = currentYear;
-        document.getElementById("currentYearDisplay").innerText = currentYear;
-        
-        // Adicionar listeners
-        document.querySelectorAll('.day-input').forEach(input => {
-            const day = parseInt(input.getAttribute('data-day'));
-            const month = parseInt(input.getAttribute('data-month'));
-            input.addEventListener('change', async (e) => {
-                let val = e.target.value.trim();
-                if(val === "") {
-                    await setHour(currentDriver, currentYear, month, day, "");
-                } else {
-                    let num = parseFloat(val);
-                    if(!isNaN(num) && num >= 0) {
-                        await setHour(currentDriver, currentYear, month, day, num);
+
+        async function salvarMotoristaFB(motorista) {
+            if (usandoFirebase && db) {
+                try {
+                    if (motorista.firebaseId) {
+                        const docRef = db.collection('motoristas').doc(motorista.firebaseId);
+                        await docRef.set(motorista, { merge: true });
                     } else {
-                        await setHour(currentDriver, currentYear, month, day, "");
+                        const snapshot = await db.collection('motoristas')
+                            .where('cod', '==', motorista.cod).get();
+                        if (!snapshot.empty) {
+                            const docRef = db.collection('motoristas').doc(snapshot.docs[0].id);
+                            await docRef.set(motorista, { merge: true });
+                            motorista.firebaseId = snapshot.docs[0].id;
+                        } else {
+                            const docRef = await db.collection('motoristas').add(motorista);
+                            motorista.firebaseId = docRef.id;
+                        }
+                    }
+                    return;
+                } catch (e) {
+                    console.error('Erro Firebase salvar motorista:', e);
+                }
+            }
+            const index = appData.motoristas.findIndex(m => m.cod === motorista.cod);
+            if (index >= 0) appData.motoristas[index] = motorista;
+            else appData.motoristas.push(motorista);
+            saveLocalData(appData);
+        }
+
+        async function excluirMotoristaFB(cod) {
+            if (usandoFirebase && db) {
+                try {
+                    const snapshot = await db.collection('motoristas').where('cod', '==', cod).get();
+                    snapshot.forEach(async (doc) => {
+                        await db.collection('motoristas').doc(doc.id).update({ ativo: false });
+                    });
+                } catch (e) { console.error('Erro Firebase excluir:', e); }
+            }
+            appData.motoristas = appData.motoristas.filter(m => m.cod !== cod);
+            saveLocalData(appData);
+        }
+
+        async function salvarPontoFB(cod, mes, ano, dia, dados) {
+            const key = `${cod}_${mes}_${ano}_${dia}`;
+            if (usandoFirebase && db) {
+                try {
+                    const snapshot = await db.collection('pontos').where('key', '==', key).get();
+                    const pontoData = { key, codMotorista: cod, mes, ano, dia, ...dados,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+                    if (!snapshot.empty) {
+                        await db.collection('pontos').doc(snapshot.docs[0].id).set(pontoData, { merge: true });
+                    } else {
+                        pontoData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection('pontos').add(pontoData);
+                    }
+                } catch (e) { console.error('Erro Firebase ponto:', e); }
+            }
+            if (!appData.ponto[key]) appData.ponto[key] = {};
+            Object.assign(appData.ponto[key], dados);
+            saveLocalData(appData);
+        }
+
+        async function carregarPontosFB(cod, mes, ano) {
+            if (usandoFirebase && db) {
+                try {
+                    const snapshot = await db.collection('pontos')
+                        .where('codMotorista', '==', cod)
+                        .where('mes', '==', mes)
+                        .where('ano', '==', ano).get();
+                    const pontos = {};
+                    snapshot.docs.forEach(doc => {
+                        const d = doc.data();
+                        pontos[d.key] = d;
+                    });
+                    return pontos;
+                } catch (e) { console.error('Erro Firebase carregar pontos:', e); }
+            }
+            return null;
+        }
+
+        async function salvarPagamentoFB(pagamento) {
+            if (usandoFirebase && db) {
+                try {
+                    const docRef = await db.collection('pagamentos').add({
+                        ...pagamento,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    pagamento.firebaseId = docRef.id;
+                } catch (e) { console.error('Erro Firebase pagamento:', e); }
+            }
+            appData.pagamentos.push(pagamento);
+            saveLocalData(appData);
+        }
+
+        async function carregarPagamentosFB() {
+            if (usandoFirebase && db) {
+                try {
+                    const snapshot = await db.collection('pagamentos').orderBy('data', 'desc').get();
+                    const pagamentos = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+                    appData.pagamentos = pagamentos;
+                    saveLocalData(appData);
+                    return pagamentos;
+                } catch (e) { console.error('Erro Firebase pagamentos:', e); }
+            }
+            return appData.pagamentos;
+        }
+
+        async function excluirPagamentoFB(firebaseId) {
+            if (usandoFirebase && db && firebaseId && firebaseId !== 'undefined') {
+                try {
+                    await db.collection('pagamentos').doc(firebaseId).delete();
+                } catch (e) { console.error('Erro Firebase excluir pagamento:', e); }
+            }
+            appData.pagamentos = appData.pagamentos.filter(p => p.firebaseId !== firebaseId && p.id !== firebaseId);
+            saveLocalData(appData);
+        }
+
+        // ============ UTILITÁRIOS ============
+        function timeToHours(timeStr) {
+            if (!timeStr) return 0;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h + m / 60;
+        }
+
+        function formatMoney(valor) {
+            return 'R$ ' + valor.toFixed(2).replace('.', ',');
+        }
+
+        function formatHoras(horas) {
+            if (horas === undefined || horas === null || isNaN(horas)) return '0,0h';
+            const h = Math.floor(Math.abs(horas));
+            const m = Math.round((Math.abs(horas) - h) * 60);
+            const sinal = horas < 0 ? '-' : '';
+            return sinal + h + ',' + String(m).padStart(2, '0') + 'h';
+        }
+
+        function getDiasNoMes(mes, ano) {
+            return new Date(ano, mes, 0).getDate();
+        }
+
+        function getSemana(dia, mes, ano) {
+            const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
+            return dias[new Date(ano, mes - 1, dia).getDay()];
+        }
+
+        // ============ INICIALIZAÇÃO ============
+        async function init() {
+            showLoading();
+            const hoje = new Date();
+            document.getElementById('painelMes').value = hoje.getMonth() + 1;
+            document.getElementById('painelAno').value = hoje.getFullYear();
+            document.getElementById('pontoMes').value = hoje.getMonth() + 1;
+            document.getElementById('pontoAno').value = hoje.getFullYear();
+            document.getElementById('pagData').value = hoje.toISOString().split('T')[0];
+
+            await carregarMotoristas();
+            carregarSelectsMotoristas();
+            await carregarPonto();
+            atualizarPainel();
+            carregarTabelaMotoristas();
+            carregarBancoHoras();
+            await carregarPagamentos();
+            setupTabs();
+            setupPagamentoCalc();
+            hideLoading();
+        }
+
+        function carregarSelectsMotoristas() {
+            const selects = ['painelMotorista', 'pontoMotorista', 'pagMotorista'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                const ativos = appData.motoristas.filter(m => m.ativo !== false);
+                select.innerHTML = ativos.map(m => `<option value="${m.cod}">${m.nome}</option>`).join('');
+            });
+        }
+
+        // ============ TABS ============
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = document.getElementById('tab-' + tab.dataset.tab);
+                    if (target) target.classList.add('active');
+                });
+            });
+        }
+
+        // ============ PAINEL ============
+        function atualizarPainel() {
+            const mes = parseInt(document.getElementById('painelMes').value);
+            const ano = parseInt(document.getElementById('painelAno').value);
+            const cod = parseInt(document.getElementById('painelMotorista').value) || appData.motoristas[0]?.cod;
+            if (!cod || !mes || !ano) return;
+
+            const motorista = appData.motoristas.find(m => m.cod === cod);
+            if (!motorista) return;
+
+            const diasNoMes = getDiasNoMes(mes, ano);
+            let totalHT = 0,
+                totalExtras50 = 0,
+                totalExtras100 = 0,
+                totalFaltas = 0;
+            let totalAdNoturno = 0,
+                diasTrab = 0,
+                diasFolga = 0;
+
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const key = `${cod}_${mes}_${ano}_${dia}`;
+                const reg = appData.ponto[key];
+                if (!reg || reg.folga) { if (reg?.folga) diasFolga++; continue; }
+
+                const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) +
+                    (timeToHours(reg.s2) - timeToHours(reg.e2)) +
+                    (timeToHours(reg.s3) - timeToHours(reg.e3));
+                const jp = timeToHours(motorista.jornada.s2) - timeToHours(motorista.jornada.e1) -
+                    (timeToHours(motorista.jornada.e2) - timeToHours(motorista.jornada.s1));
+                if (ht <= 0) continue;
+                diasTrab++;
+                totalHT += ht;
+                const extras = ht - jp;
+                const tol = motorista.tolerancia / 60;
+                if (extras > tol) {
+                    const ex = extras - tol;
+                    totalExtras50 += Math.min(ex, 2);
+                    totalExtras100 += Math.max(0, ex - 2);
+                } else if (extras < -tol) totalFaltas += Math.abs(extras);
+                if (motorista.adNoturno && (timeToHours(reg.s3) > 22 || timeToHours(reg.e1) < 5))
+                    totalAdNoturno += Math.min(2, ht * 0.2);
+            }
+
+            document.getElementById('statsContainer').innerHTML = `
+            <div class="stat-card"><div class="stat-value">${diasTrab}/${diasNoMes}</div><div class="stat-label">Dias Trabalhados</div><div class="stat-sub">${diasFolga} folgas</div></div>
+            <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Horas Trabalhadas</div></div>
+            <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras50+totalExtras100)}</div><div class="stat-label">Horas Extras</div><div class="stat-sub">50%: ${formatHoras(totalExtras50)} | 100%: ${formatHoras(totalExtras100)}</div></div>
+            <div class="stat-card danger"><div class="stat-value">${formatHoras(totalFaltas)}</div><div class="stat-label">Faltas/Atrasos</div></div>
+            <div class="stat-card warning"><div class="stat-value">${formatHoras(totalAdNoturno)}</div><div class="stat-label">Adic. Noturno</div></div>
+            <div class="stat-card" style="border-left-color:#6c5ce7"><div class="stat-value">${formatHoras(totalExtras50+totalExtras100+totalAdNoturno-totalFaltas)}</div><div class="stat-label">Saldo Estimado</div></div>`;
+        }
+
+        // ============ CADASTRO MOTORISTAS ============
+        function carregarTabelaMotoristas() {
+            document.getElementById('tabelaMotoristas').innerHTML = appData.motoristas.filter(m => m.ativo !== false).map(
+                m => `
+            <tr><td>${m.cod}</td><td><strong>${m.nome}</strong></td><td>${m.funcao}</td>
+            <td>${m.jornada.e1}</td><td>${m.jornada.s1}</td><td>${m.jornada.e2}</td><td>${m.jornada.s2}</td>
+            <td>${m.tolerancia}min</td><td>${m.adNoturno?'✅':'❌'}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="editarMotorista(${m.cod})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="excluirMotorista(${m.cod})">🗑️</button></td></tr>`
+            ).join('');
+        }
+
+        function abrirModalMotorista(cod = null) {
+            document.getElementById('modalMotorista').classList.add('active');
+            if (cod) {
+                document.getElementById('modalMotoristaTitulo').textContent = 'Editar Motorista';
+                const m = appData.motoristas.find(m => m.cod === cod);
+                if (m) {
+                    document.getElementById('motoristaEditId').value = m.cod;
+                    document.getElementById('motoristaCod').value = m.cod;
+                    document.getElementById('motoristaNome').value = m.nome;
+                    document.getElementById('motoristaFuncao').value = m.funcao || '';
+                    document.getElementById('motoristaTolerancia').value = m.tolerancia;
+                    document.getElementById('jornadaE1').value = m.jornada.e1;
+                    document.getElementById('jornadaS1').value = m.jornada.s1;
+                    document.getElementById('jornadaE2').value = m.jornada.e2;
+                    document.getElementById('jornadaS2').value = m.jornada.s2;
+                    document.getElementById('motoristaAdNoturno').checked = m.adNoturno;
+                }
+            } else {
+                document.getElementById('modalMotoristaTitulo').textContent = 'Novo Motorista';
+                ['motoristaEditId', 'motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => document
+                    .getElementById(id).value = '');
+                document.getElementById('motoristaTolerancia').value = '10';
+                document.getElementById('jornadaE1').value = '08:00';
+                document.getElementById('jornadaS1').value = '12:00';
+                document.getElementById('jornadaE2').value = '13:00';
+                document.getElementById('jornadaS2').value = '18:00';
+                document.getElementById('motoristaAdNoturno').checked = false;
+            }
+        }
+
+        async function salvarMotorista() {
+            const editCod = document.getElementById('motoristaEditId').value;
+            const motorista = {
+                cod: parseInt(document.getElementById('motoristaCod').value),
+                nome: document.getElementById('motoristaNome').value.toUpperCase(),
+                funcao: document.getElementById('motoristaFuncao').value.toUpperCase(),
+                jornada: {
+                    e1: document.getElementById('jornadaE1').value,
+                    s1: document.getElementById('jornadaS1').value,
+                    e2: document.getElementById('jornadaE2').value,
+                    s2: document.getElementById('jornadaS2').value,
+                },
+                tolerancia: parseInt(document.getElementById('motoristaTolerancia').value),
+                adNoturno: document.getElementById('motoristaAdNoturno').checked,
+                ativo: true
+            };
+            if (!motorista.cod || !motorista.nome) { alert('Preencha código e nome!'); return; }
+            if (editCod) {
+                const existente = appData.motoristas.find(m => m.cod === parseInt(editCod));
+                if (existente) motorista.firebaseId = existente.firebaseId;
+                appData.motoristas = appData.motoristas.filter(m => m.cod !== parseInt(editCod));
+            }
+            appData.motoristas.push(motorista);
+            await salvarMotoristaFB(motorista);
+            fecharModal('modalMotorista');
+            carregarSelectsMotoristas();
+            carregarTabelaMotoristas();
+        }
+
+        function editarMotorista(cod) { abrirModalMotorista(cod); }
+
+        async function excluirMotorista(cod) {
+            if (confirm('Excluir motorista código ' + cod + '?')) {
+                await excluirMotoristaFB(cod);
+                carregarSelectsMotoristas();
+                carregarTabelaMotoristas();
+            }
+        }
+
+        // ============ PONTO MENSAL ============
+        async function carregarPonto() {
+            const cod = parseInt(document.getElementById('pontoMotorista').value) || appData.motoristas[0]?.cod;
+            const mes = parseInt(document.getElementById('pontoMes').value);
+            const ano = parseInt(document.getElementById('pontoAno').value);
+            if (!cod || !mes || !ano) return;
+
+            const motorista = appData.motoristas.find(m => m.cod === cod);
+            if (!motorista) return;
+
+            const fbPontos = await carregarPontosFB(cod, mes, ano);
+            if (fbPontos) Object.assign(appData.ponto, fbPontos);
+
+            const diasNoMes = getDiasNoMes(mes, ano);
+            let html = `<table><thead><tr><th>Dia</th><th>Sem.</th><th>Folga</th><th>Ent1</th><th>Sai1</th><th>Ent2</th><th>Sai2</th><th>Ent3</th><th>Sai3</th><th>Horas Trab.</th><th>Extras</th></tr></thead><tbody>`;
+            let totalHT = 0,
+                totalExtras = 0;
+
+            for (let dia = 1; dia <= diasNoMes; dia++) {
+                const key = `${cod}_${mes}_${ano}_${dia}`;
+                const reg = appData.ponto[key] || { e1: '', s1: '', e2: '', s2: '', e3: '', s3: '', folga: false };
+                const semana = getSemana(dia, mes, ano);
+                const isFolga = reg.folga || semana === 'DOM';
+                let ht = 0;
+                if (!isFolga && reg.e1 && reg.s1) {
+                    ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) +
+                        (timeToHours(reg.s2) - timeToHours(reg.e2)) +
+                        (timeToHours(reg.s3) - timeToHours(reg.e3));
+                    if (ht < 0) ht = 0;
+                }
+                const jp = timeToHours(motorista.jornada.s2) - timeToHours(motorista.jornada.e1) -
+                    (timeToHours(motorista.jornada.e2) - timeToHours(motorista.jornada.s1));
+                const extras = ht - jp;
+                if (ht > 0) totalHT += ht;
+                if (extras > 0.1) totalExtras += extras;
+
+                html += `<tr data-key="${key}" style="${isFolga?'background:#fff3e0':''}">
+                <td><strong>${dia}</strong></td><td>${semana}</td>
+                <td><input type="checkbox" ${isFolga?'checked':''} onchange="toggleFolga('${key}',${cod},${mes},${ano},${dia},this.checked)"></td>
+                <td><input type="time" value="${reg.e1||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','e1',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td><input type="time" value="${reg.s1||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','s1',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td><input type="time" value="${reg.e2||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','e2',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td><input type="time" value="${reg.s2||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','s2',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td><input type="time" value="${reg.e3||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','e3',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td><input type="time" value="${reg.s3||''}" ${isFolga?'disabled':''} onchange="updatePonto('${key}','s3',this.value,${cod},${mes},${ano},${dia})"></td>
+                <td>${ht>0?formatHoras(ht):'-'}</td>
+                <td style="color:${extras>0.1?'green':extras<-0.1?'red':''}">${Math.abs(extras)>0.05?formatHoras(extras):'-'}</td></tr>`;
+            }
+            html += `</tbody></table>`;
+            document.getElementById('pontoContainer').innerHTML = html;
+            document.getElementById('totaisPonto').innerHTML = `
+            <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Total Horas</div></div>
+            <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras)}</div><div class="stat-label">Extras</div></div>`;
+        }
+
+        async function toggleFolga(key, cod, mes, ano, dia, isFolga) {
+            const dados = { e1: '', s1: '', e2: '', s2: '', e3: '', s3: '', folga: isFolga };
+            await salvarPontoFB(cod, mes, ano, dia, dados);
+            carregarPonto();
+        }
+
+        async function updatePonto(key, campo, valor, cod, mes, ano, dia) {
+            if (!appData.ponto[key]) appData.ponto[key] = { e1: '', s1: '', e2: '', s2: '', e3: '', s3: '',
+            folga: false };
+            appData.ponto[key][campo] = valor;
+            await salvarPontoFB(cod, mes, ano, dia, appData.ponto[key]);
+        }
+
+        function salvarPonto() {
+            saveLocalData(appData);
+            alert('✅ Registros salvos! (Firebase sincroniza automaticamente)');
+        }
+
+        // ============ BANCO DE HORAS ============
+        function carregarBancoHoras() {
+            let rows = '';
+            appData.motoristas.filter(m => m.ativo !== false).forEach(m => {
+                let saldoTotal = 0;
+                for (let mes = 1; mes <= 12; mes++) {
+                    const ano = 2025;
+                    let totalHT = 0,
+                        totalExtras = 0,
+                        totalFaltas = 0;
+                    for (let dia = 1; dia <= getDiasNoMes(mes, ano); dia++) {
+                        const reg = appData.ponto[`${m.cod}_${mes}_${ano}_${dia}`];
+                        if (!reg || reg.folga) continue;
+                        const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(
+                            reg.e2)) + (timeToHours(reg.s3) - timeToHours(reg.e3));
+                        if (ht <= 0) continue;
+                        const jp = timeToHours(m.jornada.s2) - timeToHours(m.jornada.e1) - (timeToHours(m.jornada.e2) -
+                            timeToHours(m.jornada.s1));
+                        totalHT += ht;
+                        const extras = ht - jp - (m.tolerancia / 60);
+                        if (extras > 0) totalExtras += extras;
+                        else if (extras < -0.1) totalFaltas += Math.abs(extras);
+                    }
+                    const saldoMes = totalExtras - totalFaltas;
+                    saldoTotal += saldoMes;
+                    if (totalHT > 0 || totalExtras > 0 || totalFaltas > 0) {
+                        rows += `<tr><td>${m.nome}</td><td>${mes}/${ano}</td><td>${formatHoras(totalHT)}</td><td>-</td>
+                        <td class="text-success">${formatHoras(totalExtras)}</td><td>-</td>
+                        <td class="text-danger">${formatHoras(totalFaltas)}</td><td>-</td>
+                        <td class="${saldoMes>=0?'text-success':'text-danger'}">${formatHoras(saldoMes)}</td>
+                        <td class="${saldoTotal>=0?'text-success':'text-danger'}"><strong>${formatHoras(saldoTotal)}</strong></td></tr>`;
                     }
                 }
             });
-        });
-    }
-    
-    // Reset mês
-    async function resetCurrentMonth() {
-        let monthIdx = prompt("Digite o número do mês para limpar (1=Janeiro a 12=Dezembro):", "");
-        if(monthIdx === null) return;
-        let m = parseInt(monthIdx) - 1;
-        if(isNaN(m) || m < 0 || m > 11) {
-            alert("Mês inválido.");
-            return;
+            document.getElementById('tabelaBancoHoras').innerHTML = rows ||
+                '<tr><td colspan="10" style="text-align:center">Nenhum registro</td></tr>';
         }
-        
-        if(confirm(`Tem certeza que deseja limpar todos os lançamentos de ${MONTHS[m]}?`)) {
-            const daysInMonth = new Date(currentYear, m+1, 0).getDate();
-            for(let d = 1; d <= daysInMonth; d++) {
-                if(localData[m] && localData[m][d] !== undefined) {
-                    delete localData[m][d];
+
+        function atualizarBancoHoras() { carregarBancoHoras();
+            atualizarPainel(); }
+
+        // ============ PAGAMENTOS ============
+        async function carregarPagamentos() {
+            const pagamentos = await carregarPagamentosFB();
+            let saldoPorMotorista = {};
+            appData.motoristas.filter(m => m.ativo !== false).forEach(m => {
+                let saldo = 0;
+                for (let mes = 1; mes <= 12; mes++) {
+                    for (let dia = 1; dia <= getDiasNoMes(mes, 2025); dia++) {
+                        const reg = appData.ponto[`${m.cod}_${mes}_2025_${dia}`];
+                        if (!reg || reg.folga) continue;
+                        const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(
+                            reg.e2));
+                        if (ht <= 0) continue;
+                        const jp = timeToHours(m.jornada.s2) - timeToHours(m.jornada.e1) - (timeToHours(m.jornada.e2) -
+                            timeToHours(m.jornada.s1));
+                        const extras = ht - jp - (m.tolerancia / 60);
+                        if (extras > 0) saldo += extras;
+                    }
                 }
-            }
-            renderAllMonths();
-            await saveToFirebase(currentDriver, currentYear);
-            alert(`Mês ${MONTHS[m]} limpo com sucesso!`);
+                saldoPorMotorista[m.cod] = saldo;
+            });
+            pagamentos.forEach(p => { if (saldoPorMotorista[p.codMotorista] !== undefined) saldoPorMotorista[p
+                    .codMotorista] -= p.horas; });
+
+            document.getElementById('tabelaPagamentos').innerHTML = pagamentos.map(p => {
+                const motorista = appData.motoristas.find(m => m.cod === p.codMotorista);
+                const saldoAntes = (saldoPorMotorista[p.codMotorista] || 0) + p.horas;
+                const saldoDepois = saldoPorMotorista[p.codMotorista] || 0;
+                return `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                <td>${motorista?.nome||p.codMotorista}</td><td>${formatHoras(p.horas)}</td>
+                <td class="money">${formatMoney(p.valorHora)}</td>
+                <td class="money"><strong>${formatMoney(p.horas*p.valorHora)}</strong></td>
+                <td>${formatHoras(saldoAntes)}</td>
+                <td class="${saldoDepois>=0?'text-success':'text-danger'}">${formatHoras(saldoDepois)}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="excluirPagamento('${p.firebaseId||p.id}')">🗑️</button></td></tr>`;
+            }).join('') || '<tr><td colspan="8" style="text-align:center">Nenhum pagamento registrado</td></tr>';
         }
-    }
-    
-    // Trocar motorista
-    async function setDriver(driverIdx) {
-        currentDriver = driverIdx;
-        document.querySelectorAll('.driver-btn').forEach((btn, idx) => {
-            if(parseInt(btn.getAttribute('data-driver')) === driverIdx) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
+
+        function setupPagamentoCalc() {
+            document.getElementById('pagHoras').addEventListener('input', calcPagamento);
+            document.getElementById('pagValorHora').addEventListener('input', calcPagamento);
+        }
+
+        function calcPagamento() {
+            const h = parseFloat(document.getElementById('pagHoras').value) || 0;
+            const v = parseFloat(document.getElementById('pagValorHora').value) || 0;
+            document.getElementById('pagValorTotal').textContent = formatMoney(h * v);
+        }
+
+        function abrirModalPagamento() {
+            document.getElementById('modalPagamento').classList.add('active');
+            carregarSelectsMotoristas();
+            calcPagamento();
+        }
+
+        async function salvarPagamento() {
+            const pagamento = {
+                codMotorista: parseInt(document.getElementById('pagMotorista').value),
+                data: document.getElementById('pagData').value,
+                horas: parseFloat(document.getElementById('pagHoras').value),
+                valorHora: parseFloat(document.getElementById('pagValorHora').value),
+                id: Date.now().toString()
+            };
+            if (!pagamento.codMotorista || !pagamento.data || !pagamento.horas || pagamento.horas <= 0) {
+                alert('Preencha todos os campos!');
+                return;
             }
+            await salvarPagamentoFB(pagamento);
+            fecharModal('modalPagamento');
+            await carregarPagamentos();
+            atualizarPainel();
+        }
+
+        async function excluirPagamento(firebaseId) {
+            if (confirm('Excluir este pagamento?')) {
+                await excluirPagamentoFB(firebaseId);
+                await carregarPagamentos();
+            }
+        }
+
+        // ============ MODAL ============
+        function fecharModal(id) { document.getElementById(id).classList.remove('active'); }
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
         });
-        await loadFromFirebase(currentDriver, currentYear);
-    }
-    
-    // Trocar ano
-    async function changeYear(delta) {
-        let newYear = currentYear + delta;
-        if(newYear < 2023) newYear = 2023;
-        if(newYear > 2030) newYear = 2030;
-        currentYear = newYear;
-        await loadFromFirebase(currentDriver, currentYear);
-    }
-    
-    // Event Listeners
-    document.getElementById("prevYearBtn").addEventListener("click", () => changeYear(-1));
-    document.getElementById("nextYearBtn").addEventListener("click", () => changeYear(1));
-    document.getElementById("resetMonthBtn").addEventListener("click", resetCurrentMonth);
-    document.getElementById("syncNowBtn").addEventListener("click", async () => {
-        await saveToFirebase(currentDriver, currentYear);
-        alert("Sincronização manual concluída!");
-    });
-    
-    // Botões motorista
-    document.querySelectorAll('.driver-btn').forEach(btn => {
-        btn.addEventListener("click", () => {
-            const driverIdx = parseInt(btn.getAttribute("data-driver"));
-            setDriver(driverIdx);
-        });
-    });
-    
-    // Inicialização
-    async function init() {
-        // Aguardar Firebase
-        const waitForFirebase = setInterval(() => {
-            if(window.firebaseReady && window.db) {
-                clearInterval(waitForFirebase);
-                console.log("Firebase pronto, iniciando app...");
-                setDriver(0);
-            }
-        }, 100);
-        
-        setTimeout(() => {
-            if(!window.firebaseReady) {
-                clearInterval(waitForFirebase);
-                alert("Erro ao conectar com Firebase. Recarregue a página.");
-                loadingOverlay.classList.remove('active');
-            }
-        }, 5000);
-    }
-    
-    init();
-</script>
+
+        // ============ INICIAR ============
+        init();
+      </script>
+
+  <script src="/js/main.js"></script>
 </body>
+
 </html>
+
