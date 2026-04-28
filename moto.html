@@ -18,9 +18,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    <!-- CSS ESPECÍFICO DO COMPONENTE (sem conflito com Topbar/Sidebar existentes) -->
     <style>
-        /* ============ VARIÁVEIS (usa as mesmas do seu sistema ou cria fallback) ============ */
+        /* ============ VARIÁVEIS ============ */
         :root {
             --primary: #1a73e8;
             --primary-dark: #1557b0;
@@ -35,12 +34,11 @@
             --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
 
-        /* ============ COMPONENTE DE COTAÇÃO - CSS ESPECÍFICO ============ */
+        /* Componente Cotação */
         .cotacao-container {
             padding: 1.5rem;
         }
 
-        /* Status Firebase (dentro da topbar existente) */
         .firebase-status {
             display: inline-flex;
             align-items: center;
@@ -78,7 +76,6 @@
             50% { opacity: 0.4; }
         }
 
-        /* Cards específicos */
         .cotacao-card {
             background: var(--card);
             border-radius: 12px;
@@ -103,7 +100,6 @@
             color: var(--text);
         }
 
-        /* Stats */
         .stats-grid {
             display: grid;
             gap: 1rem;
@@ -118,17 +114,9 @@
             border-left: 4px solid var(--primary);
         }
 
-        .stat-card.success {
-            border-left-color: var(--success);
-        }
-
-        .stat-card.danger {
-            border-left-color: var(--danger);
-        }
-
-        .stat-card.warning {
-            border-left-color: var(--warning);
-        }
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-card.danger { border-left-color: var(--danger); }
+        .stat-card.warning { border-left-color: var(--warning); }
 
         .stat-value {
             font-size: 1.75rem;
@@ -150,7 +138,6 @@
             margin-top: 0.25rem;
         }
 
-        /* Tabelas */
         .table-container {
             overflow-x: auto;
             border-radius: 8px;
@@ -180,7 +167,6 @@
             background: #f8f9fa;
         }
 
-        /* Tabs da cotação */
         .cotacao-tabs {
             display: flex;
             gap: 0.25rem;
@@ -216,7 +202,6 @@
             display: block;
         }
 
-        /* Toolbar */
         .toolbar {
             display: flex;
             gap: 0.75rem;
@@ -232,7 +217,6 @@
             font-size: 0.8rem;
         }
 
-        /* Botões (compatíveis com seus botões existentes) */
         .btn-cotacao {
             padding: 0.5rem 1rem;
             border: none;
@@ -246,42 +230,14 @@
             gap: 0.5rem;
         }
 
-        .btn-cotacao-primary {
-            background: var(--primary);
-            color: white;
-        }
+        .btn-cotacao-primary { background: var(--primary); color: white; }
+        .btn-cotacao-primary:hover { background: var(--primary-dark); }
+        .btn-cotacao-success { background: var(--success); color: white; }
+        .btn-cotacao-danger { background: var(--danger); color: white; }
+        .btn-cotacao-warning { background: var(--warning); color: #1a1a1a; }
+        .btn-cotacao-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-cotacao-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
 
-        .btn-cotacao-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-cotacao-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-cotacao-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-cotacao-warning {
-            background: var(--warning);
-            color: #1a1a1a;
-        }
-
-        .btn-cotacao-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-
-        .btn-cotacao-sm {
-            padding: 0.3rem 0.6rem;
-            font-size: 0.75rem;
-        }
-
-        /* Formulários */
         .form-group {
             margin-bottom: 0.75rem;
         }
@@ -303,7 +259,6 @@
             font-size: 0.85rem;
         }
 
-        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -352,7 +307,6 @@
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         }
 
-        /* Loading */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -384,37 +338,24 @@
             to { transform: rotate(360deg); }
         }
 
-        .text-success {
-            color: var(--success);
-        }
-
-        .text-danger {
-            color: var(--danger);
-        }
-
-        .money {
-            font-family: monospace;
-            font-weight: 600;
-        }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--danger); }
+        .money { font-family: monospace; font-weight: 600; }
     </style>
 </head>
 
 <body>
 
-    <!-- Loading -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <p style="margin-top: 1rem;">Carregando dados...</p>
     </div>
 
-    <!-- ÁREA ONDE O COMPONENTE SERÁ INSERIDO (DENTRO DO SEU MAIN CONTENT) -->
     <div class="cotacao-container">
-        <!-- Status Firebase (adicione isso dentro da sua topbar) -->
-        <span id="firebaseStatus" class="firebase-status offline" style="display: none;">
+        <span id="firebaseStatus" class="firebase-status offline">
             <span class="dot"></span> Conectando...
         </span>
 
-        <!-- Tabs da Cotação -->
         <nav class="cotacao-tabs" id="tabsNav">
             <button class="cotacao-tab active" data-tab="painel">📊 Painel</button>
             <button class="cotacao-tab" data-tab="cadastro">👥 Motoristas</button>
@@ -423,30 +364,28 @@
             <button class="cotacao-tab" data-tab="pagamentos">💰 Pagamentos</button>
         </nav>
 
-        <!-- Painel / Dashboard -->
         <div class="cotacao-tab-content active" id="tab-painel">
             <div class="toolbar" style="margin-bottom:1rem">
                 <label>Motorista:</label>
-                <select id="painelMotorista" onchange="atualizarPainel()"></select>
+                <select id="painelMotorista" onchange="window.atualizarPainel()"></select>
                 <label>Mês:</label>
-                <select id="painelMes" onchange="atualizarPainel()">
+                <select id="painelMes" onchange="window.atualizarPainel()">
                     <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
                     <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
                     <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
                     <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
                 </select>
                 <label>Ano:</label>
-                <input type="number" id="painelAno" value="2025" style="width:80px" onchange="atualizarPainel()">
+                <input type="number" id="painelAno" value="2025" style="width:80px" onchange="window.atualizarPainel()">
             </div>
             <div class="stats-grid" id="statsContainer"></div>
         </div>
 
-        <!-- Cadastro Motoristas -->
         <div class="cotacao-tab-content" id="tab-cadastro">
             <div class="cotacao-card">
                 <div class="card-header">
                     <span class="card-title">👥 Motoristas Cadastrados</span>
-                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="abrirModalMotorista()">+ Novo</button>
+                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="window.abrirModalMotorista()">+ Novo</button>
                 </div>
                 <div class="table-container">
                     <table>
@@ -459,24 +398,23 @@
             </div>
         </div>
 
-        <!-- Ponto Mensal -->
         <div class="cotacao-tab-content" id="tab-ponto">
             <div class="cotacao-card">
                 <div class="card-header">
                     <span class="card-title">📅 Registro de Ponto</span>
                     <div class="toolbar">
                         <label>Motorista:</label>
-                        <select id="pontoMotorista" onchange="carregarPonto()"></select>
+                        <select id="pontoMotorista" onchange="window.carregarPonto()"></select>
                         <label>Mês:</label>
-                        <select id="pontoMes" onchange="carregarPonto()">
+                        <select id="pontoMes" onchange="window.carregarPonto()">
                             <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
                             <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
                             <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
                             <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
                         </select>
                         <label>Ano:</label>
-                        <input type="number" id="pontoAno" value="2025" style="width:80px" onchange="carregarPonto()">
-                        <button class="btn-cotacao btn-cotacao-primary btn-cotacao-sm" onclick="salvarPonto()">💾 Salvar</button>
+                        <input type="number" id="pontoAno" value="2025" style="width:80px" onchange="window.carregarPonto()">
+                        <button class="btn-cotacao btn-cotacao-primary btn-cotacao-sm" onclick="window.salvarPonto()">💾 Salvar</button>
                     </div>
                 </div>
                 <div class="table-container" id="pontoContainer"></div>
@@ -484,36 +422,30 @@
             </div>
         </div>
 
-        <!-- Banco de Horas -->
         <div class="cotacao-tab-content" id="tab-banco">
             <div class="cotacao-card">
                 <div class="card-header">
                     <span class="card-title">🏦 Saldo Banco de Horas</span>
-                    <button class="btn-cotacao btn-cotacao-warning btn-cotacao-sm" onclick="atualizarBancoHoras()">🔄 Atualizar</button>
+                    <button class="btn-cotacao btn-cotacao-warning btn-cotacao-sm" onclick="window.atualizarBancoHoras()">🔄 Atualizar</button>
                 </div>
                 <div class="table-container">
                     <table>
-                        <thead>
-                            <tr><th>Motorista</th><th>Mês/Ano</th><th>Horas Trab.</th><th>Jornada</th><th>Extras</th><th>Faltas</th><th>Ad.Noturno</th><th>Saldo Mês</th><th>Saldo Acum.</th></tr>
-                        </thead>
+                        <thead><tr><th>Motorista</th><th>Mês/Ano</th><th>Horas Trab.</th><th>Extras</th><th>Faltas</th><th>Saldo Mês</th><th>Saldo Acum.</th></tr></thead>
                         <tbody id="tabelaBancoHoras"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Pagamentos -->
         <div class="cotacao-tab-content" id="tab-pagamentos">
             <div class="cotacao-card">
                 <div class="card-header">
                     <span class="card-title">💰 Pagamentos de Horas</span>
-                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="abrirModalPagamento()">+ Pagamento</button>
+                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="window.abrirModalPagamento()">+ Pagamento</button>
                 </div>
                 <div class="table-container">
                     <table>
-                        <thead>
-                            <tr><th>Data</th><th>Motorista</th><th>Qtd Horas</th><th>Valor/Hora</th><th>Valor Total</th><th>Saldo Anterior</th><th>Saldo Atual</th><th>Ações</th></tr>
-                        </thead>
+                        <thead><tr><th>Data</th><th>Motorista</th><th>Qtd Horas</th><th>Valor/Hora</th><th>Valor Total</th><th>Ações</th></tr></thead>
                         <tbody id="tabelaPagamentos"></tbody>
                     </table>
                 </div>
@@ -524,456 +456,474 @@
     <!-- Modais -->
     <div class="modal-overlay" id="modalMotorista">
         <div class="modal"><h2 id="modalMotoristaTitulo">Novo Motorista</h2><input type="hidden" id="motoristaEditId">
-            <div class="grid grid-2"><div class="form-group"><label>Código</label><input type="number" id="motoristaCod" placeholder="Ex: 139"></div>
-            <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome" placeholder="Nome completo"></div>
-            <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao" placeholder="Ex: Gerente"></div>
-            <div class="form-group"><label>Tolerância (minutos)</label><input type="number" id="motoristaTolerancia" value="10" step="1"></div></div>
+            <div class="grid grid-2">
+                <div class="form-group"><label>Código</label><input type="number" id="motoristaCod" placeholder="Ex: 139"></div>
+                <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome" placeholder="Nome completo"></div>
+                <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao" placeholder="Ex: Gerente"></div>
+                <div class="form-group"><label>Tolerância (minutos)</label><input type="number" id="motoristaTolerancia" value="10" step="1"></div>
+            </div>
             <h4 style="margin:1rem 0 0.5rem">Jornada Padrão</h4>
-            <div class="grid grid-2"><div class="form-group"><label>Entrada 1</label><input type="time" id="jornadaE1" value="08:00"></div>
-            <div class="form-group"><label>Saída 1</label><input type="time" id="jornadaS1" value="12:00"></div>
-            <div class="form-group"><label>Entrada 2</label><input type="time" id="jornadaE2" value="13:00"></div>
-            <div class="form-group"><label>Saída 2</label><input type="time" id="jornadaS2" value="18:00"></div></div>
+            <div class="grid grid-2">
+                <div class="form-group"><label>Entrada 1</label><input type="time" id="jornadaE1" value="08:00"></div>
+                <div class="form-group"><label>Saída 1</label><input type="time" id="jornadaS1" value="12:00"></div>
+                <div class="form-group"><label>Entrada 2</label><input type="time" id="jornadaE2" value="13:00"></div>
+                <div class="form-group"><label>Saída 2</label><input type="time" id="jornadaS2" value="18:00"></div>
+            </div>
             <div class="form-group"><label><input type="checkbox" id="motoristaAdNoturno"> Aplica Adicional Noturno (22h-5h)</label></div>
-            <div class="modal-actions"><button class="btn-cotacao btn-cotacao-outline" onclick="fecharModal('modalMotorista')">Cancelar</button><button class="btn-cotacao btn-cotacao-success" onclick="salvarMotorista()">Salvar</button></div>
+            <div class="modal-actions">
+                <button class="btn-cotacao btn-cotacao-outline" onclick="window.fecharModal('modalMotorista')">Cancelar</button>
+                <button class="btn-cotacao btn-cotacao-success" onclick="window.salvarMotorista()">Salvar</button>
+            </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="modalPagamento">
         <div class="modal"><h2>Registrar Pagamento</h2>
-            <div class="grid grid-2"><div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
-            <div class="form-group"><label>Data Pagamento</label><input type="date" id="pagData"></div>
-            <div class="form-group"><label>Quantidade Horas</label><input type="number" id="pagHoras" step="0.5" min="0.5" placeholder="Ex: 5.5"></div>
-            <div class="form-group"><label>Valor por Hora (R$)</label><input type="number" id="pagValorHora" step="0.01" min="0.01" value="25.00"></div></div>
+            <div class="grid grid-2">
+                <div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
+                <div class="form-group"><label>Data Pagamento</label><input type="date" id="pagData"></div>
+                <div class="form-group"><label>Quantidade Horas</label><input type="number" id="pagHoras" step="0.5" min="0.5"></div>
+                <div class="form-group"><label>Valor por Hora (R$)</label><input type="number" id="pagValorHora" step="0.01" min="0.01" value="25.00"></div>
+            </div>
             <div class="form-group"><label>Valor Total: <strong id="pagValorTotal">R$ 0,00</strong></label></div>
-            <div class="modal-actions"><button class="btn-cotacao btn-cotacao-outline" onclick="fecharModal('modalPagamento')">Cancelar</button><button class="btn-cotacao btn-cotacao-success" onclick="salvarPagamento()">Registrar Pagamento</button></div>
+            <div class="modal-actions">
+                <button class="btn-cotacao btn-cotacao-outline" onclick="window.fecharModal('modalPagamento')">Cancelar</button>
+                <button class="btn-cotacao btn-cotacao-success" onclick="window.salvarPagamento()">Registrar Pagamento</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // ============ FIREBASE CONFIG ============
-        const firebaseConfig = {
-            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-            authDomain: "system-mil.firebaseapp.com",
-            projectId: "system-mil",
-            storageBucket: "system-mil.firebasestorage.app",
-            messagingSenderId: "138426359863",
-            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
-            measurementId: "G-DYCDBRZSHZ"
-        };
-
-        let db = null;
-        let usandoFirebase = false;
-
-        function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
-        function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
-
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            usandoFirebase = true;
-            const statusEl = document.getElementById('firebaseStatus');
-            if (statusEl) {
-                statusEl.innerHTML = '<span class="dot"></span> Firebase Online';
-                statusEl.classList.add('online');
-                statusEl.style.display = 'inline-flex';
-            }
-        } catch (e) {
-            console.warn('Firebase offline. Usando LocalStorage.');
-            const statusEl = document.getElementById('firebaseStatus');
-            if (statusEl) {
-                statusEl.innerHTML = '<span class="dot"></span> LocalStorage';
-                statusEl.style.display = 'inline-flex';
-            }
-        }
-
-        // ============ DADOS LOCAIS ============
-        const STORAGE_KEY = 'controleMotoristas_systemmil';
-        function getLocalData() { const data = localStorage.getItem(STORAGE_KEY); return data ? JSON.parse(data) : { motoristas: [], ponto: {}, pagamentos: [] }; }
-        function saveLocalData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-        let appData = getLocalData();
-
-        // ============ FUNÇÕES AUXILIARES ============
-        function timeToHours(timeStr) { if (!timeStr) return 0; const [h, m] = timeStr.split(':').map(Number); return h + m / 60; }
-        function formatHoras(horas) { if (isNaN(horas) || horas === undefined) return '0,0h'; const h = Math.floor(Math.abs(horas)); const m = Math.round((Math.abs(horas) - h) * 60); return (horas < 0 ? '-' : '') + h + ',' + String(m).padStart(2, '0') + 'h'; }
-        function formatMoney(valor) { return 'R$ ' + valor.toFixed(2).replace('.', ','); }
-        function getDiasNoMes(mes, ano) { return new Date(ano, mes, 0).getDate(); }
-        function getSemana(dia, mes, ano) { const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB']; return dias[new Date(ano, mes - 1, dia).getDay()]; }
-
-        // ============ MOTORISTAS ============
-        async function carregarMotoristas() {
-            if (usandoFirebase && db) {
-                try {
-                    const snapshot = await db.collection('motoristas').where('ativo', '==', true).get();
-                    appData.motoristas = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-                    saveLocalData(appData);
-                } catch (e) { console.error(e); }
-            }
-            return appData.motoristas;
-        }
-
-        async function salvarMotoristaFB(motorista) {
-            if (usandoFirebase && db) {
-                if (motorista.firebaseId) await db.collection('motoristas').doc(motorista.firebaseId).set(motorista, { merge: true });
-                else {
-                    const snapshot = await db.collection('motoristas').where('cod', '==', motorista.cod).get();
-                    if (!snapshot.empty) await db.collection('motoristas').doc(snapshot.docs[0].id).set(motorista, { merge: true });
-                    else await db.collection('motoristas').add(motorista);
-                }
-            }
-        }
-
-        async function excluirMotoristaFB(cod) {
-            if (usandoFirebase && db) { 
-                const snapshot = await db.collection('motoristas').where('cod', '==', cod).get(); 
-                snapshot.forEach(async (doc) => { await db.collection('motoristas').doc(doc.id).update({ ativo: false }); });
-            }
-            appData.motoristas = appData.motoristas.filter(m => m.cod !== cod);
-            saveLocalData(appData);
-        }
-
-        function carregarSelectsMotoristas() {
-            ['painelMotorista', 'pontoMotorista', 'pagMotorista'].forEach(id => {
-                const select = document.getElementById(id);
-                if (select) select.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `<option value="${m.cod}">${m.nome}</option>`).join('');
-            });
-        }
-
-        function carregarTabelaMotoristas() {
-            const tbody = document.getElementById('tabelaMotoristas');
-            if (!tbody) return;
-            tbody.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `
-                <tr>
-                    <td>${m.cod}</td><td><strong>${m.nome}</strong></td><td>${m.funcao || '-'}</td>
-                    <td>${m.jornada?.e1 || '-'}</td><td>${m.jornada?.s1 || '-'}</td>
-                    <td>${m.jornada?.e2 || '-'}</td><td>${m.jornada?.s2 || '-'}</td>
-                    <td>${m.tolerancia}min</td><td>${m.adNoturno ? '✅' : '❌'}</td>
-                    <td><button class="btn-cotacao btn-cotacao-outline btn-cotacao-sm" onclick="editarMotorista(${m.cod})">✏️</button>
-                    <button class="btn-cotacao btn-cotacao-danger btn-cotacao-sm" onclick="excluirMotorista(${m.cod})">🗑️</button></td>
-                </tr>
-            `).join('');
-        }
-
-        function abrirModalMotorista(cod = null) {
-            const modal = document.getElementById('modalMotorista');
-            if (!modal) return;
-            modal.classList.add('active');
-            if (cod) {
-                document.getElementById('modalMotoristaTitulo').innerText = 'Editar Motorista';
-                const m = appData.motoristas.find(m => m.cod === cod);
-                if (m) {
-                    document.getElementById('motoristaEditId').value = m.cod;
-                    document.getElementById('motoristaCod').value = m.cod;
-                    document.getElementById('motoristaNome').value = m.nome;
-                    document.getElementById('motoristaFuncao').value = m.funcao || '';
-                    document.getElementById('motoristaTolerancia').value = m.tolerancia;
-                    document.getElementById('jornadaE1').value = m.jornada?.e1 || '08:00';
-                    document.getElementById('jornadaS1').value = m.jornada?.s1 || '12:00';
-                    document.getElementById('jornadaE2').value = m.jornada?.e2 || '13:00';
-                    document.getElementById('jornadaS2').value = m.jornada?.s2 || '18:00';
-                    document.getElementById('motoristaAdNoturno').checked = m.adNoturno || false;
-                }
-            } else {
-                document.getElementById('modalMotoristaTitulo').innerText = 'Novo Motorista';
-                ['motoristaEditId', 'motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => document.getElementById(id).value = '');
-                document.getElementById('motoristaTolerancia').value = '10';
-                document.getElementById('jornadaE1').value = '08:00';
-                document.getElementById('jornadaS1').value = '12:00';
-                document.getElementById('jornadaE2').value = '13:00';
-                document.getElementById('jornadaS2').value = '18:00';
-                document.getElementById('motoristaAdNoturno').checked = false;
-            }
-        }
-
-        function editarMotorista(cod) { abrirModalMotorista(cod); }
-
-        async function excluirMotorista(cod) { if (confirm('Excluir motorista?')) { await excluirMotoristaFB(cod); carregarSelectsMotoristas(); carregarTabelaMotoristas(); } }
-
-        async function salvarMotorista() {
-            const motorista = {
-                cod: parseInt(document.getElementById('motoristaCod').value),
-                nome: document.getElementById('motoristaNome').value.toUpperCase(),
-                funcao: document.getElementById('motoristaFuncao').value.toUpperCase(),
-                jornada: { 
-                    e1: document.getElementById('jornadaE1').value, 
-                    s1: document.getElementById('jornadaS1').value, 
-                    e2: document.getElementById('jornadaE2').value, 
-                    s2: document.getElementById('jornadaS2').value 
-                },
-                tolerancia: parseInt(document.getElementById('motoristaTolerancia').value),
-                adNoturno: document.getElementById('motoristaAdNoturno').checked,
-                ativo: true
+        // Garantir que as funções estejam no escopo global
+        (function() {
+            // Firebase Config
+            const firebaseConfig = {
+                apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+                authDomain: "system-mil.firebaseapp.com",
+                projectId: "system-mil",
+                storageBucket: "system-mil.firebasestorage.app",
+                messagingSenderId: "138426359863",
+                appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
             };
-            if (!motorista.cod || !motorista.nome) { alert('Preencha código e nome!'); return; }
-            appData.motoristas = (appData.motoristas || []).filter(m => m.cod !== motorista.cod);
-            appData.motoristas.push(motorista);
-            await salvarMotoristaFB(motorista);
-            fecharModal('modalMotorista');
-            carregarSelectsMotoristas();
-            carregarTabelaMotoristas();
-        }
 
-        // ============ PAINEL ============
-        function atualizarPainel() {
-            const mes = parseInt(document.getElementById('painelMes').value);
-            const ano = parseInt(document.getElementById('painelAno').value);
-            const cod = parseInt(document.getElementById('painelMotorista').value);
-            const motorista = (appData.motoristas || []).find(m => m.cod === cod);
-            if (!motorista) return;
+            let db = null;
+            let usandoFirebase = false;
+            let appData = { motoristas: [], ponto: {}, pagamentos: [] };
 
-            const diasNoMes = getDiasNoMes(mes, ano);
-            let totalHT = 0, totalExtras50 = 0, totalExtras100 = 0, totalFaltas = 0, diasTrab = 0, diasFolga = 0, totalAdNoturno = 0;
-
-            for (let dia = 1; dia <= diasNoMes; dia++) {
-                const key = `${cod}_${mes}_${ano}_${dia}`;
-                const reg = appData.ponto[key];
-                if (!reg || reg.folga) { if (reg?.folga) diasFolga++; continue; }
-
-                const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(reg.e2)) + (timeToHours(reg.s3) - timeToHours(reg.e3));
-                if (ht <= 0) continue;
-                const jp = timeToHours(motorista.jornada.s2) - timeToHours(motorista.jornada.e1) - (timeToHours(motorista.jornada.e2) - timeToHours(motorista.jornada.s1));
-                diasTrab++;
-                totalHT += ht;
-                const extras = ht - jp;
-                const tol = motorista.tolerancia / 60;
-                if (extras > tol) {
-                    const ex = extras - tol;
-                    totalExtras50 += Math.min(ex, 2);
-                    totalExtras100 += Math.max(0, ex - 2);
-                } else if (extras < -tol) totalFaltas += Math.abs(extras);
-                if (motorista.adNoturno && (timeToHours(reg.s3) > 22 || timeToHours(reg.e1) < 5)) totalAdNoturno += Math.min(2, ht * 0.2);
+            // Carregar dados locais
+            const STORAGE_KEY = 'controleMotoristas_systemmil';
+            function loadLocalData() {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) appData = JSON.parse(data);
+                else appData = { motoristas: [], ponto: {}, pagamentos: [] };
             }
-
-            const container = document.getElementById('statsContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="stat-card"><div class="stat-value">${diasTrab}/${diasNoMes}</div><div class="stat-label">Dias Trabalhados</div><div class="stat-sub">${diasFolga} folgas</div></div>
-                    <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Horas Trabalhadas</div></div>
-                    <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras50+totalExtras100)}</div><div class="stat-label">Horas Extras</div><div class="stat-sub">50%: ${formatHoras(totalExtras50)} | 100%: ${formatHoras(totalExtras100)}</div></div>
-                    <div class="stat-card danger"><div class="stat-value">${formatHoras(totalFaltas)}</div><div class="stat-label">Faltas/Atrasos</div></div>
-                    <div class="stat-card warning"><div class="stat-value">${formatHoras(totalAdNoturno)}</div><div class="stat-label">Adic. Noturno</div></div>
-                `;
-            }
-        }
-
-        // ============ PONTO ============
-        async function carregarPonto() {
-            const cod = parseInt(document.getElementById('pontoMotorista').value);
-            const mes = parseInt(document.getElementById('pontoMes').value);
-            const ano = parseInt(document.getElementById('pontoAno').value);
-            const motorista = (appData.motoristas || []).find(m => m.cod === cod);
-            if (!motorista) return;
-
-            const diasNoMes = getDiasNoMes(mes, ano);
-            let html = `<table><thead><tr><th>Dia</th><th>Sem.</th><th>Folga</th><th>Ent1</th><th>Sai1</th><th>Ent2</th><th>Sai2</th><th>Ent3</th><th>Sai3</th><th>Horas</th><th>Extras</th></tr></thead><tbody>`;
-            let totalHT = 0, totalExtras = 0;
-
-            for (let dia = 1; dia <= diasNoMes; dia++) {
-                const key = `${cod}_${mes}_${ano}_${dia}`;
-                const reg = appData.ponto[key] || { e1: '', s1: '', e2: '', s2: '', e3: '', s3: '', folga: false };
-                const isFolga = reg.folga || getSemana(dia, mes, ano) === 'DOM';
-                let ht = 0;
-                if (!isFolga && reg.e1 && reg.s1) {
-                    ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(reg.e2)) + (timeToHours(reg.s3) - timeToHours(reg.e3));
-                    if (ht < 0) ht = 0;
-                }
-                const jp = timeToHours(motorista.jornada.s2) - timeToHours(motorista.jornada.e1) - (timeToHours(motorista.jornada.e2) - timeToHours(motorista.jornada.s1));
-                const extras = ht - jp;
-                if (ht > 0) totalHT += ht;
-                if (extras > 0.1) totalExtras += extras;
-
-                html += `<tr data-key="${key}" style="${isFolga ? 'background:#fff3e0' : ''}">
-                    <td><strong>${dia}</strong></td><td>${getSemana(dia, mes, ano)}</td>
-                    <td><input type="checkbox" ${isFolga ? 'checked' : ''} onchange="toggleFolga('${key}',${cod},${mes},${ano},${dia},this.checked)"></td>
-                    <td><input type="time" value="${reg.e1 || ''}" onchange="updatePonto('${key}','e1',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td><input type="time" value="${reg.s1 || ''}" onchange="updatePonto('${key}','s1',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td><input type="time" value="${reg.e2 || ''}" onchange="updatePonto('${key}','e2',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td><input type="time" value="${reg.s2 || ''}" onchange="updatePonto('${key}','s2',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td><input type="time" value="${reg.e3 || ''}" onchange="updatePonto('${key}','e3',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td><input type="time" value="${reg.s3 || ''}" onchange="updatePonto('${key}','s3',this.value,${cod},${mes},${ano},${dia})"></td>
-                    <td>${ht > 0 ? formatHoras(ht) : '-'}</td>
-                    <td style="color:${extras > 0.1 ? 'green' : extras < -0.1 ? 'red' : ''}">${Math.abs(extras) > 0.05 ? formatHoras(extras) : '-'}</td>
-                </tr>`;
-            }
-            html += `</tbody></table>`;
-            const pontoContainer = document.getElementById('pontoContainer');
-            if (pontoContainer) pontoContainer.innerHTML = html;
+            function saveLocalData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
             
-            const totaisPonto = document.getElementById('totaisPonto');
-            if (totaisPonto) {
-                totaisPonto.innerHTML = `
-                    <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Total Horas</div></div>
-                    <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras)}</div><div class="stat-label">Extras</div></div>
-                `;
+            loadLocalData();
+
+            // Inicializar Firebase
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                usandoFirebase = true;
+                const statusEl = document.getElementById('firebaseStatus');
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="dot"></span> Firebase Online';
+                    statusEl.classList.add('online');
+                }
+                console.log('Firebase conectado');
+            } catch (e) {
+                console.warn('Firebase offline:', e);
+                const statusEl = document.getElementById('firebaseStatus');
+                if (statusEl) statusEl.innerHTML = '<span class="dot"></span> LocalStorage';
             }
-        }
 
-        async function updatePonto(key, campo, valor, cod, mes, ano, dia) {
-            if (!appData.ponto[key]) appData.ponto[key] = {};
-            appData.ponto[key][campo] = valor;
-            if (usandoFirebase && db) await db.collection('pontos').doc(key).set({ key, codMotorista: cod, mes, ano, dia, [campo]: valor }, { merge: true });
-            saveLocalData(appData);
-        }
+            // Funções auxiliares
+            function timeToHours(timeStr) { if (!timeStr) return 0; const [h, m] = timeStr.split(':').map(Number); return h + m / 60; }
+            function formatHoras(horas) { if (isNaN(horas) || horas === undefined) return '0,0h'; const h = Math.floor(Math.abs(horas)); const m = Math.round((Math.abs(horas) - h) * 60); return (horas < 0 ? '-' : '') + h + ',' + String(m).padStart(2, '0') + 'h'; }
+            function formatMoney(valor) { return 'R$ ' + valor.toFixed(2).replace('.', ','); }
+            function getDiasNoMes(mes, ano) { return new Date(ano, mes, 0).getDate(); }
+            function getSemana(dia, mes, ano) { const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB']; return dias[new Date(ano, mes - 1, dia).getDay()]; }
+            function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
+            function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
 
-        async function toggleFolga(key, cod, mes, ano, dia, isFolga) {
-            if (!appData.ponto[key]) appData.ponto[key] = {};
-            appData.ponto[key].folga = isFolga;
-            if (usandoFirebase && db) await db.collection('pontos').doc(key).set({ key, codMotorista: cod, mes, ano, dia, folga: isFolga }, { merge: true });
-            saveLocalData(appData);
-            carregarPonto();
-        }
+            // Carregar motoristas do Firebase
+            async function carregarMotoristas() {
+                if (usandoFirebase && db) {
+                    try {
+                        const snapshot = await db.collection('motoristas').where('ativo', '==', true).get();
+                        appData.motoristas = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+                        saveLocalData();
+                    } catch (e) { console.error(e); }
+                }
+                return appData.motoristas;
+            }
 
-        function salvarPonto() { saveLocalData(appData); alert('✅ Registros salvos!'); }
-
-        // ============ BANCO DE HORAS ============
-        function carregarBancoHoras() {
-            let rows = '';
-            (appData.motoristas || []).filter(m => m.ativo !== false).forEach(m => {
-                let saldoTotal = 0;
-                for (let mes = 1; mes <= 12; mes++) {
-                    let totalHT = 0, totalExtras = 0, totalFaltas = 0;
-                    for (let dia = 1; dia <= getDiasNoMes(mes, 2025); dia++) {
-                        const reg = appData.ponto[`${m.cod}_${mes}_2025_${dia}`];
-                        if (!reg || reg.folga) continue;
-                        const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(reg.e2));
-                        if (ht <= 0) continue;
-                        const jp = timeToHours(m.jornada.s2) - timeToHours(m.jornada.e1) - (timeToHours(m.jornada.e2) - timeToHours(m.jornada.s1));
-                        totalHT += ht;
-                        const extras = ht - jp - (m.tolerancia / 60);
-                        if (extras > 0) totalExtras += extras;
-                        else if (extras < -0.1) totalFaltas += Math.abs(extras);
-                    }
-                    const saldoMes = totalExtras - totalFaltas;
-                    saldoTotal += saldoMes;
-                    if (totalHT > 0) {
-                        rows += `<tr>
-                            <td>${m.nome}</td><td>${mes}/2025</td><td>${formatHoras(totalHT)}</td><td>-</td>
-                            <td class="text-success">${formatHoras(totalExtras)}</td>
-                            <td class="text-danger">${formatHoras(totalFaltas)}</td><td>-</td>
-                            <td class="${saldoMes >= 0 ? 'text-success' : 'text-danger'}">${formatHoras(saldoMes)}</td>
-                            <td class="${saldoTotal >= 0 ? 'text-success' : 'text-danger'}"><strong>${formatHoras(saldoTotal)}</strong></td>
-                        </tr>`;
+            async function salvarMotoristaFB(motorista) {
+                if (usandoFirebase && db) {
+                    if (motorista.firebaseId) {
+                        await db.collection('motoristas').doc(motorista.firebaseId).set(motorista, { merge: true });
+                    } else {
+                        const snapshot = await db.collection('motoristas').where('cod', '==', motorista.cod).get();
+                        if (!snapshot.empty) {
+                            await db.collection('motoristas').doc(snapshot.docs[0].id).set(motorista, { merge: true });
+                        } else {
+                            const docRef = await db.collection('motoristas').add(motorista);
+                            motorista.firebaseId = docRef.id;
+                        }
                     }
                 }
-            });
-            const tabelaBanco = document.getElementById('tabelaBancoHoras');
-            if (tabelaBanco) tabelaBanco.innerHTML = rows || '<tr><td colspan="9">Nenhum registro</td></tr>';
-        }
-
-        function atualizarBancoHoras() { carregarBancoHoras(); atualizarPainel(); }
-
-        // ============ PAGAMENTOS ============
-        async function carregarPagamentos() {
-            if (usandoFirebase && db) { 
-                const snapshot = await db.collection('pagamentos').orderBy('data', 'desc').get(); 
-                appData.pagamentos = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() })); 
-                saveLocalData(appData); 
             }
-            const tabelaPag = document.getElementById('tabelaPagamentos');
-            if (!tabelaPag) return;
-            tabelaPag.innerHTML = (appData.pagamentos || []).map(p => {
-                const motorista = (appData.motoristas || []).find(m => m.cod === p.codMotorista);
-                return `<tr>
-                    <td>${new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td>${motorista?.nome || p.codMotorista}</td>
-                    <td>${formatHoras(p.horas)}</td>
-                    <td class="money">${formatMoney(p.valorHora)}</td>
-                    <td class="money"><strong>${formatMoney(p.horas * p.valorHora)}</strong></td>
-                    <td>-</td><td>-</td>
-                    <td><button class="btn-cotacao btn-cotacao-danger btn-cotacao-sm" onclick="excluirPagamento('${p.firebaseId || p.id}')">🗑️</button></td>
-                </tr>`;
-            }).join('') || '<tr><td colspan="8">Nenhum pagamento</td></tr>';
-        }
 
-        async function salvarPagamento() {
-            const pagamento = { 
-                codMotorista: parseInt(document.getElementById('pagMotorista').value), 
-                data: document.getElementById('pagData').value, 
-                horas: parseFloat(document.getElementById('pagHoras').value), 
-                valorHora: parseFloat(document.getElementById('pagValorHora').value), 
-                id: Date.now().toString() 
+            async function excluirMotoristaFB(cod) {
+                if (usandoFirebase && db) {
+                    const snapshot = await db.collection('motoristas').where('cod', '==', cod).get();
+                    snapshot.forEach(async (doc) => {
+                        await db.collection('motoristas').doc(doc.id).update({ ativo: false });
+                    });
+                }
+                appData.motoristas = appData.motoristas.filter(m => m.cod !== cod);
+                saveLocalData();
+            }
+
+            function carregarSelectsMotoristas() {
+                const selects = ['painelMotorista', 'pontoMotorista', 'pagMotorista'];
+                selects.forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `<option value="${m.cod}">${m.nome}</option>`).join('');
+                        if (select.options.length > 0) select.selectedIndex = 0;
+                    }
+                });
+            }
+
+            function carregarTabelaMotoristas() {
+                const tbody = document.getElementById('tabelaMotoristas');
+                if (!tbody) return;
+                tbody.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `
+                    <tr>
+                        <td>${m.cod}</td><td><strong>${m.nome}</strong></td><td>${m.funcao || '-'}</td>
+                        <td>${m.jornada?.e1 || '-'}</td><td>${m.jornada?.s1 || '-'}</td>
+                        <td>${m.jornada?.e2 || '-'}</td><td>${m.jornada?.s2 || '-'}</td>
+                        <td>${m.tolerancia}min</td><td>${m.adNoturno ? '✅' : '❌'}</td>
+                        <td><button class="btn-cotacao btn-cotacao-outline btn-cotacao-sm" onclick="window.editarMotorista(${m.cod})">✏️</button>
+                        <button class="btn-cotacao btn-cotacao-danger btn-cotacao-sm" onclick="window.excluirMotorista(${m.cod})">🗑️</button></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Funções globais
+            window.abrirModalMotorista = function(cod = null) {
+                const modal = document.getElementById('modalMotorista');
+                if (!modal) return;
+                modal.classList.add('active');
+                if (cod) {
+                    document.getElementById('modalMotoristaTitulo').innerText = 'Editar Motorista';
+                    const m = appData.motoristas.find(m => m.cod === cod);
+                    if (m) {
+                        document.getElementById('motoristaEditId').value = m.cod;
+                        document.getElementById('motoristaCod').value = m.cod;
+                        document.getElementById('motoristaNome').value = m.nome;
+                        document.getElementById('motoristaFuncao').value = m.funcao || '';
+                        document.getElementById('motoristaTolerancia').value = m.tolerancia;
+                        document.getElementById('jornadaE1').value = m.jornada?.e1 || '08:00';
+                        document.getElementById('jornadaS1').value = m.jornada?.s1 || '12:00';
+                        document.getElementById('jornadaE2').value = m.jornada?.e2 || '13:00';
+                        document.getElementById('jornadaS2').value = m.jornada?.s2 || '18:00';
+                        document.getElementById('motoristaAdNoturno').checked = m.adNoturno || false;
+                    }
+                } else {
+                    document.getElementById('modalMotoristaTitulo').innerText = 'Novo Motorista';
+                    ['motoristaEditId', 'motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => document.getElementById(id).value = '');
+                    document.getElementById('motoristaTolerancia').value = '10';
+                    document.getElementById('jornadaE1').value = '08:00';
+                    document.getElementById('jornadaS1').value = '12:00';
+                    document.getElementById('jornadaE2').value = '13:00';
+                    document.getElementById('jornadaS2').value = '18:00';
+                    document.getElementById('motoristaAdNoturno').checked = false;
+                }
             };
-            if (!pagamento.codMotorista || !pagamento.data || !pagamento.horas) { alert('Preencha todos os campos!'); return; }
-            if (usandoFirebase && db) await db.collection('pagamentos').add(pagamento);
-            if (!appData.pagamentos) appData.pagamentos = [];
-            appData.pagamentos.push(pagamento);
-            saveLocalData(appData);
-            fecharModal('modalPagamento');
-            await carregarPagamentos();
-        }
 
-        async function excluirPagamento(id) { 
-            if (confirm('Excluir pagamento?')) { 
-                if (usandoFirebase && db && id && id !== 'undefined') await db.collection('pagamentos').doc(id).delete(); 
-                appData.pagamentos = (appData.pagamentos || []).filter(p => p.firebaseId !== id && p.id !== id); 
-                saveLocalData(appData); 
-                await carregarPagamentos(); 
-            } 
-        }
+            window.editarMotorista = function(cod) { window.abrirModalMotorista(cod); };
 
-        function abrirModalPagamento() { 
-            document.getElementById('modalPagamento').classList.add('active'); 
-            carregarSelectsMotoristas(); 
-            document.getElementById('pagData').value = new Date().toISOString().split('T')[0]; 
-            calcPagamento();
-        }
-        
-        function calcPagamento() { 
-            const h = parseFloat(document.getElementById('pagHoras').value) || 0; 
-            const v = parseFloat(document.getElementById('pagValorHora').value) || 0; 
-            const totalEl = document.getElementById('pagValorTotal');
-            if (totalEl) totalEl.innerText = formatMoney(h * v);
-        }
+            window.excluirMotorista = async function(cod) {
+                if (confirm('Excluir motorista?')) {
+                    await excluirMotoristaFB(cod);
+                    carregarSelectsMotoristas();
+                    carregarTabelaMotoristas();
+                    window.atualizarPainel();
+                }
+            };
 
-        // ============ UI ============
-        function fecharModal(id) { 
-            const modal = document.getElementById(id);
-            if (modal) modal.classList.remove('active');
-        }
-        
-        document.addEventListener('click', function(e) { 
-            if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); 
-        });
+            window.salvarMotorista = async function() {
+                const motorista = {
+                    cod: parseInt(document.getElementById('motoristaCod').value),
+                    nome: document.getElementById('motoristaNome').value.toUpperCase(),
+                    funcao: document.getElementById('motoristaFuncao').value.toUpperCase(),
+                    jornada: {
+                        e1: document.getElementById('jornadaE1').value,
+                        s1: document.getElementById('jornadaS1').value,
+                        e2: document.getElementById('jornadaE2').value,
+                        s2: document.getElementById('jornadaS2').value
+                    },
+                    tolerancia: parseInt(document.getElementById('motoristaTolerancia').value),
+                    adNoturno: document.getElementById('motoristaAdNoturno').checked,
+                    ativo: true
+                };
+                if (!motorista.cod || !motorista.nome) { alert('Preencha código e nome!'); return; }
+                appData.motoristas = (appData.motoristas || []).filter(m => m.cod !== motorista.cod);
+                appData.motoristas.push(motorista);
+                await salvarMotoristaFB(motorista);
+                saveLocalData();
+                window.fecharModal('modalMotorista');
+                carregarSelectsMotoristas();
+                carregarTabelaMotoristas();
+                window.atualizarPainel();
+            };
 
-        // Tabs da cotação
-        document.querySelectorAll('.cotacao-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.cotacao-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.cotacao-tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                const target = document.getElementById('tab-' + tab.dataset.tab);
-                if (target) target.classList.add('active');
-            });
-        });
+            window.atualizarPainel = function() {
+                const mes = parseInt(document.getElementById('painelMes').value);
+                const ano = parseInt(document.getElementById('painelAno').value);
+                const cod = parseInt(document.getElementById('painelMotorista').value);
+                const motorista = (appData.motoristas || []).find(m => m.cod === cod);
+                if (!motorista) return;
 
-        // ============ INIT ============
-        async function init() {
-            showLoading();
-            await carregarMotoristas();
-            carregarSelectsMotoristas();
-            carregarTabelaMotoristas();
-            atualizarPainel();
-            await carregarPonto();
-            carregarBancoHoras();
-            await carregarPagamentos();
-            
-            const pagHoras = document.getElementById('pagHoras');
-            const pagValorHora = document.getElementById('pagValorHora');
-            if (pagHoras) pagHoras.addEventListener('input', calcPagamento);
-            if (pagValorHora) pagValorHora.addEventListener('input', calcPagamento);
-            
-            // Set current date
-            const hoje = new Date();
-            const painelMes = document.getElementById('painelMes');
-            const pontoMes = document.getElementById('pontoMes');
-            if (painelMes) painelMes.value = hoje.getMonth() + 1;
-            if (pontoMes) pontoMes.value = hoje.getMonth() + 1;
-            
-            hideLoading();
-        }
-        init();
+                const diasNoMes = getDiasNoMes(mes, ano);
+                let totalHT = 0, totalExtras = 0, totalFaltas = 0, diasTrab = 0;
+
+                for (let dia = 1; dia <= diasNoMes; dia++) {
+                    const reg = appData.ponto[`${cod}_${mes}_${ano}_${dia}`];
+                    if (!reg || reg.folga) continue;
+                    const ht = (timeToHours(reg.s1) - timeToHours(reg.e1)) + (timeToHours(reg.s2) - timeToHours(reg.e2));
+                    if (ht <= 0) continue;
+                    const jp = timeToHours(motorista.jornada.s2) - timeToHours(motorista.jornada.e1) - (timeToHours(motorista.jornada.e2) - timeToHours(motorista.jornada.s1));
+                    totalHT += ht;
+                    diasTrab++;
+                    const extras = ht - jp - (motorista.tolerancia / 60);
+                    if (extras > 0) totalExtras += extras;
+                    else if (extras < -0.1) totalFaltas += Math.abs(extras);
+                }
+
+                const container = document.getElementById('statsContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="stat-card"><div class="stat-value">${diasTrab}/${diasNoMes}</div><div class="stat-label">Dias Trabalhados</div></div>
+                        <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Horas Trabalhadas</div></div>
+                        <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras)}</div><div class="stat-label">Horas Extras</div></div>
+                        <div class="stat-card danger"><div class="stat-value">${formatHoras(totalFaltas)}</div><div class="stat-label">Faltas/Atrasos</div></div>
+                    `;
+                }
+            };
+
+            window.carregarPonto = async function() {
+                const cod = parseInt(document.getElementById('pontoMotorista').value);
+                const mes = parseInt(document.getElementById('pontoMes').value);
+                const ano = parseInt(document.getElementById('pontoAno').value);
+                const motorista = (appData.motoristas || []).find(m => m.cod === cod);
+                if (!motorista) return;
+
+                const diasNoMes = getDiasNoMes(mes, ano);
+                let html = `<table><thead><tr><th>Dia</th><th>Sem.</th><th>Folga</th><th>Entrada</th><th>Saída</th><th>Horas</th></tr></thead><tbody>`;
+                let totalHT = 0;
+
+                for (let dia = 1; dia <= diasNoMes; dia++) {
+                    const key = `${cod}_${mes}_${ano}_${dia}`;
+                    const reg = appData.ponto[key] || { e1: '', s1: '', folga: false };
+                    const isFolga = reg.folga || getSemana(dia, mes, ano) === 'DOM';
+                    let ht = 0;
+                    if (!isFolga && reg.e1 && reg.s1) {
+                        ht = (timeToHours(reg.s1) - timeToHours(reg.e1));
+                        if (ht < 0) ht = 0;
+                    }
+                    if (ht > 0) totalHT += ht;
+
+                    html += `<tr style="${isFolga ? 'background:#fff3e0' : ''}">
+                        <td>${dia}</td><td>${getSemana(dia, mes, ano)}</td>
+                        <td><input type="checkbox" ${isFolga ? 'checked' : ''} onchange="window.toggleFolga('${key}',${cod},${mes},${ano},${dia},this.checked)"></td>
+                        <td><input type="time" value="${reg.e1 || ''}" onchange="window.updatePonto('${key}','e1',this.value,${cod},${mes},${ano},${dia})"><td>
+                        <td><input type="time" value="${reg.s1 || ''}" onchange="window.updatePonto('${key}','s1',this.value,${cod},${mes},${ano},${dia})"><td>
+                        <td>${ht > 0 ? formatHoras(ht) : '-'}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table>`;
+                const pontoContainer = document.getElementById('pontoContainer');
+                if (pontoContainer) pontoContainer.innerHTML = html;
+
+                const totaisPonto = document.getElementById('totaisPonto');
+                if (totaisPonto) {
+                    totaisPonto.innerHTML = `<div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Total Horas</div></div>`;
+                }
+            };
+
+            window.updatePonto = async function(key, campo, valor, cod, mes, ano, dia) {
+                if (!appData.ponto[key]) appData.ponto[key] = {};
+                appData.ponto[key][campo] = valor;
+                if (usandoFirebase && db) {
+                    await db.collection('pontos').doc(key).set({ key, codMotorista: cod, mes, ano, dia, [campo]: valor }, { merge: true });
+                }
+                saveLocalData();
+                window.carregarPonto();
+            };
+
+            window.toggleFolga = async function(key, cod, mes, ano, dia, isFolga) {
+                if (!appData.ponto[key]) appData.ponto[key] = {};
+                appData.ponto[key].folga = isFolga;
+                if (usandoFirebase && db) {
+                    await db.collection('pontos').doc(key).set({ key, codMotorista: cod, mes, ano, dia, folga: isFolga }, { merge: true });
+                }
+                saveLocalData();
+                window.carregarPonto();
+            };
+
+            window.salvarPonto = function() { saveLocalData(); alert('✅ Registros salvos!'); };
+
+            window.carregarBancoHoras = function() {
+                let rows = '';
+                (appData.motoristas || []).filter(m => m.ativo !== false).forEach(m => {
+                    let saldoTotal = 0;
+                    for (let mes = 1; mes <= 12; mes++) {
+                        let totalHT = 0, totalExtras = 0, totalFaltas = 0;
+                        for (let dia = 1; dia <= getDiasNoMes(mes, 2025); dia++) {
+                            const reg = appData.ponto[`${m.cod}_${mes}_2025_${dia}`];
+                            if (!reg || reg.folga) continue;
+                            const ht = (timeToHours(reg.s1) - timeToHours(reg.e1));
+                            if (ht <= 0) continue;
+                            const jp = 8; // Jornada padrão 8h
+                            totalHT += ht;
+                            const extras = ht - jp - (m.tolerancia / 60);
+                            if (extras > 0) totalExtras += extras;
+                            else if (extras < -0.1) totalFaltas += Math.abs(extras);
+                        }
+                        const saldoMes = totalExtras - totalFaltas;
+                        saldoTotal += saldoMes;
+                        if (totalHT > 0) {
+                            rows += `<tr>
+                                <td>${m.nome}</td><td>${mes}/2025</td><td>${formatHoras(totalHT)}</td>
+                                <td class="text-success">${formatHoras(totalExtras)}</td>
+                                <td class="text-danger">${formatHoras(totalFaltas)}</td>
+                                <td class="${saldoMes >= 0 ? 'text-success' : 'text-danger'}">${formatHoras(saldoMes)}</td>
+                                <td class="${saldoTotal >= 0 ? 'text-success' : 'text-danger'}"><strong>${formatHoras(saldoTotal)}</strong></td>
+                            </tr>`;
+                        }
+                    }
+                });
+                const tabelaBanco = document.getElementById('tabelaBancoHoras');
+                if (tabelaBanco) tabelaBanco.innerHTML = rows || '<tr><td colspan="7">Nenhum registro</td></tr>';
+            };
+
+            window.atualizarBancoHoras = function() { window.carregarBancoHoras(); window.atualizarPainel(); };
+
+            window.carregarPagamentos = async function() {
+                if (usandoFirebase && db) {
+                    const snapshot = await db.collection('pagamentos').orderBy('data', 'desc').get();
+                    appData.pagamentos = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+                    saveLocalData();
+                }
+                const tabelaPag = document.getElementById('tabelaPagamentos');
+                if (!tabelaPag) return;
+                tabelaPag.innerHTML = (appData.pagamentos || []).map(p => {
+                    const motorista = (appData.motoristas || []).find(m => m.cod === p.codMotorista);
+                    return `<tr>
+                        <td>${new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                        <td>${motorista?.nome || p.codMotorista}</td>
+                        <td>${formatHoras(p.horas)}</td>
+                        <td class="money">${formatMoney(p.valorHora)}</td>
+                        <td class="money"><strong>${formatMoney(p.horas * p.valorHora)}</strong></td>
+                        <td><button class="btn-cotacao btn-cotacao-danger btn-cotacao-sm" onclick="window.excluirPagamento('${p.firebaseId || p.id}')">🗑️</button></td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="6">Nenhum pagamento</td></tr>';
+            };
+
+            window.salvarPagamento = async function() {
+                const pagamento = {
+                    codMotorista: parseInt(document.getElementById('pagMotorista').value),
+                    data: document.getElementById('pagData').value,
+                    horas: parseFloat(document.getElementById('pagHoras').value),
+                    valorHora: parseFloat(document.getElementById('pagValorHora').value),
+                    id: Date.now().toString()
+                };
+                if (!pagamento.codMotorista || !pagamento.data || !pagamento.horas) { alert('Preencha todos os campos!'); return; }
+                if (usandoFirebase && db) await db.collection('pagamentos').add(pagamento);
+                if (!appData.pagamentos) appData.pagamentos = [];
+                appData.pagamentos.push(pagamento);
+                saveLocalData();
+                window.fecharModal('modalPagamento');
+                await window.carregarPagamentos();
+            };
+
+            window.excluirPagamento = async function(id) {
+                if (confirm('Excluir pagamento?')) {
+                    if (usandoFirebase && db && id && id !== 'undefined') await db.collection('pagamentos').doc(id).delete();
+                    appData.pagamentos = (appData.pagamentos || []).filter(p => p.firebaseId !== id && p.id !== id);
+                    saveLocalData();
+                    await window.carregarPagamentos();
+                }
+            };
+
+            window.abrirModalPagamento = function() {
+                document.getElementById('modalPagamento').classList.add('active');
+                carregarSelectsMotoristas();
+                document.getElementById('pagData').value = new Date().toISOString().split('T')[0];
+                window.calcPagamento();
+            };
+
+            window.calcPagamento = function() {
+                const h = parseFloat(document.getElementById('pagHoras').value) || 0;
+                const v = parseFloat(document.getElementById('pagValorHora').value) || 0;
+                const totalEl = document.getElementById('pagValorTotal');
+                if (totalEl) totalEl.innerText = formatMoney(h * v);
+            };
+
+            window.fecharModal = function(id) {
+                const modal = document.getElementById(id);
+                if (modal) modal.classList.remove('active');
+            };
+
+            // Inicialização
+            async function init() {
+                showLoading();
+                await carregarMotoristas();
+                carregarSelectsMotoristas();
+                carregarTabelaMotoristas();
+                window.atualizarPainel();
+                await window.carregarPonto();
+                window.carregarBancoHoras();
+                await window.carregarPagamentos();
+
+                // Event listeners
+                document.getElementById('pagHoras')?.addEventListener('input', window.calcPagamento);
+                document.getElementById('pagValorHora')?.addEventListener('input', window.calcPagamento);
+                
+                // Tabs
+                document.querySelectorAll('.cotacao-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.cotacao-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.cotacao-tab-content').forEach(c => c.classList.remove('active'));
+                        tab.classList.add('active');
+                        const target = document.getElementById('tab-' + tab.dataset.tab);
+                        if (target) target.classList.add('active');
+                    });
+                });
+
+                // Modal click outside
+                document.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
+                });
+
+                const hoje = new Date();
+                const painelMes = document.getElementById('painelMes');
+                const pontoMes = document.getElementById('pontoMes');
+                if (painelMes) painelMes.value = hoje.getMonth() + 1;
+                if (pontoMes) pontoMes.value = hoje.getMonth() + 1;
+
+                hideLoading();
+                console.log('Sistema inicializado com sucesso!');
+            }
+
+            init();
+        })();
     </script>
-  <script src="/js/main.js"></script>
-  <script src="/firebase-config.js"></script>
+    <script src="/js/main.js"></script>
 </body>
 
 </html>
