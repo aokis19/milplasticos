@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Custos | Mil Plásticos</title>
+
+    <!-- Seus CSS existentes -->
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/assets/css/topbar.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --success: #0d904f;
+            --danger: #d93025;
+            --warning: #f9ab00;
+            --info: #00bcd4;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --border: #dadce0;
+            --text: #202124;
+            --text-light: #5f6368;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .custos-container {
+            padding: 1.5rem;
+        }
+
+        /* Cards */
+        .custos-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        /* Tabelas */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        th {
+            background: #f8fafc;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Botões */
+        .btn-custos {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #1a1a1a;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-sm {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar select,
+        .toolbar input {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        /* Formulários */
+        .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        .modal h2 {
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 1200;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .text-warning {
+            color: var(--warning);
+        }
+
+        .money {
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .categoria-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .categoria-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .categoria-nome {
+            font-weight: 600;
+        }
+
+        .categoria-total {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .custo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .custo-item:last-child {
+            border-bottom: none;
+        }
+
+        .percentage-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem;">Carregando dados...</p>
+    </div>
+
+    <div class="custos-container">
+        <!-- Header com Firebase Status -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h1 style="font-size: 1.5rem;"><i class="fas fa-chart-line"></i> Controle de Custos</h1>
+            <span id="firebaseStatus" class="firebase-status offline" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;">
+                <span class="dot"></span> Conectando...
+            </span>
+        </div>
+
+        <!-- Seleção de Período -->
+        <div class="custos-card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-calendar-alt"></i> Período de Análise</span>
+                <div class="toolbar">
+                    <select id="periodoSelect" onchange="window.carregarPeriodo()" style="min-width: 150px;">
+                        <option value="">Selecione um período</option>
+                    </select>
+                    <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalPeriodo()">
+                        <i class="fas fa-plus"></i> Novo Período
+                    </button>
+                </div>
+            </div>
+            <div id="periodoInfo" style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f0fe; border-radius: 8px; display: none;">
+                <strong id="periodoNome"></strong> - <span id="periodoStatus"></span>
+            </div>
+        </div>
+
+        <!-- Dashboard Resumo -->
+        <div class="stats-grid" id="dashboardResumo" style="margin-bottom: 1.5rem;"></div>
+
+        <!-- Categorias e Custos -->
+        <div class="grid-2">
+            <!-- Categorias -->
+            <div class="custos-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-tags"></i> Categorias de Custo</span>
+                    <button class="btn-custos btn-success btn-sm" onclick="window.abrirModalCategoria()">
+                        <i class="fas fa-plus"></i> Nova Categoria
+                    </button>
+                </div>
+                <div id="categoriasList"></div>
+            </div>
+
+            <!-- Itens de Custo -->
+            <div class="custos-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-list-ul"></i> Itens de Custo</span>
+                    <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalItemCusto()">
+                        <i class="fas fa-plus"></i> Novo Item
+                    </button>
+                </div>
+                <div id="itensCustoList"></div>
+            </div>
+        </div>
+
+        <!-- Produção -->
+        <div class="custos-card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-industry"></i> Produção</span>
+                <button class="btn-custos btn-info btn-sm" onclick="window.abrirModalProducao()">
+                    <i class="fas fa-edit"></i> Registrar Produção
+                </button>
+            </div>
+            <div class="grid-2" id="producaoInfo">
+                <div class="stat-card">
+                    <div class="stat-value" id="producaoKg">0 kg</div>
+                    <div class="stat-label">Total Produzido</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value money" id="custoTotal">R$ 0,00</div>
+                    <div class="stat-label">Custo Total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value money" id="custoPorKg">R$ 0,00/kg</div>
+                    <div class="stat-label">Custo por KG</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Custos Detalhada -->
+        <div class="custos-card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-table"></i> Detalhamento de Custos</span>
+                <button class="btn-custos btn-warning btn-sm" onclick="window.exportarRelatorio()">
+                    <i class="fas fa-file-excel"></i> Exportar Relatório
+                </button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Item</th>
+                            <th>Valor Total (R$)</th>
+                            <th>Percentual</th>
+                            <th>Valor Aplicado (R$)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaCustos"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Período -->
+    <div class="modal-overlay" id="modalPeriodo">
+        <div class="modal">
+            <h2 id="modalPeriodoTitulo">Novo Período</h2>
+            <input type="hidden" id="periodoEditId">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Mês</label>
+                    <select id="periodoMes">
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ano</label>
+                    <input type="number" id="periodoAno" value="2025">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input type="text" id="periodoObs" placeholder="Observações do período">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarPeriodo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Categoria -->
+    <div class="modal-overlay" id="modalCategoria">
+        <div class="modal">
+            <h2 id="modalCategoriaTitulo">Nova Categoria</h2>
+            <input type="hidden" id="categoriaEditId">
+            <div class="form-group">
+                <label>Nome da Categoria</label>
+                <input type="text" id="categoriaNome" placeholder="Ex: Energia, Matéria Prima, Mão de Obra">
+            </div>
+            <div class="form-group">
+                <label>Cor</label>
+                <input type="color" id="categoriaCor" value="#1a73e8">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalCategoria')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarCategoria()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Item de Custo -->
+    <div class="modal-overlay" id="modalItemCusto">
+        <div class="modal">
+            <h2 id="modalItemTitulo">Novo Item de Custo</h2>
+            <input type="hidden" id="itemEditId">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="itemCategoria"></select>
+                </div>
+                <div class="form-group">
+                    <label>Nome do Item</label>
+                    <input type="text" id="itemNome" placeholder="Ex: Energia Elétrica">
+                </div>
+                <div class="form-group">
+                    <label>Valor Total (R$)</label>
+                    <input type="number" id="itemValorTotal" step="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Percentual (%)</label>
+                    <input type="number" id="itemPercentual" step="0.01" placeholder="100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input type="text" id="itemObs" placeholder="Observação opcional">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarItemCusto()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Produção -->
+    <div class="modal-overlay" id="modalProducao">
+        <div class="modal">
+            <h2>Registrar Produção</h2>
+            <div class="form-group">
+                <label>Produto</label>
+                <input type="text" id="producaoProduto" placeholder="Ex: Filme Plástico, Saco Plástico">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Quantidade Produzida (KG)</label>
+                    <input type="number" id="producaoKg" step="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="producaoData">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarProducao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // Firebase Config
+            const firebaseConfig = {
+                apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
+                authDomain: "system-mil.firebaseapp.com",
+                projectId: "system-mil",
+                storageBucket: "system-mil.firebasestorage.app",
+                messagingSenderId: "138426359863",
+                appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
+            };
+
+            let db = null;
+            let usandoFirebase = false;
+            
+            // Estrutura de dados
+            let periodos = [];
+            let categorias = [];
+            let itensCusto = [];
+            let producoes = [];
+            let periodoAtual = null;
+
+            const STORAGE_KEY = 'controleCustos_milplasticos';
+
+            function loadLocalData() {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    periodos = parsed.periodos || [];
+                    categorias = parsed.categorias || [];
+                    itensCusto = parsed.itensCusto || [];
+                    producoes = parsed.producoes || [];
+                } else {
+                    // Dados de exemplo
+                    categorias = [
+                        { id: 'cat1', nome: 'Energia', cor: '#f9ab00' },
+                        { id: 'cat2', nome: 'Matéria Prima', cor: '#1a73e8' },
+                        { id: 'cat3', nome: 'Mão de Obra', cor: '#0d904f' }
+                    ];
+                    itensCusto = [];
+                    periodos = [];
+                    producoes = [];
+                }
+            }
+
+            function saveLocalData() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    periodos, categorias, itensCusto, producoes
+                }));
+            }
+
+            loadLocalData();
+
+            // Inicializar Firebase
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                usandoFirebase = true;
+                const statusEl = document.getElementById('firebaseStatus');
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="dot"></span> 🔥 Firebase Online';
+                    statusEl.style.background = '#e6f4ea';
+                    statusEl.style.color = '#1e7e34';
+                }
+                carregarDadosFirebase();
+            } catch (e) {
+                console.warn('Firebase offline:', e);
+                const statusEl = document.getElementById('firebaseStatus');
+                if (statusEl) {
+                    statusEl.innerHTML = '<span class="dot"></span> 💾 LocalStorage';
+                    statusEl.style.background = '#fce8e6';
+                    statusEl.style.color = '#c5221f';
+                }
+            }
+
+            async function carregarDadosFirebase() {
+                if (!usandoFirebase || !db) return;
+                try {
+                    const snapshotPeriodos = await db.collection('custos_periodos').get();
+                    periodos = snapshotPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    const snapshotCategorias = await db.collection('custos_categorias').get();
+                    categorias = snapshotCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    const snapshotItens = await db.collection('custos_itens').get();
+                    itensCusto = snapshotItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    const snapshotProducoes = await db.collection('custos_producoes').get();
+                    producoes = snapshotProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    saveLocalData();
+                    carregarSelectPeriodos();
+                } catch (e) {
+                    console.error('Erro ao carregar do Firebase:', e);
+                }
+            }
+
+            async function salvarNoFirebase(colecao, dados) {
+                if (!usandoFirebase || !db) return;
+                try {
+                    if (dados.id) {
+                        await db.collection(colecao).doc(dados.id).set(dados);
+                    } else {
+                        const docRef = await db.collection(colecao).add(dados);
+                        dados.id = docRef.id;
+                    }
+                } catch (e) {
+                    console.error('Erro ao salvar no Firebase:', e);
+                }
+            }
+
+            async function excluirDoFirebase(colecao, id) {
+                if (!usandoFirebase || !db || !id) return;
+                try {
+                    await db.collection(colecao).doc(id).delete();
+                } catch (e) {
+                    console.error('Erro ao excluir do Firebase:', e);
+                }
+            }
+
+            function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
+            function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
+
+            // Formatação
+            function formatMoney(valor) {
+                return 'R$ ' + valor.toFixed(2).replace('.', ',');
+            }
+
+            function formatNumber(numero, decimais = 2) {
+                return numero.toFixed(decimais).replace('.', ',');
+            }
+
+            // Carregar períodos no select
+            function carregarSelectPeriodos() {
+                const select = document.getElementById('periodoSelect');
+                if (!select) return;
+                select.innerHTML = '<option value="">Selecione um período</option>';
+                periodos.sort((a, b) => {
+                    if (a.ano !== b.ano) return b.ano - a.ano;
+                    return b.mes - a.mes;
+                });
+                periodos.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][p.mes - 1];
+                    option.textContent = `${nomeMes}/${p.ano}`;
+                    select.appendChild(option);
+                });
+            }
+
+            // Carregar período selecionado
+            window.carregarPeriodo = function() {
+                const periodoId = document.getElementById('periodoSelect').value;
+                if (!periodoId) {
+                    periodoAtual = null;
+                    document.getElementById('periodoInfo').style.display = 'none';
+                    atualizarDashboard();
+                    return;
+                }
+                periodoAtual = periodos.find(p => p.id === periodoId);
+                if (periodoAtual) {
+                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
+                    document.getElementById('periodoNome').innerHTML = `<i class="fas fa-calendar"></i> ${nomeMes}/${periodoAtual.ano}`;
+                    document.getElementById('periodoStatus').innerHTML = periodoAtual.obs || 'Sem observações';
+                    document.getElementById('periodoInfo').style.display = 'block';
+                }
+                atualizarDashboard();
+                carregarItensCustoLista();
+                carregarTabelaCustos();
+                carregarProducoes();
+            };
+
+            // Calcular custos do período
+            function calcularCustosPeriodo() {
+                if (!periodoAtual) return { totalCusto: 0, itensCalculados: [], totalKg: 0 };
+                
+                // Filtrar itens do período
+                const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
+                let totalCusto = 0;
+                const itensCalculados = [];
+                
+                itensDoPeriodo.forEach(item => {
+                    const valorAplicado = (item.valorTotal * (item.percentual / 100));
+                    itensCalculados.push({
+                        ...item,
+                        valorAplicado,
+                        categoria: categorias.find(c => c.id === item.categoriaId)
+                    });
+                    totalCusto += valorAplicado;
+                });
+                
+                // Calcular total produzido
+                const producoesDoPeriodo = producoes.filter(p => p.periodoId === periodoAtual.id);
+                const totalKg = producoesDoPeriodo.reduce((sum, p) => sum + p.kg, 0);
+                
+                return { totalCusto, itensCalculados, totalKg };
+            }
+
+            // Atualizar dashboard
+            function atualizarDashboard() {
+                const { totalCusto, totalKg } = calcularCustosPeriodo();
+                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                
+                document.getElementById('dashboardResumo').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00'}</div>
+                        <div class="stat-label">Custo Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg'}</div>
+                        <div class="stat-label">Total Produzido</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg'}</div>
+                        <div class="stat-label">Custo por KG</div>
+                    </div>
+                `;
+                
+                document.getElementById('producaoKg').innerHTML = periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg';
+                document.getElementById('custoTotal').innerHTML = periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00';
+                document.getElementById('custoPorKg').innerHTML = periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg';
+            }
+
+            // Carregar lista de categorias
+            function carregarCategoriasLista() {
+                const container = document.getElementById('categoriasList');
+                if (!container) return;
+                
+                if (categorias.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhuma categoria cadastrada</p>';
+                    return;
+                }
+                
+                container.innerHTML = categorias.map(cat => `
+                    <div class="categoria-item" style="border-left: 4px solid ${cat.cor}">
+                        <div class="categoria-header">
+                            <span class="categoria-nome"><i class="fas fa-tag"></i> ${cat.nome}</span>
+                            <div>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarCategoria('${cat.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirCategoria('${cat.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="categoria-total">
+                            ${itensCusto.filter(i => i.categoriaId === cat.id && (!periodoAtual || i.periodoId === periodoAtual.id)).length} itens
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Carregar itens de custo do período
+            function carregarItensCustoLista() {
+                const container = document.getElementById('itensCustoList');
+                if (!container) return;
+                
+                if (!periodoAtual) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Selecione um período primeiro</p>';
+                    return;
+                }
+                
+                const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
+                
+                if (itensDoPeriodo.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhum item de custo cadastrado neste período</p>';
+                    return;
+                }
+                
+                container.innerHTML = itensDoPeriodo.map(item => {
+                    const categoria = categorias.find(c => c.id === item.categoriaId);
+                    return `
+                        <div class="custo-item">
+                            <div>
+                                <strong>${item.nome}</strong>
+                                <div style="font-size: 0.7rem; color: var(--text-light);">${categoria?.nome || 'Sem categoria'}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="money">${formatMoney(item.valorTotal)}</div>
+                                <div><span class="percentage-badge">${item.percentual}%</span></div>
+                            </div>
+                            <div>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Carregar tabela de custos
+            function carregarTabelaCustos() {
+                const tbody = document.getElementById('tabelaCustos');
+                if (!tbody) return;
+                
+                if (!periodoAtual) {
+                    tbody.innerHTML = '<tr><td colspan="6">Selecione um período primeiro</td></tr>';
+                    return;
+                }
+                
+                const { itensCalculados } = calcularCustosPeriodo();
+                
+                if (itensCalculados.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6">Nenhum item de custo cadastrado</td></tr>';
+                    return;
+                }
+                
+                // Agrupar por categoria
+                const porCategoria = {};
+                itensCalculados.forEach(item => {
+                    const catId = item.categoriaId;
+                    if (!porCategoria[catId]) {
+                        porCategoria[catId] = { categoria: item.categoria, itens: [], subtotal: 0 };
+                    }
+                    porCategoria[catId].itens.push(item);
+                    porCategoria[catId].subtotal += item.valorAplicado;
+                });
+                
+                let html = '';
+                for (const catId in porCategoria) {
+                    const grupo = porCategoria[catId];
+                    html += `<tr style="background: #f8fafc;">
+                        <td colspan="6"><strong><i class="fas fa-folder"></i> ${grupo.categoria?.nome || 'Sem categoria'}</strong> - Subtotal: ${formatMoney(grupo.subtotal)}</td>
+                    </tr>`;
+                    
+                    grupo.itens.forEach(item => {
+                        html += `<tr>
+                            <td>-</td>
+                            <td>${item.nome} ${item.obs ? `<span style="font-size: 0.7rem; color: var(--text-light);">(${item.obs})</span>` : ''}</td>
+                            <td class="money">${formatMoney(item.valorTotal)}</td>
+                            <td>${item.percentual}%</td>
+                            <td class="money"><strong>${formatMoney(item.valorAplicado)}</strong></td>
+                            <td>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+                
+                tbody.innerHTML = html;
+            }
+
+            // Carregar produções
+            function carregarProducoes() {
+                const container = document.getElementById('producaoInfo');
+                if (!container) return;
+                
+                if (!periodoAtual) {
+                    document.getElementById('producaoKg').innerHTML = '0 kg';
+                    document.getElementById('custoTotal').innerHTML = 'R$ 0,00';
+                    document.getElementById('custoPorKg').innerHTML = 'R$ 0,00/kg';
+                    return;
+                }
+                
+                const producoesDoPeriodo = producoes.filter(p => p.periodoId === periodoAtual.id);
+                const totalKg = producoesDoPeriodo.reduce((sum, p) => sum + p.kg, 0);
+                const { totalCusto } = calcularCustosPeriodo();
+                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                
+                document.getElementById('producaoKg').innerHTML = formatNumber(totalKg, 0) + ' kg';
+                document.getElementById('custoTotal').innerHTML = formatMoney(totalCusto);
+                document.getElementById('custoPorKg').innerHTML = formatMoney(custoPorKg) + '/kg';
+            }
+
+            // CRUD Períodos
+            window.abrirModalPeriodo = function(id = null) {
+                const modal = document.getElementById('modalPeriodo');
+                if (!modal) return;
+                modal.classList.add('active');
+                
+                if (id) {
+                    const periodo = periodos.find(p => p.id === id);
+                    if (periodo) {
+                        document.getElementById('modalPeriodoTitulo').innerText = 'Editar Período';
+                        document.getElementById('periodoEditId').value = periodo.id;
+                        document.getElementById('periodoMes').value = periodo.mes;
+                        document.getElementById('periodoAno').value = periodo.ano;
+                        document.getElementById('periodoObs').value = periodo.obs || '';
+                    }
+                } else {
+                    document.getElementById('modalPeriodoTitulo').innerText = 'Novo Período';
+                    document.getElementById('periodoEditId').value = '';
+                    document.getElementById('periodoMes').value = new Date().getMonth() + 1;
+                    document.getElementById('periodoAno').value = new Date().getFullYear();
+                    document.getElementById('periodoObs').value = '';
+                }
+            };
+
+            window.salvarPeriodo = async function() {
+                const periodo = {
+                    mes: parseInt(document.getElementById('periodoMes').value),
+                    ano: parseInt(document.getElementById('periodoAno').value),
+                    obs: document.getElementById('periodoObs').value,
+                    createdAt: new Date().toISOString()
+                };
+                
+                const editId = document.getElementById('periodoEditId').value;
+                if (editId) {
+                    periodo.id = editId;
+                    const index = periodos.findIndex(p => p.id === editId);
+                    if (index !== -1) periodos[index] = periodo;
+                } else {
+                    periodo.id = Date.now().toString();
+                    periodos.push(periodo);
+                }
+                
+                await salvarNoFirebase('custos_periodos', periodo);
+                saveLocalData();
+                carregarSelectPeriodos();
+                window.fecharModal('modalPeriodo');
+                
+                if (editId && periodoAtual?.id === editId) {
+                    periodoAtual = periodo;
+                    window.carregarPeriodo();
+                }
+            };
+
+            // CRUD Categorias
+            window.abrirModalCategoria = function(id = null) {
+                const modal = document.getElementById('modalCategoria');
+                if (!modal) return;
+                modal.classList.add('active');
+                
+                if (id) {
+                    const categoria = categorias.find(c => c.id === id);
+                    if (categoria) {
+                        document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria';
+                        document.getElementById('categoriaEditId').value = categoria.id;
+                        document.getElementById('categoriaNome').value = categoria.nome;
+                        document.getElementById('categoriaCor').value = categoria.cor;
+                    }
+                } else {
+                    document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria';
+                    document.getElementById('categoriaEditId').value = '';
+                    document.getElementById('categoriaNome').value = '';
+                    document.getElementById('categoriaCor').value = '#1a73e8';
+                }
+            };
+
+            window.salvarCategoria = async function() {
+                const categoria = {
+                    nome: document.getElementById('categoriaNome').value,
+                    cor: document.getElementById('categoriaCor').value
+                };
+                
+                if (!categoria.nome) {
+                    alert('Digite o nome da categoria!');
+                    return;
+                }
+                
+                const editId = document.getElementById('categoriaEditId').value;
+                if (editId) {
+                    categoria.id = editId;
+                    const index = categorias.findIndex(c => c.id === editId);
+                    if (index !== -1) categorias[index] = categoria;
+                } else {
+                    categoria.id = Date.now().toString();
+                    categorias.push(categoria);
+                }
+                
+                await salvarNoFirebase('custos_categorias', categoria);
+                saveLocalData();
+                carregarCategoriasLista();
+                window.fecharModal('modalCategoria');
+            };
+
+            window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
+
+            window.excluirCategoria = async function(id) {
+                if (confirm('Excluir esta categoria? Os itens associados também serão removidos.')) {
+                    itensCusto = itensCusto.filter(i => i.categoriaId !== id);
+                    categorias = categorias.filter(c => c.id !== id);
+                    await excluirDoFirebase('custos_categorias', id);
+                    saveLocalData();
+                    carregarCategoriasLista();
+                    carregarItensCustoLista();
+                    carregarTabelaCustos();
+                }
+            };
+
+            // CRUD Itens de Custo
+            function carregarSelectCategorias() {
+                const select = document.getElementById('itemCategoria');
+                if (!select) return;
+                select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+            }
+
+            window.abrirModalItemCusto = function(id = null) {
+                if (!periodoAtual) {
+                    alert('Selecione um período primeiro!');
+                    return;
+                }
+                
+                carregarSelectCategorias();
+                const modal = document.getElementById('modalItemCusto');
+                if (!modal) return;
+                modal.classList.add('active');
+                
+                if (id) {
+                    const item = itensCusto.find(i => i.id === id);
+                    if (item) {
+                        document.getElementById('modalItemTitulo').innerText = 'Editar Item de Custo';
+                        document.getElementById('itemEditId').value = item.id;
+                        document.getElementById('itemCategoria').value = item.categoriaId;
+                        document.getElementById('itemNome').value = item.nome;
+                        document.getElementById('itemValorTotal').value = item.valorTotal;
+                        document.getElementById('itemPercentual').value = item.percentual;
+                        document.getElementById('itemObs').value = item.obs || '';
+                    }
+                } else {
+                    document.getElementById('modalItemTitulo').innerText = 'Novo Item de Custo';
+                    document.getElementById('itemEditId').value = '';
+                    document.getElementById('itemCategoria').value = categorias[0]?.id || '';
+                    document.getElementById('itemNome').value = '';
+                    document.getElementById('itemValorTotal').value = '';
+                    document.getElementById('itemPercentual').value = '100';
+                    document.getElementById('itemObs').value = '';
+                }
+            };
+
+            window.salvarItemCusto = async function() {
+                if (!periodoAtual) {
+                    alert('Selecione um período primeiro!');
+                    return;
+                }
+                
+                const item = {
+                    periodoId: periodoAtual.id,
+                    categoriaId: document.getElementById('itemCategoria').value,
+                    nome: document.getElementById('itemNome').value,
+                    valorTotal: parseFloat(document.getElementById('itemValorTotal').value) || 0,
+                    percentual: parseFloat(document.getElementById('itemPercentual').value) || 0,
+                    obs: document.getElementById('itemObs').value,
+                    createdAt: new Date().toISOString()
+                };
+                
+                if (!item.nome) {
+                    alert('Digite o nome do item!');
+                    return;
+                }
+                
+                const editId = document.getElementById('itemEditId').value;
+                if (editId) {
+                    item.id = editId;
+                    const index = itensCusto.findIndex(i => i.id === editId);
+                    if (index !== -1) itensCusto[index] = item;
+                } else {
+                    item.id = Date.now().toString();
+                    itensCusto.push(item);
+                }
+                
+                await salvarNoFirebase('custos_itens', item);
+                saveLocalData();
+                window.fecharModal('modalItemCusto');
+                carregarItensCustoLista();
+                carregarTabelaCustos();
+                atualizarDashboard();
+            };
+
+            window.editarItemCusto = function(id) { window.abrirModalItemCusto(id); };
+
+            window.excluirItemCusto = async function(id) {
+                if (confirm('Excluir este item de custo?')) {
+                    itensCusto = itensCusto.filter(i => i.id !== id);
+                    await excluirDoFirebase('custos_itens', id);
+                    saveLocalData();
+                    carregarItensCustoLista();
+                    carregarTabelaCustos();
+                    atualizarDashboard();
+                }
+            };
+
+            // CRUD Produção
+            window.abrirModalProducao = function() {
+                if (!periodoAtual) {
+                    alert('Selecione um período primeiro!');
+                    return;
+                }
+                const modal = document.getElementById('modalProducao');
+                if (!modal) return;
+                modal.classList.add('active');
+                document.getElementById('producaoProduto').value = '';
+                document.getElementById('producaoKg').value = '';
+                document.getElementById('producaoData').value = new Date().toISOString().split('T')[0];
+            };
+
+            window.salvarProducao = async function() {
+                if (!periodoAtual) {
+                    alert('Selecione um período primeiro!');
+                    return;
+                }
+                
+                const producao = {
+                    periodoId: periodoAtual.id,
+                    produto: document.getElementById('producaoProduto').value,
+                    kg: parseFloat(document.getElementById('producaoKg').value) || 0,
+                    data: document.getElementById('producaoData').value,
+                    createdAt: new Date().toISOString(),
+                    id: Date.now().toString()
+                };
+                
+                if (!producao.produto || producao.kg <= 0) {
+                    alert('Preencha o produto e quantidade!');
+                    return;
+                }
+                
+                producoes.push(producao);
+                await salvarNoFirebase('custos_producoes', producao);
+                saveLocalData();
+                window.fecharModal('modalProducao');
+                atualizarDashboard();
+                carregarProducoes();
+            };
+
+            // Exportar relatório
+            window.exportarRelatorio = function() {
+                if (!periodoAtual) {
+                    alert('Selecione um período primeiro!');
+                    return;
+                }
+                
+                const { itensCalculados, totalCusto, totalKg } = calcularCustosPeriodo();
+                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
+                
+                let relatorio = `RELATÓRIO DE CUSTOS - ${nomeMes}/${periodoAtual.ano}\n`;
+                relatorio += `=${'='.repeat(50)}\n\n`;
+                relatorio += `📊 RESUMO:\n`;
+                relatorio += `Custo Total: ${formatMoney(totalCusto)}\n`;
+                relatorio += `Total Produzido: ${formatNumber(totalKg, 0)} kg\n`;
+                relatorio += `Custo por KG: ${formatMoney(custoPorKg)}/kg\n\n`;
+                relatorio += `📋 DETALHAMENTO:\n`;
+                relatorio += `${'-'.repeat(50)}\n`;
+                
+                // Agrupar por categoria
+                const porCategoria = {};
+                itensCalculados.forEach(item => {
+                    const catNome = item.categoria?.nome || 'Sem categoria';
+                    if (!porCategoria[catNome]) porCategoria[catNome] = [];
+                    porCategoria[catNome].push(item);
+                });
+                
+                for (const catNome in porCategoria) {
+                    relatorio += `\n【${catNome}】\n`;
+                    porCategoria[catNome].forEach(item => {
+                        relatorio += `  • ${item.nome}: ${formatMoney(item.valorTotal)} (${item.percentual}%) → ${formatMoney(item.valorAplicado)}\n`;
+                    });
+                }
+                
+                // Copiar para clipboard
+                navigator.clipboard.writeText(relatorio);
+                alert('Relatório copiado para área de transferência!');
+            };
+
+            // Fechar modal
+            window.fecharModal = function(id) {
+                const modal = document.getElementById(id);
+                if (modal) modal.classList.remove('active');
+            };
+
+            // Inicialização
+            function init() {
+                carregarSelectPeriodos();
+                carregarCategoriasLista();
+                
+                // Evento de clique fora do modal
+                document.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
+                });
+                
+                hideLoading();
+            }
+            
+            init();
+        })();
+    </script>
+    <script src="/js/main.js"></script>
+</body>
+
+</html>
