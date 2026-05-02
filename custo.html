@@ -18,6 +18,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
+    <!-- Bibliotecas para PDF e Gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
     <style>
         :root {
             --primary: #1a73e8;
@@ -26,6 +31,9 @@
             --danger: #d93025;
             --warning: #f9ab00;
             --info: #00bcd4;
+            --purple: #9c27b0;
+            --orange: #ff9800;
+            --teal: #009688;
             --bg: #f8f9fa;
             --card: #ffffff;
             --border: #dadce0;
@@ -38,7 +46,6 @@
             padding: 1.5rem;
         }
 
-        /* Cards */
         .custos-card {
             background: var(--card);
             border-radius: 12px;
@@ -63,7 +70,6 @@
             color: var(--text);
         }
 
-        /* Stats */
         .stats-grid {
             display: grid;
             gap: 1rem;
@@ -92,7 +98,6 @@
             margin-top: 0.25rem;
         }
 
-        /* Tabelas */
         .table-container {
             overflow-x: auto;
             border-radius: 8px;
@@ -122,7 +127,6 @@
             background: #f8f9fa;
         }
 
-        /* Botões */
         .btn-custos {
             padding: 0.5rem 1rem;
             border: none;
@@ -136,47 +140,16 @@
             gap: 0.5rem;
         }
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: #1a1a1a; }
+        .btn-info { background: var(--info); color: white; }
+        .btn-purple { background: var(--purple); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
 
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-warning {
-            background: var(--warning);
-            color: #1a1a1a;
-        }
-
-        .btn-info {
-            background: var(--info);
-            color: white;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-
-        .btn-sm {
-            padding: 0.3rem 0.6rem;
-            font-size: 0.75rem;
-        }
-
-        /* Toolbar */
         .toolbar {
             display: flex;
             gap: 0.75rem;
@@ -192,7 +165,6 @@
             font-size: 0.8rem;
         }
 
-        /* Formulários */
         .form-group {
             margin-bottom: 0.75rem;
         }
@@ -214,7 +186,6 @@
             font-size: 0.85rem;
         }
 
-        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -263,11 +234,6 @@
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         }
 
-        .grid-3 {
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        }
-
-        /* Loading */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -296,42 +262,13 @@
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
 
-        .text-success {
-            color: var(--success);
-        }
-
-        .text-danger {
-            color: var(--danger);
-        }
-
-        .text-warning {
-            color: var(--warning);
-        }
-
-        .money {
-            font-family: monospace;
-            font-weight: 600;
-        }
-
-        .progress-bar {
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 4px;
-            transition: width 0.3s;
-        }
+        .text-success { color: var(--success); }
+        .text-danger { color: var(--danger); }
+        .text-warning { color: var(--warning); }
+        .money { font-family: monospace; font-weight: 600; }
 
         .categoria-item {
             background: #f8f9fa;
@@ -351,11 +288,6 @@
             font-weight: 600;
         }
 
-        .categoria-total {
-            font-size: 0.85rem;
-            color: var(--text-light);
-        }
-
         .custo-item {
             display: flex;
             justify-content: space-between;
@@ -364,16 +296,120 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .custo-item:last-child {
-            border-bottom: none;
-        }
-
         .percentage-badge {
             background: var(--primary);
             color: white;
             padding: 0.2rem 0.5rem;
             border-radius: 20px;
             font-size: 0.7rem;
+        }
+
+        /* Estilos para o relatório PDF */
+        .report-container {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 800px;
+            background: white;
+            padding: 30px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .report-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .report-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .report-section {
+            margin-bottom: 25px;
+        }
+
+        .report-section-title {
+            font-size: 16px;
+            font-weight: bold;
+            background: #f0f0f0;
+            padding: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .report-summary {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 25px;
+        }
+
+        .summary-box {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .summary-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .report-table th,
+        .report-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .report-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            width: 100%;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
         }
     </style>
 </head>
@@ -386,7 +422,6 @@
     </div>
 
     <div class="custos-container">
-        <!-- Header com Firebase Status -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <h1 style="font-size: 1.5rem;"><i class="fas fa-chart-line"></i> Controle de Custos</h1>
             <span id="firebaseStatus" class="firebase-status offline" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;">
@@ -394,7 +429,6 @@
             </span>
         </div>
 
-        <!-- Seleção de Período -->
         <div class="custos-card">
             <div class="card-header">
                 <span class="card-title"><i class="fas fa-calendar-alt"></i> Período de Análise</span>
@@ -405,6 +439,9 @@
                     <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalPeriodo()">
                         <i class="fas fa-plus"></i> Novo Período
                     </button>
+                    <button class="btn-custos btn-purple btn-sm" onclick="window.gerarRelatorioCompleto()" id="btnRelatorio" style="display: none;">
+                        <i class="fas fa-file-pdf"></i> Gerar Relatório PDF
+                    </button>
                 </div>
             </div>
             <div id="periodoInfo" style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f0fe; border-radius: 8px; display: none;">
@@ -412,12 +449,9 @@
             </div>
         </div>
 
-        <!-- Dashboard Resumo -->
         <div class="stats-grid" id="dashboardResumo" style="margin-bottom: 1.5rem;"></div>
 
-        <!-- Categorias e Custos -->
         <div class="grid-2">
-            <!-- Categorias -->
             <div class="custos-card">
                 <div class="card-header">
                     <span class="card-title"><i class="fas fa-tags"></i> Categorias de Custo</span>
@@ -428,7 +462,6 @@
                 <div id="categoriasList"></div>
             </div>
 
-            <!-- Itens de Custo -->
             <div class="custos-card">
                 <div class="card-header">
                     <span class="card-title"><i class="fas fa-list-ul"></i> Itens de Custo</span>
@@ -440,7 +473,6 @@
             </div>
         </div>
 
-        <!-- Produção -->
         <div class="custos-card">
             <div class="card-header">
                 <span class="card-title"><i class="fas fa-industry"></i> Produção</span>
@@ -464,25 +496,30 @@
             </div>
         </div>
 
-        <!-- Tabela de Custos Detalhada -->
+        <div class="custos-card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-chart-pie"></i> Análise Gráfica</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
+                <div style="flex: 1; min-width: 250px;">
+                    <canvas id="pieChart" style="max-height: 300px; width: 100%;"></canvas>
+                    <p style="text-align: center; font-size: 0.75rem; margin-top: 0.5rem;">Distribuição dos Custos por Categoria</p>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <canvas id="barChart" style="max-height: 300px; width: 100%;"></canvas>
+                    <p style="text-align: center; font-size: 0.75rem; margin-top: 0.5rem;">Comparativo de Custos</p>
+                </div>
+            </div>
+        </div>
+
         <div class="custos-card">
             <div class="card-header">
                 <span class="card-title"><i class="fas fa-table"></i> Detalhamento de Custos</span>
-                <button class="btn-custos btn-warning btn-sm" onclick="window.exportarRelatorio()">
-                    <i class="fas fa-file-excel"></i> Exportar Relatório
-                </button>
             </div>
             <div class="table-container">
                 <table>
                     <thead>
-                        <tr>
-                            <th>Categoria</th>
-                            <th>Item</th>
-                            <th>Valor Total (R$)</th>
-                            <th>Percentual</th>
-                            <th>Valor Aplicado (R$)</th>
-                            <th>Ações</th>
-                        </tr>
+                        <tr><th>Categoria</th><th>Item</th><th>Valor Total (R$)</th><th>Percentual</th><th>Valor Aplicado (R$)</th><th>Ações</th></tr>
                     </thead>
                     <tbody id="tabelaCustos"></tbody>
                 </table>
@@ -490,121 +527,62 @@
         </div>
     </div>
 
-    <!-- Modal Período -->
+    <!-- Modais -->
     <div class="modal-overlay" id="modalPeriodo">
         <div class="modal">
             <h2 id="modalPeriodoTitulo">Novo Período</h2>
             <input type="hidden" id="periodoEditId">
             <div class="grid-2">
-                <div class="form-group">
-                    <label>Mês</label>
-                    <select id="periodoMes">
-                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-                        <option value="3">Março</option><option value="4">Abril</option>
-                        <option value="5">Maio</option><option value="6">Junho</option>
-                        <option value="7">Julho</option><option value="8">Agosto</option>
-                        <option value="9">Setembro</option><option value="10">Outubro</option>
-                        <option value="11">Novembro</option><option value="12">Dezembro</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Ano</label>
-                    <input type="number" id="periodoAno" value="2025">
-                </div>
+                <div class="form-group"><label>Mês</label><select id="periodoMes"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
+                <div class="form-group"><label>Ano</label><input type="number" id="periodoAno" value="2025"></div>
             </div>
-            <div class="form-group">
-                <label>Observação</label>
-                <input type="text" id="periodoObs" placeholder="Observações do período">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
-                <button class="btn-custos btn-success" onclick="window.salvarPeriodo()">Salvar</button>
-            </div>
+            <div class="form-group"><label>Observação</label><input type="text" id="periodoObs" placeholder="Observações do período"></div>
+            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarPeriodo()">Salvar</button></div>
         </div>
     </div>
 
-    <!-- Modal Categoria -->
     <div class="modal-overlay" id="modalCategoria">
         <div class="modal">
             <h2 id="modalCategoriaTitulo">Nova Categoria</h2>
             <input type="hidden" id="categoriaEditId">
-            <div class="form-group">
-                <label>Nome da Categoria</label>
-                <input type="text" id="categoriaNome" placeholder="Ex: Energia, Matéria Prima, Mão de Obra">
-            </div>
-            <div class="form-group">
-                <label>Cor</label>
-                <input type="color" id="categoriaCor" value="#1a73e8">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalCategoria')">Cancelar</button>
-                <button class="btn-custos btn-success" onclick="window.salvarCategoria()">Salvar</button>
-            </div>
+            <div class="form-group"><label>Nome da Categoria</label><input type="text" id="categoriaNome" placeholder="Ex: Energia, Matéria Prima"></div>
+            <div class="form-group"><label>Cor</label><input type="color" id="categoriaCor" value="#1a73e8"></div>
+            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalCategoria')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarCategoria()">Salvar</button></div>
         </div>
     </div>
 
-    <!-- Modal Item de Custo -->
     <div class="modal-overlay" id="modalItemCusto">
         <div class="modal">
             <h2 id="modalItemTitulo">Novo Item de Custo</h2>
             <input type="hidden" id="itemEditId">
             <div class="grid-2">
-                <div class="form-group">
-                    <label>Categoria</label>
-                    <select id="itemCategoria"></select>
-                </div>
-                <div class="form-group">
-                    <label>Nome do Item</label>
-                    <input type="text" id="itemNome" placeholder="Ex: Energia Elétrica">
-                </div>
-                <div class="form-group">
-                    <label>Valor Total (R$)</label>
-                    <input type="number" id="itemValorTotal" step="0.01" placeholder="0,00">
-                </div>
-                <div class="form-group">
-                    <label>Percentual (%)</label>
-                    <input type="number" id="itemPercentual" step="0.01" placeholder="100">
-                </div>
+                <div class="form-group"><label>Categoria</label><select id="itemCategoria"></select></div>
+                <div class="form-group"><label>Nome do Item</label><input type="text" id="itemNome" placeholder="Ex: Energia Elétrica"></div>
+                <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="itemValorTotal" step="0.01" placeholder="0,00"></div>
+                <div class="form-group"><label>Percentual (%)</label><input type="number" id="itemPercentual" step="0.01" placeholder="100"></div>
             </div>
-            <div class="form-group">
-                <label>Observação</label>
-                <input type="text" id="itemObs" placeholder="Observação opcional">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button>
-                <button class="btn-custos btn-success" onclick="window.salvarItemCusto()">Salvar</button>
-            </div>
+            <div class="form-group"><label>Observação</label><input type="text" id="itemObs" placeholder="Observação opcional"></div>
+            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarItemCusto()">Salvar</button></div>
         </div>
     </div>
 
-    <!-- Modal Produção -->
     <div class="modal-overlay" id="modalProducao">
         <div class="modal">
             <h2>Registrar Produção</h2>
-            <div class="form-group">
-                <label>Produto</label>
-                <input type="text" id="producaoProduto" placeholder="Ex: Filme Plástico, Saco Plástico">
-            </div>
+            <div class="form-group"><label>Produto</label><input type="text" id="producaoProduto" placeholder="Ex: Filme Plástico"></div>
             <div class="grid-2">
-                <div class="form-group">
-                    <label>Quantidade Produzida (KG)</label>
-                    <input type="number" id="producaoKg" step="0.01" placeholder="0,00">
-                </div>
-                <div class="form-group">
-                    <label>Data</label>
-                    <input type="date" id="producaoData">
-                </div>
+                <div class="form-group"><label>Quantidade (KG)</label><input type="number" id="producaoKg" step="0.01" placeholder="0,00"></div>
+                <div class="form-group"><label>Data</label><input type="date" id="producaoData"></div>
             </div>
-            <div class="modal-actions">
-                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button>
-                <button class="btn-custos btn-success" onclick="window.salvarProducao()">Salvar</button>
-            </div>
+            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarProducao()">Salvar</button></div>
         </div>
     </div>
 
+    <!-- Container oculto para geração do PDF -->
+    <div id="reportContainer" class="report-container"></div>
+
     <script>
         (function() {
-            // Firebase Config
             const firebaseConfig = {
                 apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
                 authDomain: "system-mil.firebaseapp.com",
@@ -614,15 +592,9 @@
                 appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
             };
 
-            let db = null;
-            let usandoFirebase = false;
-            
-            // Estrutura de dados
-            let periodos = [];
-            let categorias = [];
-            let itensCusto = [];
-            let producoes = [];
-            let periodoAtual = null;
+            let db = null, usandoFirebase = false;
+            let periodos = [], categorias = [], itensCusto = [], producoes = [], periodoAtual = null;
+            let pieChart = null, barChart = null;
 
             const STORAGE_KEY = 'controleCustos_milplasticos';
 
@@ -635,292 +607,179 @@
                     itensCusto = parsed.itensCusto || [];
                     producoes = parsed.producoes || [];
                 } else {
-                    // Dados de exemplo
                     categorias = [
                         { id: 'cat1', nome: 'Energia', cor: '#f9ab00' },
                         { id: 'cat2', nome: 'Matéria Prima', cor: '#1a73e8' },
                         { id: 'cat3', nome: 'Mão de Obra', cor: '#0d904f' }
                     ];
-                    itensCusto = [];
-                    periodos = [];
-                    producoes = [];
                 }
             }
 
             function saveLocalData() {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    periodos, categorias, itensCusto, producoes
-                }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ periodos, categorias, itensCusto, producoes }));
             }
 
             loadLocalData();
 
-            // Inicializar Firebase
             try {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.firestore();
                 usandoFirebase = true;
-                const statusEl = document.getElementById('firebaseStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = '<span class="dot"></span> 🔥 Firebase Online';
-                    statusEl.style.background = '#e6f4ea';
-                    statusEl.style.color = '#1e7e34';
-                }
-                carregarDadosFirebase();
+                document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 🔥 Firebase Online';
+                document.getElementById('firebaseStatus').style.cssText = 'background: #e6f4ea; color: #1e7e34; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;';
             } catch (e) {
-                console.warn('Firebase offline:', e);
-                const statusEl = document.getElementById('firebaseStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = '<span class="dot"></span> 💾 LocalStorage';
-                    statusEl.style.background = '#fce8e6';
-                    statusEl.style.color = '#c5221f';
-                }
-            }
-
-            async function carregarDadosFirebase() {
-                if (!usandoFirebase || !db) return;
-                try {
-                    const snapshotPeriodos = await db.collection('custos_periodos').get();
-                    periodos = snapshotPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    
-                    const snapshotCategorias = await db.collection('custos_categorias').get();
-                    categorias = snapshotCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    
-                    const snapshotItens = await db.collection('custos_itens').get();
-                    itensCusto = snapshotItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    
-                    const snapshotProducoes = await db.collection('custos_producoes').get();
-                    producoes = snapshotProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    
-                    saveLocalData();
-                    carregarSelectPeriodos();
-                } catch (e) {
-                    console.error('Erro ao carregar do Firebase:', e);
-                }
-            }
-
-            async function salvarNoFirebase(colecao, dados) {
-                if (!usandoFirebase || !db) return;
-                try {
-                    if (dados.id) {
-                        await db.collection(colecao).doc(dados.id).set(dados);
-                    } else {
-                        const docRef = await db.collection(colecao).add(dados);
-                        dados.id = docRef.id;
-                    }
-                } catch (e) {
-                    console.error('Erro ao salvar no Firebase:', e);
-                }
-            }
-
-            async function excluirDoFirebase(colecao, id) {
-                if (!usandoFirebase || !db || !id) return;
-                try {
-                    await db.collection(colecao).doc(id).delete();
-                } catch (e) {
-                    console.error('Erro ao excluir do Firebase:', e);
-                }
+                document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 💾 LocalStorage';
+                document.getElementById('firebaseStatus').style.cssText = 'background: #fce8e6; color: #c5221f; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;';
             }
 
             function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
             function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
 
-            // Formatação
-            function formatMoney(valor) {
-                return 'R$ ' + valor.toFixed(2).replace('.', ',');
-            }
+            function formatMoney(valor) { return 'R$ ' + valor.toFixed(2).replace('.', ','); }
+            function formatNumber(numero, decimais = 2) { return numero.toFixed(decimais).replace('.', ','); }
 
-            function formatNumber(numero, decimais = 2) {
-                return numero.toFixed(decimais).replace('.', ',');
-            }
-
-            // Carregar períodos no select
-            function carregarSelectPeriodos() {
-                const select = document.getElementById('periodoSelect');
-                if (!select) return;
-                select.innerHTML = '<option value="">Selecione um período</option>';
-                periodos.sort((a, b) => {
-                    if (a.ano !== b.ano) return b.ano - a.ano;
-                    return b.mes - a.mes;
-                });
-                periodos.forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p.id;
-                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][p.mes - 1];
-                    option.textContent = `${nomeMes}/${p.ano}`;
-                    select.appendChild(option);
-                });
-            }
-
-            // Carregar período selecionado
-            window.carregarPeriodo = function() {
-                const periodoId = document.getElementById('periodoSelect').value;
-                if (!periodoId) {
-                    periodoAtual = null;
-                    document.getElementById('periodoInfo').style.display = 'none';
-                    atualizarDashboard();
-                    return;
-                }
-                periodoAtual = periodos.find(p => p.id === periodoId);
-                if (periodoAtual) {
-                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
-                    document.getElementById('periodoNome').innerHTML = `<i class="fas fa-calendar"></i> ${nomeMes}/${periodoAtual.ano}`;
-                    document.getElementById('periodoStatus').innerHTML = periodoAtual.obs || 'Sem observações';
-                    document.getElementById('periodoInfo').style.display = 'block';
-                }
-                atualizarDashboard();
-                carregarItensCustoLista();
-                carregarTabelaCustos();
-                carregarProducoes();
-            };
-
-            // Calcular custos do período
             function calcularCustosPeriodo() {
-                if (!periodoAtual) return { totalCusto: 0, itensCalculados: [], totalKg: 0 };
-                
-                // Filtrar itens do período
+                if (!periodoAtual) return { totalCusto: 0, itensCalculados: [], totalKg: 0, porCategoria: {} };
                 const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
                 let totalCusto = 0;
                 const itensCalculados = [];
+                const porCategoria = {};
                 
                 itensDoPeriodo.forEach(item => {
                     const valorAplicado = (item.valorTotal * (item.percentual / 100));
-                    itensCalculados.push({
-                        ...item,
-                        valorAplicado,
-                        categoria: categorias.find(c => c.id === item.categoriaId)
-                    });
+                    const categoria = categorias.find(c => c.id === item.categoriaId);
+                    itensCalculados.push({ ...item, valorAplicado, categoria });
                     totalCusto += valorAplicado;
+                    
+                    if (categoria) {
+                        if (!porCategoria[categoria.id]) {
+                            porCategoria[categoria.id] = { nome: categoria.nome, cor: categoria.cor, total: 0, itens: [] };
+                        }
+                        porCategoria[categoria.id].total += valorAplicado;
+                        porCategoria[categoria.id].itens.push(item);
+                    }
                 });
                 
-                // Calcular total produzido
                 const producoesDoPeriodo = producoes.filter(p => p.periodoId === periodoAtual.id);
                 const totalKg = producoesDoPeriodo.reduce((sum, p) => sum + p.kg, 0);
                 
-                return { totalCusto, itensCalculados, totalKg };
+                return { totalCusto, itensCalculados, totalKg, porCategoria };
             }
 
-            // Atualizar dashboard
+            function atualizarGraficos() {
+                const { porCategoria, totalCusto } = calcularCustosPeriodo();
+                
+                const categoriasArray = Object.values(porCategoria);
+                const labels = categoriasArray.map(c => c.nome);
+                const valores = categoriasArray.map(c => c.total);
+                const cores = categoriasArray.map(c => c.cor || '#1a73e8');
+                
+                if (pieChart) pieChart.destroy();
+                if (barChart) barChart.destroy();
+                
+                const ctxPie = document.getElementById('pieChart').getContext('2d');
+                const ctxBar = document.getElementById('barChart').getContext('2d');
+                
+                pieChart = new Chart(ctxPie, {
+                    type: 'pie',
+                    data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderWidth: 0 }] },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+                });
+                
+                barChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Valor (R$)', data: valores, backgroundColor: cores, borderRadius: 8 }] },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v } } } }
+                });
+            }
+
             function atualizarDashboard() {
                 const { totalCusto, totalKg } = calcularCustosPeriodo();
                 const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
                 
                 document.getElementById('dashboardResumo').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-value">${periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00'}</div>
-                        <div class="stat-label">Custo Total</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg'}</div>
-                        <div class="stat-label">Total Produzido</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg'}</div>
-                        <div class="stat-label">Custo por KG</div>
-                    </div>
+                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00'}</div><div class="stat-label">Custo Total</div></div>
+                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg'}</div><div class="stat-label">Total Produzido</div></div>
+                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg'}</div><div class="stat-label">Custo por KG</div></div>
                 `;
-                
                 document.getElementById('producaoKg').innerHTML = periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg';
                 document.getElementById('custoTotal').innerHTML = periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00';
                 document.getElementById('custoPorKg').innerHTML = periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg';
+                
+                atualizarGraficos();
             }
 
-            // Carregar lista de categorias
+            function carregarSelectPeriodos() {
+                const select = document.getElementById('periodoSelect');
+                select.innerHTML = '<option value="">Selecione um período</option>';
+                periodos.sort((a, b) => { if (a.ano !== b.ano) return b.ano - a.ano; return b.mes - a.mes; });
+                periodos.forEach(p => {
+                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][p.mes - 1];
+                    select.innerHTML += `<option value="${p.id}">${nomeMes}/${p.ano}</option>`;
+                });
+            }
+
+            window.carregarPeriodo = function() {
+                const periodoId = document.getElementById('periodoSelect').value;
+                if (!periodoId) {
+                    periodoAtual = null;
+                    document.getElementById('periodoInfo').style.display = 'none';
+                    document.getElementById('btnRelatorio').style.display = 'none';
+                } else {
+                    periodoAtual = periodos.find(p => p.id === periodoId);
+                    if (periodoAtual) {
+                        const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
+                        document.getElementById('periodoNome').innerHTML = `<i class="fas fa-calendar"></i> ${nomeMes}/${periodoAtual.ano}`;
+                        document.getElementById('periodoStatus').innerHTML = periodoAtual.obs || 'Sem observações';
+                        document.getElementById('periodoInfo').style.display = 'block';
+                        document.getElementById('btnRelatorio').style.display = 'inline-flex';
+                    }
+                }
+                atualizarDashboard();
+                carregarItensCustoLista();
+                carregarTabelaCustos();
+                carregarCategoriasLista();
+            };
+
             function carregarCategoriasLista() {
                 const container = document.getElementById('categoriasList');
-                if (!container) return;
-                
-                if (categorias.length === 0) {
-                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhuma categoria cadastrada</p>';
-                    return;
-                }
-                
+                if (categorias.length === 0) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhuma categoria cadastrada</p>'; return; }
                 container.innerHTML = categorias.map(cat => `
                     <div class="categoria-item" style="border-left: 4px solid ${cat.cor}">
                         <div class="categoria-header">
                             <span class="categoria-nome"><i class="fas fa-tag"></i> ${cat.nome}</span>
-                            <div>
-                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarCategoria('${cat.id}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirCategoria('${cat.id}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                            <div><button class="btn-custos btn-outline btn-sm" onclick="window.editarCategoria('${cat.id}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn-custos btn-danger btn-sm" onclick="window.excluirCategoria('${cat.id}')"><i class="fas fa-trash"></i></button></div>
                         </div>
-                        <div class="categoria-total">
-                            ${itensCusto.filter(i => i.categoriaId === cat.id && (!periodoAtual || i.periodoId === periodoAtual.id)).length} itens
-                        </div>
+                        <div class="categoria-total">${itensCusto.filter(i => i.categoriaId === cat.id && (!periodoAtual || i.periodoId === periodoAtual.id)).length} itens</div>
                     </div>
                 `).join('');
             }
 
-            // Carregar itens de custo do período
             function carregarItensCustoLista() {
                 const container = document.getElementById('itensCustoList');
-                if (!container) return;
-                
-                if (!periodoAtual) {
-                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Selecione um período primeiro</p>';
-                    return;
-                }
-                
+                if (!periodoAtual) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Selecione um período primeiro</p>'; return; }
                 const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
-                
-                if (itensDoPeriodo.length === 0) {
-                    container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhum item de custo cadastrado neste período</p>';
-                    return;
-                }
-                
+                if (itensDoPeriodo.length === 0) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhum item de custo cadastrado</p>'; return; }
                 container.innerHTML = itensDoPeriodo.map(item => {
                     const categoria = categorias.find(c => c.id === item.categoriaId);
-                    return `
-                        <div class="custo-item">
-                            <div>
-                                <strong>${item.nome}</strong>
-                                <div style="font-size: 0.7rem; color: var(--text-light);">${categoria?.nome || 'Sem categoria'}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div class="money">${formatMoney(item.valorTotal)}</div>
-                                <div><span class="percentage-badge">${item.percentual}%</span></div>
-                            </div>
-                            <div>
-                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
+                    return `<div class="custo-item"><div><strong>${item.nome}</strong><div style="font-size: 0.7rem;">${categoria?.nome || 'Sem categoria'}</div></div>
+                    <div style="text-align: right;"><div class="money">${formatMoney(item.valorTotal)}</div><div><span class="percentage-badge">${item.percentual}%</span></div></div>
+                    <div><button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;
                 }).join('');
             }
 
-            // Carregar tabela de custos
             function carregarTabelaCustos() {
                 const tbody = document.getElementById('tabelaCustos');
-                if (!tbody) return;
-                
-                if (!periodoAtual) {
-                    tbody.innerHTML = '<tr><td colspan="6">Selecione um período primeiro</td></tr>';
-                    return;
-                }
-                
+                if (!periodoAtual) { tbody.innerHTML = '<td><td colspan="6">Selecione um período primeiro</td></tr>'; return; }
                 const { itensCalculados } = calcularCustosPeriodo();
+                if (itensCalculados.length === 0) { tbody.innerHTML = '<tr><td colspan="6">Nenhum item de custo cadastrado</td></tr>'; return; }
                 
-                if (itensCalculados.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6">Nenhum item de custo cadastrado</td></tr>';
-                    return;
-                }
-                
-                // Agrupar por categoria
                 const porCategoria = {};
                 itensCalculados.forEach(item => {
                     const catId = item.categoriaId;
-                    if (!porCategoria[catId]) {
-                        porCategoria[catId] = { categoria: item.categoria, itens: [], subtotal: 0 };
-                    }
+                    if (!porCategoria[catId]) porCategoria[catId] = { categoria: item.categoria, itens: [], subtotal: 0 };
                     porCategoria[catId].itens.push(item);
                     porCategoria[catId].subtotal += item.valorAplicado;
                 });
@@ -928,60 +787,21 @@
                 let html = '';
                 for (const catId in porCategoria) {
                     const grupo = porCategoria[catId];
-                    html += `<tr style="background: #f8fafc;">
-                        <td colspan="6"><strong><i class="fas fa-folder"></i> ${grupo.categoria?.nome || 'Sem categoria'}</strong> - Subtotal: ${formatMoney(grupo.subtotal)}</td>
-                    </tr>`;
-                    
+                    html += `<tr style="background: #f8fafc;"><td colspan="6"><strong><i class="fas fa-folder"></i> ${grupo.categoria?.nome || 'Sem categoria'}</strong> - Subtotal: ${formatMoney(grupo.subtotal)}</td></tr>`;
                     grupo.itens.forEach(item => {
-                        html += `<tr>
-                            <td>-</td>
-                            <td>${item.nome} ${item.obs ? `<span style="font-size: 0.7rem; color: var(--text-light);">(${item.obs})</span>` : ''}</td>
-                            <td class="money">${formatMoney(item.valorTotal)}</td>
-                            <td>${item.percentual}%</td>
-                            <td class="money"><strong>${formatMoney(item.valorAplicado)}</strong></td>
-                            <td>
-                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>`;
+                        html += `<tr><td>-</td><td>${item.nome} ${item.obs ? `<span style="font-size: 0.7rem;">(${item.obs})</span>` : ''}</td>
+                        <td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td>
+                        <td class="money"><strong>${formatMoney(item.valorAplicado)}</strong></td>
+                        <td><button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
                     });
                 }
-                
                 tbody.innerHTML = html;
-            }
-
-            // Carregar produções
-            function carregarProducoes() {
-                const container = document.getElementById('producaoInfo');
-                if (!container) return;
-                
-                if (!periodoAtual) {
-                    document.getElementById('producaoKg').innerHTML = '0 kg';
-                    document.getElementById('custoTotal').innerHTML = 'R$ 0,00';
-                    document.getElementById('custoPorKg').innerHTML = 'R$ 0,00/kg';
-                    return;
-                }
-                
-                const producoesDoPeriodo = producoes.filter(p => p.periodoId === periodoAtual.id);
-                const totalKg = producoesDoPeriodo.reduce((sum, p) => sum + p.kg, 0);
-                const { totalCusto } = calcularCustosPeriodo();
-                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
-                
-                document.getElementById('producaoKg').innerHTML = formatNumber(totalKg, 0) + ' kg';
-                document.getElementById('custoTotal').innerHTML = formatMoney(totalCusto);
-                document.getElementById('custoPorKg').innerHTML = formatMoney(custoPorKg) + '/kg';
             }
 
             // CRUD Períodos
             window.abrirModalPeriodo = function(id = null) {
-                const modal = document.getElementById('modalPeriodo');
-                if (!modal) return;
-                modal.classList.add('active');
-                
+                document.getElementById('modalPeriodo').classList.add('active');
                 if (id) {
                     const periodo = periodos.find(p => p.id === id);
                     if (periodo) {
@@ -1001,40 +821,19 @@
             };
 
             window.salvarPeriodo = async function() {
-                const periodo = {
-                    mes: parseInt(document.getElementById('periodoMes').value),
-                    ano: parseInt(document.getElementById('periodoAno').value),
-                    obs: document.getElementById('periodoObs').value,
-                    createdAt: new Date().toISOString()
-                };
-                
+                const periodo = { mes: parseInt(document.getElementById('periodoMes').value), ano: parseInt(document.getElementById('periodoAno').value), obs: document.getElementById('periodoObs').value, createdAt: new Date().toISOString() };
                 const editId = document.getElementById('periodoEditId').value;
-                if (editId) {
-                    periodo.id = editId;
-                    const index = periodos.findIndex(p => p.id === editId);
-                    if (index !== -1) periodos[index] = periodo;
-                } else {
-                    periodo.id = Date.now().toString();
-                    periodos.push(periodo);
-                }
-                
-                await salvarNoFirebase('custos_periodos', periodo);
+                if (editId) { periodo.id = editId; const idx = periodos.findIndex(p => p.id === editId); if (idx !== -1) periodos[idx] = periodo; }
+                else { periodo.id = Date.now().toString(); periodos.push(periodo); }
+                if (usandoFirebase && db) await db.collection('custos_periodos').doc(periodo.id).set(periodo);
                 saveLocalData();
                 carregarSelectPeriodos();
                 window.fecharModal('modalPeriodo');
-                
-                if (editId && periodoAtual?.id === editId) {
-                    periodoAtual = periodo;
-                    window.carregarPeriodo();
-                }
+                if (editId && periodoAtual?.id === editId) { periodoAtual = periodo; window.carregarPeriodo(); }
             };
 
-            // CRUD Categorias
             window.abrirModalCategoria = function(id = null) {
-                const modal = document.getElementById('modalCategoria');
-                if (!modal) return;
-                modal.classList.add('active');
-                
+                document.getElementById('modalCategoria').classList.add('active');
                 if (id) {
                     const categoria = categorias.find(c => c.id === id);
                     if (categoria) {
@@ -1052,68 +851,44 @@
             };
 
             window.salvarCategoria = async function() {
-                const categoria = {
-                    nome: document.getElementById('categoriaNome').value,
-                    cor: document.getElementById('categoriaCor').value
-                };
-                
-                if (!categoria.nome) {
-                    alert('Digite o nome da categoria!');
-                    return;
-                }
-                
+                const categoria = { nome: document.getElementById('categoriaNome').value, cor: document.getElementById('categoriaCor').value };
+                if (!categoria.nome) { alert('Digite o nome da categoria!'); return; }
                 const editId = document.getElementById('categoriaEditId').value;
-                if (editId) {
-                    categoria.id = editId;
-                    const index = categorias.findIndex(c => c.id === editId);
-                    if (index !== -1) categorias[index] = categoria;
-                } else {
-                    categoria.id = Date.now().toString();
-                    categorias.push(categoria);
-                }
-                
-                await salvarNoFirebase('custos_categorias', categoria);
+                if (editId) { categoria.id = editId; const idx = categorias.findIndex(c => c.id === editId); if (idx !== -1) categorias[idx] = categoria; }
+                else { categoria.id = Date.now().toString(); categorias.push(categoria); }
+                if (usandoFirebase && db) await db.collection('custos_categorias').doc(categoria.id).set(categoria);
                 saveLocalData();
                 carregarCategoriasLista();
                 window.fecharModal('modalCategoria');
             };
 
             window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
-
             window.excluirCategoria = async function(id) {
-                if (confirm('Excluir esta categoria? Os itens associados também serão removidos.')) {
+                if (confirm('Excluir esta categoria?')) {
                     itensCusto = itensCusto.filter(i => i.categoriaId !== id);
                     categorias = categorias.filter(c => c.id !== id);
-                    await excluirDoFirebase('custos_categorias', id);
+                    if (usandoFirebase && db) await db.collection('custos_categorias').doc(id).delete();
                     saveLocalData();
                     carregarCategoriasLista();
                     carregarItensCustoLista();
                     carregarTabelaCustos();
+                    atualizarDashboard();
                 }
             };
 
-            // CRUD Itens de Custo
             function carregarSelectCategorias() {
                 const select = document.getElementById('itemCategoria');
-                if (!select) return;
                 select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
             }
 
             window.abrirModalItemCusto = function(id = null) {
-                if (!periodoAtual) {
-                    alert('Selecione um período primeiro!');
-                    return;
-                }
-                
+                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
                 carregarSelectCategorias();
-                const modal = document.getElementById('modalItemCusto');
-                if (!modal) return;
-                modal.classList.add('active');
-                
+                document.getElementById('modalItemCusto').classList.add('active');
                 if (id) {
                     const item = itensCusto.find(i => i.id === id);
                     if (item) {
-                        document.getElementById('modalItemTitulo').innerText = 'Editar Item de Custo';
+                        document.getElementById('modalItemTitulo').innerText = 'Editar Item';
                         document.getElementById('itemEditId').value = item.id;
                         document.getElementById('itemCategoria').value = item.categoriaId;
                         document.getElementById('itemNome').value = item.nome;
@@ -1122,7 +897,7 @@
                         document.getElementById('itemObs').value = item.obs || '';
                     }
                 } else {
-                    document.getElementById('modalItemTitulo').innerText = 'Novo Item de Custo';
+                    document.getElementById('modalItemTitulo').innerText = 'Novo Item';
                     document.getElementById('itemEditId').value = '';
                     document.getElementById('itemCategoria').value = categorias[0]?.id || '';
                     document.getElementById('itemNome').value = '';
@@ -1133,37 +908,13 @@
             };
 
             window.salvarItemCusto = async function() {
-                if (!periodoAtual) {
-                    alert('Selecione um período primeiro!');
-                    return;
-                }
-                
-                const item = {
-                    periodoId: periodoAtual.id,
-                    categoriaId: document.getElementById('itemCategoria').value,
-                    nome: document.getElementById('itemNome').value,
-                    valorTotal: parseFloat(document.getElementById('itemValorTotal').value) || 0,
-                    percentual: parseFloat(document.getElementById('itemPercentual').value) || 0,
-                    obs: document.getElementById('itemObs').value,
-                    createdAt: new Date().toISOString()
-                };
-                
-                if (!item.nome) {
-                    alert('Digite o nome do item!');
-                    return;
-                }
-                
+                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
+                const item = { periodoId: periodoAtual.id, categoriaId: document.getElementById('itemCategoria').value, nome: document.getElementById('itemNome').value, valorTotal: parseFloat(document.getElementById('itemValorTotal').value) || 0, percentual: parseFloat(document.getElementById('itemPercentual').value) || 0, obs: document.getElementById('itemObs').value, createdAt: new Date().toISOString() };
+                if (!item.nome) { alert('Digite o nome do item!'); return; }
                 const editId = document.getElementById('itemEditId').value;
-                if (editId) {
-                    item.id = editId;
-                    const index = itensCusto.findIndex(i => i.id === editId);
-                    if (index !== -1) itensCusto[index] = item;
-                } else {
-                    item.id = Date.now().toString();
-                    itensCusto.push(item);
-                }
-                
-                await salvarNoFirebase('custos_itens', item);
+                if (editId) { item.id = editId; const idx = itensCusto.findIndex(i => i.id === editId); if (idx !== -1) itensCusto[idx] = item; }
+                else { item.id = Date.now().toString(); itensCusto.push(item); }
+                if (usandoFirebase && db) await db.collection('custos_itens').doc(item.id).set(item);
                 saveLocalData();
                 window.fecharModal('modalItemCusto');
                 carregarItensCustoLista();
@@ -1172,11 +923,10 @@
             };
 
             window.editarItemCusto = function(id) { window.abrirModalItemCusto(id); };
-
             window.excluirItemCusto = async function(id) {
-                if (confirm('Excluir este item de custo?')) {
+                if (confirm('Excluir este item?')) {
                     itensCusto = itensCusto.filter(i => i.id !== id);
-                    await excluirDoFirebase('custos_itens', id);
+                    if (usandoFirebase && db) await db.collection('custos_itens').doc(id).delete();
                     saveLocalData();
                     carregarItensCustoLista();
                     carregarTabelaCustos();
@@ -1184,110 +934,150 @@
                 }
             };
 
-            // CRUD Produção
             window.abrirModalProducao = function() {
-                if (!periodoAtual) {
-                    alert('Selecione um período primeiro!');
-                    return;
-                }
-                const modal = document.getElementById('modalProducao');
-                if (!modal) return;
-                modal.classList.add('active');
+                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
+                document.getElementById('modalProducao').classList.add('active');
                 document.getElementById('producaoProduto').value = '';
                 document.getElementById('producaoKg').value = '';
                 document.getElementById('producaoData').value = new Date().toISOString().split('T')[0];
             };
 
             window.salvarProducao = async function() {
-                if (!periodoAtual) {
-                    alert('Selecione um período primeiro!');
-                    return;
-                }
-                
-                const producao = {
-                    periodoId: periodoAtual.id,
-                    produto: document.getElementById('producaoProduto').value,
-                    kg: parseFloat(document.getElementById('producaoKg').value) || 0,
-                    data: document.getElementById('producaoData').value,
-                    createdAt: new Date().toISOString(),
-                    id: Date.now().toString()
-                };
-                
-                if (!producao.produto || producao.kg <= 0) {
-                    alert('Preencha o produto e quantidade!');
-                    return;
-                }
-                
+                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
+                const producao = { periodoId: periodoAtual.id, produto: document.getElementById('producaoProduto').value, kg: parseFloat(document.getElementById('producaoKg').value) || 0, data: document.getElementById('producaoData').value, createdAt: new Date().toISOString(), id: Date.now().toString() };
+                if (!producao.produto || producao.kg <= 0) { alert('Preencha o produto e quantidade!'); return; }
                 producoes.push(producao);
-                await salvarNoFirebase('custos_producoes', producao);
+                if (usandoFirebase && db) await db.collection('custos_producoes').doc(producao.id).set(producao);
                 saveLocalData();
                 window.fecharModal('modalProducao');
                 atualizarDashboard();
-                carregarProducoes();
             };
 
-            // Exportar relatório
-            window.exportarRelatorio = function() {
-                if (!periodoAtual) {
-                    alert('Selecione um período primeiro!');
-                    return;
-                }
+            // GERAR RELATÓRIO PDF COMPLETO COM GRÁFICOS
+            window.gerarRelatorioCompleto = async function() {
+                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
                 
-                const { itensCalculados, totalCusto, totalKg } = calcularCustosPeriodo();
+                showLoading();
+                const { jsPDF } = window.jspdf;
+                const { totalCusto, totalKg, porCategoria, itensCalculados } = calcularCustosPeriodo();
                 const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
                 const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
                 
-                let relatorio = `RELATÓRIO DE CUSTOS - ${nomeMes}/${periodoAtual.ano}\n`;
-                relatorio += `=${'='.repeat(50)}\n\n`;
-                relatorio += `📊 RESUMO:\n`;
-                relatorio += `Custo Total: ${formatMoney(totalCusto)}\n`;
-                relatorio += `Total Produzido: ${formatNumber(totalKg, 0)} kg\n`;
-                relatorio += `Custo por KG: ${formatMoney(custoPorKg)}/kg\n\n`;
-                relatorio += `📋 DETALHAMENTO:\n`;
-                relatorio += `${'-'.repeat(50)}\n`;
+                // Capturar gráficos como imagens
+                const pieCanvas = document.getElementById('pieChart');
+                const barCanvas = document.getElementById('barChart');
                 
-                // Agrupar por categoria
-                const porCategoria = {};
-                itensCalculados.forEach(item => {
-                    const catNome = item.categoria?.nome || 'Sem categoria';
-                    if (!porCategoria[catNome]) porCategoria[catNome] = [];
-                    porCategoria[catNome].push(item);
-                });
+                const pieImage = pieCanvas.toDataURL('image/png');
+                const barImage = barCanvas.toDataURL('image/png');
                 
-                for (const catNome in porCategoria) {
-                    relatorio += `\n【${catNome}】\n`;
-                    porCategoria[catNome].forEach(item => {
-                        relatorio += `  • ${item.nome}: ${formatMoney(item.valorTotal)} (${item.percentual}%) → ${formatMoney(item.valorAplicado)}\n`;
+                // Criar PDF
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                let y = 20;
+                
+                // Header
+                pdf.setFontSize(20);
+                pdf.setTextColor(26, 115, 232);
+                pdf.text('Relatório de Custos', 105, y, { align: 'center' });
+                y += 8;
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Período: ${nomeMes}/${periodoAtual.ano}`, 105, y, { align: 'center' });
+                y += 8;
+                pdf.text(`Data de emissão: ${new Date().toLocaleDateString('pt-BR')}`, 105, y, { align: 'center' });
+                y += 15;
+                
+                // Resumo
+                pdf.setFillColor(240, 240, 240);
+                pdf.rect(20, y, 170, 40, 'F');
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Custo Total: ${formatMoney(totalCusto)}`, 30, y + 10);
+                pdf.text(`Total Produzido: ${formatNumber(totalKg, 0)} kg`, 30, y + 20);
+                pdf.text(`Custo por KG: ${formatMoney(custoPorKg)}/kg`, 30, y + 30);
+                y += 50;
+                
+                // Gráfico de Pizza
+                pdf.setFontSize(14);
+                pdf.setTextColor(26, 115, 232);
+                pdf.text('Distribuição dos Custos por Categoria', 105, y, { align: 'center' });
+                y += 5;
+                try {
+                    const pieImg = await loadImage(pieImage);
+                    pdf.addImage(pieImg, 'PNG', 50, y, 110, 80);
+                    y += 85;
+                } catch(e) { y += 10; }
+                
+                // Gráfico de Barras
+                pdf.setFontSize(14);
+                pdf.text('Comparativo de Custos por Categoria', 105, y, { align: 'center' });
+                y += 5;
+                try {
+                    const barImg = await loadImage(barImage);
+                    pdf.addImage(barImg, 'PNG', 50, y, 110, 80);
+                    y += 85;
+                } catch(e) { y += 10; }
+                
+                // Tabela de Detalhamento
+                if (y > 250) { pdf.addPage(); y = 20; }
+                pdf.setFontSize(14);
+                pdf.text('Detalhamento dos Custos', 105, y, { align: 'center' });
+                y += 10;
+                
+                // Tabela
+                const tableData = [];
+                for (const catId in porCategoria) {
+                    const grupo = porCategoria[catId];
+                    tableData.push([{ content: grupo.nome, colSpan: 3, styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } }]);
+                    grupo.itens.forEach(item => {
+                        tableData.push([item.nome, formatMoney(item.valorTotal), `${item.percentual}%`, formatMoney(item.valorTotal * item.percentual / 100)]);
                     });
                 }
                 
-                // Copiar para clipboard
-                navigator.clipboard.writeText(relatorio);
-                alert('Relatório copiado para área de transferência!');
+                pdf.autoTable({
+                    startY: y,
+                    head: [['Item', 'Valor Total', '%', 'Valor Aplicado']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [26, 115, 232], textColor: 255, fontSize: 10 },
+                    bodyStyles: { fontSize: 9 },
+                    columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 35 }, 2: { cellWidth: 25 }, 3: { cellWidth: 40 } },
+                    margin: { left: 20, right: 20 }
+                });
+                
+                // Footer
+                const pageCount = pdf.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    pdf.setPage(i);
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(`Mil Plásticos - Relatório Gerencial - Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
+                }
+                
+                pdf.save(`Relatorio_Custos_${nomeMes}_${periodoAtual.ano}.pdf`);
+                hideLoading();
             };
+            
+            function loadImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
 
-            // Fechar modal
-            window.fecharModal = function(id) {
-                const modal = document.getElementById(id);
-                if (modal) modal.classList.remove('active');
-            };
+            window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); };
+            document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); });
 
-            // Inicialização
             function init() {
                 carregarSelectPeriodos();
                 carregarCategoriasLista();
-                
-                // Evento de clique fora do modal
-                document.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
-                });
-                
                 hideLoading();
             }
-            
             init();
         })();
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="/js/main.js"></script>
 </body>
 
