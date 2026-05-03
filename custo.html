@@ -22,6 +22,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         :root {
@@ -82,6 +83,13 @@
             padding: 1rem;
             border: 1px solid var(--border);
             border-left: 4px solid var(--primary);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .stat-value {
@@ -157,14 +165,6 @@
             align-items: center;
         }
 
-        .toolbar select,
-        .toolbar input {
-            padding: 0.4rem 0.6rem;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 0.8rem;
-        }
-
         .form-group {
             margin-bottom: 0.75rem;
         }
@@ -234,6 +234,10 @@
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         }
 
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+
         .loading-overlay {
             display: none;
             position: fixed;
@@ -267,25 +271,65 @@
 
         .text-success { color: var(--success); }
         .text-danger { color: var(--danger); }
-        .text-warning { color: var(--warning); }
         .money { font-family: monospace; font-weight: 600; }
+
+        /* Cards de Máquinas */
+        .maquina-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .maquina-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .maquina-nome {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .maquina-info {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        /* Período Card */
+        .periodo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+        }
+
+        .periodo-card:hover {
+            background: #e8f0fe;
+            border-color: var(--primary);
+        }
+
+        .periodo-mes {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .periodo-info {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
 
         .categoria-item {
             background: #f8f9fa;
             border-radius: 8px;
             padding: 0.75rem;
             margin-bottom: 0.5rem;
-        }
-
-        .categoria-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .categoria-nome {
-            font-weight: 600;
         }
 
         .custo-item {
@@ -304,7 +348,6 @@
             font-size: 0.7rem;
         }
 
-        /* Estilos para o relatório PDF */
         .report-container {
             position: fixed;
             left: -9999px;
@@ -312,104 +355,30 @@
             width: 800px;
             background: white;
             padding: 30px;
-            font-family: 'Segoe UI', Arial, sans-serif;
         }
 
-        .report-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid var(--primary);
-        }
-
-        .report-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--primary);
-        }
-
-        .report-subtitle {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .report-section {
-            margin-bottom: 25px;
-        }
-
-        .report-section-title {
-            font-size: 16px;
-            font-weight: bold;
-            background: #f0f0f0;
-            padding: 8px;
-            margin-bottom: 15px;
-            border-left: 4px solid var(--primary);
-        }
-
-        .report-summary {
+        .breadcrumb {
             display: flex;
-            justify-content: space-around;
-            margin-bottom: 25px;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
         }
 
-        .summary-box {
-            text-align: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            flex: 1;
-            margin: 0 5px;
+        .breadcrumb-item {
+            color: var(--text-light);
+            cursor: pointer;
         }
 
-        .summary-value {
-            font-size: 22px;
-            font-weight: bold;
+        .breadcrumb-item.active {
             color: var(--primary);
+            font-weight: 600;
         }
 
-        .summary-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .report-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-
-        .report-table th,
-        .report-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        .report-table th {
-            background: #f5f5f5;
-            font-weight: bold;
-        }
-
-        .chart-container {
-            width: 100%;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        canvas {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .footer {
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
+        .breadcrumb-item:hover:not(.active) {
+            color: var(--primary);
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -422,6 +391,7 @@
     </div>
 
     <div class="custos-container">
+        <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <h1 style="font-size: 1.5rem;"><i class="fas fa-chart-line"></i> Controle de Custos</h1>
             <span id="firebaseStatus" class="firebase-status offline" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;">
@@ -429,115 +399,66 @@
             </span>
         </div>
 
-        <div class="custos-card">
-            <div class="card-header">
-                <span class="card-title"><i class="fas fa-calendar-alt"></i> Período de Análise</span>
-                <div class="toolbar">
-                    <select id="periodoSelect" onchange="window.carregarPeriodo()" style="min-width: 150px;">
-                        <option value="">Selecione um período</option>
-                    </select>
-                    <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalPeriodo()">
-                        <i class="fas fa-plus"></i> Novo Período
-                    </button>
-                    <button class="btn-custos btn-purple btn-sm" onclick="window.gerarRelatorioCompleto()" id="btnRelatorio" style="display: none;">
-                        <i class="fas fa-file-pdf"></i> Gerar Relatório PDF
-                    </button>
-                </div>
-            </div>
-            <div id="periodoInfo" style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f0fe; border-radius: 8px; display: none;">
-                <strong id="periodoNome"></strong> - <span id="periodoStatus"></span>
-            </div>
+        <!-- Breadcrumb Navegação -->
+        <div class="breadcrumb" id="breadcrumb">
+            <span class="breadcrumb-item active" data-level="maquinas" onclick="window.navegarPara('maquinas')">
+                <i class="fas fa-industry"></i> Máquinas/Setores
+            </span>
         </div>
 
-        <div class="stats-grid" id="dashboardResumo" style="margin-bottom: 1.5rem;"></div>
+        <!-- CONTEÚDO DINÂMICO -->
+        <div id="conteudoDinamico"></div>
+    </div>
 
-        <div class="grid-2">
-            <div class="custos-card">
-                <div class="card-header">
-                    <span class="card-title"><i class="fas fa-tags"></i> Categorias de Custo</span>
-                    <button class="btn-custos btn-success btn-sm" onclick="window.abrirModalCategoria()">
-                        <i class="fas fa-plus"></i> Nova Categoria
-                    </button>
-                </div>
-                <div id="categoriasList"></div>
+    <!-- MODAIS -->
+    <div class="modal-overlay" id="modalMaquina">
+        <div class="modal">
+            <h2 id="modalMaquinaTitulo">Nova Máquina/Setor</h2>
+            <input type="hidden" id="maquinaEditId">
+            <div class="form-group">
+                <label>Nome da Máquina/Setor</label>
+                <input type="text" id="maquinaNome" placeholder="Ex: Extrusora 01, Injetora, Reciclagem">
             </div>
-
-            <div class="custos-card">
-                <div class="card-header">
-                    <span class="card-title"><i class="fas fa-list-ul"></i> Itens de Custo</span>
-                    <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalItemCusto()">
-                        <i class="fas fa-plus"></i> Novo Item
-                    </button>
-                </div>
-                <div id="itensCustoList"></div>
+            <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" id="maquinaDescricao" placeholder="Descrição opcional">
             </div>
-        </div>
-
-        <div class="custos-card">
-            <div class="card-header">
-                <span class="card-title"><i class="fas fa-industry"></i> Produção</span>
-                <button class="btn-custos btn-info btn-sm" onclick="window.abrirModalProducao()">
-                    <i class="fas fa-edit"></i> Registrar Produção
-                </button>
-            </div>
-            <div class="grid-2" id="producaoInfo">
-                <div class="stat-card">
-                    <div class="stat-value" id="producaoKg">0 kg</div>
-                    <div class="stat-label">Total Produzido</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value money" id="custoTotal">R$ 0,00</div>
-                    <div class="stat-label">Custo Total</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value money" id="custoPorKg">R$ 0,00/kg</div>
-                    <div class="stat-label">Custo por KG</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="custos-card">
-            <div class="card-header">
-                <span class="card-title"><i class="fas fa-chart-pie"></i> Análise Gráfica</span>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
-                <div style="flex: 1; min-width: 250px;">
-                    <canvas id="pieChart" style="max-height: 300px; width: 100%;"></canvas>
-                    <p style="text-align: center; font-size: 0.75rem; margin-top: 0.5rem;">Distribuição dos Custos por Categoria</p>
-                </div>
-                <div style="flex: 1; min-width: 250px;">
-                    <canvas id="barChart" style="max-height: 300px; width: 100%;"></canvas>
-                    <p style="text-align: center; font-size: 0.75rem; margin-top: 0.5rem;">Comparativo de Custos</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="custos-card">
-            <div class="card-header">
-                <span class="card-title"><i class="fas fa-table"></i> Detalhamento de Custos</span>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr><th>Categoria</th><th>Item</th><th>Valor Total (R$)</th><th>Percentual</th><th>Valor Aplicado (R$)</th><th>Ações</th></tr>
-                    </thead>
-                    <tbody id="tabelaCustos"></tbody>
-                </table>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalMaquina')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarMaquina()">Salvar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modais -->
     <div class="modal-overlay" id="modalPeriodo">
         <div class="modal">
-            <h2 id="modalPeriodoTitulo">Novo Período</h2>
+            <h2>Novo Período</h2>
             <input type="hidden" id="periodoEditId">
             <div class="grid-2">
-                <div class="form-group"><label>Mês</label><select id="periodoMes"><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
-                <div class="form-group"><label>Ano</label><input type="number" id="periodoAno" value="2025"></div>
+                <div class="form-group">
+                    <label>Mês</label>
+                    <select id="periodoMes">
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ano</label>
+                    <input type="number" id="periodoAno" value="2025">
+                </div>
             </div>
-            <div class="form-group"><label>Observação</label><input type="text" id="periodoObs" placeholder="Observações do período"></div>
-            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarPeriodo()">Salvar</button></div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input type="text" id="periodoObs" placeholder="Observações do período">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarPeriodo()">Salvar</button>
+            </div>
         </div>
     </div>
 
@@ -545,9 +466,18 @@
         <div class="modal">
             <h2 id="modalCategoriaTitulo">Nova Categoria</h2>
             <input type="hidden" id="categoriaEditId">
-            <div class="form-group"><label>Nome da Categoria</label><input type="text" id="categoriaNome" placeholder="Ex: Energia, Matéria Prima"></div>
-            <div class="form-group"><label>Cor</label><input type="color" id="categoriaCor" value="#1a73e8"></div>
-            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalCategoria')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarCategoria()">Salvar</button></div>
+            <div class="form-group">
+                <label>Nome da Categoria</label>
+                <input type="text" id="categoriaNome" placeholder="Ex: Energia, Matéria Prima">
+            </div>
+            <div class="form-group">
+                <label>Cor</label>
+                <input type="color" id="categoriaCor" value="#1a73e8">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalCategoria')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarCategoria()">Salvar</button>
+            </div>
         </div>
     </div>
 
@@ -556,29 +486,58 @@
             <h2 id="modalItemTitulo">Novo Item de Custo</h2>
             <input type="hidden" id="itemEditId">
             <div class="grid-2">
-                <div class="form-group"><label>Categoria</label><select id="itemCategoria"></select></div>
-                <div class="form-group"><label>Nome do Item</label><input type="text" id="itemNome" placeholder="Ex: Energia Elétrica"></div>
-                <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="itemValorTotal" step="0.01" placeholder="0,00"></div>
-                <div class="form-group"><label>Percentual (%)</label><input type="number" id="itemPercentual" step="0.01" placeholder="100"></div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="itemCategoria"></select>
+                </div>
+                <div class="form-group">
+                    <label>Nome do Item</label>
+                    <input type="text" id="itemNome" placeholder="Ex: Energia Elétrica">
+                </div>
+                <div class="form-group">
+                    <label>Valor Total (R$)</label>
+                    <input type="number" id="itemValorTotal" step="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Percentual (%)</label>
+                    <input type="number" id="itemPercentual" step="0.01" placeholder="100">
+                </div>
             </div>
-            <div class="form-group"><label>Observação</label><input type="text" id="itemObs" placeholder="Observação opcional"></div>
-            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarItemCusto()">Salvar</button></div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input type="text" id="itemObs" placeholder="Observação opcional">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarItemCusto()">Salvar</button>
+            </div>
         </div>
-    </div>
+</div>
 
     <div class="modal-overlay" id="modalProducao">
         <div class="modal">
             <h2>Registrar Produção</h2>
-            <div class="form-group"><label>Produto</label><input type="text" id="producaoProduto" placeholder="Ex: Filme Plástico"></div>
-            <div class="grid-2">
-                <div class="form-group"><label>Quantidade (KG)</label><input type="number" id="producaoKg" step="0.01" placeholder="0,00"></div>
-                <div class="form-group"><label>Data</label><input type="date" id="producaoData"></div>
+            <div class="form-group">
+                <label>Produto</label>
+                <input type="text" id="producaoProduto" placeholder="Ex: Filme Plástico">
             </div>
-            <div class="modal-actions"><button class="btn-custos btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button><button class="btn-custos btn-success" onclick="window.salvarProducao()">Salvar</button></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Quantidade (KG)</label>
+                    <input type="number" id="producaoKg" step="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="producaoData">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-custos btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button>
+                <button class="btn-custos btn-success" onclick="window.salvarProducao()">Salvar</button>
+            </div>
         </div>
     </div>
 
-    <!-- Container oculto para geração do PDF -->
     <div id="reportContainer" class="report-container"></div>
 
     <script>
@@ -593,30 +552,39 @@
             };
 
             let db = null, usandoFirebase = false;
-            let periodos = [], categorias = [], itensCusto = [], producoes = [], periodoAtual = null;
+            let maquinas = [], categorias = [], itensCusto = [], producoes = [];
+            let maquinaAtual = null, periodoAtual = null;
             let pieChart = null, barChart = null;
+            let nivelAtual = 'maquinas'; // maquinas -> periodos -> custos
 
-            const STORAGE_KEY = 'controleCustos_milplasticos';
+            const STORAGE_KEY = 'controleCustos_v2_milplasticos';
 
             function loadLocalData() {
                 const data = localStorage.getItem(STORAGE_KEY);
                 if (data) {
                     const parsed = JSON.parse(data);
-                    periodos = parsed.periodos || [];
+                    maquinas = parsed.maquinas || [];
                     categorias = parsed.categorias || [];
                     itensCusto = parsed.itensCusto || [];
                     producoes = parsed.producoes || [];
                 } else {
+                    // Dados de exemplo
+                    maquinas = [
+                        { id: 'maq1', nome: 'Extrusora 01', descricao: 'Linha de filme plástico', createdAt: new Date().toISOString() },
+                        { id: 'maq2', nome: 'Injetora 300T', descricao: 'Peças injetadas', createdAt: new Date().toISOString() }
+                    ];
                     categorias = [
                         { id: 'cat1', nome: 'Energia', cor: '#f9ab00' },
                         { id: 'cat2', nome: 'Matéria Prima', cor: '#1a73e8' },
                         { id: 'cat3', nome: 'Mão de Obra', cor: '#0d904f' }
                     ];
+                    itensCusto = [];
+                    producoes = [];
                 }
             }
 
             function saveLocalData() {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ periodos, categorias, itensCusto, producoes }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ maquinas, categorias, itensCusto, producoes }));
             }
 
             loadLocalData();
@@ -627,9 +595,39 @@
                 usandoFirebase = true;
                 document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 🔥 Firebase Online';
                 document.getElementById('firebaseStatus').style.cssText = 'background: #e6f4ea; color: #1e7e34; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;';
+                carregarDadosFirebase();
             } catch (e) {
                 document.getElementById('firebaseStatus').innerHTML = '<span class="dot"></span> 💾 LocalStorage';
                 document.getElementById('firebaseStatus').style.cssText = 'background: #fce8e6; color: #c5221f; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem;';
+            }
+
+            async function carregarDadosFirebase() {
+                if (!usandoFirebase || !db) return;
+                try {
+                    const snapshotMaquinas = await db.collection('custos_maquinas').get();
+                    maquinas = snapshotMaquinas.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const snapshotCategorias = await db.collection('custos_categorias').get();
+                    categorias = snapshotCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const snapshotItens = await db.collection('custos_itens').get();
+                    itensCusto = snapshotItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const snapshotProducoes = await db.collection('custos_producoes').get();
+                    producoes = snapshotProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    saveLocalData();
+                    renderizarTela();
+                } catch (e) { console.error(e); }
+            }
+
+            async function salvarNoFirebase(colecao, dados) {
+                if (!usandoFirebase || !db) return;
+                try {
+                    if (dados.id) await db.collection(colecao).doc(dados.id).set(dados);
+                    else { const docRef = await db.collection(colecao).add(dados); dados.id = docRef.id; }
+                } catch (e) { console.error(e); }
+            }
+
+            async function excluirDoFirebase(colecao, id) {
+                if (!usandoFirebase || !db || !id) return;
+                try { await db.collection(colecao).doc(id).delete(); } catch (e) { console.error(e); }
             }
 
             function showLoading() { document.getElementById('loadingOverlay').classList.add('active'); }
@@ -638,9 +636,36 @@
             function formatMoney(valor) { return 'R$ ' + valor.toFixed(2).replace('.', ','); }
             function formatNumber(numero, decimais = 2) { return numero.toFixed(decimais).replace('.', ','); }
 
+            function getPeriodosDaMaquina() {
+                if (!maquinaAtual) return [];
+                const periodosMap = new Map();
+                itensCusto.filter(i => i.maquinaId === maquinaAtual.id).forEach(item => {
+                    const key = `${item.periodoMes}_${item.periodoAno}`;
+                    if (!periodosMap.has(key)) {
+                        periodosMap.set(key, { mes: item.periodoMes, ano: item.periodoAno, obs: item.periodoObs || '' });
+                    }
+                });
+                producoes.filter(p => p.maquinaId === maquinaAtual.id).forEach(prod => {
+                    const key = `${prod.periodoMes}_${prod.periodoAno}`;
+                    if (!periodosMap.has(key)) {
+                        periodosMap.set(key, { mes: prod.periodoMes, ano: prod.periodoAno, obs: '' });
+                    }
+                });
+                return Array.from(periodosMap.values()).sort((a, b) => {
+                    if (a.ano !== b.ano) return b.ano - a.ano;
+                    return b.mes - a.mes;
+                });
+            }
+
             function calcularCustosPeriodo() {
-                if (!periodoAtual) return { totalCusto: 0, itensCalculados: [], totalKg: 0, porCategoria: {} };
-                const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
+                if (!maquinaAtual || !periodoAtual) return { totalCusto: 0, itensCalculados: [], totalKg: 0, porCategoria: {} };
+                
+                const itensDoPeriodo = itensCusto.filter(item => 
+                    item.maquinaId === maquinaAtual.id && 
+                    item.periodoMes === periodoAtual.mes && 
+                    item.periodoAno === periodoAtual.ano
+                );
+                
                 let totalCusto = 0;
                 const itensCalculados = [];
                 const porCategoria = {};
@@ -660,7 +685,11 @@
                     }
                 });
                 
-                const producoesDoPeriodo = producoes.filter(p => p.periodoId === periodoAtual.id);
+                const producoesDoPeriodo = producoes.filter(p => 
+                    p.maquinaId === maquinaAtual.id && 
+                    p.periodoMes === periodoAtual.mes && 
+                    p.periodoAno === periodoAtual.ano
+                );
                 const totalKg = producoesDoPeriodo.reduce((sum, p) => sum + p.kg, 0);
                 
                 return { totalCusto, itensCalculados, totalKg, porCategoria };
@@ -668,111 +697,264 @@
 
             function atualizarGraficos() {
                 const { porCategoria, totalCusto } = calcularCustosPeriodo();
-                
                 const categoriasArray = Object.values(porCategoria);
                 const labels = categoriasArray.map(c => c.nome);
                 const valores = categoriasArray.map(c => c.total);
                 const cores = categoriasArray.map(c => c.cor || '#1a73e8');
                 
+                const pieCtx = document.getElementById('pieChart');
+                const barCtx = document.getElementById('barChart');
+                if (!pieCtx || !barCtx) return;
+                
                 if (pieChart) pieChart.destroy();
                 if (barChart) barChart.destroy();
                 
-                const ctxPie = document.getElementById('pieChart').getContext('2d');
-                const ctxBar = document.getElementById('barChart').getContext('2d');
-                
-                pieChart = new Chart(ctxPie, {
+                pieChart = new Chart(pieCtx, {
                     type: 'pie',
                     data: { labels, datasets: [{ data: valores, backgroundColor: cores, borderWidth: 0 }] },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
                 });
                 
-                barChart = new Chart(ctxBar, {
+                barChart = new Chart(barCtx, {
                     type: 'bar',
                     data: { labels, datasets: [{ label: 'Valor (R$)', data: valores, backgroundColor: cores, borderRadius: 8 }] },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v } } } }
                 });
             }
 
-            function atualizarDashboard() {
-                const { totalCusto, totalKg } = calcularCustosPeriodo();
-                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
-                
-                document.getElementById('dashboardResumo').innerHTML = `
-                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00'}</div><div class="stat-label">Custo Total</div></div>
-                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg'}</div><div class="stat-label">Total Produzido</div></div>
-                    <div class="stat-card"><div class="stat-value">${periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg'}</div><div class="stat-label">Custo por KG</div></div>
-                `;
-                document.getElementById('producaoKg').innerHTML = periodoAtual ? formatNumber(totalKg, 0) + ' kg' : '0 kg';
-                document.getElementById('custoTotal').innerHTML = periodoAtual ? formatMoney(totalCusto) : 'R$ 0,00';
-                document.getElementById('custoPorKg').innerHTML = periodoAtual ? formatMoney(custoPorKg) + '/kg' : 'R$ 0,00/kg';
-                
-                atualizarGraficos();
+            function renderizarTela() {
+                if (nivelAtual === 'maquinas') {
+                    renderizarMaquinas();
+                } else if (nivelAtual === 'periodos') {
+                    renderizarPeriodos();
+                } else if (nivelAtual === 'custos') {
+                    renderizarCustos();
+                }
+                atualizarBreadcrumb();
             }
 
-            function carregarSelectPeriodos() {
-                const select = document.getElementById('periodoSelect');
-                select.innerHTML = '<option value="">Selecione um período</option>';
-                periodos.sort((a, b) => { if (a.ano !== b.ano) return b.ano - a.ano; return b.mes - a.mes; });
-                periodos.forEach(p => {
-                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][p.mes - 1];
-                    select.innerHTML += `<option value="${p.id}">${nomeMes}/${p.ano}</option>`;
+            function renderizarMaquinas() {
+                const container = document.getElementById('conteudoDinamico');
+                container.innerHTML = `
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-industry"></i> Máquinas e Setores</span>
+                            <button class="btn-custos btn-success btn-sm" onclick="window.abrirModalMaquina()">
+                                <i class="fas fa-plus"></i> Nova Máquina/Setor
+                            </button>
+                        </div>
+                        <div class="stats-grid" id="maquinasGrid">
+                            ${maquinas.length === 0 ? '<p style="text-align: center; color: var(--text-light);">Nenhuma máquina cadastrada. Clique em "Nova Máquina/Setor" para começar.</p>' : ''}
+                        </div>
+                    </div>
+                `;
+                
+                const grid = document.getElementById('maquinasGrid');
+                maquinas.forEach(maq => {
+                    const qtdPeriodos = getPeriodosDaMaquina(maq).length;
+                    const qtdItens = itensCusto.filter(i => i.maquinaId === maq.id).length;
+                    grid.innerHTML += `
+                        <div class="maquina-card" onclick="window.selecionarMaquina('${maq.id}')">
+                            <div class="maquina-nome"><i class="fas fa-microchip"></i> ${maq.nome}</div>
+                            <div class="maquina-info">${maq.descricao || 'Sem descrição'}</div>
+                            <div class="maquina-info" style="margin-top: 0.5rem;">
+                                <i class="fas fa-calendar"></i> ${qtdPeriodos} períodos | 
+                                <i class="fas fa-list"></i> ${qtdItens} itens
+                            </div>
+                            <div style="margin-top: 0.5rem;">
+                                <button class="btn-custos btn-outline btn-sm" style="background: rgba(255,255,255,0.2); color: white;" onclick="event.stopPropagation(); window.editarMaquina('${maq.id}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="event.stopPropagation(); window.excluirMaquina('${maq.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 });
             }
 
-            window.carregarPeriodo = function() {
-                const periodoId = document.getElementById('periodoSelect').value;
-                if (!periodoId) {
-                    periodoAtual = null;
-                    document.getElementById('periodoInfo').style.display = 'none';
-                    document.getElementById('btnRelatorio').style.display = 'none';
-                } else {
-                    periodoAtual = periodos.find(p => p.id === periodoId);
-                    if (periodoAtual) {
-                        const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
-                        document.getElementById('periodoNome').innerHTML = `<i class="fas fa-calendar"></i> ${nomeMes}/${periodoAtual.ano}`;
-                        document.getElementById('periodoStatus').innerHTML = periodoAtual.obs || 'Sem observações';
-                        document.getElementById('periodoInfo').style.display = 'block';
-                        document.getElementById('btnRelatorio').style.display = 'inline-flex';
-                    }
-                }
-                atualizarDashboard();
+            function renderizarPeriodos() {
+                const periodos = getPeriodosDaMaquina();
+                const container = document.getElementById('conteudoDinamico');
+                container.innerHTML = `
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-calendar-alt"></i> Períodos - ${maquinaAtual?.nome}</span>
+                            <div class="toolbar">
+                                <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalPeriodo()">
+                                    <i class="fas fa-plus"></i> Novo Período
+                                </button>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.navegarPara('maquinas')">
+                                    <i class="fas fa-arrow-left"></i> Voltar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="stats-grid" id="periodosGrid">
+                            ${periodos.length === 0 ? '<p style="text-align: center; color: var(--text-light);">Nenhum período cadastrado. Clique em "Novo Período" para começar.</p>' : ''}
+                        </div>
+                    </div>
+                `;
+                
+                const grid = document.getElementById('periodosGrid');
+                periodos.forEach(periodo => {
+                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodo.mes - 1];
+                    const itensDoPeriodo = itensCusto.filter(i => 
+                        i.maquinaId === maquinaAtual.id && 
+                        i.periodoMes === periodo.mes && 
+                        i.periodoAno === periodo.ano
+                    );
+                    const totalCusto = itensDoPeriodo.reduce((sum, i) => sum + (i.valorTotal * i.percentual / 100), 0);
+                    
+                    grid.innerHTML += `
+                        <div class="periodo-card" onclick="window.selecionarPeriodo(${periodo.mes}, ${periodo.ano})">
+                            <div class="periodo-mes"><i class="fas fa-calendar"></i> ${nomeMes}/${periodo.ano}</div>
+                            <div class="periodo-info">${periodo.obs || 'Sem observações'}</div>
+                            <div class="periodo-info" style="margin-top: 0.5rem;">
+                                <i class="fas fa-tags"></i> ${itensDoPeriodo.length} itens | 
+                                <i class="fas fa-dollar-sign"></i> ${formatMoney(totalCusto)}
+                            </div>
+                            <div style="margin-top: 0.5rem;">
+                                <button class="btn-custos btn-danger btn-sm" onclick="event.stopPropagation(); window.excluirPeriodo(${periodo.mes}, ${periodo.ano})">
+                                    <i class="fas fa-trash"></i> Excluir Período
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            function renderizarCustos() {
+                const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
+                const { totalCusto, totalKg, porCategoria } = calcularCustosPeriodo();
+                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                
+                const container = document.getElementById('conteudoDinamico');
+                container.innerHTML = `
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-chart-line"></i> Dashboard - ${maquinaAtual?.nome} - ${nomeMes}/${periodoAtual.ano}</span>
+                            <div class="toolbar">
+                                <button class="btn-custos btn-purple btn-sm" onclick="window.gerarRelatorioCompleto()">
+                                    <i class="fas fa-file-pdf"></i> Relatório PDF
+                                </button>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.navegarPara('periodos')">
+                                    <i class="fas fa-arrow-left"></i> Voltar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-value">${formatMoney(totalCusto)}</div><div class="stat-label">Custo Total</div></div>
+                        <div class="stat-card"><div class="stat-value">${formatNumber(totalKg, 0)} kg</div><div class="stat-label">Total Produzido</div></div>
+                        <div class="stat-card"><div class="stat-value">${formatMoney(custoPorKg)}/kg</div><div class="stat-label">Custo por KG</div></div>
+                    </div>
+
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-chart-pie"></i> Análise Gráfica</span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
+                            <div style="flex: 1; min-width: 250px;"><canvas id="pieChart" style="max-height: 300px; width: 100%;"></canvas></div>
+                            <div style="flex: 1; min-width: 250px;"><canvas id="barChart" style="max-height: 300px; width: 100%;"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="custos-card">
+                            <div class="card-header">
+                                <span class="card-title"><i class="fas fa-tags"></i> Categorias</span>
+                                <button class="btn-custos btn-success btn-sm" onclick="window.abrirModalCategoria()">
+                                    <i class="fas fa-plus"></i> Nova Categoria
+                                </button>
+                            </div>
+                            <div id="categoriasList"></div>
+                        </div>
+
+                        <div class="custos-card">
+                            <div class="card-header">
+                                <span class="card-title"><i class="fas fa-list-ul"></i> Itens de Custo</span>
+                                <button class="btn-custos btn-primary btn-sm" onclick="window.abrirModalItemCusto()">
+                                    <i class="fas fa-plus"></i> Novo Item
+                                </button>
+                            </div>
+                            <div id="itensCustoList"></div>
+                        </div>
+                    </div>
+
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-industry"></i> Produção</span>
+                            <button class="btn-custos btn-info btn-sm" onclick="window.abrirModalProducao()">
+                                <i class="fas fa-edit"></i> Registrar Produção
+                            </button>
+                        </div>
+                        <div id="producaoList"></div>
+                    </div>
+
+                    <div class="custos-card">
+                        <div class="card-header">
+                            <span class="card-title"><i class="fas fa-table"></i> Detalhamento de Custos</span>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>Categoria</th><th>Item</th><th>Valor Total (R$)</th><th>Percentual</th><th>Valor Aplicado (R$)</th><th>Ações</th></tr></thead>
+                                <tbody id="tabelaCustos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                carregarCategoriasLista();
                 carregarItensCustoLista();
                 carregarTabelaCustos();
-                carregarCategoriasLista();
-            };
+                carregarProducoesLista();
+                atualizarGraficos();
+            }
 
             function carregarCategoriasLista() {
                 const container = document.getElementById('categoriasList');
+                if (!container) return;
                 if (categorias.length === 0) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhuma categoria cadastrada</p>'; return; }
                 container.innerHTML = categorias.map(cat => `
                     <div class="categoria-item" style="border-left: 4px solid ${cat.cor}">
                         <div class="categoria-header">
                             <span class="categoria-nome"><i class="fas fa-tag"></i> ${cat.nome}</span>
-                            <div><button class="btn-custos btn-outline btn-sm" onclick="window.editarCategoria('${cat.id}')"><i class="fas fa-edit"></i></button>
-                            <button class="btn-custos btn-danger btn-sm" onclick="window.excluirCategoria('${cat.id}')"><i class="fas fa-trash"></i></button></div>
+                            <div>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarCategoria('${cat.id}')"><i class="fas fa-edit"></i></button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirCategoria('${cat.id}')"><i class="fas fa-trash"></i></button>
+                            </div>
                         </div>
-                        <div class="categoria-total">${itensCusto.filter(i => i.categoriaId === cat.id && (!periodoAtual || i.periodoId === periodoAtual.id)).length} itens</div>
                     </div>
                 `).join('');
             }
 
             function carregarItensCustoLista() {
                 const container = document.getElementById('itensCustoList');
-                if (!periodoAtual) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Selecione um período primeiro</p>'; return; }
-                const itensDoPeriodo = itensCusto.filter(item => item.periodoId === periodoAtual.id);
+                if (!container || !maquinaAtual || !periodoAtual) return;
+                const itensDoPeriodo = itensCusto.filter(item => 
+                    item.maquinaId === maquinaAtual.id && 
+                    item.periodoMes === periodoAtual.mes && 
+                    item.periodoAno === periodoAtual.ano
+                );
                 if (itensDoPeriodo.length === 0) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhum item de custo cadastrado</p>'; return; }
                 container.innerHTML = itensDoPeriodo.map(item => {
                     const categoria = categorias.find(c => c.id === item.categoriaId);
-                    return `<div class="custo-item"><div><strong>${item.nome}</strong><div style="font-size: 0.7rem;">${categoria?.nome || 'Sem categoria'}</div></div>
-                    <div style="text-align: right;"><div class="money">${formatMoney(item.valorTotal)}</div><div><span class="percentage-badge">${item.percentual}%</span></div></div>
-                    <div><button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;
+                    return `<div class="custo-item">
+                        <div><strong>${item.nome}</strong><div style="font-size: 0.7rem;">${categoria?.nome || 'Sem categoria'}</div></div>
+                        <div style="text-align: right;"><div class="money">${formatMoney(item.valorTotal)}</div><div><span class="percentage-badge">${item.percentual}%</span></div></div>
+                        <div>
+                            <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
+                            <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>`;
                 }).join('');
             }
 
             function carregarTabelaCustos() {
                 const tbody = document.getElementById('tabelaCustos');
-                if (!periodoAtual) { tbody.innerHTML = '<td><td colspan="6">Selecione um período primeiro</td></tr>'; return; }
+                if (!tbody || !maquinaAtual || !periodoAtual) return;
                 const { itensCalculados } = calcularCustosPeriodo();
                 if (itensCalculados.length === 0) { tbody.innerHTML = '<tr><td colspan="6">Nenhum item de custo cadastrado</td></tr>'; return; }
                 
@@ -789,58 +971,186 @@
                     const grupo = porCategoria[catId];
                     html += `<tr style="background: #f8fafc;"><td colspan="6"><strong><i class="fas fa-folder"></i> ${grupo.categoria?.nome || 'Sem categoria'}</strong> - Subtotal: ${formatMoney(grupo.subtotal)}</td></tr>`;
                     grupo.itens.forEach(item => {
-                        html += `<tr><td>-</td><td>${item.nome} ${item.obs ? `<span style="font-size: 0.7rem;">(${item.obs})</span>` : ''}</td>
-                        <td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td>
-                        <td class="money"><strong>${formatMoney(item.valorAplicado)}</strong></td>
-                        <td><button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+                        html += `<tr>
+                            <td>-</td>
+                            <td>${item.nome} ${item.obs ? `<span style="font-size: 0.7rem;">(${item.obs})</span>` : ''}</td>
+                            <td class="money">${formatMoney(item.valorTotal)}</td>
+                            <td>${item.percentual}%</td>
+                            <td class="money"><strong>${formatMoney(item.valorAplicado)}</strong></td>
+                            <td>
+                                <button class="btn-custos btn-outline btn-sm" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button>
+                                <button class="btn-custos btn-danger btn-sm" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>`;
                     });
                 }
                 tbody.innerHTML = html;
             }
 
-            // CRUD Períodos
-            window.abrirModalPeriodo = function(id = null) {
-                document.getElementById('modalPeriodo').classList.add('active');
+            function carregarProducoesLista() {
+                const container = document.getElementById('producaoList');
+                if (!container || !maquinaAtual || !periodoAtual) return;
+                const producoesDoPeriodo = producoes.filter(p => 
+                    p.maquinaId === maquinaAtual.id && 
+                    p.periodoMes === periodoAtual.mes && 
+                    p.periodoAno === periodoAtual.ano
+                );
+                if (producoesDoPeriodo.length === 0) { container.innerHTML = '<p style="text-align: center; color: var(--text-light);">Nenhuma produção registrada</p>'; return; }
+                container.innerHTML = `
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Data</th><th>Produto</th><th>Quantidade (KG)</th><th>Ações</th></tr></thead>
+                            <tbody>
+                                ${producoesDoPeriodo.map(prod => `
+                                    <tr>
+                                        <td>${new Date(prod.data).toLocaleDateString('pt-BR')}</td>
+                                        <td>${prod.produto}</td>
+                                        <td>${formatNumber(prod.kg, 0)} kg</td>
+                                        <td><button class="btn-custos btn-danger btn-sm" onclick="window.excluirProducao('${prod.id}')"><i class="fas fa-trash"></i></button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            function atualizarBreadcrumb() {
+                const breadcrumb = document.getElementById('breadcrumb');
+                let html = `<span class="breadcrumb-item ${nivelAtual === 'maquinas' ? 'active' : ''}" data-level="maquinas" onclick="window.navegarPara('maquinas')"><i class="fas fa-industry"></i> Máquinas/Setores</span>`;
+                
+                if (maquinaAtual && (nivelAtual === 'periodos' || nivelAtual === 'custos')) {
+                    html += `<span><i class="fas fa-chevron-right" style="font-size: 0.7rem; color: var(--text-light);"></i></span>`;
+                    html += `<span class="breadcrumb-item ${nivelAtual === 'periodos' ? 'active' : ''}" data-level="periodos" onclick="window.navegarPara('periodos')">${maquinaAtual.nome}</span>`;
+                }
+                
+                if (periodoAtual && nivelAtual === 'custos') {
+                    const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
+                    html += `<span><i class="fas fa-chevron-right" style="font-size: 0.7rem; color: var(--text-light);"></i></span>`;
+                    html += `<span class="breadcrumb-item active">${nomeMes}/${periodoAtual.ano}</span>`;
+                }
+                
+                breadcrumb.innerHTML = html;
+            }
+
+            // Navegação
+            window.navegarPara = function(nivel) {
+                if (nivel === 'maquinas') {
+                    maquinaAtual = null;
+                    periodoAtual = null;
+                    nivelAtual = 'maquinas';
+                } else if (nivel === 'periodos') {
+                    nivelAtual = 'periodos';
+                }
+                renderizarTela();
+            };
+
+            window.selecionarMaquina = function(id) {
+                maquinaAtual = maquinas.find(m => m.id === id);
+                periodoAtual = null;
+                nivelAtual = 'periodos';
+                renderizarTela();
+            };
+
+            window.selecionarPeriodo = function(mes, ano) {
+                periodoAtual = { mes, ano };
+                nivelAtual = 'custos';
+                renderizarTela();
+            };
+
+            // CRUD Máquinas
+            window.abrirModalMaquina = function(id = null) {
+                document.getElementById('modalMaquina').classList.add('active');
                 if (id) {
-                    const periodo = periodos.find(p => p.id === id);
-                    if (periodo) {
-                        document.getElementById('modalPeriodoTitulo').innerText = 'Editar Período';
-                        document.getElementById('periodoEditId').value = periodo.id;
-                        document.getElementById('periodoMes').value = periodo.mes;
-                        document.getElementById('periodoAno').value = periodo.ano;
-                        document.getElementById('periodoObs').value = periodo.obs || '';
+                    const maq = maquinas.find(m => m.id === id);
+                    if (maq) {
+                        document.getElementById('modalMaquinaTitulo').innerText = 'Editar Máquina/Setor';
+                        document.getElementById('maquinaEditId').value = maq.id;
+                        document.getElementById('maquinaNome').value = maq.nome;
+                        document.getElementById('maquinaDescricao').value = maq.descricao || '';
                     }
                 } else {
-                    document.getElementById('modalPeriodoTitulo').innerText = 'Novo Período';
-                    document.getElementById('periodoEditId').value = '';
-                    document.getElementById('periodoMes').value = new Date().getMonth() + 1;
-                    document.getElementById('periodoAno').value = new Date().getFullYear();
-                    document.getElementById('periodoObs').value = '';
+                    document.getElementById('modalMaquinaTitulo').innerText = 'Nova Máquina/Setor';
+                    document.getElementById('maquinaEditId').value = '';
+                    document.getElementById('maquinaNome').value = '';
+                    document.getElementById('maquinaDescricao').value = '';
                 }
             };
 
-            window.salvarPeriodo = async function() {
-                const periodo = { mes: parseInt(document.getElementById('periodoMes').value), ano: parseInt(document.getElementById('periodoAno').value), obs: document.getElementById('periodoObs').value, createdAt: new Date().toISOString() };
-                const editId = document.getElementById('periodoEditId').value;
-                if (editId) { periodo.id = editId; const idx = periodos.findIndex(p => p.id === editId); if (idx !== -1) periodos[idx] = periodo; }
-                else { periodo.id = Date.now().toString(); periodos.push(periodo); }
-                if (usandoFirebase && db) await db.collection('custos_periodos').doc(periodo.id).set(periodo);
+            window.salvarMaquina = async function() {
+                const maquina = {
+                    nome: document.getElementById('maquinaNome').value,
+                    descricao: document.getElementById('maquinaDescricao').value,
+                    createdAt: new Date().toISOString()
+                };
+                if (!maquina.nome) { alert('Digite o nome da máquina!'); return; }
+                const editId = document.getElementById('maquinaEditId').value;
+                if (editId) { maquina.id = editId; const idx = maquinas.findIndex(m => m.id === editId); if (idx !== -1) maquinas[idx] = maquina; }
+                else { maquina.id = Date.now().toString(); maquinas.push(maquina); }
+                await salvarNoFirebase('custos_maquinas', maquina);
                 saveLocalData();
-                carregarSelectPeriodos();
-                window.fecharModal('modalPeriodo');
-                if (editId && periodoAtual?.id === editId) { periodoAtual = periodo; window.carregarPeriodo(); }
+                window.fecharModal('modalMaquina');
+                renderizarTela();
             };
 
+            window.editarMaquina = function(id) { window.abrirModalMaquina(id); };
+            window.excluirMaquina = async function(id) {
+                if (confirm('Excluir esta máquina? Todos os custos e produções associados serão removidos.')) {
+                    itensCusto = itensCusto.filter(i => i.maquinaId !== id);
+                    producoes = producoes.filter(p => p.maquinaId !== id);
+                    maquinas = maquinas.filter(m => m.id !== id);
+                    await excluirDoFirebase('custos_maquinas', id);
+                    saveLocalData();
+                    if (maquinaAtual?.id === id) { maquinaAtual = null; nivelAtual = 'maquinas'; }
+                    renderizarTela();
+                }
+            };
+
+            // CRUD Períodos
+            window.abrirModalPeriodo = function() {
+                document.getElementById('modalPeriodo').classList.add('active');
+                document.getElementById('periodoEditId').value = '';
+                document.getElementById('periodoMes').value = new Date().getMonth() + 1;
+                document.getElementById('periodoAno').value = new Date().getFullYear();
+                document.getElementById('periodoObs').value = '';
+            };
+
+            window.salvarPeriodo = async function() {
+                if (!maquinaAtual) return;
+                const mes = parseInt(document.getElementById('periodoMes').value);
+                const ano = parseInt(document.getElementById('periodoAno').value);
+                const obs = document.getElementById('periodoObs').value;
+                
+                // Verificar se já existe
+                const existe = itensCusto.some(i => i.maquinaId === maquinaAtual.id && i.periodoMes === mes && i.periodoAno === ano);
+                if (existe) {
+                    alert('Este período já existe para esta máquina!');
+                    return;
+                }
+                
+                window.fecharModal('modalPeriodo');
+                window.selecionarPeriodo(mes, ano);
+            };
+
+            window.excluirPeriodo = async function(mes, ano) {
+                if (confirm('Excluir este período? Todos os custos e produções serão removidos.')) {
+                    itensCusto = itensCusto.filter(i => !(i.maquinaId === maquinaAtual.id && i.periodoMes === mes && i.periodoAno === ano));
+                    producoes = producoes.filter(p => !(p.maquinaId === maquinaAtual.id && p.periodoMes === mes && p.periodoAno === ano));
+                    saveLocalData();
+                    renderizarTela();
+                }
+            };
+
+            // CRUD Categorias
             window.abrirModalCategoria = function(id = null) {
                 document.getElementById('modalCategoria').classList.add('active');
                 if (id) {
-                    const categoria = categorias.find(c => c.id === id);
-                    if (categoria) {
+                    const cat = categorias.find(c => c.id === id);
+                    if (cat) {
                         document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria';
-                        document.getElementById('categoriaEditId').value = categoria.id;
-                        document.getElementById('categoriaNome').value = categoria.nome;
-                        document.getElementById('categoriaCor').value = categoria.cor;
+                        document.getElementById('categoriaEditId').value = cat.id;
+                        document.getElementById('categoriaNome').value = cat.nome;
+                        document.getElementById('categoriaCor').value = cat.cor;
                     }
                 } else {
                     document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria';
@@ -856,10 +1166,11 @@
                 const editId = document.getElementById('categoriaEditId').value;
                 if (editId) { categoria.id = editId; const idx = categorias.findIndex(c => c.id === editId); if (idx !== -1) categorias[idx] = categoria; }
                 else { categoria.id = Date.now().toString(); categorias.push(categoria); }
-                if (usandoFirebase && db) await db.collection('custos_categorias').doc(categoria.id).set(categoria);
+                await salvarNoFirebase('custos_categorias', categoria);
                 saveLocalData();
-                carregarCategoriasLista();
                 window.fecharModal('modalCategoria');
+                if (nivelAtual === 'custos') { carregarCategoriasLista(); }
+                else { renderizarTela(); }
             };
 
             window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
@@ -867,22 +1178,20 @@
                 if (confirm('Excluir esta categoria?')) {
                     itensCusto = itensCusto.filter(i => i.categoriaId !== id);
                     categorias = categorias.filter(c => c.id !== id);
-                    if (usandoFirebase && db) await db.collection('custos_categorias').doc(id).delete();
+                    await excluirDoFirebase('custos_categorias', id);
                     saveLocalData();
-                    carregarCategoriasLista();
-                    carregarItensCustoLista();
-                    carregarTabelaCustos();
-                    atualizarDashboard();
+                    if (nivelAtual === 'custos') { carregarCategoriasLista(); carregarItensCustoLista(); carregarTabelaCustos(); atualizarGraficos(); }
+                    else { renderizarTela(); }
                 }
             };
 
             function carregarSelectCategorias() {
                 const select = document.getElementById('itemCategoria');
-                select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                if (select) select.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
             }
 
             window.abrirModalItemCusto = function(id = null) {
-                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
+                if (!maquinaAtual || !periodoAtual) { alert('Selecione uma máquina e período primeiro!'); return; }
                 carregarSelectCategorias();
                 document.getElementById('modalItemCusto').classList.add('active');
                 if (id) {
@@ -908,34 +1217,44 @@
             };
 
             window.salvarItemCusto = async function() {
-                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
-                const item = { periodoId: periodoAtual.id, categoriaId: document.getElementById('itemCategoria').value, nome: document.getElementById('itemNome').value, valorTotal: parseFloat(document.getElementById('itemValorTotal').value) || 0, percentual: parseFloat(document.getElementById('itemPercentual').value) || 0, obs: document.getElementById('itemObs').value, createdAt: new Date().toISOString() };
+                if (!maquinaAtual || !periodoAtual) { alert('Selecione uma máquina e período primeiro!'); return; }
+                const item = {
+                    maquinaId: maquinaAtual.id,
+                    periodoMes: periodoAtual.mes,
+                    periodoAno: periodoAtual.ano,
+                    categoriaId: document.getElementById('itemCategoria').value,
+                    nome: document.getElementById('itemNome').value,
+                    valorTotal: parseFloat(document.getElementById('itemValorTotal').value) || 0,
+                    percentual: parseFloat(document.getElementById('itemPercentual').value) || 0,
+                    obs: document.getElementById('itemObs').value,
+                    createdAt: new Date().toISOString()
+                };
                 if (!item.nome) { alert('Digite o nome do item!'); return; }
                 const editId = document.getElementById('itemEditId').value;
                 if (editId) { item.id = editId; const idx = itensCusto.findIndex(i => i.id === editId); if (idx !== -1) itensCusto[idx] = item; }
                 else { item.id = Date.now().toString(); itensCusto.push(item); }
-                if (usandoFirebase && db) await db.collection('custos_itens').doc(item.id).set(item);
+                await salvarNoFirebase('custos_itens', item);
                 saveLocalData();
                 window.fecharModal('modalItemCusto');
                 carregarItensCustoLista();
                 carregarTabelaCustos();
-                atualizarDashboard();
+                atualizarGraficos();
             };
 
             window.editarItemCusto = function(id) { window.abrirModalItemCusto(id); };
             window.excluirItemCusto = async function(id) {
                 if (confirm('Excluir este item?')) {
                     itensCusto = itensCusto.filter(i => i.id !== id);
-                    if (usandoFirebase && db) await db.collection('custos_itens').doc(id).delete();
+                    await excluirDoFirebase('custos_itens', id);
                     saveLocalData();
                     carregarItensCustoLista();
                     carregarTabelaCustos();
-                    atualizarDashboard();
+                    atualizarGraficos();
                 }
             };
 
             window.abrirModalProducao = function() {
-                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
+                if (!maquinaAtual || !periodoAtual) { alert('Selecione uma máquina e período primeiro!'); return; }
                 document.getElementById('modalProducao').classList.add('active');
                 document.getElementById('producaoProduto').value = '';
                 document.getElementById('producaoKg').value = '';
@@ -943,50 +1262,70 @@
             };
 
             window.salvarProducao = async function() {
-                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
-                const producao = { periodoId: periodoAtual.id, produto: document.getElementById('producaoProduto').value, kg: parseFloat(document.getElementById('producaoKg').value) || 0, data: document.getElementById('producaoData').value, createdAt: new Date().toISOString(), id: Date.now().toString() };
+                if (!maquinaAtual || !periodoAtual) { alert('Selecione uma máquina e período primeiro!'); return; }
+                const producao = {
+                    maquinaId: maquinaAtual.id,
+                    periodoMes: periodoAtual.mes,
+                    periodoAno: periodoAtual.ano,
+                    produto: document.getElementById('producaoProduto').value,
+                    kg: parseFloat(document.getElementById('producaoKg').value) || 0,
+                    data: document.getElementById('producaoData').value,
+                    createdAt: new Date().toISOString(),
+                    id: Date.now().toString()
+                };
                 if (!producao.produto || producao.kg <= 0) { alert('Preencha o produto e quantidade!'); return; }
                 producoes.push(producao);
-                if (usandoFirebase && db) await db.collection('custos_producoes').doc(producao.id).set(producao);
+                await salvarNoFirebase('custos_producoes', producao);
                 saveLocalData();
                 window.fecharModal('modalProducao');
-                atualizarDashboard();
+                carregarProducoesLista();
+                const { totalCusto, totalKg } = calcularCustosPeriodo();
+                document.getElementById('producaoKg').innerHTML = formatNumber(totalKg, 0) + ' kg';
+                document.getElementById('custoTotal').innerHTML = formatMoney(totalCusto);
+                document.getElementById('custoPorKg').innerHTML = formatMoney(totalKg > 0 ? totalCusto / totalKg : 0) + '/kg';
             };
 
-            // GERAR RELATÓRIO PDF COMPLETO COM GRÁFICOS
+            window.excluirProducao = async function(id) {
+                if (confirm('Excluir este registro de produção?')) {
+                    producoes = producoes.filter(p => p.id !== id);
+                    await excluirDoFirebase('custos_producoes', id);
+                    saveLocalData();
+                    carregarProducoesLista();
+                    const { totalCusto, totalKg } = calcularCustosPeriodo();
+                    document.getElementById('producaoKg').innerHTML = formatNumber(totalKg, 0) + ' kg';
+                    document.getElementById('custoTotal').innerHTML = formatMoney(totalCusto);
+                    document.getElementById('custoPorKg').innerHTML = formatMoney(totalKg > 0 ? totalCusto / totalKg : 0) + '/kg';
+                }
+            };
+
+            // Relatório PDF
             window.gerarRelatorioCompleto = async function() {
-                if (!periodoAtual) { alert('Selecione um período primeiro!'); return; }
-                
+                if (!maquinaAtual || !periodoAtual) { alert('Selecione uma máquina e período primeiro!'); return; }
                 showLoading();
                 const { jsPDF } = window.jspdf;
                 const { totalCusto, totalKg, porCategoria, itensCalculados } = calcularCustosPeriodo();
                 const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
                 const nomeMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][periodoAtual.mes - 1];
                 
-                // Capturar gráficos como imagens
                 const pieCanvas = document.getElementById('pieChart');
                 const barCanvas = document.getElementById('barChart');
+                const pieImage = pieCanvas ? pieCanvas.toDataURL('image/png') : null;
+                const barImage = barCanvas ? barCanvas.toDataURL('image/png') : null;
                 
-                const pieImage = pieCanvas.toDataURL('image/png');
-                const barImage = barCanvas.toDataURL('image/png');
-                
-                // Criar PDF
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 let y = 20;
                 
-                // Header
                 pdf.setFontSize(20);
                 pdf.setTextColor(26, 115, 232);
                 pdf.text('Relatório de Custos', 105, y, { align: 'center' });
                 y += 8;
                 pdf.setFontSize(12);
                 pdf.setTextColor(100, 100, 100);
-                pdf.text(`Período: ${nomeMes}/${periodoAtual.ano}`, 105, y, { align: 'center' });
+                pdf.text(`${maquinaAtual.nome} - ${nomeMes}/${periodoAtual.ano}`, 105, y, { align: 'center' });
                 y += 8;
                 pdf.text(`Data de emissão: ${new Date().toLocaleDateString('pt-BR')}`, 105, y, { align: 'center' });
                 y += 15;
                 
-                // Resumo
                 pdf.setFillColor(240, 240, 240);
                 pdf.rect(20, y, 170, 40, 'F');
                 pdf.setFontSize(11);
@@ -996,34 +1335,28 @@
                 pdf.text(`Custo por KG: ${formatMoney(custoPorKg)}/kg`, 30, y + 30);
                 y += 50;
                 
-                // Gráfico de Pizza
-                pdf.setFontSize(14);
-                pdf.setTextColor(26, 115, 232);
-                pdf.text('Distribuição dos Custos por Categoria', 105, y, { align: 'center' });
-                y += 5;
-                try {
-                    const pieImg = await loadImage(pieImage);
-                    pdf.addImage(pieImg, 'PNG', 50, y, 110, 80);
+                if (pieImage) {
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(26, 115, 232);
+                    pdf.text('Distribuição dos Custos por Categoria', 105, y, { align: 'center' });
+                    y += 5;
+                    pdf.addImage(pieImage, 'PNG', 50, y, 110, 80);
                     y += 85;
-                } catch(e) { y += 10; }
+                }
                 
-                // Gráfico de Barras
-                pdf.setFontSize(14);
-                pdf.text('Comparativo de Custos por Categoria', 105, y, { align: 'center' });
-                y += 5;
-                try {
-                    const barImg = await loadImage(barImage);
-                    pdf.addImage(barImg, 'PNG', 50, y, 110, 80);
+                if (barImage) {
+                    pdf.setFontSize(14);
+                    pdf.text('Comparativo de Custos por Categoria', 105, y, { align: 'center' });
+                    y += 5;
+                    pdf.addImage(barImage, 'PNG', 50, y, 110, 80);
                     y += 85;
-                } catch(e) { y += 10; }
+                }
                 
-                // Tabela de Detalhamento
                 if (y > 250) { pdf.addPage(); y = 20; }
                 pdf.setFontSize(14);
                 pdf.text('Detalhamento dos Custos', 105, y, { align: 'center' });
                 y += 10;
                 
-                // Tabela
                 const tableData = [];
                 for (const catId in porCategoria) {
                     const grupo = porCategoria[catId];
@@ -1040,11 +1373,9 @@
                     theme: 'striped',
                     headStyles: { fillColor: [26, 115, 232], textColor: 255, fontSize: 10 },
                     bodyStyles: { fontSize: 9 },
-                    columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 35 }, 2: { cellWidth: 25 }, 3: { cellWidth: 40 } },
                     margin: { left: 20, right: 20 }
                 });
                 
-                // Footer
                 const pageCount = pdf.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     pdf.setPage(i);
@@ -1053,31 +1384,20 @@
                     pdf.text(`Mil Plásticos - Relatório Gerencial - Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
                 }
                 
-                pdf.save(`Relatorio_Custos_${nomeMes}_${periodoAtual.ano}.pdf`);
+                pdf.save(`Relatorio_Custos_${maquinaAtual.nome}_${nomeMes}_${periodoAtual.ano}.pdf`);
                 hideLoading();
             };
-            
-            function loadImage(url) {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.onload = () => resolve(img);
-                    img.onerror = reject;
-                    img.src = url;
-                });
-            }
 
             window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); };
             document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); });
 
             function init() {
-                carregarSelectPeriodos();
-                carregarCategoriasLista();
+                renderizarTela();
                 hideLoading();
             }
             init();
         })();
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="/js/main.js"></script>
 </body>
 
