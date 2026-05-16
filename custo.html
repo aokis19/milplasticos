@@ -28,6 +28,7 @@
             --success: #1a8a4a;
             --danger: #c62828;
             --warning: #f57c00;
+            --warning-light: #fff3e0;
             --info: #0277bd;
             --purple: #6a1b9a;
             --bg: #f5f7fa;
@@ -68,17 +69,8 @@
             margin: 0;
         }
 
-        .header-custos h1 i {
-            color: var(--primary);
-            font-size: 1.8rem;
-        }
-
-        .header-custos .subtitle {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            font-weight: 400;
-            margin-left: 0.5rem;
-        }
+        .header-custos h1 i { color: var(--primary); font-size: 1.8rem; }
+        .header-custos .subtitle { font-size: 0.8rem; color: var(--text-light); font-weight: 400; margin-left: 0.5rem; }
 
         /* Cards */
         .card {
@@ -141,7 +133,7 @@
         .btn-xs { padding: 0.25rem 0.55rem; font-size: 0.7rem; border-radius: 6px; }
         .btn-lg { padding: 0.75rem 1.5rem; font-size: 0.95rem; }
 
-        /* Grid de Estatísticas */
+        /* Grids */
         .stats-grid {
             display: grid;
             gap: 1rem;
@@ -158,11 +150,7 @@
             position: relative;
         }
 
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-hover);
-        }
-
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
         .stat-card.minimized .stat-value,
         .stat-card.minimized .stat-label,
         .stat-card.minimized .stat-extra { display: none; }
@@ -172,52 +160,19 @@
             cursor: pointer;
         }
 
-        .stat-card.minimized .stat-icon {
-            font-size: 1.2rem;
-            margin-bottom: 0;
-        }
-
-        .stat-card.minimized .stat-title-mini {
-            display: block !important;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
+        .stat-card.minimized .stat-icon { font-size: 1.2rem; margin-bottom: 0; }
+        .stat-card.minimized .stat-title-mini { display: block !important; font-size: 0.8rem; font-weight: 600; }
         .stat-title-mini { display: none; }
 
-        .stat-icon {
-            font-size: 1.8rem;
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-value {
-            font-size: 1.7rem;
-            font-weight: 700;
-            color: var(--text);
-            line-height: 1.2;
-        }
-
-        .stat-label {
-            color: var(--text-light);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 0.25rem;
-        }
-
-        .stat-extra {
-            font-size: 0.75rem;
-            color: var(--text-light);
-            margin-top: 0.35rem;
-        }
+        .stat-icon { font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .stat-value { font-size: 1.7rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .stat-label { color: var(--text-light); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+        .stat-extra { font-size: 0.75rem; color: var(--text-light); margin-top: 0.35rem; }
 
         .stat-toggle {
             position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            background: none;
-            border: none;
+            top: 0.5rem; right: 0.5rem;
+            background: none; border: none;
             cursor: pointer;
             color: var(--text-light);
             font-size: 0.9rem;
@@ -228,11 +183,11 @@
 
         .stat-toggle:hover { opacity: 1; }
 
-        /* Períodos (HOME) */
+        /* Períodos */
         .periodos-grid {
             display: grid;
             gap: 1rem;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         }
 
         .periodo-card {
@@ -261,16 +216,9 @@
             gap: 0.5rem;
         }
 
-        .periodo-card .periodo-obs {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            margin-bottom: 1rem;
-        }
+        .periodo-card .periodo-obs { font-size: 0.8rem; color: var(--text-light); margin-bottom: 1rem; }
 
-        .periodo-card .periodo-stats {
-            display: grid;
-            gap: 0.5rem;
-        }
+        .periodo-card .periodo-stats { display: grid; gap: 0.5rem; }
 
         .periodo-card .periodo-stat {
             display: flex;
@@ -286,8 +234,7 @@
 
         .periodo-card .acoes {
             position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
+            top: 0.75rem; right: 0.75rem;
             opacity: 0;
             transition: opacity 0.2s;
             display: flex;
@@ -296,7 +243,7 @@
 
         .periodo-card:hover .acoes { opacity: 1; }
 
-        /* Setores dentro do período */
+        /* Setores */
         .setores-grid {
             display: grid;
             gap: 1rem;
@@ -319,9 +266,12 @@
             transform: translateY(-2px);
         }
 
-        .setor-card.setor-final {
-            border-left-color: var(--warning);
-            background: linear-gradient(135deg, #fff8e1 0%, #fff 100%);
+        /* NOVO: destaque diferente para produto final */
+        .setor-card.produto-final {
+            border-left: 4px solid var(--warning);
+            background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+            border-color: #ffcc80;
+            box-shadow: 0 2px 12px rgba(245, 124, 0, 0.1);
         }
 
         .setor-card .setor-nome {
@@ -333,20 +283,20 @@
             gap: 0.5rem;
         }
 
-        .setor-card .setor-badge {
+        .setor-badge {
             font-size: 0.65rem;
-            padding: 0.2rem 0.5rem;
+            padding: 0.2rem 0.6rem;
             border-radius: 10px;
             font-weight: 600;
         }
 
         .badge-final {
-            background: #fff3e0;
+            background: var(--warning-light);
             color: #e65100;
         }
 
         .badge-intermediario {
-            background: #e8f5e9;
+            background: var(--primary-light);
             color: #2e7d32;
         }
 
@@ -374,8 +324,7 @@
 
         .setor-card .setor-acoes {
             position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
+            top: 0.75rem; right: 0.75rem;
             opacity: 0;
             transition: opacity 0.2s;
             display: flex;
@@ -386,7 +335,7 @@
 
         /* Resumo Agregado */
         .resumo-agregado {
-            background: linear-gradient(135deg, #1a1a2e 0%, #18213e 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #fff;
             border-radius: var(--radius);
             padding: 1.5rem 2rem;
@@ -394,7 +343,7 @@
         }
 
         .resumo-agregado h3 {
-            margin: 0 0 1rem 0;
+            margin: 0 0 1.25rem 0;
             font-size: 1.1rem;
             display: flex;
             align-items: center;
@@ -405,7 +354,8 @@
         .resumo-grid {
             display: grid;
             gap: 1rem;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            margin-bottom: 1.5rem;
         }
 
         .resumo-item {
@@ -415,18 +365,11 @@
             text-align: center;
         }
 
-        .resumo-item.destaque {
-            background: rgba(255,152,0,0.2);
-            border: 1px solid rgba(255,152,0,0.3);
-        }
-
         .resumo-item .valor {
             font-size: 1.5rem;
             font-weight: 700;
             color: #4fc3f7;
         }
-
-        .resumo-item.destaque .valor { color: #ffb74d; }
 
         .resumo-item .rotulo {
             font-size: 0.72rem;
@@ -434,7 +377,47 @@
             margin-top: 0.25rem;
         }
 
-        /* Tabela */
+        /* NOVO: Cards de produtos finais no resumo */
+        .produtos-finais-grid {
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .produto-final-card {
+            background: rgba(255,152,0,0.15);
+            border: 1px solid rgba(255,152,0,0.3);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .produto-final-card .pf-nome {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ffb74d;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .produto-final-card .pf-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem;
+            font-size: 0.78rem;
+        }
+
+        .produto-final-card .pf-info .pf-valor {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .produto-final-card .pf-info .pf-label {
+            opacity: 0.7;
+        }
+
+        /* Tabelas */
         .table-wrap {
             overflow-x: auto;
             border-radius: 8px;
@@ -554,7 +537,7 @@
         }
 
         .form-group .hint {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: var(--text-light);
             margin-top: 0.2rem;
         }
@@ -587,23 +570,60 @@
 
         @media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
 
-        /* Checkbox personalizado */
-        .checkbox-group {
+        /* Checkbox switch */
+        .switch-group {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 0;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-top: 1px solid var(--border);
+            margin-top: 0.5rem;
         }
 
-        .checkbox-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--primary);
+        .switch-group .switch-label {
+            font-weight: 500;
+            font-size: 0.85rem;
         }
 
-        .checkbox-group label {
-            margin-bottom: 0;
+        .switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
             cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #ccc;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            content: "";
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background: var(--warning);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
         }
 
         /* Loading */
@@ -664,16 +684,12 @@
             gap: 1rem;
         }
 
-        .campo-config-item .config-info {
-            flex: 1;
-        }
-
         .campo-config-item .nome-original {
             font-size: 0.7rem;
             color: var(--text-light);
         }
 
-        /* Tags/Badges */
+        /* Badges */
         .badge {
             padding: 0.2rem 0.6rem;
             border-radius: 12px;
@@ -685,11 +701,10 @@
         .badge-green { background: #e8f5e9; color: #2e7d32; }
         .badge-blue { background: #e3f2fd; color: #1565c0; }
         .badge-orange { background: #fff3e0; color: #e65100; }
-        .badge-purple { background: #f3e5f5; color: #6a1b9a; }
 
         .money { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-weight: 600; }
 
-        /* Destaque alerta */
+        /* Alertas */
         .alert-info {
             background: #e3f2fd;
             border: 1px solid #90caf9;
@@ -702,9 +717,6 @@
             align-items: center;
             gap: 0.5rem;
         }
-
-        .text-success { color: var(--success); }
-        .text-warning { color: var(--warning); }
     </style>
 </head>
 
@@ -740,8 +752,7 @@
     </div>
 
     <!-- ==================== MODAIS ==================== -->
-
-    <!-- Modal Período (HOME) -->
+    <!-- Modal Período -->
     <div class="modal-overlay" id="modalPeriodo">
         <div class="modal">
             <h2><i class="fas fa-calendar-plus"></i> <span id="modalPeriodoTitulo">Novo Período</span></h2>
@@ -765,7 +776,7 @@
             </div>
             <div class="form-group">
                 <label>Observação / Descrição do Período</label>
-                <textarea id="periodoObs" rows="2" placeholder="Ex: Fechamento mensal, auditoria trimestral..."></textarea>
+                <textarea id="periodoObs" rows="2" placeholder="Ex: Fechamento mensal..."></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
@@ -783,11 +794,11 @@
             <input type="hidden" id="setorEditId">
             <div class="form-group">
                 <label id="labelSetorNome">Nome do Setor</label>
-                <input type="text" id="setorNome" placeholder="Ex: Moagem, Lavagem, Extrusão">
+                <input type="text" id="setorNome" placeholder="Ex: Moagem, Lavagem, Extrusora 01">
             </div>
             <div class="form-group">
                 <label id="labelSetorDesc">Descrição</label>
-                <input type="text" id="setorDescricao" placeholder="Ex: Moinho 500kg/h, Tanque de lavagem...">
+                <input type="text" id="setorDescricao" placeholder="Ex: Moinho 500kg/h, Extrusora 150mm...">
             </div>
             <div class="form-group">
                 <label>Ordem na Cadeia Produtiva</label>
@@ -796,13 +807,19 @@
                     <option value="2">2 - Intermediário</option>
                     <option value="3">3 - Intermediário</option>
                     <option value="4">4 - Intermediário</option>
-                    <option value="5">5 - Último da cadeia (PRODUTO FINAL)</option>
+                    <option value="5">5 - Final da cadeia</option>
                 </select>
-                <div class="hint">
-                    <i class="fas fa-info-circle"></i> 
-                    Marque como "Último da cadeia" o setor que gera o produto final. 
-                    O cálculo de <strong>Custo por KG</strong> usará a produção deste setor.
-                </div>
+            </div>
+            <!-- NOVO: Toggle Produto Final (independente da ordem) -->
+            <div class="switch-group">
+                <span class="switch-label">
+                    🏁 <strong>Produto Final</strong>
+                    <div class="hint">Marque se este setor gera produto final para venda</div>
+                </span>
+                <label class="switch">
+                    <input type="checkbox" id="setorProdutoFinal">
+                    <span class="slider"></span>
+                </label>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="window.fecharModal('modalSetor')">Cancelar</button>
@@ -873,7 +890,7 @@
             <h2>Registrar Produção do Setor</h2>
             <div class="form-group">
                 <label>Material / Produto</label>
-                <input type="text" id="producaoProduto" placeholder="Ex: PEAD Moído, Flake PET Lavado, Pellet">
+                <input type="text" id="producaoProduto" placeholder="Ex: PEAD Moído, Pellet PEAD">
             </div>
             <div class="grid-2">
                 <div class="form-group">
@@ -887,8 +904,7 @@
             </div>
             <div class="alert-info" style="margin-top: 0.5rem;">
                 <i class="fas fa-info-circle"></i>
-                Cada setor pode ter sua produção registrada individualmente.
-                O <strong>Custo por KG</strong> será calculado usando a produção do <strong>setor final</strong> da cadeia.
+                Produção individual por setor. O <strong>Custo/KG</strong> só será calculado nos setores marcados como <strong>Produto Final</strong>.
             </div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button>
@@ -932,9 +948,8 @@
             let periodos = [], setores = [], categorias = [], itensCusto = [], producoes = [];
             let periodoAtual = null, setorAtual = null;
             let pieChart = null, barChart = null;
-            let nivelAtual = 'periodos'; // periodos -> setores -> analise
+            let nivelAtual = 'periodos';
 
-            // Config nomes
             let configCampos = {
                 setorNome: 'Nome do Setor',
                 setorDesc: 'Descrição',
@@ -943,8 +958,8 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v4_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v4';
+            const STORAGE_KEY = 'centralCustos_v5_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v5';
 
             // ==================== DADOS ====================
             function loadLocalData() {
@@ -1047,11 +1062,9 @@
                 return setores.filter(s => s.periodoId === periodoAtual.id).sort((a, b) => a.ordem - b.ordem);
             }
 
-            function getSetorFinal(periodoId) {
-                const sets = setores.filter(s => s.periodoId === periodoId);
-                if (sets.length === 0) return null;
-                // O setor final é o de maior ordem
-                return sets.reduce((prev, curr) => (curr.ordem > prev.ordem ? curr : prev), sets[0]);
+            // NOVO: retorna TODOS os setores marcados como produtoFinal
+            function getSetoresFinais(periodoId) {
+                return setores.filter(s => s.periodoId === periodoId && s.produtoFinal === true);
             }
 
             function calcularCustosSetor(setorId) {
@@ -1059,35 +1072,52 @@
                 const totalCusto = itens.reduce((s, i) => s + (i.valorTotal * i.percentual / 100), 0);
                 const prods = producoes.filter(p => p.setorId === setorId);
                 const totalKg = prods.reduce((s, p) => s + p.kg, 0);
-                return { totalCusto, totalKg, qtdItens: itens.length };
+                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
             }
 
+            // NOVO: cálculo do resumo com múltiplos produtos finais
             function calcularResumoPeriodo() {
-                if (!periodoAtual) return { custoTotalGeral: 0, producaoFinal: 0, custoPorKgFinal: 0, qtdSetores: 0 };
+                if (!periodoAtual) return {
+                    custoTotalGeral: 0,
+                    producaoTotalGeral: 0,
+                    custoPorKgGeral: 0,
+                    qtdSetores: 0,
+                    setoresFinais: []
+                };
 
                 const sets = getSetoresDoPeriodo();
                 let custoTotalGeral = 0;
+                let producaoTotalGeral = 0;
 
                 sets.forEach(s => {
                     const { totalCusto } = calcularCustosSetor(s.id);
                     custoTotalGeral += totalCusto;
                 });
 
-                const setorFinal = getSetorFinal(periodoAtual.id);
-                let producaoFinal = 0;
-                if (setorFinal) {
-                    const prods = producoes.filter(p => p.setorId === setorFinal.id);
-                    producaoFinal = prods.reduce((s, p) => s + p.kg, 0);
-                }
+                const setoresFinais = getSetoresFinais(periodoAtual.id);
+                const detalhesFinais = [];
 
-                const custoPorKgFinal = producaoFinal > 0 ? custoTotalGeral / producaoFinal : 0;
+                setoresFinais.forEach(sf => {
+                    const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(sf.id);
+                    producaoTotalGeral += totalKg; // SOMA produção de TODOS os produtos finais
+                    detalhesFinais.push({
+                        setor: sf,
+                        custo: totalCusto,
+                        producao: totalKg,
+                        custoPorKg: custoPorKg
+                    });
+                });
+
+                const custoPorKgGeral = producaoTotalGeral > 0 ? custoTotalGeral / producaoTotalGeral : 0;
 
                 return {
                     custoTotalGeral,
-                    producaoFinal,
-                    custoPorKgFinal,
+                    producaoTotalGeral,
+                    custoPorKgGeral,
                     qtdSetores: sets.length,
-                    setorFinal: setorFinal
+                    qtdProdutosFinais: setoresFinais.length,
+                    setoresFinais: detalhesFinais
                 };
             }
 
@@ -1099,7 +1129,7 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== HOME: PERÍODOS (Mês/Ano) ====================
+            // ==================== HOME: PERÍODOS ====================
             function renderizarPeriodos() {
                 const container = document.getElementById('conteudoDinamico');
                 const periodosOrdenados = [...periodos].sort((a, b) => {
@@ -1118,7 +1148,7 @@
                         ${periodosOrdenados.length === 0 ? `
                             <div style="text-align: center; padding: 3rem 1rem;">
                                 <i class="fas fa-calendar-plus" style="font-size: 4rem; color: var(--border); margin-bottom: 1rem; display: block;"></i>
-                                <p style="color: var(--text-light); margin-bottom: 1.5rem;">Nenhum período cadastrado.<br>Crie um período (Mês/Ano) para começar a análise de custos.</p>
+                                <p style="color: var(--text-light); margin-bottom: 1.5rem;">Nenhum período cadastrado.<br>Crie um período (Mês/Ano) para começar.</p>
                                 <button class="btn btn-primary btn-lg" onclick="window.abrirModalPeriodo()">
                                     <i class="fas fa-plus"></i> Criar Primeiro Período
                                 </button>
@@ -1132,7 +1162,6 @@
                 if (periodosOrdenados.length > 0) {
                     const grid = document.getElementById('periodosGrid');
                     periodosOrdenados.forEach(per => {
-                        // Calcular resumo para exibir no card
                         const periodoBackup = periodoAtual;
                         periodoAtual = per;
                         const resumo = calcularResumoPeriodo();
@@ -1160,16 +1189,20 @@
                                     <span class="valor">${resumo.qtdSetores}</span>
                                 </div>
                                 <div class="periodo-stat">
+                                    <span class="label">🏁 Produtos Finais</span>
+                                    <span class="valor">${resumo.qtdProdutosFinais}</span>
+                                </div>
+                                <div class="periodo-stat">
                                     <span class="label"><i class="fas fa-dollar-sign"></i> ${configCampos.custoTotal}</span>
                                     <span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span>
                                 </div>
                                 <div class="periodo-stat">
-                                    <span class="label"><i class="fas fa-weight-hanging"></i> ${configCampos.producaoKg} (Final)</span>
-                                    <span class="valor">${formatNumber(resumo.producaoFinal, 0)} kg</span>
+                                    <span class="label"><i class="fas fa-weight-hanging"></i> ${configCampos.producaoKg} Total</span>
+                                    <span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span>
                                 </div>
                                 <div class="periodo-stat">
-                                    <span class="label"><i class="fas fa-chart-line"></i> ${configCampos.custoPorKg}</span>
-                                    <span class="valor money">${formatMoney(resumo.custoPorKgFinal)}/kg</span>
+                                    <span class="label"><i class="fas fa-chart-line"></i> ${configCampos.custoPorKg} Médio</span>
+                                    <span class="valor money">${formatMoney(resumo.custoPorKgGeral)}/kg</span>
                                 </div>
                             </div>
                         `;
@@ -1183,38 +1216,73 @@
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
                 const resumo = calcularResumoPeriodo();
-                const setorFinal = getSetorFinal(periodoAtual.id);
                 const container = document.getElementById('conteudoDinamico');
 
                 container.innerHTML = `
-                    <!-- Resumo Agregado do Período -->
+                    <!-- Resumo Agregado -->
                     <div class="resumo-agregado">
                         <h3><i class="fas fa-chart-pie"></i> Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</h3>
+                        
+                        <!-- Cards Gerais -->
                         <div class="resumo-grid">
                             <div class="resumo-item">
                                 <div class="valor">${resumo.qtdSetores}</div>
-                                <div class="rotulo">Setores</div>
+                                <div class="rotulo">Setores Totais</div>
+                            </div>
+                            <div class="resumo-item">
+                                <div class="valor">${resumo.qtdProdutosFinais}</div>
+                                <div class="rotulo">🏁 Produtos Finais</div>
                             </div>
                             <div class="resumo-item">
                                 <div class="valor">${formatMoney(resumo.custoTotalGeral)}</div>
                                 <div class="rotulo">${configCampos.custoTotal} (Todos)</div>
                             </div>
-                            <div class="resumo-item ${setorFinal ? 'destaque' : ''}">
-                                <div class="valor">${formatNumber(resumo.producaoFinal, 0)} kg</div>
-                                <div class="rotulo">${configCampos.producaoKg} Final${setorFinal ? ' (' + setorFinal.nome + ')' : ''}</div>
-                            </div>
-                            <div class="resumo-item ${setorFinal ? 'destaque' : ''}">
-                                <div class="valor">${formatMoney(resumo.custoPorKgFinal)}/kg</div>
-                                <div class="rotulo">${configCampos.custoPorKg} Final</div>
+                            <div class="resumo-item">
+                                <div class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</div>
+                                <div class="rotulo">${configCampos.producaoKg} Total (Finais)</div>
                             </div>
                         </div>
-                        ${!setorFinal ? '<p style="margin-top: 1rem; font-size: 0.75rem; opacity: 0.7;"><i class="fas fa-exclamation-triangle"></i> Defina um setor como "Último da cadeia" para calcular o Custo por KG.</p>' : ''}
+
+                        <!-- NOVO: Cards individuais de cada PRODUTO FINAL -->
+                        ${resumo.setoresFinais.length > 0 ? `
+                            <h4 style="color: #ffb74d; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                🏁 Detalhamento por Produto Final
+                            </h4>
+                            <div class="produtos-finais-grid">
+                                ${resumo.setoresFinais.map(pf => `
+                                    <div class="produto-final-card">
+                                        <div class="pf-nome">
+                                            <i class="fas fa-star"></i> ${pf.setor.nome}
+                                            <span style="font-size: 0.65rem; opacity: 0.7;">(Etapa ${pf.setor.ordem})</span>
+                                        </div>
+                                        <div class="pf-info">
+                                            <div>
+                                                <div class="pf-label">Custo</div>
+                                                <div class="pf-valor">${formatMoney(pf.custo)}</div>
+                                            </div>
+                                            <div>
+                                                <div class="pf-label">Produção</div>
+                                                <div class="pf-valor">${formatNumber(pf.producao, 0)} kg</div>
+                                            </div>
+                                            <div style="grid-column: 1/-1;">
+                                                <div class="pf-label">Custo por KG</div>
+                                                <div class="pf-valor" style="font-size: 1.1rem; color: #ffb74d;">${formatMoney(pf.custoPorKg)}/kg</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div style="text-align: center; padding: 1rem; opacity: 0.6;">
+                                <i class="fas fa-exclamation-triangle"></i> Nenhum setor marcado como Produto Final
+                            </div>
+                        `}
                     </div>
 
                     <!-- Lista de Setores -->
                     <div class="card">
                         <div class="card-header">
-                            <span class="card-title"><i class="fas fa-industry"></i> Setores da Cadeia Produtiva</span>
+                            <span class="card-title"><i class="fas fa-industry"></i> Todos os Setores</span>
                             <div style="display: flex; gap: 0.5rem;">
                                 <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()">
                                     <i class="fas fa-plus"></i> Novo Setor
@@ -1227,7 +1295,7 @@
                         ${sets.length === 0 ? `
                             <div style="text-align: center; padding: 2rem;">
                                 <i class="fas fa-cogs" style="font-size: 3rem; color: var(--border); margin-bottom: 1rem; display: block;"></i>
-                                <p style="color: var(--text-light);">Nenhum setor neste período.<br>Adicione os setores da sua cadeia de reciclagem.</p>
+                                <p style="color: var(--text-light);">Nenhum setor neste período.</p>
                             </div>
                         ` : `
                             <div class="setores-grid" id="setoresGrid"></div>
@@ -1238,11 +1306,11 @@
                 if (sets.length > 0) {
                     const grid = document.getElementById('setoresGrid');
                     sets.forEach(setor => {
-                        const isFinal = setorFinal && setor.id === setorFinal.id;
-                        const { totalCusto, totalKg } = calcularCustosSetor(setor.id);
+                        const isFinal = setor.produtoFinal === true;
+                        const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setor.id);
 
                         const div = document.createElement('div');
-                        div.className = `setor-card ${isFinal ? 'setor-final' : ''}`;
+                        div.className = `setor-card ${isFinal ? 'produto-final' : ''}`;
                         div.onclick = () => window.selecionarSetor(setor.id);
                         div.innerHTML = `
                             <div class="setor-acoes">
@@ -1269,6 +1337,12 @@
                                     <div class="info-label"><i class="fas fa-weight-hanging"></i> Produção</div>
                                     <div class="info-valor">${formatNumber(totalKg, 0)} kg</div>
                                 </div>
+                                ${isFinal ? `
+                                    <div class="info-item" style="grid-column: 1/-1;">
+                                        <div class="info-label"><i class="fas fa-chart-line"></i> Custo/KG</div>
+                                        <div class="info-valor" style="color: #e65100;">${formatMoney(custoPorKg)}/kg</div>
+                                    </div>
+                                ` : ''}
                             </div>
                         `;
                         grid.appendChild(div);
@@ -1276,26 +1350,17 @@
                 }
             }
 
-            // ==================== ANÁLISE DETALHADA DO SETOR ====================
+            // ==================== ANÁLISE DETALHADA ====================
             let cardsMinimizados = { custoTotal: false, producao: false, custoPorKg: false };
 
             function renderizarAnalise() {
                 if (!setorAtual || !periodoAtual) { navegarPara('setores'); return; }
-                const { totalCusto, totalKg } = calcularCustosSetor(setorAtual.id);
-
-                // Verificar se é setor final
-                const setorFinal = getSetorFinal(periodoAtual.id);
-                const isFinal = setorFinal && setorAtual.id === setorFinal.id;
-
-                // Para custo/kg, se for setor final usa produção própria, senão mostra "N/A"
-                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
-                const mostrarCustoKg = isFinal || totalKg > 0;
-
+                const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setorAtual.id);
+                const isFinal = setorAtual.produtoFinal === true;
                 const nomeMes = getNomeMes(periodoAtual.mes);
                 const container = document.getElementById('conteudoDinamico');
 
                 container.innerHTML = `
-                    <!-- Stats com toggle -->
                     <div class="stats-grid" style="margin-bottom: 1.5rem;">
                         <div class="stat-card ${cardsMinimizados.custoTotal ? 'minimized' : ''}" id="statCustoTotal">
                             <button class="stat-toggle" onclick="window.toggleStatCard('custoTotal')">
@@ -1305,7 +1370,6 @@
                             <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
                             <div class="stat-value">${formatMoney(totalCusto)}</div>
                             <div class="stat-label">${configCampos.custoTotal} - ${setorAtual.nome}</div>
-                            <div class="stat-extra">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</div>
                         </div>
                         <div class="stat-card ${cardsMinimizados.producao ? 'minimized' : ''}" id="statProducao">
                             <button class="stat-toggle" onclick="window.toggleStatCard('producao')">
@@ -1314,7 +1378,7 @@
                             <div class="stat-title-mini">${configCampos.producaoKg}</div>
                             <div class="stat-icon"><i class="fas fa-weight-hanging"></i></div>
                             <div class="stat-value">${formatNumber(totalKg, 0)} kg</div>
-                            <div class="stat-label">${configCampos.producaoKg} ${isFinal ? '(PRODUTO FINAL)' : '(Setor ' + setorAtual.ordem + ')'}</div>
+                            <div class="stat-label">${configCampos.producaoKg} ${isFinal ? '(🏁 PRODUTO FINAL)' : '(Etapa ' + setorAtual.ordem + ')'}</div>
                         </div>
                         <div class="stat-card ${cardsMinimizados.custoPorKg ? 'minimized' : ''}" id="statCustoPorKg">
                             <button class="stat-toggle" onclick="window.toggleStatCard('custoPorKg')">
@@ -1322,13 +1386,12 @@
                             </button>
                             <div class="stat-title-mini">${configCampos.custoPorKg}</div>
                             <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                            <div class="stat-value">${mostrarCustoKg ? formatMoney(custoPorKg) + '/kg' : 'N/A'}</div>
-                            <div class="stat-label">${configCampos.custoPorKg} ${isFinal ? '(Base: prod. final)' : '(Setor não é o final)'}</div>
-                            ${!isFinal ? '<div class="stat-extra" style="color: var(--warning);"><i class="fas fa-info-circle"></i> Custo/kg calculado apenas no setor final</div>' : ''}
+                            <div class="stat-value">${isFinal && totalKg > 0 ? formatMoney(custoPorKg) + '/kg' : 'N/A'}</div>
+                            <div class="stat-label">${configCampos.custoPorKg} ${isFinal ? '(Produto Final)' : '(Setor intermediário)'}</div>
+                            ${!isFinal ? '<div class="stat-extra" style="color: var(--warning);"><i class="fas fa-info-circle"></i> Custo/kg apenas para Produtos Finais</div>' : ''}
                         </div>
                     </div>
 
-                    <!-- Gráficos -->
                     <div class="card" style="margin-bottom: 1.5rem;">
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-chart-pie"></i> Distribuição de Custos - ${setorAtual.nome}</span>
@@ -1347,7 +1410,6 @@
                         </div>
                     </div>
 
-                    <!-- Categorias e Itens -->
                     <div style="display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
                         <div class="card">
                             <div class="card-header">
@@ -1365,13 +1427,12 @@
                         </div>
                     </div>
 
-                    <!-- Produção -->
                     <div class="card" style="margin-top: 1.5rem;">
                         <div class="card-header">
                             <span class="card-title">
                                 <i class="fas fa-industry"></i> 
                                 Produção do Setor
-                                ${isFinal ? '<span class="badge badge-orange">PRODUTO FINAL</span>' : `<span class="badge badge-green">Etapa ${setorAtual.ordem}</span>`}
+                                ${isFinal ? '<span class="badge badge-orange">🏁 PRODUTO FINAL</span>' : '<span class="badge badge-green">Etapa ' + setorAtual.ordem + '</span>'}
                             </span>
                             <button class="btn btn-info btn-sm" onclick="window.abrirModalProducao()">
                                 <i class="fas fa-plus"></i> Registrar Produção
@@ -1380,14 +1441,12 @@
                         ${!isFinal ? `
                             <div class="alert-info">
                                 <i class="fas fa-info-circle"></i>
-                                Este setor é intermediário. A produção aqui registrada é para controle interno.<br>
-                                O <strong>Custo por KG final</strong> será calculado com a produção do setor <strong>${setorFinal?.nome || 'final'}</strong>.
+                                Setor intermediário. Produção para controle interno. Custo/KG calculado apenas nos Produtos Finais.
                             </div>
                         ` : ''}
                         <div id="producaoList"></div>
                     </div>
 
-                    <!-- Tabela Detalhada -->
                     <div class="card" style="margin-top: 1.5rem;">
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-table"></i> Detalhamento de Custos</span>
@@ -1495,7 +1554,6 @@
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum item</td></tr>';
                     return;
                 }
-
                 const grupos = {};
                 itens.forEach(item => {
                     const cid = item.categoriaId;
@@ -1503,7 +1561,6 @@
                     grupos[cid].itens.push(item);
                     grupos[cid].subtotal += item.valorTotal * item.percentual / 100;
                 });
-
                 tbody.innerHTML = Object.values(grupos).map(g => `
                     <tr style="background:#f0faf4; font-weight:600;">
                         <td colspan="6"><i class="fas fa-folder"></i> ${g.cat?.nome || 'Sem categoria'} — Subtotal: ${formatMoney(g.subtotal)}</td>
@@ -1528,7 +1585,7 @@
                 const el = document.getElementById('producaoList');
                 if (!el || !setorAtual) return;
                 const prods = producoes.filter(p => p.setorId === setorAtual.id);
-                el.innerHTML = prods.length === 0 ? '<p style="text-align:center;color:var(--text-light);padding:1rem;">Nenhuma produção registrada</p>' : `
+                el.innerHTML = prods.length === 0 ? '<p style="text-align:center;color:var(--text-light);padding:1rem;">Nenhuma produção</p>' : `
                     <div class="table-wrap"><table>
                         <thead><tr><th>Data</th><th>Material</th><th>KG</th><th>Ações</th></tr></thead>
                         <tbody>${prods.map(p => `
@@ -1547,32 +1604,23 @@
                 let html = `<span class="breadcrumb-item ${nivelAtual === 'periodos' ? 'active' : ''}" onclick="window.navegarPara('periodos')">
                     <i class="fas fa-calendar-alt"></i> Períodos
                 </span>`;
-
                 if (periodoAtual && (nivelAtual === 'setores' || nivelAtual === 'analise')) {
                     html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>`;
                     html += `<span class="breadcrumb-item ${nivelAtual === 'setores' ? 'active' : ''}" onclick="window.navegarPara('setores')">
                         ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}
                     </span>`;
                 }
-
                 if (setorAtual && nivelAtual === 'analise') {
                     html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>`;
                     html += `<span class="breadcrumb-item active">${setorAtual.nome}</span>`;
                 }
-
                 bc.innerHTML = html;
             }
 
             // ==================== NAVEGAÇÃO ====================
             window.navegarPara = function(nivel) {
-                if (nivel === 'periodos') {
-                    periodoAtual = null;
-                    setorAtual = null;
-                    nivelAtual = 'periodos';
-                } else if (nivel === 'setores') {
-                    setorAtual = null;
-                    nivelAtual = 'setores';
-                }
+                if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; }
+                else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; }
                 renderizarTela();
             };
 
@@ -1661,6 +1709,7 @@
                         document.getElementById('setorNome').value = s.nome;
                         document.getElementById('setorDescricao').value = s.descricao || '';
                         document.getElementById('setorOrdem').value = s.ordem;
+                        document.getElementById('setorProdutoFinal').checked = s.produtoFinal || false;
                     }
                 } else {
                     document.getElementById('modalSetorTitulo').innerHTML = '<i class="fas fa-plus"></i> Novo Setor';
@@ -1668,6 +1717,7 @@
                     document.getElementById('setorNome').value = '';
                     document.getElementById('setorDescricao').value = '';
                     document.getElementById('setorOrdem').value = '1';
+                    document.getElementById('setorProdutoFinal').checked = false;
                 }
             };
 
@@ -1678,6 +1728,7 @@
                     nome: document.getElementById('setorNome').value.trim(),
                     descricao: document.getElementById('setorDescricao').value.trim(),
                     ordem: parseInt(document.getElementById('setorOrdem').value),
+                    produtoFinal: document.getElementById('setorProdutoFinal').checked, // NOVO campo
                     createdAt: new Date().toISOString()
                 };
                 if (!s.nome) { alert('Digite o nome do setor!'); return; }
@@ -1879,7 +1930,7 @@
                 renderizarTela();
             };
 
-            // ==================== TOGGLE CARDS ====================
+            // ==================== TOGGLE ====================
             window.toggleStatCard = function(tipo) {
                 cardsMinimizados[tipo] = !cardsMinimizados[tipo];
                 const map = { custoTotal: 'statCustoTotal', producao: 'statProducao', custoPorKg: 'statCustoPorKg' };
@@ -1892,12 +1943,10 @@
                 if (!setorAtual || !periodoAtual) { alert('Selecione setor e período!'); return; }
                 showLoading();
                 const { jsPDF } = window.jspdf;
-                const { totalCusto, totalKg } = calcularCustosSetor(setorAtual.id);
-                const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
+                const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setorAtual.id);
                 const { porCategoria } = getCustosAgrupados();
                 const nomeMes = getNomeMes(periodoAtual.mes);
-                const setorFinal = getSetorFinal(periodoAtual.id);
-                const isFinal = setorFinal && setorAtual.id === setorFinal.id;
+                const isFinal = setorAtual.produtoFinal === true;
 
                 const pieCanvas = document.getElementById('pieChart');
                 const barCanvas = document.getElementById('barChart');
@@ -1922,7 +1971,7 @@
                 if (isFinal) {
                     pdf.setFontSize(9);
                     pdf.setTextColor(230, 81, 0);
-                    pdf.text('🏁 SETOR DE PRODUTO FINAL', 105, y + 6, { align: 'center' });
+                    pdf.text('🏁 PRODUTO FINAL', 105, y + 6, { align: 'center' });
                     pdf.setTextColor(0, 0, 0);
                 }
                 y += 14;
@@ -1930,7 +1979,7 @@
                 pdf.setFillColor(240, 248, 240);
                 pdf.rect(20, y, 170, 25, 'F');
                 pdf.setFontSize(9);
-                pdf.text(`Custo Total: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg, 0)} kg | Custo/kg: ${formatMoney(custoPorKg)}/kg`, 25, y + 10);
+                pdf.text(`Custo: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg, 0)} kg | Custo/kg: ${isFinal ? formatMoney(custoPorKg) + '/kg' : 'N/A'}`, 25, y + 10);
                 y += 32;
 
                 if (pieImg || barImg) {
