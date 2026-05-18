@@ -1347,9 +1347,14 @@
                         <div class="setor-nome">${setor.nome} <span class="badge ${isFinal?'badge-orange':'badge-green'}">${isFinal?'🏁 FINAL':'Etapa '+setor.ordem}</span></div>
                         <div class="setor-desc">${setor.descricao||''}</div>
                         <div class="setor-info">
-                            <div><div class="info-label">Custo</div><div class="info-valor money">${formatMoney(totalCusto)}</div></div>
-                            <div><div class="info-label">Produção</div><div class="info-valor">${formatNumber(totalKg,0)} kg</div></div>
-                            ${isFinal?`<div style="grid-column:1/-1;"><div class="info-label">Custo/KG</div><div class="info-valor" style="color:#e65100;">${formatMoney(custoPorKg)}/kg</div></div>`:''}
+                             <div><div class="info-label">Custo</div><div class="info-valor money">${formatMoney(totalCusto)}</div></div>
+                             <div><div class="info-label">Produção</div><div class="info-valor">${formatNumber(totalKg,0)} kg</div></div>
+                             <div style="grid-column:1/-1;">
+                                <div class="info-label">Custo/KG ${isFinal?'(🏁 Final)':''}</div>
+                                <div class="info-valor" style="color:${totalKg>0?'#e65100':'var(--text-light)'};">
+                                    ${totalKg>0?formatMoney(custoPorKg)+'/kg':'Sem produção'}
+                                </div>
+                             </div>
                         </div>
                     `;
                     grid.appendChild(div);
