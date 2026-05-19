@@ -147,7 +147,6 @@
         .stat-value { font-size: 1.7rem; font-weight: 700; color: var(--text); line-height: 1.2; }
         .stat-label { color: var(--text-light); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        /* Filtro Ano */
         .filtro-ano {
             display: flex;
             gap: 0.5rem;
@@ -375,17 +374,36 @@
             margin-bottom: 0.5rem;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
         }
 
         .setor-selecao-item:hover { border-color: var(--primary); }
         .setor-selecao-item.selecionado { border-color: var(--teal); background: #e0f2f1; }
+        .setor-selecao-item .ss-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
         .setor-selecao-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--teal); }
         .setor-selecao-item .ss-info { flex: 1; }
         .setor-selecao-item .ss-nome { font-weight: 600; font-size: 0.85rem; }
         .setor-selecao-item .ss-custo { font-size: 0.75rem; color: var(--text-light); }
+        .setor-selecao-item .ss-config {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed var(--border);
+        }
+        .setor-selecao-item .ss-config select,
+        .setor-selecao-item .ss-config input {
+            padding: 0.35rem 0.5rem;
+            border: 1.5px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.78rem;
+        }
+        .setor-selecao-item .ss-config input { width: 100px; }
 
         .custo-fixo-select-item {
             background: #fff;
@@ -641,7 +659,6 @@
         .insumo-row input { flex: 1; padding: 0.5rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.82rem; }
         .insumo-row .insumo-custo { width: 130px; }
 
-        /* Comparativo */
         .comparativo-destaque {
             background: rgba(255,152,0,0.15);
             border: 2px solid #ffb74d;
@@ -649,6 +666,11 @@
             padding: 1rem;
             margin-top: 0.75rem;
         }
+        
+        .table-wrap { overflow-x: auto; }
+        .table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .table-wrap th { background: #f0faf4; padding: 0.75rem; text-align: left; font-weight: 600; }
+        .table-wrap td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
     </style>
 </head>
 
@@ -860,8 +882,10 @@
                 <div class="hint"><a href="#" onclick="window.abrirModalMaterial(); window.fecharModal('modalGerarCusto'); return false;"><i class="fas fa-plus"></i> Cadastrar novo material</a></div>
             </div>
             <div class="form-group">
-                <label>Setores do Processo</label>
-                <div id="setoresGerarCusto" style="max-height: 250px; overflow-y: auto;"><p style="color: var(--text-light); text-align: center; padding: 1rem;">Selecione um período primeiro</p></div>
+                <label>Setores do Processo (selecione e configure cada um)</label>
+                <div id="setoresGerarCusto" style="max-height: 350px; overflow-y: auto;">
+                    <p style="color: var(--text-light); text-align: center; padding: 1rem;">Selecione um período primeiro</p>
+                </div>
             </div>
             <div class="form-group">
                 <label>Insumos Adicionais (Nome e Custo/KG)</label>
@@ -869,7 +893,7 @@
                     <div class="insumo-row">
                         <input type="text" class="insumo-nome" placeholder="Nome do insumo">
                         <input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg">
-                        <button class="btn btn-danger btn-xs" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                        <button class="btn btn-danger btn-xs" onclick="this.parentElement.remove(); window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>
                     </div>
                 </div>
                 <button class="btn btn-outline btn-sm" onclick="window.adicionarInsumo()" style="margin-top: 0.5rem;"><i class="fas fa-plus"></i> Adicionar Insumo</button>
@@ -878,7 +902,6 @@
                 <div class="form-group"><label>Imposto (%)</label><input type="number" id="gerarCustoImposto" step="0.01" value="0"></div>
                 <div class="form-group"><label>Margem Desejada (%)</label><input type="number" id="gerarCustoMargem" step="0.01" value="0"></div>
             </div>
-            <!-- NOVO: Valor Atual -->
             <div class="form-group">
                 <label>💰 Valor Praticado Atualmente (R$/kg)</label>
                 <input type="number" id="gerarCustoValorAtual" step="0.01" value="0" placeholder="0,00">
@@ -936,7 +959,8 @@
             let periodoAtual = null, setorAtual = null;
             let pieChart = null, barChart = null;
             let nivelAtual = 'periodos';
-            let setoresSelecionadosGerar = new Set();
+            // Mapa: setorId -> { modo: 'total'|'percentual', valor: number }
+            let setoresSelecionadosGerar = new Map();
             let filtroAnoAtual = 'todos';
             let periodoOrigemCopia = null;
 
@@ -948,8 +972,8 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v8_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v8';
+            const STORAGE_KEY = 'centralCustos_v9_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v9';
 
             function loadLocalData() {
                 const data = localStorage.getItem(STORAGE_KEY);
@@ -1250,7 +1274,6 @@
                 const novoMes = parseInt(document.getElementById('copiarMes').value);
                 const novoAno = parseInt(document.getElementById('copiarAno').value);
 
-                // Criar novo período
                 const novoPeriodo = {
                     mes: novoMes,
                     ano: novoAno,
@@ -1261,7 +1284,6 @@
                 periodos.push(novoPeriodo);
                 await salvarFB('custos_periodos', novoPeriodo);
 
-                // Copiar setores
                 const setoresOrigem = setores.filter(s => s.periodoId === periodoOrigemCopia);
                 for (const s of setoresOrigem) {
                     const novoSetor = {
@@ -1283,7 +1305,7 @@
                 renderizarTela();
             };
 
-            // ==================== SETORES ====================
+            // ==================== SETORES (MOSTRA CUSTO/KG PARA TODOS) ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -1339,6 +1361,7 @@
                     const div = document.createElement('div');
                     div.className = `setor-card ${isFinal ? 'produto-final' : ''}`;
                     div.onclick = () => window.selecionarSetor(setor.id);
+                    // AGORA MOSTRA CUSTO/KG PARA TODOS OS SETORES (não só os finais)
                     div.innerHTML = `
                         <div class="setor-acoes">
                             <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarSetor('${setor.id}')"><i class="fas fa-edit"></i></button>
@@ -1350,9 +1373,9 @@
                              <div><div class="info-label">Custo</div><div class="info-valor money">${formatMoney(totalCusto)}</div></div>
                              <div><div class="info-label">Produção</div><div class="info-valor">${formatNumber(totalKg,0)} kg</div></div>
                              <div style="grid-column:1/-1;">
-                                <div class="info-label">Custo/KG ${isFinal?'(🏁 Final)':''}</div>
-                                <div class="info-valor" style="color:${totalKg>0?'#e65100':'var(--text-light)'};">
-                                    ${totalKg>0?formatMoney(custoPorKg)+'/kg':'Sem produção'}
+                                <div class="info-label">Custo Médio/KG</div>
+                                <div class="info-valor" style="color:${totalKg>0?(isFinal?'#e65100':'var(--teal)'):'var(--text-light)'};">
+                                    ${totalKg>0?formatMoney(custoPorKg)+'/kg':'Sem produção registrada'}
                                 </div>
                              </div>
                         </div>
@@ -1371,7 +1394,7 @@
                     <div class="stats-grid" style="margin-bottom:1.5rem;">
                         <div class="stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value">${formatMoney(totalCusto)}</div><div class="stat-label">Custo Total</div></div>
                         <div class="stat-card"><div class="stat-icon"><i class="fas fa-weight-hanging"></i></div><div class="stat-value">${formatNumber(totalKg,0)} kg</div><div class="stat-label">Produção</div></div>
-                        <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value">${isFinal&&totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}</div><div class="stat-label">Custo/KG</div></div>
+                        <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value">${totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}</div><div class="stat-label">Custo Médio/KG</div></div>
                     </div>
                     <div class="card">
                         <div class="card-header"><span class="card-title"><i class="fas fa-chart-pie"></i> Distribuição - ${setorAtual.nome}</span><button class="btn btn-outline btn-sm" onclick="window.navegarPara('setores')"><i class="fas fa-arrow-left"></i> Voltar</button></div>
@@ -1426,7 +1449,7 @@
                         const div = document.createElement('div');
                         div.className = 'historico-item';
                         div.onclick = () => window.verDetalheCustoMaterial(h.id);
-                        div.innerHTML = `<div class="hi-periodo"><i class="fas fa-calendar"></i> ${getNomeMes(h.mes)}/${h.ano}</div><div class="hi-custo"><div class="valor">${formatMoney(h.custoKgFinal)}/kg</div><div class="label">${h.setoresUtilizados?.length||0} setor(es)</div></div>`;
+                        div.innerHTML = `<div class="hi-periodo"><i class="fas fa-calendar"></i> ${getNomeMes(h.mes)}/${h.ano}</div><div class="hi-custo"><div class="valor">${formatMoney(h.custoKgFinal)}/kg</div><div class="label">${h.setoresDetalhes?.length||0} setor(es)</div></div>`;
                         grid.appendChild(div);
                     });
                 }
@@ -1439,7 +1462,7 @@
                 document.getElementById('historicoDetalheConteudo').innerHTML = `
                     <div style="margin-bottom:1rem;"><strong>Material:</strong> ${mat?.nome||'N/D'}<br><strong>Período:</strong> ${getNomeMes(custo.mes)}/${custo.ano}</div>
                     <div class="custo-material-resumo" style="border-radius:8px;"><h3 style="font-size:0.9rem;">Composição</h3>
-                        ${custo.setoresDetalhes?.map(s=>`<div class="linha"><span>${s.nome}</span><span class="l-valor">${formatMoney(s.custoKg)}/kg</span></div>`).join('')||''}
+                        ${custo.setoresDetalhes?.map(s=>`<div class="linha"><span>${s.nome} (${s.modo==='percentual'?s.valorConfig+'%':'Total'})</span><span class="l-valor">${formatMoney(s.custoKg)}/kg</span></div>`).join('')||''}
                         ${custo.insumos?.map(ins=>`<div class="linha"><span>📦 ${ins.nome}</span><span class="l-valor">${formatMoney(ins.custoKg)}/kg</span></div>`).join('')||''}
                         <div class="linha"><span>Subtotal</span><span class="l-valor">${formatMoney(custo.subtotal)}/kg</span></div>
                         ${custo.imposto>0?`<div class="linha"><span>Imposto (${custo.imposto}%)</span><span class="l-valor">${formatMoney(custo.valorImposto)}/kg</span></div>`:''}
@@ -1450,7 +1473,7 @@
                 document.getElementById('modalHistoricoDetalhe').classList.add('active');
             };
 
-            // ==================== GERAR CUSTO MATERIAL (com Valor Atual) ====================
+            // ==================== GERAR CUSTO MATERIAL (COM OPÇÃO TOTAL/PERCENTUAL) ====================
             window.abrirGerarCustoMaterial = function() {
                 document.getElementById('modalGerarCusto').classList.add('active');
                 document.getElementById('gerarCustoPeriodo').innerHTML = '<option value="">Selecione...</option>' +
@@ -1460,29 +1483,82 @@
                 document.getElementById('gerarCustoImposto').value = '0';
                 document.getElementById('gerarCustoMargem').value = '0';
                 document.getElementById('gerarCustoValorAtual').value = '0';
-                document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button></div>`;
+                document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
                 document.getElementById('resumoLinhas').innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
-                setoresSelecionadosGerar = new Set();
+                setoresSelecionadosGerar = new Map();
             };
 
             window.atualizarSetoresGerarCusto = function() {
                 const periodoId = document.getElementById('gerarCustoPeriodo').value;
                 const container = document.getElementById('setoresGerarCusto');
-                setoresSelecionadosGerar = new Set();
+                setoresSelecionadosGerar = new Map();
                 if (!periodoId) { container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período</p>'; return; }
                 const sets = setores.filter(s=>s.periodoId===periodoId).sort((a,b)=>a.ordem-b.ordem);
                 if (sets.length===0) { container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum setor</p>'; return; }
                 container.innerHTML = sets.map(s=>{
                     const custoKg = getCustoPorKgSetor(s.id);
-                    return `<div class="setor-selecao-item" onclick="window.toggleSetorGerar('${s.id}',this)"><input type="checkbox" id="chk_setor_${s.id}" onclick="event.stopPropagation();window.toggleSetorGerar('${s.id}',this.parentElement)"><div class="ss-info"><div class="ss-nome">${s.produtoFinal?'🏁 ':''}${s.nome} <span class="badge ${s.produtoFinal?'badge-orange':'badge-green'}">${s.produtoFinal?'Final':'Etapa '+s.ordem}</span></div><div class="ss-custo">Custo: <strong>${formatMoney(custoKg)}/kg</strong></div></div></div>`;
+                    return `
+                    <div class="setor-selecao-item" id="setor_item_${s.id}">
+                        <div class="ss-header">
+                            <input type="checkbox" id="chk_setor_${s.id}" onchange="window.toggleSetorGerar('${s.id}', this)">
+                            <div class="ss-info">
+                                <div class="ss-nome">${s.produtoFinal?'🏁 ':''}${s.nome} <span class="badge ${s.produtoFinal?'badge-orange':'badge-green'}">${s.produtoFinal?'Final':'Etapa '+s.ordem}</span></div>
+                                <div class="ss-custo">Custo médio do setor: <strong>${formatMoney(custoKg)}/kg</strong> | Custo total: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div>
+                            </div>
+                        </div>
+                        <div class="ss-config" id="config_setor_${s.id}" style="display:none;">
+                            <select id="modo_setor_${s.id}" onchange="window.mudarModoSetorGerar('${s.id}')">
+                                <option value="total">Usar Valor Total (R$/kg)</option>
+                                <option value="percentual">Usar % do Rateio</option>
+                            </select>
+                            <input type="number" id="valor_setor_${s.id}" step="0.01" value="${custoKg.toFixed(2)}" placeholder="0,00" oninput="window.atualizarResumoGerarCusto()">
+                            <span id="unidade_setor_${s.id}" style="font-size:0.75rem;">R$/kg</span>
+                        </div>
+                    </div>`;
                 }).join('');
                 window.atualizarResumoGerarCusto();
             };
 
-            window.toggleSetorGerar = function(setorId, el) {
-                const chk = document.getElementById('chk_setor_'+setorId);
-                if (setoresSelecionadosGerar.has(setorId)) { setoresSelecionadosGerar.delete(setorId); el.classList.remove('selecionado'); if(chk)chk.checked=false; }
-                else { setoresSelecionadosGerar.add(setorId); el.classList.add('selecionado'); if(chk)chk.checked=true; }
+            window.toggleSetorGerar = function(setorId, checkbox) {
+                const configDiv = document.getElementById('config_setor_'+setorId);
+                const itemDiv = document.getElementById('setor_item_'+setorId);
+                
+                if (checkbox.checked) {
+                    // Adiciona com modo 'total' por padrão
+                    const custoKg = getCustoPorKgSetor(setorId);
+                    setoresSelecionadosGerar.set(setorId, { modo: 'total', valor: custoKg });
+                    itemDiv.classList.add('selecionado');
+                    configDiv.style.display = 'flex';
+                    document.getElementById('modo_setor_'+setorId).value = 'total';
+                    document.getElementById('valor_setor_'+setorId).value = custoKg.toFixed(2);
+                    document.getElementById('unidade_setor_'+setorId).textContent = 'R$/kg';
+                } else {
+                    setoresSelecionadosGerar.delete(setorId);
+                    itemDiv.classList.remove('selecionado');
+                    configDiv.style.display = 'none';
+                }
+                window.atualizarResumoGerarCusto();
+            };
+
+            window.mudarModoSetorGerar = function(setorId) {
+                const modo = document.getElementById('modo_setor_'+setorId).value;
+                const valorInput = document.getElementById('valor_setor_'+setorId);
+                const unidadeSpan = document.getElementById('unidade_setor_'+setorId);
+                const custoKg = getCustoPorKgSetor(setorId);
+                
+                if (modo === 'total') {
+                    valorInput.value = custoKg.toFixed(2);
+                    unidadeSpan.textContent = 'R$/kg';
+                } else {
+                    valorInput.value = '100';
+                    unidadeSpan.textContent = '%';
+                }
+                
+                if (setoresSelecionadosGerar.has(setorId)) {
+                    const config = setoresSelecionadosGerar.get(setorId);
+                    config.modo = modo;
+                    config.valor = parseFloat(valorInput.value) || 0;
+                }
                 window.atualizarResumoGerarCusto();
             };
 
@@ -1497,19 +1573,46 @@
             window.atualizarResumoGerarCusto = function() {
                 const resumoLinhas = document.getElementById('resumoLinhas');
                 let custoBase = 0, html = '';
-                setoresSelecionadosGerar.forEach(setorId => {
-                    const setor = setores.find(s=>s.id===setorId);
-                    const custoKg = getCustoPorKgSetor(setorId);
-                    custoBase += custoKg;
-                    html += `<div class="linha"><span>${setor?.nome||'Setor'}</span><span class="l-valor">${formatMoney(custoKg)}/kg</span></div>`;
+                
+                // Atualiza valores dos inputs antes de calcular
+                setoresSelecionadosGerar.forEach((config, setorId) => {
+                    const valorInput = document.getElementById('valor_setor_'+setorId);
+                    if (valorInput) config.valor = parseFloat(valorInput.value) || 0;
                 });
-                if (setoresSelecionadosGerar.size === 0) { resumoLinhas.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores</p>'; return; }
+                
+                setoresSelecionadosGerar.forEach((config, setorId) => {
+                    const setor = setores.find(s=>s.id===setorId);
+                    const custoKgOriginal = getCustoPorKgSetor(setorId);
+                    let custoKgAplicado;
+                    let descricao;
+                    
+                    if (config.modo === 'total') {
+                        custoKgAplicado = config.valor;
+                        descricao = `Total: ${formatMoney(config.valor)}/kg`;
+                    } else {
+                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
+                        descricao = `${config.valor}% de ${formatMoney(custoKgOriginal)}/kg`;
+                    }
+                    
+                    custoBase += custoKgAplicado;
+                    html += `<div class="linha"><span>${setor?.nome||'Setor'} <small style="opacity:0.7;">(${descricao})</small></span><span class="l-valor">${formatMoney(custoKgAplicado)}/kg</span></div>`;
+                });
+                
+                if (setoresSelecionadosGerar.size === 0) { 
+                    resumoLinhas.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores e configure cada um</p>'; 
+                    return; 
+                }
+                
                 let custoInsumos = 0;
                 document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
                     const nome = row.querySelector('.insumo-nome').value.trim();
                     const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome && custo > 0) { custoInsumos += custo; html += `<div class="linha"><span>📦 ${nome}</span><span class="l-valor">${formatMoney(custo)}/kg</span></div>`; }
+                    if (nome && custo > 0) { 
+                        custoInsumos += custo; 
+                        html += `<div class="linha"><span>📦 ${nome}</span><span class="l-valor">${formatMoney(custo)}/kg</span></div>`; 
+                    }
                 });
+                
                 const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
                 const valorImposto = subtotal * (imposto / 100);
@@ -1523,7 +1626,6 @@
                 html += `<div class="linha total"><span>🏁 CUSTO FINAL</span><span class="l-valor">${formatMoney(custoFinal)}/kg</span></div>`;
                 if (margem > 0) html += `<div class="linha" style="color:#ffb74d;"><span>💰 Preço Sugerido (${margem}%)</span><span class="l-valor">${formatMoney(precoSugerido)}/kg</span></div>`;
 
-                // NOVO: Comparativo com Valor Atual
                 if (valorAtual > 0) {
                     const diff = valorAtual - custoFinal;
                     const diffPerc = (diff / custoFinal * 100);
@@ -1541,26 +1643,54 @@
 
             document.addEventListener('input', function(e) {
                 if (['gerarCustoImposto','gerarCustoMargem','gerarCustoValorAtual'].includes(e.target.id)) window.atualizarResumoGerarCusto();
+                // Também atualiza quando muda valor dos setores
+                if (e.target.id && e.target.id.startsWith('valor_setor_')) window.atualizarResumoGerarCusto();
             });
 
             window.salvarCustoMaterial = async function() {
                 const periodoId = document.getElementById('gerarCustoPeriodo').value;
                 const materialId = document.getElementById('gerarCustoMaterial').value;
-                if (!periodoId||!materialId||setoresSelecionadosGerar.size===0) { alert('Preencha todos!'); return; }
+                if (!periodoId||!materialId||setoresSelecionadosGerar.size===0) { alert('Preencha todos os campos e selecione ao menos um setor!'); return; }
                 const periodo = periodos.find(p=>p.id===periodoId);
-                let custoBase = 0; const setoresDetalhes = [];
-                setoresSelecionadosGerar.forEach(setorId => {
+                
+                let custoBase = 0; 
+                const setoresDetalhes = [];
+                const setoresUtilizados = [];
+                
+                setoresSelecionadosGerar.forEach((config, setorId) => {
                     const setor = setores.find(s=>s.id===setorId);
-                    const custoKg = getCustoPorKgSetor(setorId);
-                    custoBase += custoKg;
-                    setoresDetalhes.push({id:setorId,nome:setor?.nome||'',custoKg});
+                    const custoKgOriginal = getCustoPorKgSetor(setorId);
+                    let custoKgAplicado;
+                    
+                    if (config.modo === 'total') {
+                        custoKgAplicado = config.valor;
+                    } else {
+                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
+                    }
+                    
+                    custoBase += custoKgAplicado;
+                    setoresUtilizados.push(setorId);
+                    setoresDetalhes.push({
+                        id: setorId,
+                        nome: setor?.nome||'',
+                        custoKg: custoKgAplicado,
+                        custoKgOriginal: custoKgOriginal,
+                        modo: config.modo,
+                        valorConfig: config.valor
+                    });
                 });
-                let custoInsumos = 0; const insumos = [];
+                
+                let custoInsumos = 0; 
+                const insumos = [];
                 document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
                     const nome = row.querySelector('.insumo-nome').value.trim();
                     const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome&&custo>0) { custoInsumos+=custo; insumos.push({nome,custoKg:custo}); }
+                    if (nome&&custo>0) { 
+                        custoInsumos+=custo; 
+                        insumos.push({nome, custoKg:custo}); 
+                    }
                 });
+                
                 const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
                 const valorImposto = subtotal * (imposto/100);
@@ -1571,7 +1701,7 @@
 
                 const custo = {
                     materialId, periodoId, mes:periodo?.mes, ano:periodo?.ano, periodoObs:periodo?.obs||'',
-                    setoresUtilizados:Array.from(setoresSelecionadosGerar), setoresDetalhes, insumos,
+                    setoresUtilizados, setoresDetalhes, insumos,
                     subtotal, imposto, valorImposto, custoKgFinal, margem, precoSugerido, valorAtual,
                     createdAt:new Date().toISOString(), id:'cm_'+Date.now()
                 };
@@ -1579,7 +1709,7 @@
                 await salvarFB('custos_materiais_custos', custo);
                 saveLocalData();
                 window.fecharModal('modalGerarCusto');
-                alert(`Custo salvo!\n${formatMoney(custoKgFinal)}/kg`);
+                alert(`Custo salvo com sucesso!\n${formatMoney(custoKgFinal)}/kg`);
                 renderizarTela();
             };
 
@@ -1591,19 +1721,38 @@
                 const periodoId = document.getElementById('gerarCustoPeriodo').value;
                 const per = periodos.find(p=>p.id===periodoId);
                 
-                let custoBase = 0; const setoresDetalhes = [];
-                setoresSelecionadosGerar.forEach(setorId => {
+                let custoBase = 0; 
+                const linhasPDF = [];
+                
+                setoresSelecionadosGerar.forEach((config, setorId) => {
                     const setor = setores.find(s=>s.id===setorId);
-                    const custoKg = getCustoPorKgSetor(setorId);
-                    custoBase += custoKg;
-                    setoresDetalhes.push({nome:setor?.nome||'',custoKg});
+                    const custoKgOriginal = getCustoPorKgSetor(setorId);
+                    let custoKgAplicado;
+                    let descricao;
+                    
+                    if (config.modo === 'total') {
+                        custoKgAplicado = config.valor;
+                        descricao = `Total: ${formatMoney(config.valor)}/kg`;
+                    } else {
+                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
+                        descricao = `${config.valor}% de ${formatMoney(custoKgOriginal)}/kg`;
+                    }
+                    
+                    custoBase += custoKgAplicado;
+                    linhasPDF.push({ nome: setor?.nome||'Setor', descricao, valor: custoKgAplicado });
                 });
-                let custoInsumos = 0; const insumos = [];
+                
+                let custoInsumos = 0; 
+                const insumosPDF = [];
                 document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
                     const nome = row.querySelector('.insumo-nome').value.trim();
                     const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome&&custo>0) { custoInsumos+=custo; insumos.push({nome,custoKg:custo}); }
+                    if (nome&&custo>0) { 
+                        custoInsumos+=custo; 
+                        insumosPDF.push({nome, custoKg:custo}); 
+                    }
                 });
+                
                 const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
                 const valorImposto = subtotal*(imposto/100);
@@ -1625,8 +1774,13 @@
                 pdf.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`,20,y); y+=10;
 
                 pdf.setFontSize(11); pdf.text('Composição do Custo:',20,y); y+=7;
-                setoresDetalhes.forEach(s=>{ pdf.setFontSize(9); pdf.text(`${s.nome}: ${formatMoney(s.custoKg)}/kg`,25,y); y+=5; });
-                insumos.forEach(ins=>{ pdf.text(`Insumo - ${ins.nome}: ${formatMoney(ins.custoKg)}/kg`,25,y); y+=5; });
+                linhasPDF.forEach(l=>{ 
+                    pdf.setFontSize(9); 
+                    pdf.text(`${l.nome} (${l.descricao}): ${formatMoney(l.valor)}/kg`,25,y); y+=5; 
+                });
+                insumosPDF.forEach(ins=>{ 
+                    pdf.text(`Insumo - ${ins.nome}: ${formatMoney(ins.custoKg)}/kg`,25,y); y+=5; 
+                });
                 pdf.text(`Subtotal: ${formatMoney(subtotal)}/kg`,25,y); y+=5;
                 if(imposto>0) { pdf.text(`Imposto (${imposto}%): ${formatMoney(valorImposto)}/kg`,25,y); y+=5; }
                 pdf.setFontSize(11); pdf.setTextColor(0,77,64);
@@ -1664,9 +1818,9 @@
                     if (y > 260) { pdf.addPage(); y = 20; }
                     const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setor.id);
                     pdf.setFontSize(11); pdf.setFillColor(240,248,240); pdf.rect(20,y-4,170,7,'F');
-                    pdf.text(`${setor.nome} ${setor.produtoFinal?'(PRODUTO FINAL)':'(Etapa '+setor.ordem+')'}`,22,y); y+=6;
+                    pdf.text(`${setor.nome} ${setor.produtoFinal?'(PRODUTO FINAL)':'(Etapa '+setor.ordem+')'} - Custo Médio: ${totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}`,22,y); y+=6;
                     pdf.setFontSize(9);
-                    pdf.text(`Custo: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg,0)} kg | Custo/KG: ${setor.produtoFinal?formatMoney(custoPorKg)+'/kg':'N/A'}`,25,y); y+=8;
+                    pdf.text(`Custo: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg,0)} kg`,25,y); y+=8;
                     const itens = itensCusto.filter(i=>i.setorId===setor.id);
                     itens.forEach(item => {
                         const cat = categorias.find(c=>c.id===item.categoriaId);
@@ -1677,8 +1831,7 @@
                 pdf.save(`Central_Custos_${getNomeMes(periodoAtual.mes)}_${periodoAtual.ano}.pdf`);
             };
 
-            // ==================== CRUDS (mantidos) ====================
-            // Período, Setor, Categoria, CustoFixo, Item, Produção, Material
+            // ==================== CRUDS ====================
             window.abrirModalPeriodo = function(id=null) {
                 document.getElementById('modalPeriodo').classList.add('active');
                 if(id) {
@@ -1709,7 +1862,7 @@
 
             window.editarPeriodo=(id)=>window.abrirModalPeriodo(id);
             window.excluirPeriodo=async function(id){
-                if(confirm('Excluir período?')){
+                if(confirm('Excluir período? Isso removerá todos os setores, itens e produções vinculados!')){
                     const sets=setores.filter(s=>s.periodoId===id);
                     sets.forEach(s=>{itensCusto=itensCusto.filter(i=>i.setorId!==s.id);producoes=producoes.filter(p=>p.setorId!==s.id);});
                     setores=setores.filter(s=>s.periodoId!==id);periodos=periodos.filter(p=>p.id!==id);
@@ -1726,13 +1879,13 @@
 
             window.salvarSetor=async function(){
                 const s={periodoId:periodoAtual.id,nome:document.getElementById('setorNome').value.trim(),descricao:document.getElementById('setorDescricao').value.trim(),ordem:parseInt(document.getElementById('setorOrdem').value),produtoFinal:document.getElementById('setorProdutoFinal').checked,createdAt:new Date().toISOString()};
-                if(!s.nome){alert('Digite o nome!');return;}const editId=document.getElementById('setorEditId').value;
+                if(!s.nome){alert('Digite o nome do setor!');return;}const editId=document.getElementById('setorEditId').value;
                 if(editId){s.id=editId;const idx=setores.findIndex(x=>x.id===editId);if(idx!==-1)setores[idx]=s;}else{s.id='set_'+Date.now();setores.push(s);}
                 await salvarFB('custos_setores',s);saveLocalData();window.fecharModal('modalSetor');renderizarTela();
             };
 
             window.editarSetor=(id)=>window.abrirModalSetor(id);
-            window.excluirSetor=async function(id){if(confirm('Excluir?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
+            window.excluirSetor=async function(id){if(confirm('Excluir setor e todos os seus itens/produções?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
 
             window.abrirModalCategoria=function(id=null){
                 document.getElementById('modalCategoria').classList.add('active');
@@ -1742,13 +1895,13 @@
 
             window.salvarCategoria=async function(){
                 const c={nome:document.getElementById('categoriaNome').value.trim(),cor:document.getElementById('categoriaCor').value};
-                if(!c.nome){alert('Digite!');return;}const editId=document.getElementById('categoriaEditId').value;
+                if(!c.nome){alert('Digite o nome!');return;}const editId=document.getElementById('categoriaEditId').value;
                 if(editId){c.id=editId;const idx=categorias.findIndex(x=>x.id===editId);if(idx!==-1)categorias[idx]=c;}else{c.id='cat_'+Date.now();categorias.push(c);}
                 await salvarFB('custos_categorias',c);saveLocalData();window.fecharModal('modalCategoria');if(nivelAtual==='analise')renderizarAnalise();
             };
 
             window.editarCategoria=(id)=>window.abrirModalCategoria(id);
-            window.excluirCategoria=async function(id){if(confirm('Excluir?')){itensCusto=itensCusto.filter(i=>i.categoriaId!==id);categorias=categorias.filter(c=>c.id!==id);await excluirFB('custos_categorias',id);saveLocalData();if(nivelAtual==='analise')renderizarAnalise();}};
+            window.excluirCategoria=async function(id){if(confirm('Excluir categoria? Itens vinculados ficarão sem categoria.')){itensCusto=itensCusto.filter(i=>i.categoriaId!==id);categorias=categorias.filter(c=>c.id!==id);await excluirFB('custos_categorias',id);saveLocalData();if(nivelAtual==='analise')renderizarAnalise();}};
 
             window.abrirModalCustoFixo=function(id=null){
                 document.getElementById('modalCustoFixo').classList.add('active');
@@ -1758,13 +1911,13 @@
 
             window.salvarCustoFixo=async function(){
                 const cf={nome:document.getElementById('custoFixoNome').value.trim(),valor:parseFloat(document.getElementById('custoFixoValor').value)||0,createdAt:new Date().toISOString()};
-                if(!cf.nome||cf.valor<=0){alert('Preencha!');return;}const editId=document.getElementById('custoFixoEditId').value;
+                if(!cf.nome||cf.valor<=0){alert('Preencha todos os campos!');return;}const editId=document.getElementById('custoFixoEditId').value;
                 if(editId){cf.id=editId;const idx=custosFixos.findIndex(x=>x.id===editId);if(idx!==-1)custosFixos[idx]=cf;}else{cf.id='cf_'+Date.now();custosFixos.push(cf);}
                 await salvarFB('custos_fixos',cf);saveLocalData();window.fecharModal('modalCustoFixo');renderizarTela();
             };
 
             window.editarCustoFixo=(id)=>window.abrirModalCustoFixo(id);
-            window.excluirCustoFixo=async function(id){if(confirm('Excluir?')){custosFixos=custosFixos.filter(c=>c.id!==id);await excluirFB('custos_fixos',id);saveLocalData();renderizarTela();}};
+            window.excluirCustoFixo=async function(id){if(confirm('Excluir custo fixo?')){custosFixos=custosFixos.filter(c=>c.id!==id);await excluirFB('custos_fixos',id);saveLocalData();renderizarTela();}};
 
             function carregarSelectCategorias(){const sel=document.getElementById('itemCategoria');if(sel)sel.innerHTML=categorias.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');}
 
@@ -1786,20 +1939,20 @@
 
             window.salvarItemCusto=async function(){
                 const item={setorId:setorAtual.id,categoriaId:document.getElementById('itemCategoria').value,nome:document.getElementById('itemNome').value.trim(),valorTotal:parseFloat(document.getElementById('itemValorTotal').value)||0,percentual:parseFloat(document.getElementById('itemPercentual').value)||100,obs:document.getElementById('itemObs').value.trim(),createdAt:new Date().toISOString()};
-                if(!item.nome){alert('Digite!');return;}const editId=document.getElementById('itemEditId').value;
+                if(!item.nome){alert('Digite o nome do item!');return;}const editId=document.getElementById('itemEditId').value;
                 if(editId){item.id=editId;const idx=itensCusto.findIndex(i=>i.id===editId);if(idx!==-1)itensCusto[idx]=item;}else{item.id='item_'+Date.now();itensCusto.push(item);}
                 await salvarFB('custos_itens',item);saveLocalData();window.fecharModal('modalItemCusto');renderizarAnalise();
             };
 
             window.editarItemCusto=(id)=>window.abrirModalItemCusto(id);
-            window.excluirItemCusto=async function(id){if(confirm('Excluir?')){itensCusto=itensCusto.filter(i=>i.id!==id);await excluirFB('custos_itens',id);saveLocalData();renderizarAnalise();}};
+            window.excluirItemCusto=async function(id){if(confirm('Excluir item?')){itensCusto=itensCusto.filter(i=>i.id!==id);await excluirFB('custos_itens',id);saveLocalData();renderizarAnalise();}};
 
             window.abrirModalProducao=function(){if(!setorAtual)return;document.getElementById('modalProducao').classList.add('active');document.getElementById('producaoProduto').value='';document.getElementById('producaoKg').value='';document.getElementById('producaoData').value=new Date().toISOString().split('T')[0];};
             window.salvarProducao=async function(){
                 const prod={setorId:setorAtual.id,produto:document.getElementById('producaoProduto').value.trim(),kg:parseFloat(document.getElementById('producaoKg').value)||0,data:document.getElementById('producaoData').value,createdAt:new Date().toISOString(),id:'prod_'+Date.now()};
-                if(!prod.produto||prod.kg<=0){alert('Preencha!');return;}producoes.push(prod);await salvarFB('custos_producoes',prod);saveLocalData();window.fecharModal('modalProducao');renderizarAnalise();
+                if(!prod.produto||prod.kg<=0){alert('Preencha todos os campos!');return;}producoes.push(prod);await salvarFB('custos_producoes',prod);saveLocalData();window.fecharModal('modalProducao');renderizarAnalise();
             };
-            window.excluirProducao=async function(id){if(confirm('Excluir?')){producoes=producoes.filter(p=>p.id!==id);await excluirFB('custos_producoes',id);saveLocalData();renderizarAnalise();}};
+            window.excluirProducao=async function(id){if(confirm('Excluir produção?')){producoes=producoes.filter(p=>p.id!==id);await excluirFB('custos_producoes',id);saveLocalData();renderizarAnalise();}};
 
             window.abrirModalMaterial=function(id=null){
                 document.getElementById('modalMaterial').classList.add('active');
@@ -1809,13 +1962,13 @@
 
             window.salvarMaterial=async function(){
                 const m={nome:document.getElementById('materialNome').value.trim(),descricao:document.getElementById('materialDescricao').value.trim(),createdAt:new Date().toISOString()};
-                if(!m.nome){alert('Digite!');return;}const editId=document.getElementById('materialEditId').value;
+                if(!m.nome){alert('Digite o nome!');return;}const editId=document.getElementById('materialEditId').value;
                 if(editId){m.id=editId;const idx=materiais.findIndex(x=>x.id===editId);if(idx!==-1)materiais[idx]=m;}else{m.id='mat_'+Date.now();materiais.push(m);}
                 await salvarFB('custos_materiais',m);saveLocalData();window.fecharModal('modalMaterial');if(document.getElementById('modalGerarCusto').classList.contains('active'))window.abrirGerarCustoMaterial();renderizarTela();
             };
 
             window.editarMaterial=(id)=>window.abrirModalMaterial(id);
-            window.excluirMaterial=async function(id){if(confirm('Excluir?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
+            window.excluirMaterial=async function(id){if(confirm('Excluir material e todo seu histórico?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
             window.abrirHistoricoMaterial=function(id){window.historicoMaterialId=id;nivelAtual='historicoMaterial';renderizarTela();};
 
             // ==================== GRÁFICOS ====================
@@ -1829,9 +1982,9 @@
 
             function carregarItensCustoLista(){const el=document.getElementById('itensCustoList');if(!el||!setorAtual)return;const itens=itensCusto.filter(i=>i.setorId===setorAtual.id);el.innerHTML=itens.map(item=>{const cat=categorias.find(c=>c.id===item.categoriaId);return`<div class="campo-config-item"><div><strong>${item.nome}</strong><br><small>${cat?.nome||''}</small></div><div style="text-align:right;"><div class="money">${formatMoney(item.valorTotal)}</div><span class="badge badge-blue">${item.percentual}%</span></div><div><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;}).join('');}
 
-            function carregarTabelaCustos(){const tbody=document.getElementById('tabelaCustos');if(!tbody||!setorAtual)return;const itens=itensCusto.filter(i=>i.setorId===setorAtual.id);if(itens.length===0){tbody.innerHTML='<tr><td colspan="6">Nenhum</td></tr>';return;}const grupos={};itens.forEach(item=>{const cid=item.categoriaId;if(!grupos[cid])grupos[cid]={cat:categorias.find(c=>c.id===cid),itens:[],subtotal:0};grupos[cid].itens.push(item);grupos[cid].subtotal+=item.valorTotal*item.percentual/100;});tbody.innerHTML=Object.values(grupos).map(g=>`<tr style="background:#f0faf4;"><td colspan="6"><strong>${g.cat?.nome||''}</strong> - ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item=>`<tr><td></td><td>${item.nome}</td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');}
+            function carregarTabelaCustos(){const tbody=document.getElementById('tabelaCustos');if(!tbody||!setorAtual)return;const itens=itensCusto.filter(i=>i.setorId===setorAtual.id);if(itens.length===0){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:2rem;">Nenhum item cadastrado</td></tr>';return;}const grupos={};itens.forEach(item=>{const cid=item.categoriaId;if(!grupos[cid])grupos[cid]={cat:categorias.find(c=>c.id===cid),itens:[],subtotal:0};grupos[cid].itens.push(item);grupos[cid].subtotal+=item.valorTotal*item.percentual/100;});tbody.innerHTML=Object.values(grupos).map(g=>`<tr style="background:#f0faf4;"><td colspan="6"><strong>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item=>`<tr><td></td><td>${item.nome}</td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');}
 
-            function carregarProducoesLista(){const el=document.getElementById('producaoList');if(!el||!setorAtual)return;const prods=producoes.filter(p=>p.setorId===setorAtual.id);el.innerHTML=prods.length===0?'<p>Nenhuma</p>':`<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p=>`<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;}
+            function carregarProducoesLista(){const el=document.getElementById('producaoList');if(!el||!setorAtual)return;const prods=producoes.filter(p=>p.setorId===setorAtual.id);el.innerHTML=prods.length===0?'<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma produção registrada</p>':`<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p=>`<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;}
 
             // ==================== NAVEGAÇÃO ====================
             window.navegarPara=function(nivel){if(nivel==='periodos'){periodoAtual=null;setorAtual=null;nivelAtual='periodos';}else if(nivel==='setores'){setorAtual=null;nivelAtual='setores';}else if(nivel==='materiais'){nivelAtual='materiais';}renderizarTela();};
