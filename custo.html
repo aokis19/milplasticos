@@ -12,9 +12,11 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
+    <!-- Bibliotecas externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -50,6 +52,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: var(--text);
             transition: background 0.3s, color 0.3s;
+            min-height: 100vh;
         }
 
         .custos-container {
@@ -553,6 +556,7 @@
             align-items: flex-start;
             padding-top: 2rem;
             animation: fadeIn 0.2s ease-out;
+            overflow-y: auto;
         }
 
         .modal-overlay.active { display: flex; }
@@ -567,12 +571,13 @@
             overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
             animation: slideInUp 0.3s ease-out;
+            margin-bottom: 2rem;
         }
 
         .modal.modal-lg { max-width: 850px; }
 
         .modal h2 { margin: 0 0 1.25rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
-        .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
+        .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; flex-wrap: wrap; }
 
         /* ========== FORMULÁRIOS ========== */
         .form-group { margin-bottom: 1rem; }
@@ -958,12 +963,23 @@
             border-color: var(--primary);
             transform: rotate(360deg);
         }
+
+        /* ========== RESPONSIVO ========== */
+        @media (max-width: 768px) {
+            .custos-container { padding: 1rem; }
+            .header-custos { flex-direction: column; align-items: flex-start; }
+            .periodos-grid,
+            .setores-grid,
+            .materiais-grid { grid-template-columns: 1fr; }
+            .modal { width: 95%; padding: 1.25rem; }
+            .toast { min-width: auto; max-width: 90vw; }
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-overlay active" id="loadingOverlay">
         <div class="spinner"></div>
         <p style="margin-top: 1rem; color: var(--text);">Carregando Central de Custos...</p>
     </div>
@@ -974,14 +990,14 @@
     <div class="custos-container">
         <div class="header-custos">
             <h1><i class="fas fa-recycle"></i> Central de Custos</h1>
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                 <button class="btn btn-teal btn-sm" onclick="window.abrirGerarCustoMaterial()">
                     <i class="fas fa-calculator"></i> Gerar Custo Material
                 </button>
                 <button class="btn btn-outline btn-sm" onclick="window.abrirConfigCampos()">
                     <i class="fas fa-sliders-h"></i> Personalizar
                 </button>
-                <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+                <button class="theme-toggle" onclick="window.toggleTheme()" title="Alternar tema claro/escuro">
                     🌓
                 </button>
                 <span id="firebaseStatus" class="firebase-status status-local">
@@ -1302,9 +1318,11 @@
 
     <div id="reportContainer" style="position: fixed; left: -9999px; top: 0; width: 800px; background: white; padding: 30px;"></div>
  
+    <!-- ==================== SCRIPTS ==================== -->
+    <!-- ORDEM CORRIGIDA: Firebase Config primeiro, depois o JS principal -->
+    <script src="/firebase-config.js"></script>
     <script src="/js/main.js"></script>
     <script src="/js/custo.js"></script>
-    <script src="/firebase-config.js"></script>
     
 </body>
 </html>
