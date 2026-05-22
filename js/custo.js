@@ -26,6 +26,7 @@
     let periodoOrigemCopia = null;
     let custoFixoSelecionadoId = null;
     let confirmCallback = null;
+    let historicoMaterialId = null;
 
     let configCampos = {
         setorNome: 'Nome do Setor',
@@ -74,31 +75,12 @@
         confirmCallback = callback;
     }
 
-    // Evento do botão confirmar
-    document.addEventListener('DOMContentLoaded', function() {
-        const confirmBtn = document.getElementById('confirmBtn');
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', function() {
-                if (typeof confirmCallback === 'function') {
-                    confirmCallback();
-                }
-                window.fecharModal('modalConfirm');
-                confirmCallback = null;
-            });
-        }
-    });
-
     // ========== TEMA ESCURO ==========
-    window.toggleTheme = function() {
+    function toggleTheme() {
         document.body.classList.toggle('dark-theme');
         const isDark = document.body.classList.contains('dark-theme');
         localStorage.setItem('darkTheme', isDark);
         showToast('info', 'Tema alterado', isDark ? 'Modo escuro ativado 🌙' : 'Modo claro ativado ☀️', 2000);
-    };
-
-    // Inicializar tema
-    if (localStorage.getItem('darkTheme') === 'true') {
-        document.body.classList.add('dark-theme');
     }
 
     // ========== ARMAZENAMENTO LOCAL ==========
@@ -554,16 +536,16 @@
     }
 
     // ========== FILTRO ANO ==========
-    window.mudarFiltroAno = function(ano) {
+    function mudarFiltroAno(ano) {
         filtroAnoAtual = ano;
         nivelAtual = 'periodos';
         periodoAtual = null;
         setorAtual = null;
         renderizarTela();
-    };
+    }
 
     // ========== COPIAR PERÍODO - VERSÃO COMPLETA ==========
-    window.abrirCopiarPeriodo = function(periodoId) {
+    function abrirCopiarPeriodo(periodoId) {
         periodoOrigemCopia = periodoId;
         const per = periodos.find(p => p.id === periodoId);
         if (!per) {
@@ -580,9 +562,9 @@
         document.getElementById('copiarAno').value = proxAno;
         
         document.getElementById('modalCopiarPeriodo').classList.add('active');
-    };
+    }
 
-    window.copiarPeriodo = async function() {
+    async function copiarPeriodo() {
         if (!periodoOrigemCopia) {
             showToast('error', 'Erro', 'Nenhum período de origem selecionado!');
             return;
@@ -682,7 +664,7 @@
             }
             
             saveLocalData();
-            window.fecharModal('modalCopiarPeriodo');
+            fecharModal('modalCopiarPeriodo');
             
             showToast('success', 
                 '✅ Período copiado com sucesso!',
@@ -701,7 +683,7 @@
         } finally {
             document.getElementById('loadingOverlay').classList.remove('active');
         }
-    };
+    }
 
     // ========== RENDERIZAR SETORES ==========
     function renderizarSetores() {
@@ -969,7 +951,7 @@
 
     // ========== RENDERIZAR HISTÓRICO MATERIAL ==========
     function renderizarHistoricoMaterial() {
-        const mat = materiais.find(m => m.id === window.historicoMaterialId);
+        const mat = materiais.find(m => m.id === historicoMaterialId);
         if (!mat) { 
             navegarPara('periodos'); 
             return; 
@@ -1014,7 +996,7 @@
     }
 
     // ========== DETALHE CUSTO MATERIAL ==========
-    window.verDetalheCustoMaterial = function(custoId) {
+    function verDetalheCustoMaterial(custoId) {
         const custo = custosMateriais.find(c => c.id === custoId);
         if (!custo) return;
         
@@ -1050,10 +1032,10 @@
             </div>`;
 
         document.getElementById('modalHistoricoDetalhe').classList.add('active');
-    };
+    }
 
     // ========== GERAR CUSTO MATERIAL ==========
-    window.abrirGerarCustoMaterial = function() {
+    function abrirGerarCustoMaterial() {
         document.getElementById('modalGerarCusto').classList.add('active');
         
         // Popular período
@@ -1084,9 +1066,9 @@
         document.getElementById('resumoLinhas').innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
         
         setoresSelecionadosGerar = new Map();
-    };
+    }
 
-    window.atualizarSetoresGerarCusto = function() {
+    function atualizarSetoresGerarCusto() {
         const periodoId = document.getElementById('gerarCustoPeriodo').value;
         const container = document.getElementById('setoresGerarCusto');
         setoresSelecionadosGerar = new Map();
@@ -1134,9 +1116,9 @@
         }).join('');
         
         window.atualizarResumoGerarCusto();
-    };
+    }
 
-    window.toggleSetorGerar = function(setorId, checkbox) {
+    function toggleSetorGerar(setorId, checkbox) {
         const configDiv = document.getElementById('config_setor_' + setorId);
         const itemDiv = document.getElementById('setor_item_' + setorId);
         
@@ -1154,9 +1136,9 @@
             configDiv.style.display = 'none';
         }
         window.atualizarResumoGerarCusto();
-    };
+    }
 
-    window.mudarModoSetorGerar = function(setorId) {
+    function mudarModoSetorGerar(setorId) {
         const modo = document.getElementById('modo_setor_' + setorId).value;
         const valorInput = document.getElementById('valor_setor_' + setorId);
         const unidadeSpan = document.getElementById('unidade_setor_' + setorId);
@@ -1176,9 +1158,9 @@
             config.valor = parseFloat(valorInput.value) || 0;
         }
         window.atualizarResumoGerarCusto();
-    };
+    }
 
-    window.adicionarInsumo = function() {
+    function adicionarInsumo() {
         const container = document.getElementById('insumosContainer');
         const div = document.createElement('div');
         div.className = 'insumo-row';
@@ -1189,10 +1171,12 @@
                 <i class="fas fa-times"></i>
             </button>`;
         container.appendChild(div);
-    };
+    }
 
-    window.atualizarResumoGerarCusto = function() {
+    function atualizarResumoGerarCusto() {
         const resumoLinhas = document.getElementById('resumoLinhas');
+        if (!resumoLinhas) return;
+        
         let custoBase = 0;
         let html = '';
         
@@ -1261,19 +1245,9 @@
         }
 
         resumoLinhas.innerHTML = html;
-    };
+    }
 
-    // Listener para inputs do gerar custo
-    document.addEventListener('input', function(e) {
-        if (['gerarCustoImposto', 'gerarCustoMargem', 'gerarCustoValorAtual'].includes(e.target.id)) {
-            window.atualizarResumoGerarCusto();
-        }
-        if (e.target.id && e.target.id.startsWith('valor_setor_')) {
-            window.atualizarResumoGerarCusto();
-        }
-    });
-
-    window.salvarCustoMaterial = async function() {
+    async function salvarCustoMaterial() {
         const periodoId = document.getElementById('gerarCustoPeriodo').value;
         const materialId = document.getElementById('gerarCustoMaterial').value;
         
@@ -1353,14 +1327,14 @@
         custosMateriais.push(custo);
         await salvarFB('custos_materiais_custos', custo);
         saveLocalData();
-        window.fecharModal('modalGerarCusto');
+        fecharModal('modalGerarCusto');
         
         showToast('success', '✅ Custo salvo!', `${formatMoney(custoKgFinal)}/kg registrado com sucesso.`);
         renderizarTela();
-    };
+    }
 
     // ========== PDFs ==========
-    window.gerarPDFCustoMaterial = async function() {
+    async function gerarPDFCustoMaterial() {
         const { jsPDF } = window.jspdf;
         const materialId = document.getElementById('gerarCustoMaterial').value;
         const mat = materiais.find(m => m.id === materialId);
@@ -1472,9 +1446,9 @@
         
         pdf.save(`Custo_${mat?.nome || 'Material'}_${per ? getNomeMes(per.mes) + '_' + per.ano : ''}.pdf`);
         showToast('success', 'PDF gerado!', 'Documento salvo com sucesso.');
-    };
+    }
 
-    window.gerarPDFCentralCustos = async function() {
+    async function gerarPDFCentralCustos() {
         if (!periodoAtual) {
             showToast('warning', 'Atenção', 'Selecione um período primeiro!');
             return;
@@ -1536,10 +1510,10 @@
         
         pdf.save(`Central_Custos_${getNomeMes(periodoAtual.mes)}_${periodoAtual.ano}.pdf`);
         showToast('success', 'PDF gerado!', 'Relatório da Central de Custos salvo.');
-    };
+    }
 
     // ========== CRUDs ==========
-    window.abrirModalPeriodo = function(id) {
+    function abrirModalPeriodo(id) {
         document.getElementById('modalPeriodo').classList.add('active');
         
         if (id) {
@@ -1558,9 +1532,9 @@
             document.getElementById('periodoAno').value = new Date().getFullYear();
             document.getElementById('periodoObs').value = '';
         }
-    };
+    }
 
-    window.salvarPeriodo = async function() {
+    async function salvarPeriodo() {
         const p = {
             mes: parseInt(document.getElementById('periodoMes').value),
             ano: parseInt(document.getElementById('periodoAno').value),
@@ -1581,7 +1555,7 @@
         
         await salvarFB('custos_periodos', p);
         saveLocalData();
-        window.fecharModal('modalPeriodo');
+        fecharModal('modalPeriodo');
         
         showToast('success', 
             editId ? 'Período atualizado!' : 'Período criado!', 
@@ -1589,11 +1563,13 @@
         );
         
         renderizarTela();
-    };
+    }
 
-    window.editarPeriodo = (id) => window.abrirModalPeriodo(id);
+    function editarPeriodo(id) {
+        abrirModalPeriodo(id);
+    }
 
-    window.excluirPeriodo = function(id) {
+    function excluirPeriodo(id) {
         const per = periodos.find(p => p.id === id);
         if (!per) return;
         
@@ -1627,9 +1603,9 @@
                 showToast('success', 'Excluído!', 'Período e todos os dados vinculados foram removidos.');
             }
         );
-    };
+    }
 
-    window.abrirModalSetor = function(id) {
+    function abrirModalSetor(id) {
         if (!periodoAtual) return;
         document.getElementById('modalSetor').classList.add('active');
         
@@ -1651,9 +1627,9 @@
             document.getElementById('setorOrdem').value = '1';
             document.getElementById('setorProdutoFinal').checked = false;
         }
-    };
+    }
 
-    window.salvarSetor = async function() {
+    async function salvarSetor() {
         const nome = document.getElementById('setorNome').value.trim();
         if (!nome) {
             showToast('warning', 'Atenção', 'Digite o nome do setor!');
@@ -1682,14 +1658,16 @@
         
         await salvarFB('custos_setores', s);
         saveLocalData();
-        window.fecharModal('modalSetor');
+        fecharModal('modalSetor');
         renderizarTela();
         showToast('success', editId ? 'Setor atualizado!' : 'Setor criado!', `"${s.nome}" salvo com sucesso.`);
-    };
+    }
 
-    window.editarSetor = (id) => window.abrirModalSetor(id);
+    function editarSetor(id) {
+        abrirModalSetor(id);
+    }
 
-    window.excluirSetor = function(id) {
+    function excluirSetor(id) {
         const setor = setores.find(s => s.id === id);
         if (!setor) return;
         
@@ -1710,10 +1688,10 @@
                 showToast('success', 'Excluído!', 'Setor removido com sucesso.');
             }
         );
-    };
+    }
 
     // Categorias
-    window.abrirModalCategoria = function(id) {
+    function abrirModalCategoria(id) {
         document.getElementById('modalCategoria').classList.add('active');
         
         if (id) {
@@ -1730,9 +1708,9 @@
             document.getElementById('categoriaNome').value = '';
             document.getElementById('categoriaCor').value = '#0d904f';
         }
-    };
+    }
 
-    window.salvarCategoria = async function() {
+    async function salvarCategoria() {
         const nome = document.getElementById('categoriaNome').value.trim();
         if (!nome) {
             showToast('warning', 'Atenção', 'Digite o nome da categoria!');
@@ -1757,17 +1735,19 @@
         
         await salvarFB('custos_categorias', c);
         saveLocalData();
-        window.fecharModal('modalCategoria');
+        fecharModal('modalCategoria');
         
         if (nivelAtual === 'analise') renderizarAnalise();
         else renderizarTela();
         
         showToast('success', editId ? 'Categoria atualizada!' : 'Categoria criada!', `"${c.nome}" salva.`);
-    };
+    }
 
-    window.editarCategoria = (id) => window.abrirModalCategoria(id);
+    function editarCategoria(id) {
+        abrirModalCategoria(id);
+    }
 
-    window.excluirCategoria = function(id) {
+    function excluirCategoria(id) {
         const cat = categorias.find(c => c.id === id);
         if (!cat) return;
         
@@ -1788,10 +1768,10 @@
                 showToast('success', 'Excluída!', 'Categoria removida.');
             }
         );
-    };
+    }
 
     // Custos Fixos
-    window.abrirModalCustoFixo = function(id) {
+    function abrirModalCustoFixo(id) {
         const selCat = document.getElementById('custoFixoCategoria');
         selCat.innerHTML = '<option value="">Selecione uma categoria...</option>' + 
             categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
@@ -1814,9 +1794,9 @@
             document.getElementById('custoFixoNome').value = '';
             document.getElementById('custoFixoValor').value = '';
         }
-    };
+    }
 
-    window.salvarCustoFixo = async function() {
+    async function salvarCustoFixo() {
         const nome = document.getElementById('custoFixoNome').value.trim();
         const valor = parseFloat(document.getElementById('custoFixoValor').value) || 0;
         
@@ -1845,14 +1825,16 @@
         
         await salvarFB('custos_fixos', cf);
         saveLocalData();
-        window.fecharModal('modalCustoFixo');
+        fecharModal('modalCustoFixo');
         renderizarTela();
         showToast('success', editId ? 'Atualizado!' : 'Criado!', `"${cf.nome}" salvo.`);
-    };
+    }
 
-    window.editarCustoFixo = (id) => window.abrirModalCustoFixo(id);
+    function editarCustoFixo(id) {
+        abrirModalCustoFixo(id);
+    }
 
-    window.excluirCustoFixo = function(id) {
+    function excluirCustoFixo(id) {
         const cf = custosFixos.find(c => c.id === id);
         if (!cf) return;
         
@@ -1868,10 +1850,10 @@
                 showToast('success', 'Excluído!', 'Custo fixo removido.');
             }
         );
-    };
+    }
 
     // Itens de Custo
-    window.mudarTipoItem = function(tipo) {
+    function mudarTipoItem(tipo) {
         document.getElementById('itemTipo').value = tipo;
         document.getElementById('tabNormal').classList.toggle('active', tipo === 'normal');
         document.getElementById('tabFixo').classList.toggle('active', tipo === 'fixo');
@@ -1887,7 +1869,7 @@
             carregarSelectCategorias();
         }
         custoFixoSelecionadoId = null;
-    };
+    }
 
     function carregarCustosFixosParaSelecao() {
         const container = document.getElementById('custosFixosSelect');
@@ -1918,7 +1900,7 @@
         }).join('');
     }
 
-    window.selecionarCustoFixoParaItem = function(cfId) {
+    function selecionarCustoFixoParaItem(cfId) {
         const cf = custosFixos.find(c => c.id === cfId);
         if (!cf) return;
         
@@ -1932,17 +1914,17 @@
             el.style.borderColor = 'var(--border)';
             el.style.background = '#fff';
         });
-    };
+    }
 
     function carregarSelectCategorias() {
         const sel = document.getElementById('itemCategoria');
         if (sel) sel.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
     }
 
-    window.abrirModalItemCusto = function(id) {
+    function abrirModalItemCusto(id) {
         if (!setorAtual) return;
         
-        window.mudarTipoItem('normal');
+        mudarTipoItem('normal');
         document.getElementById('modalItemCusto').classList.add('active');
         
         if (id) {
@@ -1952,14 +1934,14 @@
                 document.getElementById('itemEditId').value = item.id;
                 
                 if (item.tipo === 'fixo') {
-                    window.mudarTipoItem('fixo');
+                    mudarTipoItem('fixo');
                     custoFixoSelecionadoId = item.custoFixoId;
                     document.getElementById('areaItemFixoDetalhe').style.display = 'block';
                     document.getElementById('itemFixoNomeDisplay').value = item.nome;
                     document.getElementById('itemFixoValorDisplay').value = formatMoney(item.valorTotal);
                     document.getElementById('itemFixoPercentual').value = item.percentual;
                 } else {
-                    window.mudarTipoItem('normal');
+                    mudarTipoItem('normal');
                     carregarSelectCategorias();
                     document.getElementById('itemCategoria').value = item.categoriaId || '';
                     document.getElementById('itemNome').value = item.nome;
@@ -1977,9 +1959,9 @@
             document.getElementById('itemObs').value = '';
             document.getElementById('itemFixoPercentual').value = '100';
         }
-    };
+    }
 
-    window.salvarItemCusto = async function() {
+    async function salvarItemCusto() {
         const tipo = document.getElementById('itemTipo').value;
         let item;
         
@@ -2037,14 +2019,16 @@
         
         await salvarFB('custos_itens', item);
         saveLocalData();
-        window.fecharModal('modalItemCusto');
+        fecharModal('modalItemCusto');
         renderizarAnalise();
         showToast('success', editId ? 'Item atualizado!' : 'Item adicionado!', `"${item.nome}" salvo.`);
-    };
+    }
 
-    window.editarItemCusto = (id) => window.abrirModalItemCusto(id);
+    function editarItemCusto(id) {
+        abrirModalItemCusto(id);
+    }
 
-    window.excluirItemCusto = function(id) {
+    function excluirItemCusto(id) {
         const item = itensCusto.find(i => i.id === id);
         if (!item) return;
         
@@ -2060,18 +2044,18 @@
                 showToast('success', 'Excluído!', 'Item removido.');
             }
         );
-    };
+    }
 
     // Produções
-    window.abrirModalProducao = function() {
+    function abrirModalProducao() {
         if (!setorAtual) return;
         document.getElementById('modalProducao').classList.add('active');
         document.getElementById('producaoProduto').value = '';
         document.getElementById('producaoKg').value = '';
         document.getElementById('producaoData').value = new Date().toISOString().split('T')[0];
-    };
+    }
 
-    window.salvarProducao = async function() {
+    async function salvarProducao() {
         const produto = document.getElementById('producaoProduto').value.trim();
         const kg = parseFloat(document.getElementById('producaoKg').value) || 0;
         
@@ -2092,12 +2076,12 @@
         producoes.push(prod);
         await salvarFB('custos_producoes', prod);
         saveLocalData();
-        window.fecharModal('modalProducao');
+        fecharModal('modalProducao');
         renderizarAnalise();
         showToast('success', 'Produção registrada!', `${formatNumber(kg, 0)} kg de "${produto}".`);
-    };
+    }
 
-    window.excluirProducao = function(id) {
+    function excluirProducao(id) {
         const prod = producoes.find(p => p.id === id);
         if (!prod) return;
         
@@ -2113,10 +2097,10 @@
                 showToast('success', 'Excluída!', 'Produção removida.');
             }
         );
-    };
+    }
 
     // Materiais
-    window.abrirModalMaterial = function(id) {
+    function abrirModalMaterial(id) {
         document.getElementById('modalMaterial').classList.add('active');
         
         if (id) {
@@ -2133,9 +2117,9 @@
             document.getElementById('materialNome').value = '';
             document.getElementById('materialDescricao').value = '';
         }
-    };
+    }
 
-    window.salvarMaterial = async function() {
+    async function salvarMaterial() {
         const nome = document.getElementById('materialNome').value.trim();
         if (!nome) {
             showToast('warning', 'Atenção', 'Digite o nome do material!');
@@ -2161,14 +2145,16 @@
         
         await salvarFB('custos_materiais', m);
         saveLocalData();
-        window.fecharModal('modalMaterial');
+        fecharModal('modalMaterial');
         renderizarTela();
         showToast('success', editId ? 'Material atualizado!' : 'Material criado!', `"${m.nome}" salvo.`);
-    };
+    }
 
-    window.editarMaterial = (id) => window.abrirModalMaterial(id);
+    function editarMaterial(id) {
+        abrirModalMaterial(id);
+    }
 
-    window.excluirMaterial = function(id) {
+    function excluirMaterial(id) {
         const mat = materiais.find(m => m.id === id);
         if (!mat) return;
         
@@ -2185,13 +2171,13 @@
                 showToast('success', 'Excluído!', 'Material e histórico removidos.');
             }
         );
-    };
+    }
 
-    window.abrirHistoricoMaterial = function(id) {
-        window.historicoMaterialId = id;
+    function abrirHistoricoMaterial(id) {
+        historicoMaterialId = id;
         nivelAtual = 'historicoMaterial';
         renderizarTela();
-    };
+    }
 
     // ========== GRÁFICOS ==========
     function getCustosAgrupados() {
@@ -2392,7 +2378,7 @@
     }
 
     // ========== NAVEGAÇÃO ==========
-    window.navegarPara = function(nivel) {
+    function navegarPara(nivel) {
         if (nivel === 'periodos') {
             periodoAtual = null;
             setorAtual = null;
@@ -2404,20 +2390,20 @@
             nivelAtual = 'materiais';
         }
         renderizarTela();
-    };
+    }
 
-    window.selecionarPeriodo = function(id) {
+    function selecionarPeriodo(id) {
         periodoAtual = periodos.find(p => p.id === id);
         setorAtual = null;
         nivelAtual = 'setores';
         renderizarTela();
-    };
+    }
 
-    window.selecionarSetor = function(id) {
+    function selecionarSetor(id) {
         setorAtual = setores.find(s => s.id === id);
         nivelAtual = 'analise';
         renderizarTela();
-    };
+    }
 
     function atualizarBreadcrumb() {
         const bc = document.getElementById('breadcrumb');
@@ -2428,7 +2414,7 @@
         if (nivelAtual === 'materiais') {
             html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item active">Materiais</span>`;
         } else if (nivelAtual === 'historicoMaterial') {
-            const mat = materiais.find(m => m.id === window.historicoMaterialId);
+            const mat = materiais.find(m => m.id === historicoMaterialId);
             html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item active">Histórico: ${mat?.nome || ''}</span>`;
         } else if (periodoAtual) {
             html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item ${nivelAtual === 'setores' ? 'active' : ''}" onclick="window.navegarPara('setores')">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>`;
@@ -2442,55 +2428,154 @@
     }
 
     // ========== CONFIGURAÇÕES ==========
-    window.abrirConfigCampos = function() {
+    function abrirConfigCampos() {
         document.getElementById('modalConfigCampos').classList.add('active');
         document.getElementById('listaConfigCampos').innerHTML = Object.entries(configCampos)
             .map(([k, v]) => `<div class="form-group"><label>${k}</label><input type="text" id="config_${k}" value="${v}"></div>`)
             .join('');
-    };
+    }
 
-    window.salvarConfigCampos = function() {
+    function salvarConfigCampos() {
         Object.keys(configCampos).forEach(k => {
             const inp = document.getElementById('config_' + k);
             if (inp) configCampos[k] = inp.value.trim() || configCampos[k];
         });
         saveConfig();
-        window.fecharModal('modalConfigCampos');
+        fecharModal('modalConfigCampos');
         renderizarTela();
         showToast('success', 'Configurações salvas!', 'Personalizações aplicadas.');
-    };
-
-    // ========== MODAIS ==========
-    window.fecharModal = function(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.classList.remove('active');
-    };
-
-    // Fechar modal ao clicar fora
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal-overlay')) {
-            e.target.classList.remove('active');
-        }
-    });
-
-    // ========== INICIALIZAÇÃO FINAL ==========
-    function init() {
-        console.log('✅ Central de Custos v2.0 inicializada!');
-        console.log('📋 Funcionalidades:');
-        console.log('  - Cópia completa de períodos (setores + itens + valores + produções)');
-        console.log('  - Sistema de notificações Toast');
-        console.log('  - Modal de confirmação personalizado');
-        console.log('  - Tema escuro/claro');
-        console.log('  - Feedback visual em todas as ações');
-        
-        document.getElementById('loadingOverlay').classList.remove('active');
     }
 
-    // Garantir que o loading seja removido
-    setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.remove('active');
-    }, 3000);
+    // ========== MODAIS ==========
+    function fecharModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.remove('active');
+    }
 
+    // ========== INICIALIZAÇÃO ==========
+    function init() {
+        console.log('✅ Central de Custos v2.0 inicializada!');
+        
+        // Configurar listener do botão de confirmação
+        const confirmBtn = document.getElementById('confirmBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                if (typeof confirmCallback === 'function') {
+                    confirmCallback();
+                }
+                fecharModal('modalConfirm');
+                confirmCallback = null;
+            });
+        }
+
+        // Fechar modais ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.classList.remove('active');
+            }
+        });
+
+        // Listeners para inputs do gerar custo
+        document.addEventListener('input', function(e) {
+            if (['gerarCustoImposto', 'gerarCustoMargem', 'gerarCustoValorAtual'].includes(e.target.id)) {
+                atualizarResumoGerarCusto();
+            }
+            if (e.target.id && e.target.id.startsWith('valor_setor_')) {
+                atualizarResumoGerarCusto();
+            }
+        });
+
+        // Inicializar tema escuro
+        if (localStorage.getItem('darkTheme') === 'true') {
+            document.body.classList.add('dark-theme');
+        }
+
+        // Garantir remoção do loading
+        document.getElementById('loadingOverlay').classList.remove('active');
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }, 3000);
+    }
+
+    // ========== EXPOSIÇÃO GLOBAL DE TODAS AS FUNÇÕES ==========
+    // Essencial para que os onclick no HTML funcionem
+    
+    // Sistema
+    window.toggleTheme = toggleTheme;
+    window.fecharModal = fecharModal;
+    window.navegarPara = navegarPara;
+    window.showToast = showToast;
+    
+    // Navegação
+    window.selecionarPeriodo = selecionarPeriodo;
+    window.selecionarSetor = selecionarSetor;
+    window.mudarFiltroAno = mudarFiltroAno;
+    
+    // Períodos
+    window.abrirModalPeriodo = abrirModalPeriodo;
+    window.salvarPeriodo = salvarPeriodo;
+    window.editarPeriodo = editarPeriodo;
+    window.excluirPeriodo = excluirPeriodo;
+    window.abrirCopiarPeriodo = abrirCopiarPeriodo;
+    window.copiarPeriodo = copiarPeriodo;
+    
+    // Setores
+    window.abrirModalSetor = abrirModalSetor;
+    window.salvarSetor = salvarSetor;
+    window.editarSetor = editarSetor;
+    window.excluirSetor = excluirSetor;
+    
+    // Categorias
+    window.abrirModalCategoria = abrirModalCategoria;
+    window.salvarCategoria = salvarCategoria;
+    window.editarCategoria = editarCategoria;
+    window.excluirCategoria = excluirCategoria;
+    
+    // Custos Fixos
+    window.abrirModalCustoFixo = abrirModalCustoFixo;
+    window.salvarCustoFixo = salvarCustoFixo;
+    window.editarCustoFixo = editarCustoFixo;
+    window.excluirCustoFixo = excluirCustoFixo;
+    
+    // Itens de Custo
+    window.abrirModalItemCusto = abrirModalItemCusto;
+    window.salvarItemCusto = salvarItemCusto;
+    window.editarItemCusto = editarItemCusto;
+    window.excluirItemCusto = excluirItemCusto;
+    window.mudarTipoItem = mudarTipoItem;
+    window.selecionarCustoFixoParaItem = selecionarCustoFixoParaItem;
+    
+    // Produções
+    window.abrirModalProducao = abrirModalProducao;
+    window.salvarProducao = salvarProducao;
+    window.excluirProducao = excluirProducao;
+    
+    // Materiais
+    window.abrirModalMaterial = abrirModalMaterial;
+    window.salvarMaterial = salvarMaterial;
+    window.editarMaterial = editarMaterial;
+    window.excluirMaterial = excluirMaterial;
+    window.abrirHistoricoMaterial = abrirHistoricoMaterial;
+    window.verDetalheCustoMaterial = verDetalheCustoMaterial;
+    
+    // Gerar Custo Material
+    window.abrirGerarCustoMaterial = abrirGerarCustoMaterial;
+    window.atualizarSetoresGerarCusto = atualizarSetoresGerarCusto;
+    window.toggleSetorGerar = toggleSetorGerar;
+    window.mudarModoSetorGerar = mudarModoSetorGerar;
+    window.adicionarInsumo = adicionarInsumo;
+    window.atualizarResumoGerarCusto = atualizarResumoGerarCusto;
+    window.salvarCustoMaterial = salvarCustoMaterial;
+    
+    // PDFs
+    window.gerarPDFCustoMaterial = gerarPDFCustoMaterial;
+    window.gerarPDFCentralCustos = gerarPDFCentralCustos;
+    
+    // Configurações
+    window.abrirConfigCampos = abrirConfigCampos;
+    window.salvarConfigCampos = salvarConfigCampos;
+
+    // Iniciar
     init();
 
 })();
