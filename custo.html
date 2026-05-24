@@ -143,7 +143,9 @@
         }
 
         .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .stat-card.warning { border-left-color: var(--warning); }
         .stat-icon { font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; }
+        .stat-card.warning .stat-icon { color: var(--warning); }
         .stat-value { font-size: 1.7rem; font-weight: 700; color: var(--text); line-height: 1.2; }
         .stat-label { color: var(--text-light); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -184,6 +186,26 @@
             transform: translateY(-3px);
         }
 
+        .periodo-card.selecionado-resumo {
+            border-color: var(--info);
+            background: #e3f2fd;
+            box-shadow: 0 0 0 3px rgba(2,119,189,0.15);
+        }
+
+        .periodo-card .periodo-check {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            z-index: 2;
+        }
+
+        .periodo-card .periodo-check input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--info);
+            cursor: pointer;
+        }
+
         .periodo-card .periodo-titulo {
             font-size: 1.3rem;
             font-weight: 700;
@@ -192,9 +214,10 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            padding-left: 1.8rem;
         }
 
-        .periodo-card .periodo-obs { font-size: 0.8rem; color: var(--text-light); margin-bottom: 1rem; }
+        .periodo-card .periodo-obs { font-size: 0.8rem; color: var(--text-light); margin-bottom: 1rem; padding-left: 1.8rem; }
         .periodo-card .periodo-stats { display: grid; gap: 0.5rem; }
 
         .periodo-card .periodo-stat {
@@ -219,6 +242,125 @@
         }
 
         .periodo-card:hover .acoes { opacity: 1; }
+
+        /* NOVOS ESTILOS - RESUMO CONSOLIDADO */
+        .resumo-consolidado {
+            background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
+            color: #fff;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .resumo-consolidado h3 {
+            margin: 0 0 1rem 0;
+            color: #90caf9;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .resumo-consolidado .periodos-selecionados-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .resumo-consolidado .periodo-tag {
+            background: rgba(255,255,255,0.15);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .resumo-consolidado .periodo-tag .remover-tag {
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+
+        .resumo-consolidado .periodo-tag .remover-tag:hover { opacity: 1; }
+
+        .resumo-consolidado .stats-grid-resumo {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+
+        .resumo-consolidado .stat-resumo {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .resumo-consolidado .stat-resumo .sr-valor {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .resumo-consolidado .stat-resumo .sr-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .resumo-consolidado .stat-resumo.destaque {
+            background: rgba(255,152,0,0.2);
+            border-color: rgba(255,152,0,0.4);
+        }
+
+        .resumo-consolidado .stat-resumo.destaque .sr-valor {
+            color: #ffb74d;
+        }
+
+        .btn-selecionar-todos {
+            font-size: 0.75rem;
+            color: #90caf9;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-left: 0.5rem;
+        }
+
+        .btn-selecionar-todos:hover { color: #fff; }
+
+        /* SETORES COM TOGGLE */
+        .setor-card .setor-toggle {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            z-index: 2;
+        }
+
+        .setor-card .setor-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--danger);
+            cursor: pointer;
+        }
+
+        .setor-card.excluido-resumo {
+            opacity: 0.5;
+            border-style: dashed;
+            border-color: #ccc;
+        }
+
+        .setor-card.excluido-resumo .setor-nome {
+            text-decoration: line-through;
+            color: var(--text-light);
+        }
+
+        .setor-card .setor-nome { padding-left: 1.8rem; }
+        .setor-card .setor-desc { padding-left: 1.8rem; }
 
         .setores-grid {
             display: grid;
@@ -1033,6 +1175,10 @@
             let periodoOrigemCopia = null;
             let custoFixoSelecionadoId = null;
 
+            // NOVAS VARIÁVEIS
+            let periodosSelecionadosResumo = new Set();
+            let setoresExcluidosResumo = new Set();
+
             let configCampos = {
                 setorNome: 'Nome do Setor',
                 setorDesc: 'Descrição',
@@ -1137,9 +1283,10 @@
                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][m - 1] || '';
             }
 
-            function getSetoresDoPeriodo() {
-                if (!periodoAtual) return [];
-                return setores.filter(s => s.periodoId === periodoAtual.id).sort((a, b) => a.ordem - b.ordem);
+            function getSetoresDoPeriodo(periodoId) {
+                const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
+                if (!pid) return [];
+                return setores.filter(s => s.periodoId === pid).sort((a, b) => a.ordem - b.ordem);
             }
 
             function getSetoresFinais(periodoId) {
@@ -1160,22 +1307,68 @@
                 return totalKg > 0 ? totalCusto / totalKg : 0;
             }
 
-            function calcularResumoPeriodo() {
-                if (!periodoAtual) return { custoTotalGeral: 0, producaoTotalGeral: 0, custoPorKgGeral: 0, qtdSetores: 0, setoresFinais: [] };
-                const sets = getSetoresDoPeriodo();
+            // MODIFICADO: calcularResumoPeriodo agora aceita setores excluídos
+            function calcularResumoPeriodo(periodoIdParam, excluirSetores = null) {
+                const pid = periodoIdParam || (periodoAtual ? periodoAtual.id : null);
+                const excluir = excluirSetores || setoresExcluidosResumo;
+                
+                if (!pid) return { custoTotalGeral: 0, producaoTotalGeral: 0, custoPorKgGeral: 0, qtdSetores: 0, setoresFinais: [], qtdProdutosFinais: 0 };
+                
+                const sets = getSetoresDoPeriodo(pid);
                 let custoTotalGeral = 0, producaoTotalGeral = 0;
-                sets.forEach(s => { custoTotalGeral += calcularCustosSetor(s.id).totalCusto; });
-                const setoresFinais = getSetoresFinais(periodoAtual.id);
+                
+                sets.forEach(s => {
+                    if (!excluir.has(s.id)) {
+                        custoTotalGeral += calcularCustosSetor(s.id).totalCusto;
+                    }
+                });
+                
+                const setoresFinais = sets.filter(s => s.produtoFinal && !excluir.has(s.id));
                 const detalhesFinais = [];
                 setoresFinais.forEach(sf => {
                     const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(sf.id);
                     producaoTotalGeral += totalKg;
                     detalhesFinais.push({ setor: sf, custo: totalCusto, producao: totalKg, custoPorKg });
                 });
+                
+                if (producaoTotalGeral === 0) {
+                    sets.forEach(s => {
+                        if (!excluir.has(s.id)) {
+                            producaoTotalGeral += calcularCustosSetor(s.id).totalKg;
+                        }
+                    });
+                }
+                
                 return {
                     custoTotalGeral, producaoTotalGeral,
                     custoPorKgGeral: producaoTotalGeral > 0 ? custoTotalGeral / producaoTotalGeral : 0,
-                    qtdSetores: sets.length, qtdProdutosFinais: setoresFinais.length, setoresFinais: detalhesFinais
+                    qtdSetores: sets.filter(s => !excluir.has(s.id)).length,
+                    qtdProdutosFinais: setoresFinais.length,
+                    setoresFinais: detalhesFinais
+                };
+            }
+
+            // NOVO: cálculo do resumo consolidado
+            function calcularResumoConsolidado() {
+                if (periodosSelecionadosResumo.size === 0) return null;
+                
+                let custoTotal = 0, producaoTotal = 0, qtdSetores = 0;
+                const qtdPeriodos = periodosSelecionadosResumo.size;
+                const emptySet = new Set(); // sem exclusões para o consolidado
+                
+                periodosSelecionadosResumo.forEach(pid => {
+                    const resumo = calcularResumoPeriodo(pid, emptySet);
+                    custoTotal += resumo.custoTotalGeral;
+                    producaoTotal += resumo.producaoTotalGeral;
+                    qtdSetores += resumo.qtdSetores;
+                });
+                
+                return {
+                    custoTotal,
+                    producaoTotal,
+                    custoPorKg: producaoTotal > 0 ? custoTotal / producaoTotal : 0,
+                    qtdSetores,
+                    qtdPeriodos
                 };
             }
 
@@ -1193,7 +1386,7 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== HOME ====================
+            // ==================== HOME (MODIFICADA) ====================
             function renderizarPeriodos() {
                 const container = document.getElementById('conteudoDinamico');
                 const anosDisponiveis = [...new Set(periodos.map(p => p.ano))].sort((a, b) => b - a);
@@ -1207,7 +1400,53 @@
                     return b.mes - a.mes;
                 });
 
+                const resumoConsolidado = calcularResumoConsolidado();
+
                 container.innerHTML = `
+                    ${resumoConsolidado ? `
+                    <div class="resumo-consolidado" id="resumoConsolidado">
+                        <h3><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
+                        <div class="periodos-selecionados-tags">
+                            ${Array.from(periodosSelecionadosResumo).map(pid => {
+                                const per = periodos.find(p => p.id === pid);
+                                if (!per) return '';
+                                return `<span class="periodo-tag">
+                                    ${getNomeMes(per.mes)}/${per.ano}
+                                    <span class="remover-tag" onclick="window.removerPeriodoResumo('${pid}')" title="Remover">×</span>
+                                </span>`;
+                            }).join('')}
+                            <span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar seleção</span>
+                        </div>
+                        <div class="stats-grid-resumo">
+                            <div class="stat-resumo">
+                                <div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div>
+                                <div class="sr-label">Períodos</div>
+                            </div>
+                            <div class="stat-resumo">
+                                <div class="sr-valor">${resumoConsolidado.qtdSetores}</div>
+                                <div class="sr-label">Setores</div>
+                            </div>
+                            <div class="stat-resumo">
+                                <div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div>
+                                <div class="sr-label">Custo Total</div>
+                            </div>
+                            <div class="stat-resumo">
+                                <div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div>
+                                <div class="sr-label">Produção Total</div>
+                            </div>
+                            <div class="stat-resumo destaque">
+                                <div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div>
+                                <div class="sr-label">🏁 Custo Médio/KG</div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="alert-info" style="margin-bottom:1.5rem;">
+                        <i class="fas fa-hand-pointer"></i> 
+                        <strong>Dica:</strong> Marque os checkboxes nos períodos abaixo para ver o resumo consolidado com a soma de todos eles.
+                    </div>
+                    `}
+
                     <div class="card">
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-calendar-alt"></i> Períodos de Análise</span>
@@ -1251,22 +1490,24 @@
                 if (periodosOrdenados.length > 0) {
                     const grid = document.getElementById('periodosGrid');
                     periodosOrdenados.forEach(per => {
-                        const backup = periodoAtual;
-                        periodoAtual = per;
-                        const resumo = calcularResumoPeriodo();
-                        periodoAtual = backup;
+                        const resumo = calcularResumoPeriodo(per.id, new Set());
+                        const isSelected = periodosSelecionadosResumo.has(per.id);
                         const div = document.createElement('div');
-                        div.className = 'periodo-card';
-                        div.onclick = () => window.selecionarPeriodo(per.id);
+                        div.className = `periodo-card ${isSelected ? 'selecionado-resumo' : ''}`;
                         div.innerHTML = `
+                            <div class="periodo-check" onclick="event.stopPropagation();">
+                                <input type="checkbox" id="chk_per_${per.id}" ${isSelected ? 'checked' : ''} 
+                                    onchange="window.togglePeriodoResumo('${per.id}', this.checked)" 
+                                    title="Selecionar para resumo consolidado">
+                            </div>
                             <div class="acoes">
                                 <button class="btn btn-info btn-xs" onclick="event.stopPropagation(); window.abrirCopiarPeriodo('${per.id}')" title="Copiar período completo"><i class="fas fa-copy"></i></button>
                                 <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarPeriodo('${per.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirPeriodo('${per.id}')"><i class="fas fa-trash"></i></button>
                             </div>
-                            <div class="periodo-titulo"><i class="fas fa-calendar-check"></i> ${getNomeMes(per.mes)}/${per.ano}</div>
-                            <div class="periodo-obs">${per.obs || 'Sem descrição'}</div>
-                            <div class="periodo-stats">
+                            <div class="periodo-titulo" onclick="window.selecionarPeriodo('${per.id}')"><i class="fas fa-calendar-check"></i> ${getNomeMes(per.mes)}/${per.ano}</div>
+                            <div class="periodo-obs" onclick="window.selecionarPeriodo('${per.id}')">${per.obs || 'Sem descrição'}</div>
+                            <div class="periodo-stats" onclick="window.selecionarPeriodo('${per.id}')">
                                 <div class="periodo-stat"><span class="label">Setores</span><span class="valor">${resumo.qtdSetores}</span></div>
                                 <div class="periodo-stat"><span class="label">Produtos Finais</span><span class="valor">${resumo.qtdProdutosFinais}</span></div>
                                 <div class="periodo-stat"><span class="label">Custo Total</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
@@ -1280,47 +1521,85 @@
 
                 if (custosFixos.length > 0) {
                     const grid = document.getElementById('custosFixosGrid');
-                    custosFixos.forEach(cf => {
-                        const cat = categorias.find(c => c.id === cf.categoriaId);
-                        const div = document.createElement('div');
-                        div.className = 'custo-fixo-item';
-                        div.innerHTML = `
-                            <div>
-                                <div class="cf-nome"><i class="fas fa-thumbtack" style="color:var(--warning);font-size:0.7rem;"></i> ${cf.nome}</div>
-                                <div class="cf-categoria">${cat ? cat.nome : 'Sem categoria'}</div>
-                            </div>
-                            <div class="cf-valor">${formatMoney(cf.valor)}</div>
-                            <div>
-                                <button class="btn btn-outline btn-xs" onclick="window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
-                            </div>
-                        `;
-                        grid.appendChild(div);
-                    });
+                    if (grid) {
+                        custosFixos.forEach(cf => {
+                            const cat = categorias.find(c => c.id === cf.categoriaId);
+                            const div = document.createElement('div');
+                            div.className = 'custo-fixo-item';
+                            div.innerHTML = `
+                                <div>
+                                    <div class="cf-nome"><i class="fas fa-thumbtack" style="color:var(--warning);font-size:0.7rem;"></i> ${cf.nome}</div>
+                                    <div class="cf-categoria">${cat ? cat.nome : 'Sem categoria'}</div>
+                                </div>
+                                <div class="cf-valor">${formatMoney(cf.valor)}</div>
+                                <div>
+                                    <button class="btn btn-outline btn-xs" onclick="window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
+                                </div>
+                            `;
+                            grid.appendChild(div);
+                        });
+                    }
                 }
 
                 if (materiais.length > 0) {
                     const grid = document.getElementById('materiaisGrid');
-                    materiais.forEach(mat => {
-                        const historico = getHistoricoMaterial(mat.id);
-                        const ultimo = historico[0];
-                        const div = document.createElement('div');
-                        div.className = 'material-card';
-                        div.onclick = () => window.abrirHistoricoMaterial(mat.id);
-                        div.innerHTML = `
-                            <div class="acoes">
-                                <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarMaterial('${mat.id}')"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirMaterial('${mat.id}')"><i class="fas fa-trash"></i></button>
-                            </div>
-                            <div class="material-nome"><i class="fas fa-cube"></i> ${mat.nome}</div>
-                            <div class="material-desc">${mat.descricao || ''}</div>
-                            ${ultimo ? `<div class="material-ultimo"><strong>${formatMoney(ultimo.custoKgFinal)}/kg</strong> (${getNomeMes(ultimo.mes)}/${ultimo.ano})</div>` : '<div class="material-ultimo">Sem custos</div>'}
-                            <div style="font-size:0.7rem;margin-top:0.5rem;">${historico.length} registro(s)</div>
-                        `;
-                        grid.appendChild(div);
-                    });
+                    if (grid) {
+                        materiais.forEach(mat => {
+                            const historico = getHistoricoMaterial(mat.id);
+                            const ultimo = historico[0];
+                            const div = document.createElement('div');
+                            div.className = 'material-card';
+                            div.onclick = () => window.abrirHistoricoMaterial(mat.id);
+                            div.innerHTML = `
+                                <div class="acoes">
+                                    <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarMaterial('${mat.id}')"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirMaterial('${mat.id}')"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="material-nome"><i class="fas fa-cube"></i> ${mat.nome}</div>
+                                <div class="material-desc">${mat.descricao || ''}</div>
+                                ${ultimo ? `<div class="material-ultimo"><strong>${formatMoney(ultimo.custoKgFinal)}/kg</strong> (${getNomeMes(ultimo.mes)}/${ultimo.ano})</div>` : '<div class="material-ultimo">Sem custos</div>'}
+                                <div style="font-size:0.7rem;margin-top:0.5rem;">${historico.length} registro(s)</div>
+                            `;
+                            grid.appendChild(div);
+                        });
+                    }
                 }
             }
+
+            // NOVAS FUNÇÕES DE RESUMO
+            window.togglePeriodoResumo = function(periodoId, checked) {
+                if (checked) {
+                    periodosSelecionadosResumo.add(periodoId);
+                } else {
+                    periodosSelecionadosResumo.delete(periodoId);
+                }
+                renderizarPeriodos();
+            };
+
+            window.removerPeriodoResumo = function(periodoId) {
+                periodosSelecionadosResumo.delete(periodoId);
+                renderizarPeriodos();
+            };
+
+            window.limparSelecaoResumo = function() {
+                periodosSelecionadosResumo.clear();
+                renderizarPeriodos();
+            };
+
+            window.toggleSetorResumo = function(setorId, incluir) {
+                if (incluir) {
+                    setoresExcluidosResumo.delete(setorId);
+                } else {
+                    setoresExcluidosResumo.add(setorId);
+                }
+                renderizarSetores();
+            };
+
+            window.limparSetoresExcluidos = function() {
+                setoresExcluidosResumo.clear();
+                renderizarSetores();
+            };
 
             window.mudarFiltroAno = function(ano) {
                 filtroAnoAtual = ano;
@@ -1328,7 +1607,7 @@
                 renderizarTela();
             };
 
-            // ==================== COPIAR PERÍODO (CÓPIA COMPLETA) ====================
+            // ==================== COPIAR PERÍODO ====================
             window.abrirCopiarPeriodo = function(periodoId) {
                 periodoOrigemCopia = periodoId;
                 const per = periodos.find(p => p.id === periodoId);
@@ -1347,14 +1626,12 @@
                 const novoMes = parseInt(document.getElementById('copiarMes').value);
                 const novoAno = parseInt(document.getElementById('copiarAno').value);
 
-                // Verifica se já existe período com mesmo mês/ano
                 const periodoExistente = periodos.find(p => p.mes === novoMes && p.ano === novoAno);
                 if (periodoExistente) {
                     alert(`Já existe um período para ${getNomeMes(novoMes)}/${novoAno}! Escolha outro mês/ano.`);
                     return;
                 }
 
-                // Confirmação
                 if (!confirm(`Copiar TODOS os dados de ${getNomeMes(perOrigem.mes)}/${perOrigem.ano} para ${getNomeMes(novoMes)}/${novoAno}?\n\nItens de custo e produções serão copiados integralmente.`)) {
                     return;
                 }
@@ -1362,7 +1639,6 @@
                 document.getElementById('loadingOverlay').classList.add('active');
 
                 try {
-                    // 1. Criar o novo período
                     const novoPeriodo = {
                         mes: novoMes, 
                         ano: novoAno,
@@ -1373,18 +1649,13 @@
                     periodos.push(novoPeriodo);
                     await salvarFB('custos_periodos', novoPeriodo);
 
-                    // 2. Buscar setores originais
                     const setoresOrigem = setores.filter(s => s.periodoId === periodoOrigemCopia);
-                    
-                    // Mapa para relacionar ID antigo -> ID novo
                     const mapaSetoresIds = new Map();
                     
                     let totalItensCopiados = 0;
                     let totalProducoesCopiadas = 0;
 
-                    // 3. Para cada setor, criar cópia completa
                     for (const setorOrig of setoresOrigem) {
-                        // Criar novo setor
                         const novoSetorId = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
                         mapaSetoresIds.set(setorOrig.id, novoSetorId);
                         
@@ -1400,11 +1671,10 @@
                         setores.push(novoSetor);
                         await salvarFB('custos_setores', novoSetor);
 
-                        // 3a. Copiar todos os itens de custo deste setor
                         const itensDoSetor = itensCusto.filter(i => i.setorId === setorOrig.id);
                         for (const item of itensDoSetor) {
                             const novoItem = {
-                                ...item, // Copia todas as propriedades (tipo, categoriaId, custoFixoId, nome, valorTotal, percentual, obs)
+                                ...item,
                                 id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
                                 setorId: novoSetorId,
                                 createdAt: new Date().toISOString()
@@ -1414,11 +1684,10 @@
                             totalItensCopiados++;
                         }
 
-                        // 3b. Copiar todas as produções deste setor
                         const producoesDoSetor = producoes.filter(p => p.setorId === setorOrig.id);
                         for (const prod of producoesDoSetor) {
                             const novaProd = {
-                                ...prod, // Copia todas as propriedades (produto, kg, data)
+                                ...prod,
                                 id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
                                 setorId: novoSetorId,
                                 createdAt: new Date().toISOString()
@@ -1448,7 +1717,7 @@
                 }
             };
 
-            // ==================== SETORES ====================
+            // ==================== SETORES (MODIFICADO COM TOGGLE) ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -1456,21 +1725,20 @@
                 const container = document.getElementById('conteudoDinamico');
 
                 container.innerHTML = `
-                    <div class="resumo-agregado" style="background:linear-gradient(135deg,#2d3748 0%,#1a202c 100%);color:#fff;border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem;">
+                    <div class="resumo-consolidado" style="background:linear-gradient(135deg,#2d3748 0%,#1a202c 100%);">
                         <h3 style="color:#63b3ed;"><i class="fas fa-chart-pie"></i> Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</h3>
-                        <div class="stats-grid">
-                            <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:1rem;text-align:center;">
-                                <div style="font-size:1.5rem;font-weight:700;color:#4fc3f7;">${resumo.qtdSetores}</div><div style="font-size:0.72rem;opacity:0.7;">Setores</div>
-                            </div>
-                            <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:1rem;text-align:center;">
-                                <div style="font-size:1.5rem;font-weight:700;color:#4fc3f7;">${formatMoney(resumo.custoTotalGeral)}</div><div style="font-size:0.72rem;opacity:0.7;">Custo Total</div>
-                            </div>
-                            <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:1rem;text-align:center;">
-                                <div style="font-size:1.5rem;font-weight:700;color:#4fc3f7;">${formatNumber(resumo.producaoTotalGeral,0)} kg</div><div style="font-size:0.72rem;opacity:0.7;">Produção Total</div>
-                            </div>
-                            <div style="background:rgba(255,152,0,0.2);border:1px solid rgba(255,152,0,0.3);border-radius:8px;padding:1rem;text-align:center;">
-                                <div style="font-size:1.5rem;font-weight:700;color:#ffb74d;">${formatMoney(resumo.custoPorKgGeral)}/kg</div><div style="font-size:0.72rem;opacity:0.7;">🏁 Custo por KG</div>
-                            </div>
+                        ${setoresExcluidosResumo.size > 0 ? `
+                        <div class="periodos-selecionados-tags" style="margin-bottom:1rem;">
+                            <span class="periodo-tag" style="background:rgba(239,83,80,0.3);">
+                                <i class="fas fa-eye-slash"></i> ${setoresExcluidosResumo.size} setor(es) excluído(s)
+                                <span class="remover-tag" onclick="window.limparSetoresExcluidos()" title="Restaurar todos">↺</span>
+                            </span>
+                        </div>` : ''}
+                        <div class="stats-grid-resumo">
+                            <div class="stat-resumo"><div class="sr-valor">${resumo.qtdSetores}</div><div class="sr-label">Setores Ativos</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumo.custoTotalGeral)}</div><div class="sr-label">Custo Total</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumo.producaoTotalGeral,0)} kg</div><div class="sr-label">Produção Total</div></div>
+                            <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumo.custoPorKgGeral)}/kg</div><div class="sr-label">🏁 Custo por KG</div></div>
                         </div>
                     </div>
                     <div class="card">
@@ -1489,18 +1757,22 @@
                 const grid = document.getElementById('setoresGrid');
                 sets.forEach(setor => {
                     const isFinal = setor.produtoFinal === true;
+                    const isExcluido = setoresExcluidosResumo.has(setor.id);
                     const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setor.id);
                     const div = document.createElement('div');
-                    div.className = `setor-card ${isFinal ? 'produto-final' : ''}`;
-                    div.onclick = () => window.selecionarSetor(setor.id);
+                    div.className = `setor-card ${isFinal ? 'produto-final' : ''} ${isExcluido ? 'excluido-resumo' : ''}`;
                     div.innerHTML = `
+                        <div class="setor-toggle" onclick="event.stopPropagation();" title="${isExcluido ? 'Incluir no resumo' : 'Excluir do resumo'}">
+                            <input type="checkbox" id="toggle_setor_${setor.id}" ${!isExcluido ? 'checked' : ''} 
+                                onchange="window.toggleSetorResumo('${setor.id}', this.checked)">
+                        </div>
                         <div class="setor-acoes">
                             <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarSetor('${setor.id}')"><i class="fas fa-edit"></i></button>
                             <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirSetor('${setor.id}')"><i class="fas fa-trash"></i></button>
                         </div>
-                        <div class="setor-nome">${setor.nome} <span class="badge ${isFinal?'badge-orange':'badge-green'}">${isFinal?'🏁 FINAL':'Etapa '+setor.ordem}</span></div>
-                        <div class="setor-desc">${setor.descricao||''}</div>
-                        <div class="setor-info">
+                        <div class="setor-nome" onclick="window.selecionarSetor('${setor.id}')">${setor.nome} <span class="badge ${isFinal?'badge-orange':'badge-green'}">${isFinal?'🏁 FINAL':'Etapa '+setor.ordem}</span> ${isExcluido?'<span class="badge" style="background:#ffcdd2;color:#c62828;">Excluído</span>':''}</div>
+                        <div class="setor-desc" onclick="window.selecionarSetor('${setor.id}')">${setor.descricao||''}</div>
+                        <div class="setor-info" onclick="window.selecionarSetor('${setor.id}')">
                              <div><div class="info-label">Custo</div><div class="info-valor money">${formatMoney(totalCusto)}</div></div>
                              <div><div class="info-label">Produção</div><div class="info-valor">${formatNumber(totalKg,0)} kg</div></div>
                              <div style="grid-column:1/-1;">
@@ -1524,7 +1796,7 @@
                     <div class="stats-grid" style="margin-bottom:1.5rem;">
                         <div class="stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value">${formatMoney(totalCusto)}</div><div class="stat-label">Custo Total</div></div>
                         <div class="stat-card"><div class="stat-icon"><i class="fas fa-weight-hanging"></i></div><div class="stat-value">${formatNumber(totalKg,0)} kg</div><div class="stat-label">Produção</div></div>
-                        <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value">${totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}</div><div class="stat-label">Custo Médio/KG</div></div>
+                        <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value">${totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}</div><div class="stat-label">Custo Médio/KG</div></div>
                     </div>
                     <div class="card">
                         <div class="card-header"><span class="card-title"><i class="fas fa-chart-pie"></i> Distribuição - ${setorAtual.nome}</span><button class="btn btn-outline btn-sm" onclick="window.navegarPara('setores')"><i class="fas fa-arrow-left"></i> Voltar</button></div>
@@ -1924,17 +2196,23 @@
                 pdf.setFontSize(9); pdf.text('Reciclagem de Plásticos',105,22,{align:'center'});
                 y = 38;
                 pdf.setTextColor(0,0,0); pdf.setFontSize(13);
-                pdf.text(`Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}`,20,y); y+=10;
-                pdf.setFontSize(10);
-                pdf.text(`Setores: ${resumo.qtdSetores} | Produtos Finais: ${resumo.qtdProdutosFinais}`,20,y); y+=6;
-                pdf.text(`Custo Total: ${formatMoney(resumo.custoTotalGeral)} | Produção Total: ${formatNumber(resumo.producaoTotalGeral,0)} kg`,20,y); y+=6;
-                pdf.text(`Custo por KG: ${formatMoney(resumo.custoPorKgGeral)}/kg`,20,y); y+=10;
+                pdf.text(`Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}`,20,y); y+=8;
+                if(setoresExcluidosResumo.size > 0) {
+                    pdf.setFontSize(9); pdf.setTextColor(200,0,0);
+                    pdf.text(`(${setoresExcluidosResumo.size} setor(es) excluído(s) do resumo)`,20,y); y+=6;
+                }
+                pdf.setTextColor(0,0,0); pdf.setFontSize(10);
+                pdf.text(`Setores Ativos: ${resumo.qtdSetores} | Custo Total: ${formatMoney(resumo.custoTotalGeral)} | Produção: ${formatNumber(resumo.producaoTotalGeral,0)} kg | Custo/KG: ${formatMoney(resumo.custoPorKgGeral)}/kg`,20,y); y+=10;
 
                 sets.forEach(setor => {
                     if (y > 260) { pdf.addPage(); y = 20; }
                     const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setor.id);
-                    pdf.setFontSize(11); pdf.setFillColor(240,248,240); pdf.rect(20,y-4,170,7,'F');
-                    pdf.text(`${setor.nome} ${setor.produtoFinal?'(PRODUTO FINAL)':'(Etapa '+setor.ordem+')'} - Custo Médio: ${totalKg>0?formatMoney(custoPorKg)+'/kg':'N/A'}`,22,y); y+=6;
+                    const excluido = setoresExcluidosResumo.has(setor.id);
+                    pdf.setFontSize(11); 
+                    pdf.setFillColor(excluido ? 255 : 240, excluido ? 235 : 248, excluido ? 238 : 240); 
+                    pdf.rect(20, y-4, 170, 7, 'F');
+                    pdf.setTextColor(excluido ? 180 : 0, 0, 0);
+                    pdf.text(`${setor.nome} ${setor.produtoFinal?'(PRODUTO FINAL)':'(Etapa '+setor.ordem+')'} ${excluido?'[EXCLUÍDO]':''}`,22,y); y+=6;
                     pdf.setFontSize(9);
                     pdf.text(`Custo: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg,0)} kg`,25,y); y+=8;
                     const itens = itensCusto.filter(i=>i.setorId===setor.id);
@@ -1983,6 +2261,7 @@
                     const sets=setores.filter(s=>s.periodoId===id);
                     sets.forEach(s=>{itensCusto=itensCusto.filter(i=>i.setorId!==s.id);producoes=producoes.filter(p=>p.setorId!==s.id);});
                     setores=setores.filter(s=>s.periodoId!==id);periodos=periodos.filter(p=>p.id!==id);
+                    periodosSelecionadosResumo.delete(id);
                     await excluirFB('custos_periodos',id);saveLocalData();
                     if(periodoAtual?.id===id){periodoAtual=null;setorAtual=null;nivelAtual='periodos';}renderizarTela();
                 }
@@ -2002,7 +2281,7 @@
             };
 
             window.editarSetor=(id)=>window.abrirModalSetor(id);
-            window.excluirSetor=async function(id){if(confirm('Excluir setor e todos os seus itens/produções?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
+            window.excluirSetor=async function(id){if(confirm('Excluir setor e todos os seus itens/produções?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);setoresExcluidosResumo.delete(id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
 
             window.abrirModalCategoria=function(id=null){
                 document.getElementById('modalCategoria').classList.add('active');
@@ -2294,7 +2573,7 @@
 
             // ==================== NAVEGAÇÃO ====================
             window.navegarPara = function(nivel) { if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; } else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; } else if (nivel === 'materiais') { nivelAtual = 'materiais'; } renderizarTela(); };
-            window.selecionarPeriodo = function(id) { periodoAtual = periodos.find(p => p.id === id); setorAtual = null; nivelAtual = 'setores'; renderizarTela(); };
+            window.selecionarPeriodo = function(id) { periodoAtual = periodos.find(p => p.id === id); setorAtual = null; nivelAtual = 'setores'; setoresExcluidosResumo.clear(); renderizarTela(); };
             window.selecionarSetor = function(id) { setorAtual = setores.find(s => s.id === id); nivelAtual = 'analise'; renderizarTela(); };
 
             function atualizarBreadcrumb() {
