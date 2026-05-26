@@ -491,6 +491,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-left: 4px solid var(--primary);
         }
 
         .historico-item:hover { background: #e8f5e9; border-color: var(--primary); }
@@ -831,6 +832,34 @@
         }
         .tipo-item-tab:not(.active):hover {
             background: #f0faf4;
+        }
+
+        /* Card colapsável de custos fixos */
+        .cf-card {
+            margin-bottom: 1.5rem;
+            background: #fff8e1;
+            border-radius: 8px;
+            border: 1px solid #ffcc80;
+            overflow: hidden;
+        }
+
+        .cf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            background: #fff8e1;
+            transition: background 0.2s;
+        }
+
+        .cf-header:hover {
+            background: #fff3cd;
+        }
+
+        .cf-body {
+            padding: 0 1rem 1rem 1rem;
+            background: #fff;
         }
     </style>
 </head>
@@ -1183,8 +1212,8 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v13_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v13';
+            const STORAGE_KEY = 'centralCustos_v14_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v14';
 
             function loadLocalData() {
                 const data = localStorage.getItem(STORAGE_KEY);
@@ -1596,7 +1625,6 @@
                     document.getElementById('custoFixoCategoria').value = '';
                     document.getElementById('custoFixoNome').value = '';
                     document.getElementById('custoFixoValor').value = '';
-                    // Pré-seleciona o período atual
                     if (periodoAtual) {
                         document.getElementById('custoFixoPeriodo').value = periodoAtual.id;
                     } else {
@@ -1632,6 +1660,21 @@
                     await excluirFB('custos_fixos', id);
                     saveLocalData();
                     renderizarTela();
+                }
+            };
+
+            // Função para expandir/recolher custos fixos
+            window.toggleCustosFixos = function() {
+                const body = document.getElementById('custosFixosBody');
+                const chevron = document.getElementById('cfChevron');
+                if (!body || !chevron) return;
+                
+                if (body.style.display === 'none' || body.style.display === '') {
+                    body.style.display = 'block';
+                    chevron.style.transform = 'rotate(180deg)';
+                } else {
+                    body.style.display = 'none';
+                    chevron.style.transform = 'rotate(0deg)';
                 }
             };
 
@@ -1761,7 +1804,7 @@
                 }
             };
 
-            // ==================== SETORES (COM CUSTOS FIXOS DO PERÍODO) ====================
+            // ==================== SETORES (COM CUSTOS FIXOS COLAPSÁVEIS) ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -1786,42 +1829,48 @@
                         </div>
                     </div>
                     
-                    <!-- CUSTOS FIXOS DO PERÍODO -->
+                    <!-- CUSTOS FIXOS DO PERÍODO (COLAPSÁVEL) -->
                     ${getCustosFixosDoPeriodo().length > 0 ? `
-                    <div style="margin-bottom:1.5rem;padding:1rem;background:#fff8e1;border-radius:8px;border:1px solid #ffcc80;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-                            <strong style="font-size:0.9rem;"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos de ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</strong>
-                            <button class="btn btn-warning btn-xs" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Adicionar</button>
+                    <div class="cf-card" id="custosFixosCard">
+                        <div class="cf-header" onclick="window.toggleCustosFixos()">
+                            <div style="display:flex;align-items:center;gap:0.75rem;">
+                                <i class="fas fa-chevron-down" id="cfChevron" style="color:var(--warning);transition:transform 0.3s;"></i>
+                                <strong style="font-size:0.9rem;"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos de ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</strong>
+                                <span class="badge badge-orange">${getCustosFixosDoPeriodo().length} itens</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:1rem;">
+                                <span style="font-weight:700;font-size:0.9rem;">Total: <span style="color:var(--warning);">${formatMoney(getCustosFixosDoPeriodo().reduce((s,cf)=>s+cf.valor,0))}</span></span>
+                                <button class="btn btn-warning btn-xs" onclick="event.stopPropagation();window.abrirModalCustoFixo()"><i class="fas fa-plus"></i></button>
+                            </div>
                         </div>
-                        <div class="table-wrap">
-                            <table style="font-size:0.8rem;">
-                                <thead>
-                                    <tr>
-                                        <th>Nome</th>
-                                        <th>Categoria</th>
-                                        <th>Valor</th>
-                                        <th style="width:60px;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${getCustosFixosDoPeriodo().map(cf => {
-                                        const cat = categorias.find(c => c.id === cf.categoriaId);
-                                        return `
+                        <div id="custosFixosBody" class="cf-body" style="display:none;">
+                            <div class="table-wrap" style="margin-top:0.5rem;">
+                                <table style="font-size:0.8rem;width:100%;">
+                                    <thead>
                                         <tr>
-                                            <td>${cf.nome}</td>
-                                            <td>${cat?.nome||'Sem categoria'}</td>
-                                            <td class="money">${formatMoney(cf.valor)}</td>
-                                            <td>
-                                                <button class="btn btn-outline btn-xs" onclick="window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
-                                                <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
-                                            </td>
-                                        </tr>`;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div style="text-align:right;margin-top:0.5rem;font-weight:700;">
-                            Total Custos Fixos: <span style="color:var(--warning);">${formatMoney(getCustosFixosDoPeriodo().reduce((s,cf)=>s+cf.valor,0))}</span>
+                                            <th>Nome</th>
+                                            <th>Categoria</th>
+                                            <th>Valor</th>
+                                            <th style="width:60px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${getCustosFixosDoPeriodo().map(cf => {
+                                            const cat = categorias.find(c => c.id === cf.categoriaId);
+                                            return `
+                                            <tr>
+                                                <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cat?.cor||'#999'};margin-right:6px;"></span>${cf.nome}</td>
+                                                <td>${cat?.nome||'Sem categoria'}</td>
+                                                <td class="money">${formatMoney(cf.valor)}</td>
+                                                <td>
+                                                    <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
+                                                    <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
+                                                </td>
+                                            </tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     ` : `
@@ -1940,6 +1989,10 @@
                     hist.forEach(h => {
                         const div = document.createElement('div');
                         div.className = 'historico-item';
+                        // Define cor da borda baseada no mês (ciclo de cores)
+                        const cores = ['#0d904f', '#f57c00', '#0277bd', '#6a1b9a', '#c62828', '#00897b'];
+                        const corIdx = ((h.mes || 1) - 1) % cores.length;
+                        div.style.borderLeftColor = cores[corIdx];
                         div.onclick = () => window.verDetalheCustoMaterial(h.id);
                         div.innerHTML = `<div class="hi-periodo"><i class="fas fa-calendar"></i> ${getNomeMes(h.mes)}/${h.ano}</div><div class="hi-custo"><div class="valor">${formatMoney(h.custoKgFinal)}/kg</div><div class="label">${h.setoresDetalhes?.length||0} setor(es)</div></div>`;
                         grid.appendChild(div);
@@ -2407,7 +2460,7 @@
                         : cfsDoPeriodo.map(cf => {
                             const cat = categorias.find(c => c.id === cf.categoriaId);
                             return `
-                            <div class="custo-fixo-select-item" onclick="window.selecionarCustoFixoParaItem('${cf.id}')">
+                            <div class="custo-fixo-select-item" onclick="window.selecionarCustoFixoParaItem('${cf.id}')" style="border-left:4px solid ${cat?.cor||'#999'};">
                                 <div><div class="cfs-nome"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> ${cf.nome}</div><div class="cfs-categoria">${cat ? cat.nome : 'Sem categoria'}</div></div>
                                 <div class="cfs-valor">${formatMoney(cf.valor)}</div>
                                 <button class="btn btn-warning btn-xs"><i class="fas fa-arrow-right"></i> Usar</button>
@@ -2603,7 +2656,7 @@
                 el.innerHTML = itens.map(item => {
                     const cat = categorias.find(c => c.id === item.categoriaId);
                     const tipoBadge = item.tipo === 'fixo' ? '<span class="badge badge-orange">Fixo</span>' : '';
-                    return `<div class="campo-config-item"><div><strong>${item.nome}</strong> ${tipoBadge}<br><small>${cat?.nome||'Sem categoria'}</small></div><div style="text-align:right;"><div class="money">${formatMoney(item.valorTotal)}</div><span class="badge badge-blue">${item.percentual}%</span></div><div><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;
+                    return `<div class="campo-config-item" style="border-left:4px solid ${cat?.cor||'#999'};"><div><strong>${item.nome}</strong> ${tipoBadge}<br><small>${cat?.nome||'Sem categoria'}</small></div><div style="text-align:right;"><div class="money">${formatMoney(item.valorTotal)}</div><span class="badge badge-blue">${item.percentual}%</span></div><div><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;
                 }).join('');
                 if (itens.length === 0) el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhum item cadastrado</p>';
             }
@@ -2614,7 +2667,7 @@
                 if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum item cadastrado</td></tr>'; return; }
                 const grupos = {};
                 itens.forEach(item => { const cid = item.categoriaId || 'sem_cat'; if (!grupos[cid]) grupos[cid] = { cat: categorias.find(c => c.id === cid), itens: [], subtotal: 0 }; grupos[cid].itens.push(item); grupos[cid].subtotal += item.valorTotal * item.percentual / 100; });
-                tbody.innerHTML = Object.values(grupos).map(g => `<tr style="background:#f0faf4;"><td colspan="7"><strong>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item => `<tr><td></td><td>${item.nome}</td><td><span class="badge ${item.tipo==='fixo'?'badge-orange':'badge-blue'}">${item.tipo==='fixo'?'Fixo':'Normal'}</span></td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');
+                tbody.innerHTML = Object.values(grupos).map(g => `<tr style="background:#f0faf4;"><td colspan="7"><strong><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${g.cat?.cor||'#999'};margin-right:5px;"></span>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item => `<tr><td></td><td>${item.nome}</td><td><span class="badge ${item.tipo==='fixo'?'badge-orange':'badge-blue'}">${item.tipo==='fixo'?'Fixo':'Normal'}</span></td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');
             }
 
             function carregarProducoesLista() {
