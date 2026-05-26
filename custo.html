@@ -463,12 +463,6 @@
 
         .material-card:hover .acoes { opacity: 1; }
 
-        .custos-fixos-grid {
-            display: grid;
-            gap: 0.5rem;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        }
-
         .custo-fixo-item {
             background: #f9fafb;
             border: 1px solid var(--border);
@@ -1189,8 +1183,8 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v12_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v12';
+            const STORAGE_KEY = 'centralCustos_v13_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v13';
 
             function loadLocalData() {
                 const data = localStorage.getItem(STORAGE_KEY);
@@ -1392,7 +1386,7 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== HOME ====================
+            // ==================== HOME (SEM CUSTOS FIXOS) ====================
             function renderizarPeriodos() {
                 const container = document.getElementById('conteudoDinamico');
                 const anosDisponiveis = [...new Set(periodos.map(p => p.ano))].sort((a, b) => b - a);
@@ -1475,18 +1469,6 @@
                     </div>
                     <div class="card">
                         <div class="card-header">
-                            <span class="card-title"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos</span>
-                            <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Novo</button>
-                        </div>
-                        <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:1rem;">
-                            <i class="fas fa-info-circle"></i> Custos fixos agora são vinculados a um período específico.
-                        </div>
-                        ${custosFixos.length === 0 ? '<div style="text-align:center;padding:2rem;"><p style="color:var(--text-light);">Nenhum custo fixo.</p></div>' : `
-                            <div class="custos-fixos-grid" id="custosFixosGrid"></div>
-                        `}
-                    </div>
-                    <div class="card">
-                        <div class="card-header">
                             <span class="card-title"><i class="fas fa-boxes"></i> Materiais</span>
                             <button class="btn btn-teal" onclick="window.abrirModalMaterial()"><i class="fas fa-plus"></i> Novo</button>
                         </div>
@@ -1501,6 +1483,7 @@
                     periodosOrdenados.forEach(per => {
                         const resumo = calcularResumoPeriodo(per.id, new Set());
                         const isSelected = periodosSelecionadosResumo.has(per.id);
+                        const qtdCF = getCustosFixosDoPeriodo(per.id).length;
                         const div = document.createElement('div');
                         div.className = `periodo-card ${isSelected ? 'selecionado-resumo' : ''}`;
                         div.innerHTML = `
@@ -1518,7 +1501,7 @@
                             <div class="periodo-obs" onclick="window.selecionarPeriodo('${per.id}')">${per.obs || 'Sem descrição'}</div>
                             <div class="periodo-stats" onclick="window.selecionarPeriodo('${per.id}')">
                                 <div class="periodo-stat"><span class="label">Setores</span><span class="valor">${resumo.qtdSetores}</span></div>
-                                <div class="periodo-stat"><span class="label">Custos Fixos</span><span class="valor">${getCustosFixosDoPeriodo(per.id).length}</span></div>
+                                <div class="periodo-stat"><span class="label">Custos Fixos</span><span class="valor">${qtdCF}</span></div>
                                 <div class="periodo-stat"><span class="label">Custo Total</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
                                 <div class="periodo-stat"><span class="label">Produção Total</span><span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span></div>
                                 <div class="periodo-stat"><span class="label">Custo/KG</span><span class="valor money" style="color:var(--warning);">${formatMoney(resumo.custoPorKgGeral)}/kg</span></div>
@@ -1526,31 +1509,6 @@
                         `;
                         grid.appendChild(div);
                     });
-                }
-
-                if (custosFixos.length > 0) {
-                    const grid = document.getElementById('custosFixosGrid');
-                    if (grid) {
-                        custosFixos.forEach(cf => {
-                            const cat = categorias.find(c => c.id === cf.categoriaId);
-                            const per = periodos.find(p => p.id === cf.periodoId);
-                            const div = document.createElement('div');
-                            div.className = 'custo-fixo-item';
-                            div.innerHTML = `
-                                <div>
-                                    <div class="cf-nome"><i class="fas fa-thumbtack" style="color:var(--warning);font-size:0.7rem;"></i> ${cf.nome}</div>
-                                    <div class="cf-categoria">${cat ? cat.nome : 'Sem categoria'}</div>
-                                    ${per ? `<div class="cf-periodo">📅 ${getNomeMes(per.mes)}/${per.ano}</div>` : '<div class="cf-periodo">Sem período</div>'}
-                                </div>
-                                <div class="cf-valor">${formatMoney(cf.valor)}</div>
-                                <div>
-                                    <button class="btn btn-outline btn-xs" onclick="window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
-                                </div>
-                            `;
-                            grid.appendChild(div);
-                        });
-                    }
                 }
 
                 if (materiais.length > 0) {
@@ -1638,11 +1596,11 @@
                     document.getElementById('custoFixoCategoria').value = '';
                     document.getElementById('custoFixoNome').value = '';
                     document.getElementById('custoFixoValor').value = '';
-                    document.getElementById('custoFixoPeriodo').value = '';
-                    
-                    // Se houver período atual, pré-selecionar
+                    // Pré-seleciona o período atual
                     if (periodoAtual) {
                         document.getElementById('custoFixoPeriodo').value = periodoAtual.id;
+                    } else {
+                        document.getElementById('custoFixoPeriodo').value = '';
                     }
                 }
             };
@@ -1803,7 +1761,7 @@
                 }
             };
 
-            // ==================== SETORES ====================
+            // ==================== SETORES (COM CUSTOS FIXOS DO PERÍODO) ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -1827,29 +1785,61 @@
                             <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumo.custoPorKgGeral)}/kg</div><div class="sr-label">🏁 Custo por KG</div></div>
                         </div>
                     </div>
+                    
+                    <!-- CUSTOS FIXOS DO PERÍODO -->
+                    ${getCustosFixosDoPeriodo().length > 0 ? `
+                    <div style="margin-bottom:1.5rem;padding:1rem;background:#fff8e1;border-radius:8px;border:1px solid #ffcc80;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                            <strong style="font-size:0.9rem;"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos de ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</strong>
+                            <button class="btn btn-warning btn-xs" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Adicionar</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table style="font-size:0.8rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Categoria</th>
+                                        <th>Valor</th>
+                                        <th style="width:60px;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${getCustosFixosDoPeriodo().map(cf => {
+                                        const cat = categorias.find(c => c.id === cf.categoriaId);
+                                        return `
+                                        <tr>
+                                            <td>${cf.nome}</td>
+                                            <td>${cat?.nome||'Sem categoria'}</td>
+                                            <td class="money">${formatMoney(cf.valor)}</td>
+                                            <td>
+                                                <button class="btn btn-outline btn-xs" onclick="window.editarCustoFixo('${cf.id}')"><i class="fas fa-edit"></i></button>
+                                                <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')"><i class="fas fa-trash"></i></button>
+                                            </td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="text-align:right;margin-top:0.5rem;font-weight:700;">
+                            Total Custos Fixos: <span style="color:var(--warning);">${formatMoney(getCustosFixosDoPeriodo().reduce((s,cf)=>s+cf.valor,0))}</span>
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="margin-bottom:1.5rem;padding:1rem;background:#f5f5f5;border-radius:8px;border:1px dashed #ccc;text-align:center;">
+                        <p style="color:var(--text-light);margin-bottom:0.5rem;">Nenhum custo fixo cadastrado para este período.</p>
+                        <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Adicionar Custo Fixo</button>
+                    </div>
+                    `}
+                    
                     <div class="card">
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-industry"></i> Setores</span>
                             <div style="display:flex;gap:0.5rem;">
                                 <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo</button>
-                                <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-thumbtack"></i> Custo Fixo</button>
                                 <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCentralCustos()"><i class="fas fa-file-pdf"></i> PDF</button>
                                 <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
                             </div>
                         </div>
-                        ${getCustosFixosDoPeriodo().length > 0 ? `
-                        <div style="margin-bottom:1rem;padding:0.75rem;background:#fff8e1;border-radius:8px;border:1px solid #ffcc80;">
-                            <strong style="font-size:0.85rem;"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos deste Período:</strong>
-                            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;">
-                                ${getCustosFixosDoPeriodo().map(cf => {
-                                    const cat = categorias.find(c => c.id === cf.categoriaId);
-                                    return `<span style="background:#fff;border:1px solid #ffcc80;border-radius:6px;padding:0.3rem 0.6rem;font-size:0.75rem;">
-                                        ${cf.nome}: <strong>${formatMoney(cf.valor)}</strong>
-                                        <small>(${cat?.nome||'Sem cat.'})</small>
-                                    </span>`;
-                                }).join('')}
-                            </div>
-                        </div>` : ''}
                         <div class="setores-grid" id="setoresGrid"></div>
                     </div>
                 `;
@@ -2410,7 +2400,6 @@
                 document.getElementById('areaItensFixos').style.display = tipo === 'fixo' ? 'block' : 'none';
                 document.getElementById('areaItemFixoDetalhe').style.display = 'none';
                 if (tipo === 'fixo') {
-                    // Mostra apenas custos fixos do período atual
                     const container = document.getElementById('custosFixosSelect');
                     const cfsDoPeriodo = getCustosFixosDoPeriodo();
                     container.innerHTML = cfsDoPeriodo.length === 0 
