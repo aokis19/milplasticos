@@ -863,23 +863,69 @@
 
         .grafico-card {
             background: #fff;
-            border-radius: var(--radius);
+            border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
         .grafico-card .grafico-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
         .grafico-card canvas {
-            max-height: 350px;
+            max-height: 380px;
             width: 100% !important;
+        }
+
+        .detalhes-toggle {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .detalhes-toggle:hover {
+            background: #f0f4f8;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .detalhes-toggle i {
+            transition: transform 0.3s;
+        }
+
+        .detalhes-toggle.aberto i {
+            transform: rotate(180deg);
+        }
+
+        .detalhes-content {
+            display: none;
+            margin-top: 0.75rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .detalhes-content.visivel {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -1232,7 +1278,6 @@
 
             // Gráficos
             let chartComparativoPeriodos = null;
-            let chartComparativoSetores = null;
             let chartCategoriasConsolidado = null;
 
             let configCampos = {
@@ -1243,18 +1288,25 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v15_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v15';
+            const STORAGE_KEY = 'centralCustos_v16_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v16';
 
-            // Paleta de cores para gráficos
+            // Paleta de cores moderna para gráficos
             const CORES_GRAFICO = [
-                '#0d904f', '#f57c00', '#0277bd', '#6a1b9a', '#c62828', '#00897b',
-                '#e91e63', '#00bcd4', '#ff9800', '#4caf50', '#9c27b0', '#3f51b5',
-                '#ff5722', '#607d8b', '#795548', '#cddc39'
+                '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4',
+                '#ec4899', '#14b8a6', '#f97316', '#22c55e', '#a855f7', '#6366f1',
+                '#f43f5e', '#64748b', '#d946ef', '#84cc16'
             ];
 
             function getCorParaIndice(indice) {
                 return CORES_GRAFICO[indice % CORES_GRAFICO.length];
+            }
+
+            function criarGradiente(ctx, cor) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, cor + 'CC');
+                gradient.addColorStop(1, cor + '44');
+                return gradient;
             }
 
             function loadLocalData() {
@@ -1272,11 +1324,11 @@
                 } else {
                     periodos = []; setores = []; materiais = []; custosMateriais = []; custosFixos = [];
                     categorias = [
-                        { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
-                        { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
-                        { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
-                        { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
-                        { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
+                        { id: 'cat1', nome: 'Energia Elétrica', cor: '#f59e0b' },
+                        { id: 'cat2', nome: 'Matéria-Prima', cor: '#10b981' },
+                        { id: 'cat3', nome: 'Mão de Obra', cor: '#3b82f6' },
+                        { id: 'cat4', nome: 'Manutenção', cor: '#8b5cf6' },
+                        { id: 'cat5', nome: 'Insumos', cor: '#ef4444' }
                     ];
                     itensCusto = []; producoes = [];
                 }
@@ -1354,10 +1406,6 @@
                 const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
                 if (!pid) return [];
                 return setores.filter(s => s.periodoId === pid).sort((a, b) => a.ordem - b.ordem);
-            }
-
-            function getSetoresFinais(periodoId) {
-                return setores.filter(s => s.periodoId === periodoId && s.produtoFinal === true);
             }
 
             function getCustosFixosDoPeriodo(periodoId) {
@@ -1457,7 +1505,7 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== GRÁFICO COMPARATIVO DE PERÍODOS ====================
+            // ==================== GRÁFICO COMPARATIVO DE PERÍODOS (MODERNO) ====================
             function criarGraficoComparativoPeriodos() {
                 if (periodosSelecionadosResumo.size === 0) return '';
                 
@@ -1477,13 +1525,6 @@
                 
                 if (dados.length === 0) return '';
                 
-                // Ordenar por data
-                dados.sort((a, b) => {
-                    const [mesA, anoA] = [periodos.find(p => `${getNomeMes(p.mes).substring(0,3)}/${p.ano}` === a.label)];
-                    const [mesB, anoB] = [periodos.find(p => `${getNomeMes(p.mes).substring(0,3)}/${p.ano}` === b.label)];
-                    return 0;
-                });
-                
                 const canvasId = 'chartComparativoPeriodos_' + Date.now();
                 
                 setTimeout(() => {
@@ -1493,25 +1534,41 @@
                     if (chartComparativoPeriodos) chartComparativoPeriodos.destroy();
                     
                     const ctx = canvas.getContext('2d');
+                    const cores = dados.map((d, i) => getCorParaIndice(i));
+                    
                     chartComparativoPeriodos = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: dados.map(d => d.label),
                             datasets: [{
-                                label: 'Custo por KG (R$)',
+                                label: 'Custo por KG',
                                 data: dados.map(d => d.custoKg),
-                                backgroundColor: dados.map((d, i) => getCorParaIndice(i)),
-                                borderColor: dados.map((d, i) => getCorParaIndice(i)),
-                                borderWidth: 1,
-                                borderRadius: 6
+                                backgroundColor: cores.map(cor => criarGradiente(ctx, cor)),
+                                borderColor: cores,
+                                borderWidth: 2,
+                                borderRadius: 10,
+                                borderSkipped: false,
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
+                            animation: {
+                                duration: 800,
+                                easing: 'easeInOutQuart'
+                            },
                             plugins: {
-                                legend: { display: true, position: 'top', labels: { font: { size: 12 } } },
+                                legend: { 
+                                    display: false
+                                },
                                 tooltip: {
+                                    backgroundColor: '#1e293b',
+                                    titleColor: '#f1f5f9',
+                                    bodyColor: '#e2e8f0',
+                                    borderColor: '#334155',
+                                    borderWidth: 1,
+                                    cornerRadius: 8,
+                                    padding: 12,
                                     callbacks: {
                                         label: function(context) {
                                             const idx = context.dataIndex;
@@ -1526,10 +1583,16 @@
                                 }
                             },
                             scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { size: 11, weight: '500' } }
+                                },
                                 y: {
                                     beginAtZero: true,
+                                    grid: { color: '#f1f5f9' },
                                     ticks: {
-                                        callback: v => formatMoney(v)
+                                        callback: v => formatMoney(v),
+                                        font: { size: 10 }
                                     }
                                 }
                             }
@@ -1538,92 +1601,21 @@
                 }, 200);
                 
                 return `
-                <div class="grafico-card" style="margin-bottom:1.5rem;">
+                <div class="grafico-card">
                     <div class="grafico-header">
-                        <span class="card-title"><i class="fas fa-chart-bar"></i> Comparativo de Custo/KG por Período</span>
+                        <span class="card-title"><i class="fas fa-chart-bar" style="color:var(--info);"></i> Comparativo de Custo/KG por Período</span>
+                        <span class="badge badge-blue">${dados.length} períodos</span>
                     </div>
-                    <canvas id="${canvasId}" style="max-height:350px;"></canvas>
+                    <canvas id="${canvasId}"></canvas>
                 </div>`;
             }
 
-            // ==================== GRÁFICO COMPARATIVO DE SETORES ====================
-            function criarGraficoComparativoSetores(periodoId) {
-                const sets = getSetoresDoPeriodo(periodoId);
-                if (sets.length === 0) return '';
-                
-                const canvasId = 'chartComparativoSetores_' + Date.now();
-                
-                setTimeout(() => {
-                    const canvas = document.getElementById(canvasId);
-                    if (!canvas) return;
-                    
-                    if (chartComparativoSetores) chartComparativoSetores.destroy();
-                    
-                    const dados = sets.map(s => {
-                        const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(s.id);
-                        return { setor: s, custoTotal: totalCusto, producao: totalKg, custoPorKg };
-                    });
-                    
-                    const ctx = canvas.getContext('2d');
-                    chartComparativoSetores = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: dados.map(d => d.setor.nome),
-                            datasets: [{
-                                label: 'Custo por KG (R$)',
-                                data: dados.map(d => d.custoPorKg),
-                                backgroundColor: dados.map((d, i) => d.setor.cor || getCorParaIndice(i)),
-                                borderColor: dados.map((d, i) => d.setor.cor || getCorParaIndice(i)),
-                                borderWidth: 1,
-                                borderRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: { display: true, position: 'top', labels: { font: { size: 12 } } },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            const idx = context.dataIndex;
-                                            const d = dados[idx];
-                                            return [
-                                                `Custo/KG: ${formatMoney(d.custoPorKg)}`,
-                                                `Custo Total: ${formatMoney(d.custoTotal)}`,
-                                                `Produção: ${formatNumber(d.producao, 0)} kg`
-                                            ];
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: v => formatMoney(v)
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }, 200);
-                
-                return `
-                <div class="grafico-card" style="margin-bottom:1.5rem;">
-                    <div class="grafico-header">
-                        <span class="card-title"><i class="fas fa-chart-column"></i> Comparativo de Custo/KG por Setor</span>
-                    </div>
-                    <canvas id="${canvasId}" style="max-height:350px;"></canvas>
-                </div>`;
-            }
-
-            // ==================== GRÁFICO DE CATEGORIAS CONSOLIDADO ====================
+            // ==================== GRÁFICO DE CATEGORIAS CONSOLIDADO (MODERNO, COM TOGGLE) ====================
             function criarGraficoCategoriasConsolidado(periodoId) {
                 const sets = getSetoresDoPeriodo(periodoId);
                 if (sets.length === 0) return '';
                 
-                // Consolidar TODOS os itens do período por categoria (ignorando setores)
+                // Consolidar TODOS os itens do período por categoria
                 const consolidado = {};
                 
                 sets.forEach(s => {
@@ -1647,6 +1639,8 @@
                 if (categoriasArray.length === 0) return '';
                 
                 const canvasId = 'chartCategoriasConsolidado_' + Date.now();
+                const toggleId = 'toggleCat_' + Date.now();
+                const contentId = 'contentCat_' + Date.now();
                 
                 setTimeout(() => {
                     const canvas = document.getElementById(canvasId);
@@ -1660,45 +1654,52 @@
                         data: {
                             labels: categoriasArray.map(c => c.nome),
                             datasets: [{
-                                label: 'Total por Categoria (R$)',
+                                label: 'Total por Categoria',
                                 data: categoriasArray.map(c => c.total),
-                                backgroundColor: categoriasArray.map(c => c.cor),
+                                backgroundColor: categoriasArray.map(c => criarGradiente(ctx, c.cor)),
                                 borderColor: categoriasArray.map(c => c.cor),
-                                borderWidth: 1,
-                                borderRadius: 6
+                                borderWidth: 2,
+                                borderRadius: 10,
+                                borderSkipped: false,
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
-                            indexAxis: 'x',
+                            animation: {
+                                duration: 800,
+                                easing: 'easeInOutQuart'
+                            },
                             plugins: {
-                                legend: { display: true, position: 'top', labels: { font: { size: 12 } } },
+                                legend: { display: false },
                                 tooltip: {
+                                    backgroundColor: '#1e293b',
+                                    titleColor: '#f1f5f9',
+                                    bodyColor: '#e2e8f0',
+                                    borderColor: '#334155',
+                                    borderWidth: 1,
+                                    cornerRadius: 8,
+                                    padding: 12,
                                     callbacks: {
                                         label: function(context) {
                                             const idx = context.dataIndex;
                                             const cat = categoriasArray[idx];
-                                            let texto = [`Total: ${formatMoney(cat.total)}`];
-                                            // Agrupar por setor
-                                            const porSetor = {};
-                                            cat.itens.forEach(item => {
-                                                if (!porSetor[item.setor]) porSetor[item.setor] = 0;
-                                                porSetor[item.setor] += item.valor;
-                                            });
-                                            Object.entries(porSetor).forEach(([setor, valor]) => {
-                                                texto.push(`  ${setor}: ${formatMoney(valor)}`);
-                                            });
-                                            return texto;
+                                            return [`Total: ${formatMoney(cat.total)}`, `${cat.itens.length} itens`];
                                         }
                                     }
                                 }
                             },
                             scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { size: 11, weight: '500' } }
+                                },
                                 y: {
                                     beginAtZero: true,
+                                    grid: { color: '#f1f5f9' },
                                     ticks: {
-                                        callback: v => formatMoney(v)
+                                        callback: v => formatMoney(v),
+                                        font: { size: 10 }
                                     }
                                 }
                             }
@@ -1709,7 +1710,6 @@
                 // Criar tabela detalhada
                 let tabelaHTML = '';
                 categoriasArray.forEach(cat => {
-                    // Agrupar itens por setor para a tabela
                     const porSetor = {};
                     cat.itens.forEach(item => {
                         if (!porSetor[item.setor]) porSetor[item.setor] = [];
@@ -1729,7 +1729,7 @@
                     }).join('');
                     
                     tabelaHTML += `
-                        <tr style="background:#f0faf4;">
+                        <tr style="background:#f8fafc;">
                             <td colspan="4">
                                 <strong>
                                     <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${cat.cor};margin-right:8px;"></span>
@@ -1743,28 +1743,49 @@
                 });
                 
                 return `
-                <div class="grafico-card" style="margin-bottom:1.5rem;">
+                <div class="grafico-card">
                     <div class="grafico-header">
-                        <span class="card-title"><i class="fas fa-tags"></i> Custo Total por Categoria (Consolidado)</span>
+                        <span class="card-title"><i class="fas fa-tags" style="color:var(--purple);"></i> Custo Total por Categoria (Consolidado)</span>
+                        <span class="badge badge-purple">${categoriasArray.length} categorias</span>
                     </div>
-                    <canvas id="${canvasId}" style="max-height:350px;"></canvas>
-                    <div class="table-wrap" style="margin-top:1.5rem;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Categoria</th>
-                                    <th>Setor</th>
-                                    <th>Item</th>
-                                    <th>Valor</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${tabelaHTML}
-                            </tbody>
-                        </table>
+                    <canvas id="${canvasId}"></canvas>
+                    <div class="detalhes-toggle" id="${toggleId}" onclick="window.toggleDetalhes('${toggleId}', '${contentId}')">
+                        <i class="fas fa-chevron-down"></i> Ver detalhamento por setor e item
+                    </div>
+                    <div class="detalhes-content" id="${contentId}">
+                        <div class="table-wrap" style="margin-top:0.5rem;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Categoria</th>
+                                        <th>Setor</th>
+                                        <th>Item</th>
+                                        <th>Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tabelaHTML}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>`;
             }
+
+            window.toggleDetalhes = function(toggleId, contentId) {
+                const toggle = document.getElementById(toggleId);
+                const content = document.getElementById(contentId);
+                
+                if (content.classList.contains('visivel')) {
+                    content.classList.remove('visivel');
+                    toggle.classList.remove('aberto');
+                    toggle.innerHTML = '<i class="fas fa-chevron-down"></i> Ver detalhamento por setor e item';
+                } else {
+                    content.classList.add('visivel');
+                    toggle.classList.add('aberto');
+                    toggle.innerHTML = '<i class="fas fa-chevron-down"></i> Ocultar detalhamento';
+                }
+            };
 
             // ==================== HOME ====================
             function renderizarPeriodos() {
@@ -1785,7 +1806,7 @@
 
                 container.innerHTML = `
                     ${resumoConsolidado ? `
-                    <div class="resumo-consolidado" id="resumoConsolidado">
+                    <div class="resumo-consolidado">
                         <h3><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
                         <div class="periodos-selecionados-tags">
                             ${Array.from(periodosSelecionadosResumo).map(pid => {
@@ -2076,9 +2097,6 @@
                     const setoresOrigem = setores.filter(s => s.periodoId === periodoOrigemCopia);
                     const mapaSetoresIds = new Map();
                     
-                    let totalItensCopiados = 0;
-                    let totalProducoesCopiadas = 0;
-
                     for (const setorOrig of setoresOrigem) {
                         const novoSetorId = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
                         mapaSetoresIds.set(setorOrig.id, novoSetorId);
@@ -2106,7 +2124,6 @@
                             };
                             itensCusto.push(novoItem);
                             await salvarFB('custos_itens', novoItem);
-                            totalItensCopiados++;
                         }
 
                         const producoesDoSetor = producoes.filter(p => p.setorId === setorOrig.id);
@@ -2119,7 +2136,6 @@
                             };
                             producoes.push(novaProd);
                             await salvarFB('custos_producoes', novaProd);
-                            totalProducoesCopiadas++;
                         }
                     }
 
@@ -2144,25 +2160,21 @@
                     alert(`✅ Cópia completa realizada com sucesso!\n\n` +
                           `📅 Período: ${getNomeMes(novoMes)}/${novoAno}\n` +
                           `🏭 Setores copiados: ${setoresOrigem.length}\n` +
-                          `📋 Itens de custo copiados: ${totalItensCopiados}\n` +
-                          `📦 Produções copiadas: ${totalProducoesCopiadas}\n` +
-                          `📌 Custos fixos copiados: ${totalCFCopiados}\n\n` +
-                          `Agora você pode editar os valores conforme necessário.`);
+                          `📌 Custos fixos copiados: ${totalCFCopiados}`);
                     
                     renderizarTela();
                 } catch (error) {
                     console.error('Erro ao copiar período:', error);
                     document.getElementById('loadingOverlay').classList.remove('active');
-                    alert('❌ Erro ao copiar período. Verifique o console para mais detalhes.');
+                    alert('❌ Erro ao copiar período.');
                 }
             };
 
-            // ==================== SETORES COM GRÁFICOS ====================
+            // ==================== SETORES COM GRÁFICO DE CATEGORIAS ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
                 const resumo = calcularResumoPeriodo();
-                const graficoSetores = criarGraficoComparativoSetores(periodoAtual.id);
                 const graficoCategorias = criarGraficoCategoriasConsolidado(periodoAtual.id);
                 const container = document.getElementById('conteudoDinamico');
 
@@ -2184,8 +2196,6 @@
                         </div>
                     </div>
                     
-                    ${graficoSetores}
-                    
                     ${graficoCategorias}
                     
                     <!-- CUSTOS FIXOS DO PERÍODO -->
@@ -2206,12 +2216,7 @@
                             <div class="table-wrap" style="margin-top:0.5rem;">
                                 <table style="font-size:0.8rem;width:100%;">
                                     <thead>
-                                        <tr>
-                                            <th>Nome</th>
-                                            <th>Categoria</th>
-                                            <th>Valor</th>
-                                            <th style="width:60px;">Ações</th>
-                                        </tr>
+                                        <tr><th>Nome</th><th>Categoria</th><th>Valor</th><th style="width:60px;">Ações</th></tr>
                                     </thead>
                                     <tbody>
                                         ${getCustosFixosDoPeriodo().map(cf => {
@@ -2355,7 +2360,7 @@
                     hist.forEach(h => {
                         const div = document.createElement('div');
                         div.className = 'historico-item';
-                        const cores = ['#0d904f', '#f57c00', '#0277bd', '#6a1b9a', '#c62828', '#00897b'];
+                        const cores = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'];
                         const corIdx = ((h.mes || 1) - 1) % cores.length;
                         div.style.borderLeftColor = cores[corIdx];
                         div.onclick = () => window.verDetalheCustoMaterial(h.id);
@@ -2377,8 +2382,6 @@
                         <div class="linha"><span>Subtotal</span><span class="l-valor">${formatMoney(custo.subtotal)}/kg</span></div>
                         ${custo.imposto>0?`<div class="linha"><span>Imposto (${custo.imposto}%)</span><span class="l-valor">${formatMoney(custo.valorImposto)}/kg</span></div>`:''}
                         <div class="linha total"><span>🏁 CUSTO FINAL</span><span class="l-valor">${formatMoney(custo.custoKgFinal)}/kg</span></div>
-                        ${custo.valorAtual>0?`<div class="linha" style="color:#ffb74d;"><span>💰 Valor Praticado</span><span class="l-valor">${formatMoney(custo.valorAtual)}/kg</span></div>
-                        <div class="linha" style="color:${custo.custoKgFinal<=custo.valorAtual?'#4caf50':'#ef5350'};"><span>${custo.custoKgFinal<=custo.valorAtual?'✅ Lucro de':'❌ Prejuízo de'}</span><span class="l-valor">${formatMoney(Math.abs(custo.valorAtual-custo.custoKgFinal))}/kg (${formatNumber(Math.abs((custo.valorAtual-custo.custoKgFinal)/custo.custoKgFinal*100),0)}%)</span></div>`:''}
                     </div>`;
                 document.getElementById('modalHistoricoDetalhe').classList.add('active');
             };
@@ -2413,7 +2416,7 @@
                             <input type="checkbox" id="chk_setor_${s.id}" onchange="window.toggleSetorGerar('${s.id}', this)">
                             <div class="ss-info">
                                 <div class="ss-nome">${s.produtoFinal?'🏁 ':''}${s.nome} <span class="badge ${s.produtoFinal?'badge-orange':'badge-green'}">${s.produtoFinal?'Final':'Etapa '+s.ordem}</span></div>
-                                <div class="ss-custo">Custo médio do setor: <strong>${formatMoney(custoKg)}/kg</strong> | Custo total: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div>
+                                <div class="ss-custo">Custo médio do setor: <strong>${formatMoney(custoKg)}/kg</strong></div>
                             </div>
                         </div>
                         <div class="ss-config" id="config_setor_${s.id}" style="display:none;">
@@ -2542,7 +2545,6 @@
                         <div style="font-weight:600;margin-bottom:0.5rem;">📊 Análise Comparativa</div>
                         <div class="linha"><span>💰 Valor Praticado</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div>
                         <div class="linha"><span>${isLucro?'✅ Diferença (Lucro)':'❌ Diferença (Prejuízo)'}</span><span class="l-valor" style="color:${isLucro?'#4caf50':'#ef5350'};">${formatMoney(Math.abs(diff))}/kg (${formatNumber(Math.abs(diffPerc),1)}%)</span></div>
-                        <div class="linha" style="color:${isLucro?'#4caf50':'#ef5350'};font-weight:700;">${isLucro?'🟢 Operação Lucrativa':'🔴 Operação com Prejuízo'}</div>
                     </div>`;
                 }
 
@@ -2557,26 +2559,21 @@
             window.salvarCustoMaterial = async function() {
                 const periodoId = document.getElementById('gerarCustoPeriodo').value;
                 const materialId = document.getElementById('gerarCustoMaterial').value;
-                if (!periodoId||!materialId||setoresSelecionadosGerar.size===0) { alert('Preencha todos os campos e selecione ao menos um setor!'); return; }
+                if (!periodoId||!materialId||setoresSelecionadosGerar.size===0) { alert('Preencha todos os campos!'); return; }
                 const periodo = periodos.find(p=>p.id===periodoId);
                 
                 let custoBase = 0; 
                 const setoresDetalhes = [];
-                const setoresUtilizados = [];
                 
                 setoresSelecionadosGerar.forEach((config, setorId) => {
                     const setor = setores.find(s=>s.id===setorId);
                     const custoKgOriginal = getCustoPorKgSetor(setorId);
                     let custoKgAplicado;
                     
-                    if (config.modo === 'total') {
-                        custoKgAplicado = config.valor;
-                    } else {
-                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
-                    }
+                    if (config.modo === 'total') custoKgAplicado = config.valor;
+                    else custoKgAplicado = custoKgOriginal * (config.valor / 100);
                     
                     custoBase += custoKgAplicado;
-                    setoresUtilizados.push(setorId);
                     setoresDetalhes.push({
                         id: setorId, nome: setor?.nome||'', custoKg: custoKgAplicado,
                         custoKgOriginal, modo: config.modo, valorConfig: config.valor
@@ -2593,23 +2590,19 @@
                 
                 const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
-                const valorImposto = subtotal * (imposto/100);
-                const custoKgFinal = subtotal + valorImposto;
-                const margem = parseFloat(document.getElementById('gerarCustoMargem').value) || 0;
-                const precoSugerido = margem>0?custoKgFinal*(1+margem/100):0;
+                const custoKgFinal = subtotal + subtotal*(imposto/100);
                 const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
 
                 const custo = {
-                    materialId, periodoId, mes:periodo?.mes, ano:periodo?.ano, periodoObs:periodo?.obs||'',
-                    setoresUtilizados, setoresDetalhes, insumos,
-                    subtotal, imposto, valorImposto, custoKgFinal, margem, precoSugerido, valorAtual,
+                    materialId, periodoId, mes:periodo?.mes, ano:periodo?.ano,
+                    setoresDetalhes, insumos, subtotal, imposto, custoKgFinal, valorAtual,
                     createdAt:new Date().toISOString(), id:'cm_'+Date.now()
                 };
                 custosMateriais.push(custo);
                 await salvarFB('custos_materiais_custos', custo);
                 saveLocalData();
                 window.fecharModal('modalGerarCusto');
-                alert(`Custo salvo com sucesso!\n${formatMoney(custoKgFinal)}/kg`);
+                alert(`Custo salvo!\n${formatMoney(custoKgFinal)}/kg`);
                 renderizarTela();
             };
 
@@ -2628,67 +2621,25 @@
                     const setor = setores.find(s=>s.id===setorId);
                     const custoKgOriginal = getCustoPorKgSetor(setorId);
                     let custoKgAplicado;
-                    let descricao;
                     
-                    if (config.modo === 'total') {
-                        custoKgAplicado = config.valor;
-                        descricao = `Total: ${formatMoney(config.valor)}/kg`;
-                    } else {
-                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
-                        descricao = `${config.valor}% de ${formatMoney(custoKgOriginal)}/kg`;
-                    }
+                    if (config.modo === 'total') custoKgAplicado = config.valor;
+                    else custoKgAplicado = custoKgOriginal * (config.valor / 100);
                     
                     custoBase += custoKgAplicado;
-                    linhasPDF.push({ nome: setor?.nome||'Setor', descricao, valor: custoKgAplicado });
+                    linhasPDF.push({ nome: setor?.nome||'Setor', valor: custoKgAplicado });
                 });
                 
-                let custoInsumos = 0; 
-                const insumosPDF = [];
-                document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
-                    const nome = row.querySelector('.insumo-nome').value.trim();
-                    const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome&&custo>0) { custoInsumos+=custo; insumosPDF.push({nome, custoKg:custo}); }
-                });
-                
-                const subtotal = custoBase + custoInsumos;
-                const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
-                const valorImposto = subtotal*(imposto/100);
-                const custoFinal = subtotal+valorImposto;
-                const margem = parseFloat(document.getElementById('gerarCustoMargem').value) || 0;
-                const precoSugerido = margem>0?custoFinal*(1+margem/100):0;
-                const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
-
                 const pdf = new jsPDF('p','mm','a4');
                 let y = 20;
                 pdf.setFillColor(0,77,64); pdf.rect(0,0,210,30,'F');
                 pdf.setTextColor(255,255,255); pdf.setFontSize(16);
                 pdf.text('Análise de Custo - Mil Plásticos',105,15,{align:'center'});
-                pdf.setFontSize(9); pdf.text('Reciclagem de Plásticos',105,22,{align:'center'});
                 y = 38;
                 pdf.setTextColor(0,0,0); pdf.setFontSize(13);
-                pdf.text(`Material: ${mat?.nome||'N/D'}`,20,y); y+=7;
-                pdf.setFontSize(10); pdf.text(`Período: ${per?getNomeMes(per.mes)+'/'+per.ano:'N/D'}`,20,y); y+=5;
-                pdf.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`,20,y); y+=10;
-
-                pdf.setFontSize(11); pdf.text('Composição do Custo:',20,y); y+=7;
-                linhasPDF.forEach(l=>{ 
-                    pdf.setFontSize(9); 
-                    pdf.text(`${l.nome} (${l.descricao}): ${formatMoney(l.valor)}/kg`,25,y); y+=5; 
-                });
-                insumosPDF.forEach(ins=>{ 
-                    pdf.text(`Insumo - ${ins.nome}: ${formatMoney(ins.custoKg)}/kg`,25,y); y+=5; 
-                });
-                pdf.text(`Subtotal: ${formatMoney(subtotal)}/kg`,25,y); y+=5;
-                if(imposto>0) { pdf.text(`Imposto (${imposto}%): ${formatMoney(valorImposto)}/kg`,25,y); y+=5; }
-                pdf.setFontSize(11); pdf.setTextColor(0,77,64);
-                pdf.text(`CUSTO FINAL: ${formatMoney(custoFinal)}/kg`,25,y); y+=7;
-                if(margem>0) { pdf.setTextColor(245,124,0); pdf.text(`Preço Sugerido (${margem}%): ${formatMoney(precoSugerido)}/kg`,25,y); y+=7; }
-                if(valorAtual>0) {
-                    const diff = valorAtual-custoFinal, diffPerc = (diff/custoFinal*100);
-                    pdf.setTextColor(diff>=0?0:200,diff>=0?150:0,diff>=0?0:0);
-                    pdf.text(`${diff>=0?'Lucro':'Prejuízo'}: ${formatMoney(Math.abs(diff))}/kg (${formatNumber(Math.abs(diffPerc),1)}%)`,25,y);
-                }
-                pdf.save(`Custo_${mat?.nome||'Material'}_${per?getNomeMes(per.mes)+'_'+per.ano:''}.pdf`);
+                pdf.text(`Material: ${mat?.nome||'N/D'}`,20,y); y+=10;
+                pdf.setFontSize(11); pdf.text('Composição:',20,y); y+=7;
+                linhasPDF.forEach(l=>{ pdf.setFontSize(9); pdf.text(`${l.nome}: ${formatMoney(l.valor)}/kg`,25,y); y+=5; });
+                pdf.save(`Custo_${mat?.nome||'Material'}.pdf`);
             };
 
             window.gerarPDFCentralCustos = async function() {
@@ -2701,35 +2652,15 @@
                 pdf.setFillColor(13,144,79); pdf.rect(0,0,210,30,'F');
                 pdf.setTextColor(255,255,255); pdf.setFontSize(16);
                 pdf.text('Central de Custos - Mil Plásticos',105,15,{align:'center'});
-                pdf.setFontSize(9); pdf.text('Reciclagem de Plásticos',105,22,{align:'center'});
                 y = 38;
                 pdf.setTextColor(0,0,0); pdf.setFontSize(13);
-                pdf.text(`Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}`,20,y); y+=8;
-                if(setoresExcluidosResumo.size > 0) {
-                    pdf.setFontSize(9); pdf.setTextColor(200,0,0);
-                    pdf.text(`(${setoresExcluidosResumo.size} setor(es) excluído(s) do resumo)`,20,y); y+=6;
-                }
-                pdf.setTextColor(0,0,0); pdf.setFontSize(10);
-                pdf.text(`Setores Ativos: ${resumo.qtdSetores} | Custo Total: ${formatMoney(resumo.custoTotalGeral)} | Produção: ${formatNumber(resumo.producaoTotalGeral,0)} kg | Custo/KG: ${formatMoney(resumo.custoPorKgGeral)}/kg`,20,y); y+=10;
-
+                pdf.text(`Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}`,20,y); y+=10;
+                pdf.setFontSize(10);
+                pdf.text(`Custo Total: ${formatMoney(resumo.custoTotalGeral)} | Produção: ${formatNumber(resumo.producaoTotalGeral,0)} kg | Custo/KG: ${formatMoney(resumo.custoPorKgGeral)}/kg`,20,y); y+=10;
                 sets.forEach(setor => {
                     if (y > 260) { pdf.addPage(); y = 20; }
-                    const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setor.id);
-                    const excluido = setoresExcluidosResumo.has(setor.id);
-                    pdf.setFontSize(11); 
-                    pdf.setFillColor(excluido ? 255 : 240, excluido ? 235 : 248, excluido ? 238 : 240); 
-                    pdf.rect(20, y-4, 170, 7, 'F');
-                    pdf.setTextColor(excluido ? 180 : 0, 0, 0);
-                    pdf.text(`${setor.nome} ${setor.produtoFinal?'(PRODUTO FINAL)':'(Etapa '+setor.ordem+')'} ${excluido?'[EXCLUÍDO]':''}`,22,y); y+=6;
-                    pdf.setFontSize(9);
-                    pdf.text(`Custo: ${formatMoney(totalCusto)} | Produção: ${formatNumber(totalKg,0)} kg`,25,y); y+=8;
-                    const itens = itensCusto.filter(i=>i.setorId===setor.id);
-                    itens.forEach(item => {
-                        const cat = categorias.find(c=>c.id===item.categoriaId);
-                        const tipo = item.tipo === 'fixo' ? ' [FIXO]' : '';
-                        pdf.text(`${cat?.nome||'Sem cat.'} - ${item.nome}${tipo}: ${formatMoney(item.valorTotal)} (${item.percentual}%) = ${formatMoney(item.valorTotal*item.percentual/100)}`,30,y); y+=4.5;
-                    });
-                    y+=3;
+                    const { totalCusto, totalKg } = calcularCustosSetor(setor.id);
+                    pdf.setFontSize(11); pdf.text(`${setor.nome}: ${formatMoney(totalCusto)} | ${formatNumber(totalKg,0)} kg`,22,y); y+=6;
                 });
                 pdf.save(`Central_Custos_${getNomeMes(periodoAtual.mes)}_${periodoAtual.ano}.pdf`);
             };
@@ -2765,9 +2696,7 @@
 
             window.editarPeriodo=(id)=>window.abrirModalPeriodo(id);
             window.excluirPeriodo=async function(id){
-                if(confirm('Excluir período? Isso removerá todos os setores, itens, produções e custos fixos vinculados!')){
-                    const sets=setores.filter(s=>s.periodoId===id);
-                    sets.forEach(s=>{itensCusto=itensCusto.filter(i=>i.setorId!==s.id);producoes=producoes.filter(p=>p.setorId!==s.id);});
+                if(confirm('Excluir período?')){
                     setores=setores.filter(s=>s.periodoId!==id);
                     custosFixos=custosFixos.filter(cf=>cf.periodoId!==id);
                     periodos=periodos.filter(p=>p.id!==id);
@@ -2785,13 +2714,13 @@
 
             window.salvarSetor=async function(){
                 const s={periodoId:periodoAtual.id,nome:document.getElementById('setorNome').value.trim(),descricao:document.getElementById('setorDescricao').value.trim(),ordem:parseInt(document.getElementById('setorOrdem').value),produtoFinal:document.getElementById('setorProdutoFinal').checked,cor:document.getElementById('setorCor').value,createdAt:new Date().toISOString()};
-                if(!s.nome){alert('Digite o nome do setor!');return;}const editId=document.getElementById('setorEditId').value;
+                if(!s.nome){alert('Digite o nome!');return;}const editId=document.getElementById('setorEditId').value;
                 if(editId){s.id=editId;const idx=setores.findIndex(x=>x.id===editId);if(idx!==-1)setores[idx]=s;}else{s.id='set_'+Date.now();setores.push(s);}
                 await salvarFB('custos_setores',s);saveLocalData();window.fecharModal('modalSetor');renderizarTela();
             };
 
             window.editarSetor=(id)=>window.abrirModalSetor(id);
-            window.excluirSetor=async function(id){if(confirm('Excluir setor e todos os seus itens/produções?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);setoresExcluidosResumo.delete(id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
+            window.excluirSetor=async function(id){if(confirm('Excluir setor?')){itensCusto=itensCusto.filter(i=>i.setorId!==id);producoes=producoes.filter(p=>p.setorId!==id);setores=setores.filter(s=>s.id!==id);setoresExcluidosResumo.delete(id);await excluirFB('custos_setores',id);saveLocalData();if(setorAtual?.id===id)setorAtual=null;renderizarTela();}};
 
             window.abrirModalCategoria=function(id=null){
                 document.getElementById('modalCategoria').classList.add('active');
@@ -2807,7 +2736,7 @@
             };
 
             window.editarCategoria=(id)=>window.abrirModalCategoria(id);
-            window.excluirCategoria=async function(id){if(confirm('Excluir categoria? Itens e custos fixos vinculados ficarão sem categoria.')){itensCusto.forEach(i=>{if(i.categoriaId===id)i.categoriaId=null;});custosFixos.forEach(cf=>{if(cf.categoriaId===id)cf.categoriaId=null;});categorias=categorias.filter(c=>c.id!==id);await excluirFB('custos_categorias',id);saveLocalData();if(nivelAtual==='analise')renderizarAnalise();else renderizarTela();}};
+            window.excluirCategoria=async function(id){if(confirm('Excluir categoria?')){categorias=categorias.filter(c=>c.id!==id);await excluirFB('custos_categorias',id);saveLocalData();if(nivelAtual==='analise')renderizarAnalise();else renderizarTela();}};
 
             // ==================== ITEM CUSTO ====================
             window.mudarTipoItem = function(tipo) {
@@ -2821,16 +2750,13 @@
                     const container = document.getElementById('custosFixosSelect');
                     const cfsDoPeriodo = getCustosFixosDoPeriodo();
                     container.innerHTML = cfsDoPeriodo.length === 0 
-                        ? '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhum custo fixo neste período. <a href="#" onclick="window.fecharModal(\'modalItemCusto\');window.abrirModalCustoFixo();return false;">Cadastrar agora</a></p>'
-                        : cfsDoPeriodo.map(cf => {
-                            const cat = categorias.find(c => c.id === cf.categoriaId);
-                            return `
-                            <div class="custo-fixo-select-item" onclick="window.selecionarCustoFixoParaItem('${cf.id}')" style="border-left:4px solid ${cat?.cor||'#999'};">
-                                <div><div class="cfs-nome"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> ${cf.nome}</div><div class="cfs-categoria">${cat ? cat.nome : 'Sem categoria'}</div></div>
+                        ? '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhum custo fixo neste período.</p>'
+                        : cfsDoPeriodo.map(cf => `
+                            <div class="custo-fixo-select-item" onclick="window.selecionarCustoFixoParaItem('${cf.id}')">
+                                <div><div class="cfs-nome"><i class="fas fa-thumbtack"></i> ${cf.nome}</div></div>
                                 <div class="cfs-valor">${formatMoney(cf.valor)}</div>
                                 <button class="btn btn-warning btn-xs"><i class="fas fa-arrow-right"></i> Usar</button>
-                            </div>`;
-                        }).join('');
+                            </div>`).join('');
                 }
                 if (tipo === 'normal') carregarSelectCategorias();
                 custoFixoSelecionadoId = null;
@@ -2844,10 +2770,6 @@
                 document.getElementById('itemFixoNomeDisplay').value = cf.nome;
                 document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
                 document.getElementById('itemFixoPercentual').value = '100';
-                document.querySelectorAll('#custosFixosSelect .custo-fixo-select-item').forEach(el => {
-                    el.style.borderColor = 'var(--border)';
-                    el.style.background = '#fff';
-                });
             };
 
             function carregarSelectCategorias() {
@@ -2872,7 +2794,6 @@
                             document.getElementById('itemFixoValorDisplay').value = formatMoney(item.valorTotal);
                             document.getElementById('itemFixoPercentual').value = item.percentual;
                         } else {
-                            window.mudarTipoItem('normal');
                             carregarSelectCategorias();
                             document.getElementById('itemCategoria').value = item.categoriaId || '';
                             document.getElementById('itemNome').value = item.nome;
@@ -2888,7 +2809,6 @@
                     document.getElementById('itemValorTotal').value = '';
                     document.getElementById('itemPercentual').value = '100';
                     document.getElementById('itemObs').value = '';
-                    document.getElementById('itemFixoPercentual').value = '100';
                 }
             };
 
@@ -2915,7 +2835,7 @@
                         obs: document.getElementById('itemObs').value.trim(),
                         createdAt: new Date().toISOString()
                     };
-                    if (!item.nome) { alert('Digite o nome do item!'); return; }
+                    if (!item.nome) { alert('Digite o nome!'); return; }
                 }
                 const editId = document.getElementById('itemEditId').value;
                 if (editId) { item.id = editId; const idx = itensCusto.findIndex(i => i.id === editId); if (idx !== -1) itensCusto[idx] = item; }
@@ -2965,13 +2885,11 @@
                 if (editId) { m.id = editId; const idx = materiais.findIndex(x => x.id === editId); if (idx !== -1) materiais[idx] = m; }
                 else { m.id = 'mat_' + Date.now(); materiais.push(m); }
                 await salvarFB('custos_materiais', m); saveLocalData();
-                window.fecharModal('modalMaterial');
-                if (document.getElementById('modalGerarCusto').classList.contains('active')) window.abrirGerarCustoMaterial();
-                renderizarTela();
+                window.fecharModal('modalMaterial'); renderizarTela();
             };
 
             window.editarMaterial = (id) => window.abrirModalMaterial(id);
-            window.excluirMaterial = async function(id) { if(confirm('Excluir material e todo seu histórico?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
+            window.excluirMaterial = async function(id) { if(confirm('Excluir material?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
             window.abrirHistoricoMaterial = function(id) { window.historicoMaterialId = id; nivelAtual = 'historicoMaterial'; renderizarTela(); };
 
             // ==================== GRÁFICOS ====================
@@ -3004,7 +2922,7 @@
                     });
                     barChart = new Chart(barCtx, {
                         type: 'bar',
-                        data: { labels: cats.map(c => c.nome), datasets: [{ label: 'Valor (R$)', data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor || '#0d904f'), borderRadius: 6 }] },
+                        data: { labels: cats.map(c => c.nome), datasets: [{ label: 'Valor (R$)', data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor || '#0d904f'), borderRadius: 8, borderSkipped: false }] },
                         options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v } } } }
                     });
                 }
@@ -3012,7 +2930,7 @@
 
             function carregarCategoriasLista() {
                 const el = document.getElementById('categoriasList'); if (!el) return;
-                el.innerHTML = categorias.map(c => `<div class="campo-config-item" style="border-left:4px solid ${c.cor};"><span><i class="fas fa-circle" style="color:${c.cor};font-size:0.6rem;"></i> ${c.nome}</span><div><button class="btn btn-outline btn-xs" onclick="window.editarCategoria('${c.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirCategoria('${c.id}')"><i class="fas fa-trash"></i></button></div></div>`).join('');
+                el.innerHTML = categorias.map(c => `<div class="campo-config-item" style="border-left:4px solid ${c.cor};"><span>${c.nome}</span><div><button class="btn btn-outline btn-xs" onclick="window.editarCategoria('${c.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirCategoria('${c.id}')"><i class="fas fa-trash"></i></button></div></div>`).join('');
             }
 
             function carregarItensCustoLista() {
@@ -3020,25 +2938,23 @@
                 const itens = itensCusto.filter(i => i.setorId === setorAtual.id);
                 el.innerHTML = itens.map(item => {
                     const cat = categorias.find(c => c.id === item.categoriaId);
-                    const tipoBadge = item.tipo === 'fixo' ? '<span class="badge badge-orange">Fixo</span>' : '';
-                    return `<div class="campo-config-item" style="border-left:4px solid ${cat?.cor||'#999'};"><div><strong>${item.nome}</strong> ${tipoBadge}<br><small>${cat?.nome||'Sem categoria'}</small></div><div style="text-align:right;"><div class="money">${formatMoney(item.valorTotal)}</div><span class="badge badge-blue">${item.percentual}%</span></div><div><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></div></div>`;
-                }).join('');
-                if (itens.length === 0) el.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhum item cadastrado</p>';
+                    return `<div class="campo-config-item"><div><strong>${item.nome}</strong><br><small>${cat?.nome||'Sem categoria'}</small></div><div style="text-align:right;"><div class="money">${formatMoney(item.valorTotal)}</div><span class="badge badge-blue">${item.percentual}%</span></div></div>`;
+                }).join('') || '<p style="text-align:center;padding:1rem;">Nenhum item</p>';
             }
 
             function carregarTabelaCustos() {
                 const tbody = document.getElementById('tabelaCustos'); if (!tbody || !setorAtual) return;
                 const itens = itensCusto.filter(i => i.setorId === setorAtual.id);
-                if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum item cadastrado</td></tr>'; return; }
+                if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum item</td></tr>'; return; }
                 const grupos = {};
                 itens.forEach(item => { const cid = item.categoriaId || 'sem_cat'; if (!grupos[cid]) grupos[cid] = { cat: categorias.find(c => c.id === cid), itens: [], subtotal: 0 }; grupos[cid].itens.push(item); grupos[cid].subtotal += item.valorTotal * item.percentual / 100; });
-                tbody.innerHTML = Object.values(grupos).map(g => `<tr style="background:#f0faf4;"><td colspan="7"><strong><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${g.cat?.cor||'#999'};margin-right:5px;"></span>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item => `<tr><td></td><td>${item.nome}</td><td><span class="badge ${item.tipo==='fixo'?'badge-orange':'badge-blue'}">${item.tipo==='fixo'?'Fixo':'Normal'}</span></td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');
+                tbody.innerHTML = Object.values(grupos).map(g => `<tr style="background:#f8fafc;"><td colspan="7"><strong>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item => `<tr><td></td><td>${item.nome}</td><td><span class="badge ${item.tipo==='fixo'?'badge-orange':'badge-blue'}">${item.tipo==='fixo'?'Fixo':'Normal'}</span></td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');
             }
 
             function carregarProducoesLista() {
                 const el = document.getElementById('producaoList'); if (!el || !setorAtual) return;
                 const prods = producoes.filter(p => p.setorId === setorAtual.id);
-                el.innerHTML = prods.length === 0 ? '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma produção registrada</p>' : `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p => `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;
+                el.innerHTML = prods.length === 0 ? '<p style="text-align:center;padding:1rem;">Nenhuma produção</p>' : `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p => `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;
             }
 
             // ==================== NAVEGAÇÃO ====================
@@ -3049,9 +2965,9 @@
             function atualizarBreadcrumb() {
                 const bc = document.getElementById('breadcrumb');
                 let html = `<span class="breadcrumb-item ${nivelAtual==='periodos'?'active':''}" onclick="window.navegarPara('periodos')"><i class="fas fa-home"></i> Home</span>`;
-                if (nivelAtual === 'materiais') html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item active">Materiais</span>`;
-                else if (nivelAtual === 'historicoMaterial') { const mat = materiais.find(m => m.id === window.historicoMaterialId); html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item active">Histórico: ${mat?.nome||''}</span>`; }
-                else if (periodoAtual) { html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item ${nivelAtual==='setores'?'active':''}" onclick="window.navegarPara('setores')">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>`; if (setorAtual && nivelAtual === 'analise') html += `<span class="breadcrumb-sep"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item active">${setorAtual.nome}</span>`; }
+                if (nivelAtual === 'materiais') html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">Materiais</span>`;
+                else if (nivelAtual === 'historicoMaterial') { const mat = materiais.find(m => m.id === window.historicoMaterialId); html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">Histórico: ${mat?.nome||''}</span>`; }
+                else if (periodoAtual) { html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item ${nivelAtual==='setores'?'active':''}" onclick="window.navegarPara('setores')">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>`; if (setorAtual && nivelAtual === 'analise') html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">${setorAtual.nome}</span>`; }
                 bc.innerHTML = html;
             }
 
