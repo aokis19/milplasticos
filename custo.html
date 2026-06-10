@@ -719,6 +719,7 @@
         .badge-blue { background: #e3f2fd; color: #1565c0; }
         .badge-orange { background: #fff3e0; color: #e65100; }
         .badge-teal { background: #e0f2f1; color: #00695c; }
+        .badge-purple { background: #f3e5f5; color: #6a1b9a; }
 
         .money { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-weight: 600; }
 
@@ -733,6 +734,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         .loading-overlay {
@@ -804,7 +806,7 @@
         
         .table-wrap { overflow-x: auto; }
         .table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .table-wrap th { background: #f0faf4; padding: 0.75rem; text-align: left; font-weight: 600; }
+        .table-wrap th { background: #f0faf4; padding: 0.75rem; text-align: left; font-weight: 600; white-space: nowrap; }
         .table-wrap td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
 
         .tipo-item-tabs {
@@ -875,6 +877,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
         .grafico-card canvas {
@@ -1288,8 +1292,8 @@
                 custoPorKg: 'Custo por KG'
             };
 
-            const STORAGE_KEY = 'centralCustos_v16_milplasticos';
-            const CONFIG_KEY = 'centralCustos_config_v16';
+            const STORAGE_KEY = 'centralCustos_v17_milplasticos';
+            const CONFIG_KEY = 'centralCustos_config_v17';
 
             // Paleta de cores moderna para gráficos
             const CORES_GRAFICO = [
@@ -1505,7 +1509,7 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== GRÁFICO COMPARATIVO DE PERÍODOS (MODERNO) ====================
+            // ==================== GRÁFICO COMPARATIVO DE PERÍODOS ====================
             function criarGraficoComparativoPeriodos() {
                 if (periodosSelecionadosResumo.size === 0) return '';
                 
@@ -1553,14 +1557,9 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
-                            animation: {
-                                duration: 800,
-                                easing: 'easeInOutQuart'
-                            },
+                            animation: { duration: 800, easing: 'easeInOutQuart' },
                             plugins: {
-                                legend: { 
-                                    display: false
-                                },
+                                legend: { display: false },
                                 tooltip: {
                                     backgroundColor: '#1e293b',
                                     titleColor: '#f1f5f9',
@@ -1583,17 +1582,11 @@
                                 }
                             },
                             scales: {
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { font: { size: 11, weight: '500' } }
-                                },
+                                x: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } },
                                 y: {
                                     beginAtZero: true,
                                     grid: { color: '#f1f5f9' },
-                                    ticks: {
-                                        callback: v => formatMoney(v),
-                                        font: { size: 10 }
-                                    }
+                                    ticks: { callback: v => formatMoney(v), font: { size: 10 } }
                                 }
                             }
                         }
@@ -1610,7 +1603,7 @@
                 </div>`;
             }
 
-            // ==================== GRÁFICO DE CATEGORIAS CONSOLIDADO (MODERNO, COM TOGGLE) ====================
+            // ==================== GRÁFICO DE CATEGORIAS CONSOLIDADO (COM AUDITORIA) ====================
             function criarGraficoCategoriasConsolidado(periodoId) {
                 const sets = getSetoresDoPeriodo(periodoId);
                 if (sets.length === 0) return '';
@@ -1621,7 +1614,9 @@
                 sets.forEach(s => {
                     const itensSetor = itensCusto.filter(i => i.setorId === s.id);
                     itensSetor.forEach(item => {
-                        const valorAplicado = item.valorTotal * item.percentual / 100;
+                        // Cálculo do valor aplicado
+                        let valorAplicado = item.valorTotal * item.percentual / 100;
+                        
                         const cat = categorias.find(c => c.id === item.categoriaId);
                         const catId = cat ? cat.id : 'sem_cat';
                         const catNome = cat ? cat.nome : 'Sem categoria';
@@ -1631,7 +1626,14 @@
                             consolidado[catId] = { nome: catNome, cor: catCor, total: 0, itens: [] };
                         }
                         consolidado[catId].total += valorAplicado;
-                        consolidado[catId].itens.push({ nome: item.nome, setor: s.nome, valor: valorAplicado });
+                        consolidado[catId].itens.push({ 
+                            nome: item.nome, 
+                            setor: s.nome, 
+                            valorTotal: item.valorTotal,
+                            percentual: item.percentual,
+                            valorAplicado: valorAplicado,
+                            tipo: item.tipo || 'normal'
+                        });
                     });
                 });
                 
@@ -1666,10 +1668,7 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
-                            animation: {
-                                duration: 800,
-                                easing: 'easeInOutQuart'
-                            },
+                            animation: { duration: 800, easing: 'easeInOutQuart' },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
@@ -1690,25 +1689,20 @@
                                 }
                             },
                             scales: {
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { font: { size: 11, weight: '500' } }
-                                },
+                                x: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } },
                                 y: {
                                     beginAtZero: true,
                                     grid: { color: '#f1f5f9' },
-                                    ticks: {
-                                        callback: v => formatMoney(v),
-                                        font: { size: 10 }
-                                    }
+                                    ticks: { callback: v => formatMoney(v), font: { size: 10 } }
                                 }
                             }
                         }
                     });
                 }, 200);
                 
-                // Criar tabela detalhada
+                // Criar tabela detalhada COM auditoria
                 let tabelaHTML = '';
+                let totalGeral = 0;
                 categoriasArray.forEach(cat => {
                     const porSetor = {};
                     cat.itens.forEach(item => {
@@ -1716,27 +1710,45 @@
                         porSetor[item.setor].push(item);
                     });
                     
+                    let subtotalCategoria = 0;
                     const setoresHTML = Object.entries(porSetor).map(([setorNome, itensSetor]) => {
-                        const subtotalSetor = itensSetor.reduce((s, i) => s + i.valor, 0);
-                        return itensSetor.map(item => `
+                        let subtotalSetor = 0;
+                        const itensHTML = itensSetor.map(item => {
+                            subtotalSetor += item.valorAplicado;
+                            const formula = `${formatMoney(item.valorTotal)} × ${item.percentual}%`;
+                            return `
                             <tr>
                                 <td></td>
-                                <td>${setorNome}</td>
-                                <td>${item.nome}</td>
-                                <td class="money">${formatMoney(item.valor)}</td>
+                                <td></td>
+                                <td>${item.nome} ${item.tipo === 'fixo' ? '<span class="badge badge-orange">Fixo</span>' : ''}</td>
+                                <td class="money">${formatMoney(item.valorTotal)}</td>
+                                <td style="text-align:center;">${item.percentual}%</td>
+                                <td class="money" style="color:var(--primary);">${formatMoney(item.valorAplicado)}</td>
+                                <td style="font-size:0.7rem;color:var(--text-light);">${formula}</td>
+                            </tr>`;
+                        }).join('');
+                        
+                        subtotalCategoria += subtotalSetor;
+                        return `
+                            <tr style="background:#f8fafc;">
+                                <td></td>
+                                <td colspan="6"><strong>📁 Setor: ${setorNome} — Subtotal: ${formatMoney(subtotalSetor)}</strong></td>
                             </tr>
-                        `).join('');
+                            ${itensHTML}
+                        `;
                     }).join('');
                     
+                    totalGeral += subtotalCategoria;
+                    
                     tabelaHTML += `
-                        <tr style="background:#f8fafc;">
-                            <td colspan="4">
+                        <tr style="background:#e8f0fe;">
+                            <td colspan="6">
                                 <strong>
                                     <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${cat.cor};margin-right:8px;"></span>
                                     ${cat.nome}
                                 </strong>
-                                <span style="float:right;font-weight:700;color:${cat.cor};" class="money">${formatMoney(cat.total)}</span>
                             </td>
+                            <td class="money" style="font-weight:700;color:${cat.cor};font-size:1rem;">${formatMoney(subtotalCategoria)}</td>
                         </tr>
                         ${setoresHTML}
                     `;
@@ -1746,13 +1758,24 @@
                 <div class="grafico-card">
                     <div class="grafico-header">
                         <span class="card-title"><i class="fas fa-tags" style="color:var(--purple);"></i> Custo Total por Categoria (Consolidado)</span>
-                        <span class="badge badge-purple">${categoriasArray.length} categorias</span>
+                        <div style="display:flex;gap:0.5rem;">
+                            <span class="badge badge-purple">${categoriasArray.length} categorias</span>
+                            <span class="badge badge-teal">Total: ${formatMoney(totalGeral)}</span>
+                        </div>
                     </div>
                     <canvas id="${canvasId}"></canvas>
+                    
                     <div class="detalhes-toggle" id="${toggleId}" onclick="window.toggleDetalhes('${toggleId}', '${contentId}')">
-                        <i class="fas fa-chevron-down"></i> Ver detalhamento por setor e item
+                        <i class="fas fa-calculator"></i> Auditar Cálculo — Ver fórmula detalhada
                     </div>
+                    
                     <div class="detalhes-content" id="${contentId}">
+                        <div class="alert-info" style="margin-top:1rem;">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Fórmula:</strong> Valor Aplicado = Valor Total × (% Rateio ÷ 100)
+                            <br><small>Ex: Se Salário = R$ 5.000,00 com 100% de rateio → Valor Aplicado = R$ 5.000,00</small>
+                            <br><small>Ex: Se Salário = R$ 5.000,00 com 50% de rateio → Valor Aplicado = R$ 2.500,00</small>
+                        </div>
                         <div class="table-wrap" style="margin-top:0.5rem;">
                             <table>
                                 <thead>
@@ -1760,12 +1783,21 @@
                                         <th>Categoria</th>
                                         <th>Setor</th>
                                         <th>Item</th>
-                                        <th>Valor</th>
+                                        <th>Valor Total</th>
+                                        <th>%</th>
+                                        <th>Valor Aplicado</th>
+                                        <th>Fórmula</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${tabelaHTML}
                                 </tbody>
+                                <tfoot>
+                                    <tr style="background:#f0faf4;font-weight:700;">
+                                        <td colspan="6">TOTAL GERAL CONSOLIDADO</td>
+                                        <td class="money" style="font-size:1rem;color:var(--primary);">${formatMoney(totalGeral)}</td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -1779,11 +1811,11 @@
                 if (content.classList.contains('visivel')) {
                     content.classList.remove('visivel');
                     toggle.classList.remove('aberto');
-                    toggle.innerHTML = '<i class="fas fa-chevron-down"></i> Ver detalhamento por setor e item';
+                    toggle.innerHTML = '<i class="fas fa-calculator"></i> Auditar Cálculo — Ver fórmula detalhada';
                 } else {
                     content.classList.add('visivel');
                     toggle.classList.add('aberto');
-                    toggle.innerHTML = '<i class="fas fa-chevron-down"></i> Ocultar detalhamento';
+                    toggle.innerHTML = '<i class="fas fa-calculator"></i> Ocultar auditoria';
                 }
             };
 
@@ -1820,26 +1852,11 @@
                             <span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar seleção</span>
                         </div>
                         <div class="stats-grid-resumo">
-                            <div class="stat-resumo">
-                                <div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div>
-                                <div class="sr-label">Períodos</div>
-                            </div>
-                            <div class="stat-resumo">
-                                <div class="sr-valor">${resumoConsolidado.qtdSetores}</div>
-                                <div class="sr-label">Setores</div>
-                            </div>
-                            <div class="stat-resumo">
-                                <div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div>
-                                <div class="sr-label">Custo Total</div>
-                            </div>
-                            <div class="stat-resumo">
-                                <div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div>
-                                <div class="sr-label">Produção Total</div>
-                            </div>
-                            <div class="stat-resumo destaque">
-                                <div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div>
-                                <div class="sr-label">🏁 Custo Médio/KG</div>
-                            </div>
+                            <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div><div class="sr-label">Períodos</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdSetores}</div><div class="sr-label">Setores</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div><div class="sr-label">Custo Total</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div><div class="sr-label">Produção Total</div></div>
+                            <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div><div class="sr-label">🏁 Custo Médio/KG</div></div>
                         </div>
                     </div>
                     ` : `
@@ -2073,11 +2090,11 @@
 
                 const periodoExistente = periodos.find(p => p.mes === novoMes && p.ano === novoAno);
                 if (periodoExistente) {
-                    alert(`Já existe um período para ${getNomeMes(novoMes)}/${novoAno}! Escolha outro mês/ano.`);
+                    alert(`Já existe um período para ${getNomeMes(novoMes)}/${novoAno}!`);
                     return;
                 }
 
-                if (!confirm(`Copiar TODOS os dados de ${getNomeMes(perOrigem.mes)}/${perOrigem.ano} para ${getNomeMes(novoMes)}/${novoAno}?\n\nSetores, itens, produções e custos fixos serão copiados.`)) {
+                if (!confirm(`Copiar TODOS os dados de ${getNomeMes(perOrigem.mes)}/${perOrigem.ano} para ${getNomeMes(novoMes)}/${novoAno}?`)) {
                     return;
                 }
 
@@ -2085,31 +2102,24 @@
 
                 try {
                     const novoPeriodo = {
-                        mes: novoMes, 
-                        ano: novoAno,
+                        mes: novoMes, ano: novoAno,
                         obs: `Copiado de ${getNomeMes(perOrigem.mes)}/${perOrigem.ano}`,
-                        createdAt: new Date().toISOString(), 
-                        id: 'per_' + Date.now()
+                        createdAt: new Date().toISOString(), id: 'per_' + Date.now()
                     };
                     periodos.push(novoPeriodo);
                     await salvarFB('custos_periodos', novoPeriodo);
 
                     const setoresOrigem = setores.filter(s => s.periodoId === periodoOrigemCopia);
-                    const mapaSetoresIds = new Map();
                     
                     for (const setorOrig of setoresOrigem) {
                         const novoSetorId = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
-                        mapaSetoresIds.set(setorOrig.id, novoSetorId);
                         
                         const novoSetor = {
                             periodoId: novoPeriodo.id,
-                            nome: setorOrig.nome,
-                            descricao: setorOrig.descricao,
-                            ordem: setorOrig.ordem,
-                            produtoFinal: setorOrig.produtoFinal || false,
+                            nome: setorOrig.nome, descricao: setorOrig.descricao,
+                            ordem: setorOrig.ordem, produtoFinal: setorOrig.produtoFinal || false,
                             cor: setorOrig.cor || '#0d904f',
-                            createdAt: new Date().toISOString(),
-                            id: novoSetorId
+                            createdAt: new Date().toISOString(), id: novoSetorId
                         };
                         setores.push(novoSetor);
                         await salvarFB('custos_setores', novoSetor);
@@ -2119,8 +2129,7 @@
                             const novoItem = {
                                 ...item,
                                 id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
-                                setorId: novoSetorId,
-                                createdAt: new Date().toISOString()
+                                setorId: novoSetorId, createdAt: new Date().toISOString()
                             };
                             itensCusto.push(novoItem);
                             await salvarFB('custos_itens', novoItem);
@@ -2131,8 +2140,7 @@
                             const novaProd = {
                                 ...prod,
                                 id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8),
-                                setorId: novoSetorId,
-                                createdAt: new Date().toISOString()
+                                setorId: novoSetorId, createdAt: new Date().toISOString()
                             };
                             producoes.push(novaProd);
                             await salvarFB('custos_producoes', novaProd);
@@ -2140,28 +2148,21 @@
                     }
 
                     const custosFixosOrigem = custosFixos.filter(cf => cf.periodoId === periodoOrigemCopia);
-                    let totalCFCopiados = 0;
                     for (const cf of custosFixosOrigem) {
                         const novoCF = {
                             ...cf,
                             id: 'cf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                            periodoId: novoPeriodo.id,
-                            createdAt: new Date().toISOString()
+                            periodoId: novoPeriodo.id, createdAt: new Date().toISOString()
                         };
                         custosFixos.push(novoCF);
                         await salvarFB('custos_fixos', novoCF);
-                        totalCFCopiados++;
                     }
 
                     saveLocalData();
                     window.fecharModal('modalCopiarPeriodo');
                     document.getElementById('loadingOverlay').classList.remove('active');
                     
-                    alert(`✅ Cópia completa realizada com sucesso!\n\n` +
-                          `📅 Período: ${getNomeMes(novoMes)}/${novoAno}\n` +
-                          `🏭 Setores copiados: ${setoresOrigem.length}\n` +
-                          `📌 Custos fixos copiados: ${totalCFCopiados}`);
-                    
+                    alert(`✅ Cópia completa realizada com sucesso!\n\n📅 Período: ${getNomeMes(novoMes)}/${novoAno}`);
                     renderizarTela();
                 } catch (error) {
                     console.error('Erro ao copiar período:', error);
@@ -2170,7 +2171,7 @@
                 }
             };
 
-            // ==================== SETORES COM GRÁFICO DE CATEGORIAS ====================
+            // ==================== SETORES ====================
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -2189,41 +2190,38 @@
                             </span>
                         </div>` : ''}
                         <div class="stats-grid-resumo">
-                            <div class="stat-resumo"><div class="sr-valor">${resumo.qtdSetores}</div><div class="sr-label">Setores Ativos</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${resumo.qtdSetores}</div><div class="sr-label">Setores</div></div>
                             <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumo.custoTotalGeral)}</div><div class="sr-label">Custo Total</div></div>
-                            <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumo.producaoTotalGeral,0)} kg</div><div class="sr-label">Produção Total</div></div>
-                            <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumo.custoPorKgGeral)}/kg</div><div class="sr-label">🏁 Custo por KG</div></div>
+                            <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumo.producaoTotalGeral,0)} kg</div><div class="sr-label">Produção</div></div>
+                            <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumo.custoPorKgGeral)}/kg</div><div class="sr-label">🏁 Custo/KG</div></div>
                         </div>
                     </div>
                     
                     ${graficoCategorias}
                     
-                    <!-- CUSTOS FIXOS DO PERÍODO -->
                     ${getCustosFixosDoPeriodo().length > 0 ? `
-                    <div class="cf-card" id="custosFixosCard">
+                    <div class="cf-card">
                         <div class="cf-header" onclick="window.toggleCustosFixos()">
                             <div style="display:flex;align-items:center;gap:0.75rem;">
                                 <i class="fas fa-chevron-down" id="cfChevron" style="color:var(--warning);transition:transform 0.3s;"></i>
-                                <strong style="font-size:0.9rem;"><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos de ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</strong>
+                                <strong><i class="fas fa-thumbtack" style="color:var(--warning);"></i> Custos Fixos</strong>
                                 <span class="badge badge-orange">${getCustosFixosDoPeriodo().length} itens</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:1rem;">
-                                <span style="font-weight:700;font-size:0.9rem;">Total: <span style="color:var(--warning);">${formatMoney(getCustosFixosDoPeriodo().reduce((s,cf)=>s+cf.valor,0))}</span></span>
+                                <span style="font-weight:700;">Total: <span style="color:var(--warning);">${formatMoney(getCustosFixosDoPeriodo().reduce((s,cf)=>s+cf.valor,0))}</span></span>
                                 <button class="btn btn-warning btn-xs" onclick="event.stopPropagation();window.abrirModalCustoFixo()"><i class="fas fa-plus"></i></button>
                             </div>
                         </div>
                         <div id="custosFixosBody" class="cf-body" style="display:none;">
-                            <div class="table-wrap" style="margin-top:0.5rem;">
-                                <table style="font-size:0.8rem;width:100%;">
-                                    <thead>
-                                        <tr><th>Nome</th><th>Categoria</th><th>Valor</th><th style="width:60px;">Ações</th></tr>
-                                    </thead>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead><tr><th>Nome</th><th>Categoria</th><th>Valor</th><th></th></tr></thead>
                                     <tbody>
                                         ${getCustosFixosDoPeriodo().map(cf => {
                                             const cat = categorias.find(c => c.id === cf.categoriaId);
                                             return `
                                             <tr>
-                                                <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cat?.cor||'#999'};margin-right:6px;"></span>${cf.nome}</td>
+                                                <td>${cf.nome}</td>
                                                 <td>${cat?.nome||'Sem categoria'}</td>
                                                 <td class="money">${formatMoney(cf.valor)}</td>
                                                 <td>
@@ -2239,8 +2237,8 @@
                     </div>
                     ` : `
                     <div style="margin-bottom:1.5rem;padding:1rem;background:#f5f5f5;border-radius:8px;border:1px dashed #ccc;text-align:center;">
-                        <p style="color:var(--text-light);margin-bottom:0.5rem;">Nenhum custo fixo cadastrado para este período.</p>
-                        <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Adicionar Custo Fixo</button>
+                        <p style="color:var(--text-light);margin-bottom:0.5rem;">Nenhum custo fixo cadastrado.</p>
+                        <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-plus"></i> Adicionar</button>
                     </div>
                     `}
                     
@@ -2267,9 +2265,8 @@
                     div.className = `setor-card ${isFinal ? 'produto-final' : ''} ${isExcluido ? 'excluido-resumo' : ''}`;
                     div.style.borderLeftColor = corSetor;
                     div.innerHTML = `
-                        <div class="setor-toggle" onclick="event.stopPropagation();" title="${isExcluido ? 'Incluir no resumo' : 'Excluir do resumo'}">
-                            <input type="checkbox" id="toggle_setor_${setor.id}" ${!isExcluido ? 'checked' : ''} 
-                                onchange="window.toggleSetorResumo('${setor.id}', this.checked)">
+                        <div class="setor-toggle" onclick="event.stopPropagation();">
+                            <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${setor.id}', this.checked)">
                         </div>
                         <div class="setor-acoes">
                             <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarSetor('${setor.id}')"><i class="fas fa-edit"></i></button>
@@ -2278,8 +2275,7 @@
                         <div class="setor-nome" onclick="window.selecionarSetor('${setor.id}')">
                             <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${corSetor};margin-right:6px;"></span>
                             ${setor.nome} 
-                            <span class="badge ${isFinal?'badge-orange':'badge-green'}">${isFinal?'🏁 FINAL':'Etapa '+setor.ordem}</span> 
-                            ${isExcluido?'<span class="badge" style="background:#ffcdd2;color:#c62828;">Excluído</span>':''}
+                            <span class="badge ${isFinal?'badge-orange':'badge-green'}">${isFinal?'🏁 FINAL':'Etapa '+setor.ordem}</span>
                         </div>
                         <div class="setor-desc" onclick="window.selecionarSetor('${setor.id}')">${setor.descricao||''}</div>
                         <div class="setor-info" onclick="window.selecionarSetor('${setor.id}')">
@@ -2288,7 +2284,7 @@
                              <div style="grid-column:1/-1;">
                                 <div class="info-label">Custo Médio/KG</div>
                                 <div class="info-valor" style="color:${totalKg>0?(isFinal?'#e65100':'var(--teal)'):'var(--text-light)'};">
-                                    ${totalKg>0?formatMoney(custoPorKg)+'/kg':'Sem produção registrada'}
+                                    ${totalKg>0?formatMoney(custoPorKg)+'/kg':'Sem produção'}
                                 </div>
                              </div>
                         </div>
@@ -2360,9 +2356,6 @@
                     hist.forEach(h => {
                         const div = document.createElement('div');
                         div.className = 'historico-item';
-                        const cores = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'];
-                        const corIdx = ((h.mes || 1) - 1) % cores.length;
-                        div.style.borderLeftColor = cores[corIdx];
                         div.onclick = () => window.verDetalheCustoMaterial(h.id);
                         div.innerHTML = `<div class="hi-periodo"><i class="fas fa-calendar"></i> ${getNomeMes(h.mes)}/${h.ano}</div><div class="hi-custo"><div class="valor">${formatMoney(h.custoKgFinal)}/kg</div><div class="label">${h.setoresDetalhes?.length||0} setor(es)</div></div>`;
                         grid.appendChild(div);
@@ -2376,11 +2369,10 @@
                 const mat = materiais.find(m => m.id === custo.materialId);
                 document.getElementById('historicoDetalheConteudo').innerHTML = `
                     <div style="margin-bottom:1rem;"><strong>Material:</strong> ${mat?.nome||'N/D'}<br><strong>Período:</strong> ${getNomeMes(custo.mes)}/${custo.ano}</div>
-                    <div class="custo-material-resumo" style="border-radius:8px;"><h3 style="font-size:0.9rem;">Composição</h3>
-                        ${custo.setoresDetalhes?.map(s=>`<div class="linha"><span>${s.nome} (${s.modo==='percentual'?s.valorConfig+'%':'Total'})</span><span class="l-valor">${formatMoney(s.custoKg)}/kg</span></div>`).join('')||''}
+                    <div class="custo-material-resumo">
+                        <h3>Composição</h3>
+                        ${custo.setoresDetalhes?.map(s=>`<div class="linha"><span>${s.nome}</span><span class="l-valor">${formatMoney(s.custoKg)}/kg</span></div>`).join('')||''}
                         ${custo.insumos?.map(ins=>`<div class="linha"><span>📦 ${ins.nome}</span><span class="l-valor">${formatMoney(ins.custoKg)}/kg</span></div>`).join('')||''}
-                        <div class="linha"><span>Subtotal</span><span class="l-valor">${formatMoney(custo.subtotal)}/kg</span></div>
-                        ${custo.imposto>0?`<div class="linha"><span>Imposto (${custo.imposto}%)</span><span class="l-valor">${formatMoney(custo.valorImposto)}/kg</span></div>`:''}
                         <div class="linha total"><span>🏁 CUSTO FINAL</span><span class="l-valor">${formatMoney(custo.custoKgFinal)}/kg</span></div>
                     </div>`;
                 document.getElementById('modalHistoricoDetalhe').classList.add('active');
@@ -2396,8 +2388,8 @@
                 document.getElementById('gerarCustoImposto').value = '0';
                 document.getElementById('gerarCustoMargem').value = '0';
                 document.getElementById('gerarCustoValorAtual').value = '0';
-                document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
-                document.getElementById('resumoLinhas').innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
+                document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
+                document.getElementById('resumoLinhas').innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores</p>';
                 setoresSelecionadosGerar = new Map();
             };
 
@@ -2415,16 +2407,16 @@
                         <div class="ss-header">
                             <input type="checkbox" id="chk_setor_${s.id}" onchange="window.toggleSetorGerar('${s.id}', this)">
                             <div class="ss-info">
-                                <div class="ss-nome">${s.produtoFinal?'🏁 ':''}${s.nome} <span class="badge ${s.produtoFinal?'badge-orange':'badge-green'}">${s.produtoFinal?'Final':'Etapa '+s.ordem}</span></div>
-                                <div class="ss-custo">Custo médio do setor: <strong>${formatMoney(custoKg)}/kg</strong></div>
+                                <div class="ss-nome">${s.nome} <span class="badge ${s.produtoFinal?'badge-orange':'badge-green'}">${s.produtoFinal?'Final':'Etapa '+s.ordem}</span></div>
+                                <div class="ss-custo">Custo médio: <strong>${formatMoney(custoKg)}/kg</strong></div>
                             </div>
                         </div>
                         <div class="ss-config" id="config_setor_${s.id}" style="display:none;">
                             <select id="modo_setor_${s.id}" onchange="window.mudarModoSetorGerar('${s.id}')">
-                                <option value="total">Usar Valor Total (R$/kg)</option>
-                                <option value="percentual">Usar % do Rateio</option>
+                                <option value="total">Valor Total (R$/kg)</option>
+                                <option value="percentual">% do Rateio</option>
                             </select>
-                            <input type="number" id="valor_setor_${s.id}" step="0.01" value="${custoKg.toFixed(2)}" placeholder="0,00" oninput="window.atualizarResumoGerarCusto()">
+                            <input type="number" id="valor_setor_${s.id}" step="0.01" value="${custoKg.toFixed(2)}" oninput="window.atualizarResumoGerarCusto()">
                             <span id="unidade_setor_${s.id}" style="font-size:0.75rem;">R$/kg</span>
                         </div>
                     </div>`;
@@ -2435,15 +2427,11 @@
             window.toggleSetorGerar = function(setorId, checkbox) {
                 const configDiv = document.getElementById('config_setor_'+setorId);
                 const itemDiv = document.getElementById('setor_item_'+setorId);
-                
                 if (checkbox.checked) {
                     const custoKg = getCustoPorKgSetor(setorId);
                     setoresSelecionadosGerar.set(setorId, { modo: 'total', valor: custoKg });
                     itemDiv.classList.add('selecionado');
                     configDiv.style.display = 'flex';
-                    document.getElementById('modo_setor_'+setorId).value = 'total';
-                    document.getElementById('valor_setor_'+setorId).value = custoKg.toFixed(2);
-                    document.getElementById('unidade_setor_'+setorId).textContent = 'R$/kg';
                 } else {
                     setoresSelecionadosGerar.delete(setorId);
                     itemDiv.classList.remove('selecionado');
@@ -2456,20 +2444,12 @@
                 const modo = document.getElementById('modo_setor_'+setorId).value;
                 const valorInput = document.getElementById('valor_setor_'+setorId);
                 const unidadeSpan = document.getElementById('unidade_setor_'+setorId);
-                const custoKg = getCustoPorKgSetor(setorId);
-                
                 if (modo === 'total') {
-                    valorInput.value = custoKg.toFixed(2);
+                    valorInput.value = getCustoPorKgSetor(setorId).toFixed(2);
                     unidadeSpan.textContent = 'R$/kg';
                 } else {
                     valorInput.value = '100';
                     unidadeSpan.textContent = '%';
-                }
-                
-                if (setoresSelecionadosGerar.has(setorId)) {
-                    const config = setoresSelecionadosGerar.get(setorId);
-                    config.modo = modo;
-                    config.valor = parseFloat(valorInput.value) || 0;
                 }
                 window.atualizarResumoGerarCusto();
             };
@@ -2478,7 +2458,7 @@
                 const container = document.getElementById('insumosContainer');
                 const div = document.createElement('div');
                 div.className = 'insumo-row';
-                div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
+                div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
                 container.appendChild(div);
             };
 
@@ -2495,22 +2475,16 @@
                     const setor = setores.find(s=>s.id===setorId);
                     const custoKgOriginal = getCustoPorKgSetor(setorId);
                     let custoKgAplicado;
-                    let descricao;
                     
-                    if (config.modo === 'total') {
-                        custoKgAplicado = config.valor;
-                        descricao = `Total: ${formatMoney(config.valor)}/kg`;
-                    } else {
-                        custoKgAplicado = custoKgOriginal * (config.valor / 100);
-                        descricao = `${config.valor}% de ${formatMoney(custoKgOriginal)}/kg`;
-                    }
+                    if (config.modo === 'total') custoKgAplicado = config.valor;
+                    else custoKgAplicado = custoKgOriginal * (config.valor / 100);
                     
                     custoBase += custoKgAplicado;
-                    html += `<div class="linha"><span>${setor?.nome||'Setor'} <small style="opacity:0.7;">(${descricao})</small></span><span class="l-valor">${formatMoney(custoKgAplicado)}/kg</span></div>`;
+                    html += `<div class="linha"><span>${setor?.nome||'Setor'}</span><span class="l-valor">${formatMoney(custoKgAplicado)}/kg</span></div>`;
                 });
                 
                 if (setoresSelecionadosGerar.size === 0) { 
-                    resumoLinhas.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores e configure cada um</p>'; 
+                    resumoLinhas.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores</p>'; 
                     return; 
                 }
                 
@@ -2518,36 +2492,27 @@
                 document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
                     const nome = row.querySelector('.insumo-nome').value.trim();
                     const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome && custo > 0) { 
-                        custoInsumos += custo; 
-                        html += `<div class="linha"><span>📦 ${nome}</span><span class="l-valor">${formatMoney(custo)}/kg</span></div>`; 
-                    }
+                    if (nome && custo > 0) { custoInsumos += custo; html += `<div class="linha"><span>📦 ${nome}</span><span class="l-valor">${formatMoney(custo)}/kg</span></div>`; }
                 });
                 
                 const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
-                const valorImposto = subtotal * (imposto / 100);
-                const custoFinal = subtotal + valorImposto;
-                const margem = parseFloat(document.getElementById('gerarCustoMargem').value) || 0;
-                const precoSugerido = margem > 0 ? custoFinal * (1 + margem / 100) : 0;
+                const custoFinal = subtotal + subtotal*(imposto/100);
                 const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
 
                 html += `<div class="linha"><span>Subtotal</span><span class="l-valor">${formatMoney(subtotal)}/kg</span></div>`;
-                if (imposto > 0) html += `<div class="linha"><span>Imposto (${imposto}%)</span><span class="l-valor">${formatMoney(valorImposto)}/kg</span></div>`;
+                if (imposto > 0) html += `<div class="linha"><span>Imposto (${imposto}%)</span><span class="l-valor">${formatMoney(subtotal*(imposto/100))}/kg</span></div>`;
                 html += `<div class="linha total"><span>🏁 CUSTO FINAL</span><span class="l-valor">${formatMoney(custoFinal)}/kg</span></div>`;
-                if (margem > 0) html += `<div class="linha" style="color:#ffb74d;"><span>💰 Preço Sugerido (${margem}%)</span><span class="l-valor">${formatMoney(precoSugerido)}/kg</span></div>`;
 
                 if (valorAtual > 0) {
                     const diff = valorAtual - custoFinal;
-                    const diffPerc = (diff / custoFinal * 100);
                     const isLucro = diff >= 0;
                     html += `<div class="comparativo-destaque" style="color:#fff;">
-                        <div style="font-weight:600;margin-bottom:0.5rem;">📊 Análise Comparativa</div>
+                        <div style="font-weight:600;">📊 Análise</div>
                         <div class="linha"><span>💰 Valor Praticado</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div>
-                        <div class="linha"><span>${isLucro?'✅ Diferença (Lucro)':'❌ Diferença (Prejuízo)'}</span><span class="l-valor" style="color:${isLucro?'#4caf50':'#ef5350'};">${formatMoney(Math.abs(diff))}/kg (${formatNumber(Math.abs(diffPerc),1)}%)</span></div>
+                        <div class="linha" style="color:${isLucro?'#4caf50':'#ef5350'};"><span>${isLucro?'✅ Lucro':'❌ Prejuízo'}</span><span class="l-valor">${formatMoney(Math.abs(diff))}/kg (${formatNumber(Math.abs(diff/custoFinal*100),1)}%)</span></div>
                     </div>`;
                 }
-
                 resumoLinhas.innerHTML = html;
             };
 
@@ -2562,40 +2527,28 @@
                 if (!periodoId||!materialId||setoresSelecionadosGerar.size===0) { alert('Preencha todos os campos!'); return; }
                 const periodo = periodos.find(p=>p.id===periodoId);
                 
-                let custoBase = 0; 
-                const setoresDetalhes = [];
-                
+                let custoBase = 0; const setoresDetalhes = [];
                 setoresSelecionadosGerar.forEach((config, setorId) => {
                     const setor = setores.find(s=>s.id===setorId);
                     const custoKgOriginal = getCustoPorKgSetor(setorId);
-                    let custoKgAplicado;
-                    
-                    if (config.modo === 'total') custoKgAplicado = config.valor;
-                    else custoKgAplicado = custoKgOriginal * (config.valor / 100);
-                    
+                    let custoKgAplicado = config.modo === 'total' ? config.valor : custoKgOriginal * (config.valor / 100);
                     custoBase += custoKgAplicado;
-                    setoresDetalhes.push({
-                        id: setorId, nome: setor?.nome||'', custoKg: custoKgAplicado,
-                        custoKgOriginal, modo: config.modo, valorConfig: config.valor
-                    });
+                    setoresDetalhes.push({ id: setorId, nome: setor?.nome||'', custoKg: custoKgAplicado });
                 });
                 
-                let custoInsumos = 0; 
                 const insumos = [];
                 document.querySelectorAll('#insumosContainer .insumo-row').forEach(row => {
                     const nome = row.querySelector('.insumo-nome').value.trim();
                     const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-                    if (nome&&custo>0) { custoInsumos+=custo; insumos.push({nome, custoKg:custo}); }
+                    if (nome&&custo>0) { custoBase+=custo; insumos.push({nome, custoKg:custo}); }
                 });
                 
-                const subtotal = custoBase + custoInsumos;
                 const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
-                const custoKgFinal = subtotal + subtotal*(imposto/100);
-                const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
-
+                const custoKgFinal = custoBase + custoBase*(imposto/100);
+                
                 const custo = {
                     materialId, periodoId, mes:periodo?.mes, ano:periodo?.ano,
-                    setoresDetalhes, insumos, subtotal, imposto, custoKgFinal, valorAtual,
+                    setoresDetalhes, insumos, subtotal: custoBase, imposto, custoKgFinal,
                     createdAt:new Date().toISOString(), id:'cm_'+Date.now()
                 };
                 custosMateriais.push(custo);
@@ -2604,65 +2557,6 @@
                 window.fecharModal('modalGerarCusto');
                 alert(`Custo salvo!\n${formatMoney(custoKgFinal)}/kg`);
                 renderizarTela();
-            };
-
-            // ==================== PDFs ====================
-            window.gerarPDFCustoMaterial = async function() {
-                const { jsPDF } = window.jspdf;
-                const materialId = document.getElementById('gerarCustoMaterial').value;
-                const mat = materiais.find(m=>m.id===materialId);
-                const periodoId = document.getElementById('gerarCustoPeriodo').value;
-                const per = periodos.find(p=>p.id===periodoId);
-                
-                let custoBase = 0; 
-                const linhasPDF = [];
-                
-                setoresSelecionadosGerar.forEach((config, setorId) => {
-                    const setor = setores.find(s=>s.id===setorId);
-                    const custoKgOriginal = getCustoPorKgSetor(setorId);
-                    let custoKgAplicado;
-                    
-                    if (config.modo === 'total') custoKgAplicado = config.valor;
-                    else custoKgAplicado = custoKgOriginal * (config.valor / 100);
-                    
-                    custoBase += custoKgAplicado;
-                    linhasPDF.push({ nome: setor?.nome||'Setor', valor: custoKgAplicado });
-                });
-                
-                const pdf = new jsPDF('p','mm','a4');
-                let y = 20;
-                pdf.setFillColor(0,77,64); pdf.rect(0,0,210,30,'F');
-                pdf.setTextColor(255,255,255); pdf.setFontSize(16);
-                pdf.text('Análise de Custo - Mil Plásticos',105,15,{align:'center'});
-                y = 38;
-                pdf.setTextColor(0,0,0); pdf.setFontSize(13);
-                pdf.text(`Material: ${mat?.nome||'N/D'}`,20,y); y+=10;
-                pdf.setFontSize(11); pdf.text('Composição:',20,y); y+=7;
-                linhasPDF.forEach(l=>{ pdf.setFontSize(9); pdf.text(`${l.nome}: ${formatMoney(l.valor)}/kg`,25,y); y+=5; });
-                pdf.save(`Custo_${mat?.nome||'Material'}.pdf`);
-            };
-
-            window.gerarPDFCentralCustos = async function() {
-                if (!periodoAtual) { alert('Selecione um período!'); return; }
-                const { jsPDF } = window.jspdf;
-                const sets = getSetoresDoPeriodo();
-                const resumo = calcularResumoPeriodo();
-                const pdf = new jsPDF('p','mm','a4');
-                let y = 20;
-                pdf.setFillColor(13,144,79); pdf.rect(0,0,210,30,'F');
-                pdf.setTextColor(255,255,255); pdf.setFontSize(16);
-                pdf.text('Central de Custos - Mil Plásticos',105,15,{align:'center'});
-                y = 38;
-                pdf.setTextColor(0,0,0); pdf.setFontSize(13);
-                pdf.text(`Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}`,20,y); y+=10;
-                pdf.setFontSize(10);
-                pdf.text(`Custo Total: ${formatMoney(resumo.custoTotalGeral)} | Produção: ${formatNumber(resumo.producaoTotalGeral,0)} kg | Custo/KG: ${formatMoney(resumo.custoPorKgGeral)}/kg`,20,y); y+=10;
-                sets.forEach(setor => {
-                    if (y > 260) { pdf.addPage(); y = 20; }
-                    const { totalCusto, totalKg } = calcularCustosSetor(setor.id);
-                    pdf.setFontSize(11); pdf.text(`${setor.nome}: ${formatMoney(totalCusto)} | ${formatNumber(totalKg,0)} kg`,22,y); y+=6;
-                });
-                pdf.save(`Central_Custos_${getNomeMes(periodoAtual.mes)}_${periodoAtual.ano}.pdf`);
             };
 
             // ==================== CRUDS ====================
@@ -2702,7 +2596,7 @@
                     periodos=periodos.filter(p=>p.id!==id);
                     periodosSelecionadosResumo.delete(id);
                     await excluirFB('custos_periodos',id);saveLocalData();
-                    if(periodoAtual?.id===id){periodoAtual=null;setorAtual=null;nivelAtual='periodos';}renderizarTela();
+                    if(periodoAtual?.id===id){periodoAtual=null;nivelAtual='periodos';}renderizarTela();
                 }
             };
 
@@ -2750,12 +2644,12 @@
                     const container = document.getElementById('custosFixosSelect');
                     const cfsDoPeriodo = getCustosFixosDoPeriodo();
                     container.innerHTML = cfsDoPeriodo.length === 0 
-                        ? '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhum custo fixo neste período.</p>'
+                        ? '<p style="text-align:center;padding:1rem;">Nenhum custo fixo neste período.</p>'
                         : cfsDoPeriodo.map(cf => `
                             <div class="custo-fixo-select-item" onclick="window.selecionarCustoFixoParaItem('${cf.id}')">
                                 <div><div class="cfs-nome"><i class="fas fa-thumbtack"></i> ${cf.nome}</div></div>
                                 <div class="cfs-valor">${formatMoney(cf.valor)}</div>
-                                <button class="btn btn-warning btn-xs"><i class="fas fa-arrow-right"></i> Usar</button>
+                                <button class="btn btn-warning btn-xs">Usar</button>
                             </div>`).join('');
                 }
                 if (tipo === 'normal') carregarSelectCategorias();
@@ -2917,12 +2811,12 @@
                 if (cats.length > 0) {
                     pieChart = new Chart(pieCtx, {
                         type: 'doughnut',
-                        data: { labels: cats.map(c => c.nome), datasets: [{ data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor || '#0d904f'), borderWidth: 2, borderColor: '#fff' }] },
+                        data: { labels: cats.map(c => c.nome), datasets: [{ data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor), borderWidth: 2, borderColor: '#fff' }] },
                         options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
                     });
                     barChart = new Chart(barCtx, {
                         type: 'bar',
-                        data: { labels: cats.map(c => c.nome), datasets: [{ label: 'Valor (R$)', data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor || '#0d904f'), borderRadius: 8, borderSkipped: false }] },
+                        data: { labels: cats.map(c => c.nome), datasets: [{ data: cats.map(c => c.total), backgroundColor: cats.map(c => c.cor), borderRadius: 8 }] },
                         options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + v } } } }
                     });
                 }
@@ -2945,7 +2839,7 @@
             function carregarTabelaCustos() {
                 const tbody = document.getElementById('tabelaCustos'); if (!tbody || !setorAtual) return;
                 const itens = itensCusto.filter(i => i.setorId === setorAtual.id);
-                if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;">Nenhum item</td></tr>'; return; }
+                if (itens.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum item</td></tr>'; return; }
                 const grupos = {};
                 itens.forEach(item => { const cid = item.categoriaId || 'sem_cat'; if (!grupos[cid]) grupos[cid] = { cat: categorias.find(c => c.id === cid), itens: [], subtotal: 0 }; grupos[cid].itens.push(item); grupos[cid].subtotal += item.valorTotal * item.percentual / 100; });
                 tbody.innerHTML = Object.values(grupos).map(g => `<tr style="background:#f8fafc;"><td colspan="7"><strong>${g.cat?.nome||'Sem categoria'}</strong> - Subtotal: ${formatMoney(g.subtotal)}</td></tr>${g.itens.map(item => `<tr><td></td><td>${item.nome}</td><td><span class="badge ${item.tipo==='fixo'?'badge-orange':'badge-blue'}">${item.tipo==='fixo'?'Fixo':'Normal'}</span></td><td class="money">${formatMoney(item.valorTotal)}</td><td>${item.percentual}%</td><td class="money">${formatMoney(item.valorTotal*item.percentual/100)}</td><td><button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${item.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${item.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}`).join('');
@@ -2954,7 +2848,7 @@
             function carregarProducoesLista() {
                 const el = document.getElementById('producaoList'); if (!el || !setorAtual) return;
                 const prods = producoes.filter(p => p.setorId === setorAtual.id);
-                el.innerHTML = prods.length === 0 ? '<p style="text-align:center;padding:1rem;">Nenhuma produção</p>' : `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p => `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;
+                el.innerHTML = prods.length === 0 ? '<p>Nenhuma produção</p>' : `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p => `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;
             }
 
             // ==================== NAVEGAÇÃO ====================
@@ -2965,9 +2859,7 @@
             function atualizarBreadcrumb() {
                 const bc = document.getElementById('breadcrumb');
                 let html = `<span class="breadcrumb-item ${nivelAtual==='periodos'?'active':''}" onclick="window.navegarPara('periodos')"><i class="fas fa-home"></i> Home</span>`;
-                if (nivelAtual === 'materiais') html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">Materiais</span>`;
-                else if (nivelAtual === 'historicoMaterial') { const mat = materiais.find(m => m.id === window.historicoMaterialId); html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">Histórico: ${mat?.nome||''}</span>`; }
-                else if (periodoAtual) { html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item ${nivelAtual==='setores'?'active':''}" onclick="window.navegarPara('setores')">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>`; if (setorAtual && nivelAtual === 'analise') html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">${setorAtual.nome}</span>`; }
+                if (periodoAtual) { html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item ${nivelAtual==='setores'?'active':''}" onclick="window.navegarPara('setores')">${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>`; if (setorAtual && nivelAtual === 'analise') html += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item active">${setorAtual.nome}</span>`; }
                 bc.innerHTML = html;
             }
 
