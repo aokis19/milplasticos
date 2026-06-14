@@ -861,6 +861,57 @@
             padding: 0 1rem 1rem 1rem;
             background: #fff;
         }
+
+        /* ========== NOVOS ESTILOS PARA GRÁFICOS ========== */
+        .grafico-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+        
+        .grafico-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin: 1rem 0;
+        }
+        
+        .grafico-container.grafico-consolidado {
+            height: 450px;
+        }
+        
+        .grafico-titulo {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .grafico-titulo i {
+            color: var(--primary);
+        }
+        
+        .sem-dados-grafico {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: var(--text-light);
+            text-align: center;
+        }
+        
+        .sem-dados-grafico i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
     </style>
 </head>
 
@@ -1177,6 +1228,50 @@
         </div>
     </div>
 
+    <!-- ========== NOVOS MODAIS PARA GRÁFICOS ========== -->
+    
+    <!-- Modal Gráfico Mensal -->
+    <div class="modal-overlay" id="modalGraficoMensal">
+        <div class="modal modal-lg">
+            <h2><i class="fas fa-chart-bar"></i> Análise de Custos por Setor</h2>
+            <div style="margin-bottom: 0.5rem;">
+                <p id="graficoMensalTitulo" style="font-weight: 600; color: var(--primary); margin: 0; font-size: 1rem;"></p>
+            </div>
+            <div class="grafico-container">
+                <canvas id="graficoMensalCanvas"></canvas>
+            </div>
+            <div id="graficoMensalResumo" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; font-size: 0.85rem;"></div>
+            <div class="modal-actions">
+                <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoMensal()">
+                    <i class="fas fa-download"></i> Exportar Imagem
+                </button>
+                <button class="btn btn-outline" onclick="window.fecharModal('modalGraficoMensal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Gráfico Consolidado -->
+    <div class="modal-overlay" id="modalGraficoConsolidado">
+        <div class="modal modal-lg">
+            <h2><i class="fas fa-chart-line"></i> Comparativo de Meses Selecionados</h2>
+            <div style="margin-bottom: 0.5rem;">
+                <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom: 0.5rem;"></div>
+            </div>
+            <div class="grafico-container grafico-consolidado">
+                <canvas id="graficoConsolidadoCanvas"></canvas>
+            </div>
+            <div id="graficoConsolidadoInfo" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; font-size: 0.85rem; text-align: center; color: var(--text-light);">
+                Valores totais por mês (inclui todos os setores com custos fixos já distribuídos)
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()">
+                    <i class="fas fa-download"></i> Exportar Imagem
+                </button>
+                <button class="btn btn-outline" onclick="window.fecharModal('modalGraficoConsolidado')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="reportContainer" style="position: fixed; left: -9999px; top: 0; width: 800px; background: white; padding: 30px;"></div>
 
     <script>
@@ -1203,6 +1298,10 @@
 
             let periodosSelecionadosResumo = new Set();
             let setoresExcluidosResumo = new Set();
+
+            // ========== VARIÁVEIS DOS GRÁFICOS ==========
+            let graficoMensalChart = null;
+            let graficoConsolidadoChart = null;
 
             let configCampos = {
                 setorNome: 'Nome do Setor',
@@ -1302,7 +1401,13 @@
             }
 
             function formatMoney(v) { return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
+            
+            function formatMoneySimples(v) {
+                return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            
             function formatNumber(n, d = 2) { return (n || 0).toFixed(d).replace('.', ','); }
+            
             function getNomeMes(m) {
                 return ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][m - 1] || '';
@@ -1406,6 +1511,346 @@
                     .sort((a, b) => { if (a.ano !== b.ano) return b.ano - a.ano; return b.mes - a.mes; });
             }
 
+            // ========== FUNÇÕES DOS GRÁFICOS ==========
+            
+            function abrirGraficoMensal(periodoId) {
+                const per = periodos.find(p => p.id === periodoId);
+                if (!per) return;
+                
+                document.getElementById('graficoMensalTitulo').textContent = 
+                    `${getNomeMes(per.mes)}/${per.ano} - Distribuição de Custos por Setor`;
+                
+                document.getElementById('modalGraficoMensal').classList.add('active');
+                
+                setTimeout(() => {
+                    criarGraficoMensal(periodoId);
+                }, 200);
+            }
+            
+            function criarGraficoMensal(periodoId) {
+                if (graficoMensalChart) {
+                    graficoMensalChart.destroy();
+                    graficoMensalChart = null;
+                }
+                
+                const sets = getSetoresDoPeriodo(periodoId);
+                if (sets.length === 0) return;
+                
+                const dadosSetores = sets.map(s => {
+                    const { totalCusto } = calcularCustosSetor(s.id);
+                    return { nome: s.nome, valor: totalCusto, isFinal: s.produtoFinal };
+                }).sort((a, b) => b.valor - a.valor);
+                
+                const totalGeral = dadosSetores.reduce((s, d) => s + d.valor, 0);
+                
+                if (totalGeral === 0) {
+                    document.getElementById('graficoMensalResumo').innerHTML = 
+                        '<p style="text-align:center;color:var(--text-light);">Sem dados de custo para este período.</p>';
+                    return;
+                }
+                
+                const cores = [
+                    'rgba(13, 144, 79, 0.85)',
+                    'rgba(245, 124, 0, 0.85)',
+                    'rgba(2, 119, 189, 0.85)',
+                    'rgba(106, 27, 154, 0.85)',
+                    'rgba(198, 40, 40, 0.85)',
+                    'rgba(0, 137, 123, 0.85)',
+                    'rgba(255, 152, 0, 0.85)',
+                    'rgba(63, 81, 181, 0.85)',
+                    'rgba(233, 30, 99, 0.85)',
+                    'rgba(0, 150, 136, 0.85)'
+                ];
+                
+                const canvas = document.getElementById('graficoMensalCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Criar gradientes para cada barra
+                const backgrounds = dadosSetores.map((d, i) => {
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 380);
+                    const baseColor = cores[i % cores.length];
+                    gradient.addColorStop(0, baseColor);
+                    gradient.addColorStop(1, baseColor.replace('0.85', '0.45'));
+                    return gradient;
+                });
+                
+                graficoMensalChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: dadosSetores.map(d => d.nome),
+                        datasets: [{
+                            label: 'Custo Total (R$)',
+                            data: dadosSetores.map(d => d.valor),
+                            backgroundColor: backgrounds,
+                            borderColor: backgrounds.map(() => 'rgba(255,255,255,0.3)'),
+                            borderWidth: 2,
+                            borderRadius: 10,
+                            borderSkipped: false,
+                            barPercentage: 0.75,
+                            categoryPercentage: 0.85,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.85)',
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const valor = context.parsed.y;
+                                        const percentual = ((valor / totalGeral) * 100).toFixed(1);
+                                        return [
+                                            `Valor: R$ ${formatMoneySimples(valor)}`,
+                                            `Representa: ${percentual}% do total`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.06)',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        if (value >= 1000) {
+                                            return 'R$ ' + (value / 1000).toFixed(0) + 'k';
+                                        }
+                                        return 'R$ ' + value;
+                                    },
+                                    font: { size: 11 }
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    font: { size: 11, weight: '500' },
+                                    maxRotation: 45,
+                                    minRotation: 0
+                                }
+                            }
+                        }
+                    },
+                    plugins: [{
+                        id: 'valorBarra',
+                        afterDatasetsDraw(chart) {
+                            const { ctx } = chart;
+                            chart.data.datasets[0].data.forEach((value, index) => {
+                                const percentual = ((value / totalGeral) * 100).toFixed(1);
+                                const meta = chart.getDatasetMeta(0);
+                                const { x, y } = meta.data[index];
+                                
+                                ctx.save();
+                                ctx.font = 'bold 12px Inter, sans-serif';
+                                ctx.fillStyle = '#1a1a1a';
+                                ctx.textAlign = 'center';
+                                
+                                // Valor formatado
+                                ctx.fillText(`R$ ${formatMoneySimples(value)}`, x, y - 12);
+                                
+                                // Percentual
+                                ctx.font = '10px Inter, sans-serif';
+                                ctx.fillStyle = '#6b7280';
+                                ctx.fillText(`${percentual}%`, x, y - 28);
+                                
+                                ctx.restore();
+                            });
+                        }
+                    }]
+                });
+                
+                // Resumo
+                const maior = dadosSetores[0];
+                document.getElementById('graficoMensalResumo').innerHTML = `
+                    <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:0.5rem;">
+                        <div><strong>Total Geral:</strong> <span style="color:var(--primary);">R$ ${formatMoneySimples(totalGeral)}</span></div>
+                        <div><strong>Maior gasto:</strong> <span style="color:var(--warning);">${maior.nome} (R$ ${formatMoneySimples(maior.valor)})</span></div>
+                        <div><strong>Setores:</strong> ${dadosSetores.length}</div>
+                    </div>
+                `;
+            }
+            
+            function abrirGraficoConsolidado() {
+                if (periodosSelecionadosResumo.size === 0) {
+                    alert('Selecione ao menos um período marcando o checkbox nos cards!');
+                    return;
+                }
+                
+                // Mostrar tags
+                const tagsDiv = document.getElementById('graficoConsolidadoTags');
+                tagsDiv.innerHTML = Array.from(periodosSelecionadosResumo).map(pid => {
+                    const per = periodos.find(p => p.id === pid);
+                    if (!per) return '';
+                    return `<span class="periodo-tag" style="background:rgba(13,144,79,0.15);color:var(--primary);">
+                        ${getNomeMes(per.mes)}/${per.ano}
+                    </span>`;
+                }).join('');
+                
+                document.getElementById('modalGraficoConsolidado').classList.add('active');
+                
+                setTimeout(() => {
+                    criarGraficoConsolidado();
+                }, 200);
+            }
+            
+            function criarGraficoConsolidado() {
+                if (graficoConsolidadoChart) {
+                    graficoConsolidadoChart.destroy();
+                    graficoConsolidadoChart = null;
+                }
+                
+                const periodosArray = Array.from(periodosSelecionadosResumo)
+                    .map(pid => periodos.find(p => p.id === pid))
+                    .filter(p => p)
+                    .sort((a, b) => {
+                        if (a.ano !== b.ano) return a.ano - b.ano;
+                        return a.mes - b.mes;
+                    });
+                
+                if (periodosArray.length === 0) return;
+                
+                const dados = periodosArray.map(per => {
+                    const resumo = calcularResumoPeriodo(per.id, new Set());
+                    return {
+                        label: `${getNomeMes(per.mes).substring(0,3)}/${per.ano}`,
+                        valor: resumo.custoTotalGeral,
+                        producao: resumo.producaoTotalGeral,
+                        setores: resumo.qtdSetores
+                    };
+                });
+                
+                const canvas = document.getElementById('graficoConsolidadoCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Cores em gradiente do verde ao azul
+                const cores = dados.map((d, i) => {
+                    const ratio = i / (dados.length - 1 || 1);
+                    const r = Math.round(13 + (2 - 13) * ratio);
+                    const g = Math.round(144 + (119 - 144) * ratio);
+                    const b = Math.round(79 + (189 - 79) * ratio);
+                    return `rgba(${r}, ${g}, ${b}, 0.85)`;
+                });
+                
+                graficoConsolidadoChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: dados.map(d => d.label),
+                        datasets: [{
+                            label: 'Custo Total (R$)',
+                            data: dados.map(d => d.valor),
+                            backgroundColor: cores,
+                            borderColor: cores.map(() => 'rgba(255,255,255,0.3)'),
+                            borderWidth: 2,
+                            borderRadius: 10,
+                            borderSkipped: false,
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.85)',
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const idx = context.dataIndex;
+                                        const d = dados[idx];
+                                        return [
+                                            `Custo Total: R$ ${formatMoneySimples(d.valor)}`,
+                                            `Produção: ${d.producao.toLocaleString('pt-BR')} kg`,
+                                            `Setores: ${d.setores}`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.06)',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        if (value >= 1000) {
+                                            return 'R$ ' + (value / 1000).toFixed(0) + 'k';
+                                        }
+                                        return 'R$ ' + value;
+                                    },
+                                    font: { size: 11 }
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    font: { size: 11, weight: '500' }
+                                }
+                            }
+                        }
+                    },
+                    plugins: [{
+                        id: 'valorBarraConsolidado',
+                        afterDatasetsDraw(chart) {
+                            const { ctx } = chart;
+                            chart.data.datasets[0].data.forEach((value, index) => {
+                                const meta = chart.getDatasetMeta(0);
+                                const { x, y } = meta.data[index];
+                                
+                                ctx.save();
+                                ctx.font = 'bold 13px Inter, sans-serif';
+                                ctx.fillStyle = '#1a1a1a';
+                                ctx.textAlign = 'center';
+                                ctx.fillText(`R$ ${formatMoneySimples(value)}`, x, y - 10);
+                                ctx.restore();
+                            });
+                        }
+                    }]
+                });
+            }
+            
+            window.exportarGraficoMensal = function() {
+                const canvas = document.getElementById('graficoMensalCanvas');
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = `grafico_setores_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+            
+            window.exportarGraficoConsolidado = function() {
+                const canvas = document.getElementById('graficoConsolidadoCanvas');
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = `grafico_comparativo_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+
+            // ========== RENDERIZAÇÃO ==========
+            
             function renderizarTela() {
                 if (nivelAtual === 'periodos') renderizarPeriodos();
                 else if (nivelAtual === 'setores') renderizarSetores();
@@ -1415,7 +1860,6 @@
                 atualizarBreadcrumb();
             }
 
-            // ==================== HOME (SEM CUSTOS FIXOS) ====================
             function renderizarPeriodos() {
                 const container = document.getElementById('conteudoDinamico');
                 const anosDisponiveis = [...new Set(periodos.map(p => p.ano))].sort((a, b) => b - a);
@@ -1434,7 +1878,12 @@
                 container.innerHTML = `
                     ${resumoConsolidado ? `
                     <div class="resumo-consolidado" id="resumoConsolidado">
-                        <h3><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                            <h3 style="margin:0;"><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
+                            <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoConsolidado()">
+                                <i class="fas fa-chart-bar"></i> Ver Gráfico
+                            </button>
+                        </div>
                         <div class="periodos-selecionados-tags">
                             ${Array.from(periodosSelecionadosResumo).map(pid => {
                                 const per = periodos.find(p => p.id === pid);
@@ -1472,7 +1921,7 @@
                     ` : `
                     <div class="alert-info" style="margin-bottom:1.5rem;">
                         <i class="fas fa-hand-pointer"></i> 
-                        <strong>Dica:</strong> Marque os checkboxes nos períodos abaixo para ver o resumo consolidado.
+                        <strong>Dica:</strong> Marque os checkboxes nos períodos abaixo para ver o resumo consolidado e gráfico comparativo.
                     </div>
                     `}
 
@@ -1522,6 +1971,7 @@
                                     title="Selecionar para resumo consolidado">
                             </div>
                             <div class="acoes">
+                                <button class="btn btn-purple btn-xs" onclick="event.stopPropagation(); window.abrirGraficoMensal('${per.id}')" title="Ver gráfico de setores"><i class="fas fa-chart-bar"></i></button>
                                 <button class="btn btn-info btn-xs" onclick="event.stopPropagation(); window.abrirCopiarPeriodo('${per.id}')" title="Copiar período completo"><i class="fas fa-copy"></i></button>
                                 <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarPeriodo('${per.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirPeriodo('${per.id}')"><i class="fas fa-trash"></i></button>
@@ -1565,6 +2015,7 @@
                 }
             }
 
+            // ========== EXPORTAR FUNÇÕES PARA WINDOW ==========
             window.togglePeriodoResumo = function(periodoId, checked) {
                 if (checked) periodosSelecionadosResumo.add(periodoId);
                 else periodosSelecionadosResumo.delete(periodoId);
@@ -1598,7 +2049,29 @@
                 renderizarTela();
             };
 
-            // ==================== CUSTO FIXO COM PERÍODO ====================
+            window.abrirGraficoMensal = abrirGraficoMensal;
+            window.abrirGraficoConsolidado = abrirGraficoConsolidado;
+            window.exportarGraficoMensal = function() {
+                const canvas = document.getElementById('graficoMensalCanvas');
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = `grafico_setores_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+            window.exportarGraficoConsolidado = function() {
+                const canvas = document.getElementById('graficoConsolidadoCanvas');
+                if (!canvas) return;
+                const link = document.createElement('a');
+                link.download = `grafico_comparativo_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+
+            // ========== DEMAIS FUNÇÕES (MANTER TODAS AS EXISTENTES) ==========
+            // ... (todo o restante do seu código JavaScript original deve permanecer aqui) ...
+            
+            // CUSTO FIXO COM PERÍODO
             window.abrirModalCustoFixo = function(id = null) {
                 const selCat = document.getElementById('custoFixoCategoria');
                 selCat.innerHTML = '<option value="">Selecione uma categoria...</option>' + 
@@ -1663,7 +2136,6 @@
                 }
             };
 
-            // Função para expandir/recolher custos fixos
             window.toggleCustosFixos = function() {
                 const body = document.getElementById('custosFixosBody');
                 const chevron = document.getElementById('cfChevron');
@@ -1678,7 +2150,7 @@
                 }
             };
 
-            // ==================== COPIAR PERÍODO (COM CUSTOS FIXOS) ====================
+            // COPIAR PERÍODO
             window.abrirCopiarPeriodo = function(periodoId) {
                 periodoOrigemCopia = periodoId;
                 const per = periodos.find(p => p.id === periodoId);
@@ -1769,7 +2241,6 @@
                         }
                     }
 
-                    // COPIAR CUSTOS FIXOS DO PERÍODO
                     const custosFixosOrigem = custosFixos.filter(cf => cf.periodoId === periodoOrigemCopia);
                     let totalCFCopiados = 0;
                     for (const cf of custosFixosOrigem) {
@@ -1804,7 +2275,7 @@
                 }
             };
 
-            // ==================== SETORES (COM CUSTOS FIXOS COLAPSÁVEIS) ====================
+            // SETORES
             function renderizarSetores() {
                 if (!periodoAtual) { navegarPara('periodos'); return; }
                 const sets = getSetoresDoPeriodo();
@@ -1829,7 +2300,6 @@
                         </div>
                     </div>
                     
-                    <!-- CUSTOS FIXOS DO PERÍODO (COLAPSÁVEL) -->
                     ${getCustosFixosDoPeriodo().length > 0 ? `
                     <div class="cf-card" id="custosFixosCard">
                         <div class="cf-header" onclick="window.toggleCustosFixos()">
@@ -1884,6 +2354,7 @@
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-industry"></i> Setores</span>
                             <div style="display:flex;gap:0.5rem;">
+                                <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoMensal('${periodoAtual.id}')"><i class="fas fa-chart-bar"></i> Gráfico</button>
                                 <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo</button>
                                 <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCentralCustos()"><i class="fas fa-file-pdf"></i> PDF</button>
                                 <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -1926,7 +2397,7 @@
                 });
             }
 
-            // ==================== ANÁLISE ====================
+            // ANÁLISE (manter igual)
             function renderizarAnalise() {
                 if (!setorAtual) { navegarPara('setores'); return; }
                 const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setorAtual.id);
@@ -1989,7 +2460,6 @@
                     hist.forEach(h => {
                         const div = document.createElement('div');
                         div.className = 'historico-item';
-                        // Define cor da borda baseada no mês (ciclo de cores)
                         const cores = ['#0d904f', '#f57c00', '#0277bd', '#6a1b9a', '#c62828', '#00897b'];
                         const corIdx = ((h.mes || 1) - 1) % cores.length;
                         div.style.borderLeftColor = cores[corIdx];
@@ -2018,7 +2488,7 @@
                 document.getElementById('modalHistoricoDetalhe').classList.add('active');
             };
 
-            // ==================== GERAR CUSTO MATERIAL ====================
+            // GERAR CUSTO MATERIAL
             window.abrirGerarCustoMaterial = function() {
                 document.getElementById('modalGerarCusto').classList.add('active');
                 document.getElementById('gerarCustoPeriodo').innerHTML = '<option value="">Selecione...</option>' +
@@ -2248,7 +2718,7 @@
                 renderizarTela();
             };
 
-            // ==================== PDFs ====================
+            // PDFs
             window.gerarPDFCustoMaterial = async function() {
                 const { jsPDF } = window.jspdf;
                 const materialId = document.getElementById('gerarCustoMaterial').value;
@@ -2369,7 +2839,7 @@
                 pdf.save(`Central_Custos_${getNomeMes(periodoAtual.mes)}_${periodoAtual.ano}.pdf`);
             };
 
-            // ==================== CRUDS ====================
+            // CRUDS
             window.abrirModalPeriodo = function(id=null) {
                 document.getElementById('modalPeriodo').classList.add('active');
                 if(id) {
@@ -2444,7 +2914,7 @@
             window.editarCategoria=(id)=>window.abrirModalCategoria(id);
             window.excluirCategoria=async function(id){if(confirm('Excluir categoria? Itens e custos fixos vinculados ficarão sem categoria.')){itensCusto.forEach(i=>{if(i.categoriaId===id)i.categoriaId=null;});custosFixos.forEach(cf=>{if(cf.categoriaId===id)cf.categoriaId=null;});categorias=categorias.filter(c=>c.id!==id);await excluirFB('custos_categorias',id);saveLocalData();if(nivelAtual==='analise')renderizarAnalise();else renderizarTela();}};
 
-            // ==================== ITEM CUSTO ====================
+            // ITEM CUSTO
             window.mudarTipoItem = function(tipo) {
                 document.getElementById('itemTipo').value = tipo;
                 document.getElementById('tabNormal').classList.toggle('active', tipo === 'normal');
@@ -2609,7 +3079,7 @@
             window.excluirMaterial = async function(id) { if(confirm('Excluir material e todo seu histórico?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
             window.abrirHistoricoMaterial = function(id) { window.historicoMaterialId = id; nivelAtual = 'historicoMaterial'; renderizarTela(); };
 
-            // ==================== GRÁFICOS ====================
+            // GRÁFICOS DO SETOR
             function getCustosAgrupados() {
                 if (!setorAtual) return { porCategoria: {} };
                 const itens = itensCusto.filter(i => i.setorId === setorAtual.id);
@@ -2676,7 +3146,7 @@
                 el.innerHTML = prods.length === 0 ? '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma produção registrada</p>' : `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>KG</th><th></th></tr></thead><tbody>${prods.map(p => `<tr><td>${new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td>${p.produto}</td><td>${formatNumber(p.kg,0)} kg</td><td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div>`;
             }
 
-            // ==================== NAVEGAÇÃO ====================
+            // NAVEGAÇÃO
             window.navegarPara = function(nivel) { if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; } else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; } else if (nivel === 'materiais') { nivelAtual = 'materiais'; } renderizarTela(); };
             window.selecionarPeriodo = function(id) { periodoAtual = periodos.find(p => p.id === id); setorAtual = null; nivelAtual = 'setores'; setoresExcluidosResumo.clear(); renderizarTela(); };
             window.selecionarSetor = function(id) { setorAtual = setores.find(s => s.id === id); nivelAtual = 'analise'; renderizarTela(); };
@@ -2692,7 +3162,18 @@
 
             window.abrirConfigCampos = function() { document.getElementById('modalConfigCampos').classList.add('active'); document.getElementById('listaConfigCampos').innerHTML = Object.entries(configCampos).map(([k, v]) => `<div class="form-group"><label>${k}</label><input type="text" id="config_${k}" value="${v}"></div>`).join(''); };
             window.salvarConfigCampos = function() { Object.keys(configCampos).forEach(k => { const inp = document.getElementById('config_' + k); if (inp) configCampos[k] = inp.value.trim() || configCampos[k]; }); saveConfig(); window.fecharModal('modalConfigCampos'); renderizarTela(); };
-            window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); };
+            window.fecharModal = function(id) {
+                document.getElementById(id).classList.remove('active');
+                // Destruir gráficos se fechar os modais deles
+                if (id === 'modalGraficoMensal' && graficoMensalChart) {
+                    graficoMensalChart.destroy();
+                    graficoMensalChart = null;
+                }
+                if (id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+                    graficoConsolidadoChart.destroy();
+                    graficoConsolidadoChart = null;
+                }
+            };
             document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); });
 
             function init() { renderizarTela(); document.getElementById('loadingOverlay').classList.remove('active'); }
