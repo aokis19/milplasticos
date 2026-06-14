@@ -862,7 +862,7 @@
             background: #fff;
         }
 
-        /* ========== NOVOS ESTILOS PARA GRÁFICOS ========== */
+        /* ========== ESTILOS PARA GRÁFICOS ========== */
         .grafico-card {
             background: var(--card);
             border-radius: var(--radius);
@@ -1228,12 +1228,12 @@
         </div>
     </div>
 
-    <!-- ========== NOVOS MODAIS PARA GRÁFICOS ========== -->
+    <!-- ========== MODAIS PARA GRÁFICOS ========== -->
     
     <!-- Modal Gráfico Mensal -->
     <div class="modal-overlay" id="modalGraficoMensal">
         <div class="modal modal-lg">
-            <h2><i class="fas fa-chart-bar"></i> Análise de Custos por Setor</h2>
+            <h2><i class="fas fa-chart-bar"></i> Gastos por Categoria</h2>
             <div style="margin-bottom: 0.5rem;">
                 <p id="graficoMensalTitulo" style="font-weight: 600; color: var(--primary); margin: 0; font-size: 1rem;"></p>
             </div>
@@ -1253,7 +1253,7 @@
     <!-- Modal Gráfico Consolidado -->
     <div class="modal-overlay" id="modalGraficoConsolidado">
         <div class="modal modal-lg">
-            <h2><i class="fas fa-chart-line"></i> Comparativo de Meses Selecionados</h2>
+            <h2><i class="fas fa-chart-bar"></i> Gastos por Categoria (Consolidado)</h2>
             <div style="margin-bottom: 0.5rem;">
                 <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom: 0.5rem;"></div>
             </div>
@@ -1261,7 +1261,7 @@
                 <canvas id="graficoConsolidadoCanvas"></canvas>
             </div>
             <div id="graficoConsolidadoInfo" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; font-size: 0.85rem; text-align: center; color: var(--text-light);">
-                Valores totais por mês (inclui todos os setores com custos fixos já distribuídos)
+                Valores totais por categoria (todos os setores, com custos fixos distribuídos)
             </div>
             <div class="modal-actions">
                 <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()">
@@ -1299,7 +1299,7 @@
             let periodosSelecionadosResumo = new Set();
             let setoresExcluidosResumo = new Set();
 
-            // ========== VARIÁVEIS DOS GRÁFICOS ==========
+            // Variáveis dos gráficos
             let graficoMensalChart = null;
             let graficoConsolidadoChart = null;
 
@@ -1518,7 +1518,7 @@
                 if (!per) return;
                 
                 document.getElementById('graficoMensalTitulo').textContent = 
-                    `${getNomeMes(per.mes)}/${per.ano} - Distribuição de Custos por Setor`;
+                    `${getNomeMes(per.mes)}/${per.ano} - Gastos por Categoria`;
                 
                 document.getElementById('modalGraficoMensal').classList.add('active');
                 
@@ -1534,85 +1534,98 @@
                 }
                 
                 const sets = getSetoresDoPeriodo(periodoId);
-                if (sets.length === 0) return;
+                if (sets.length === 0) {
+                    document.getElementById('graficoMensalResumo').innerHTML = 
+                        '<p style="text-align:center;color:var(--text-light);">Nenhum setor neste período.</p>';
+                    return;
+                }
                 
-                const dadosSetores = sets.map(s => {
-                    const { totalCusto } = calcularCustosSetor(s.id);
-                    return { nome: s.nome, valor: totalCusto, isFinal: s.produtoFinal };
-                }).sort((a, b) => b.valor - a.valor);
+                const categoriasAgrupadas = {};
                 
-                const totalGeral = dadosSetores.reduce((s, d) => s + d.valor, 0);
+                sets.forEach(setor => {
+                    const itens = itensCusto.filter(i => i.setorId === setor.id);
+                    itens.forEach(item => {
+                        const valorAplicado = item.valorTotal * item.percentual / 100;
+                        const cat = categorias.find(c => c.id === item.categoriaId);
+                        const catNome = cat ? cat.nome : 'Sem Categoria';
+                        const catCor = cat ? cat.cor : '#999999';
+                        
+                        if (!categoriasAgrupadas[catNome]) {
+                            categoriasAgrupadas[catNome] = {
+                                nome: catNome,
+                                cor: catCor,
+                                total: 0,
+                                itens: []
+                            };
+                        }
+                        categoriasAgrupadas[catNome].total += valorAplicado;
+                        categoriasAgrupadas[catNome].itens.push({
+                            nome: item.nome,
+                            setor: setor.nome,
+                            valor: valorAplicado
+                        });
+                    });
+                });
                 
-                if (totalGeral === 0) {
+                const dadosCategorias = Object.values(categoriasAgrupadas)
+                    .sort((a, b) => b.total - a.total);
+                
+                const totalGeral = dadosCategorias.reduce((s, d) => s + d.total, 0);
+                
+                if (totalGeral === 0 || dadosCategorias.length === 0) {
                     document.getElementById('graficoMensalResumo').innerHTML = 
                         '<p style="text-align:center;color:var(--text-light);">Sem dados de custo para este período.</p>';
                     return;
                 }
                 
-                const cores = [
-                    'rgba(13, 144, 79, 0.85)',
-                    'rgba(245, 124, 0, 0.85)',
-                    'rgba(2, 119, 189, 0.85)',
-                    'rgba(106, 27, 154, 0.85)',
-                    'rgba(198, 40, 40, 0.85)',
-                    'rgba(0, 137, 123, 0.85)',
-                    'rgba(255, 152, 0, 0.85)',
-                    'rgba(63, 81, 181, 0.85)',
-                    'rgba(233, 30, 99, 0.85)',
-                    'rgba(0, 150, 136, 0.85)'
-                ];
-                
                 const canvas = document.getElementById('graficoMensalCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Criar gradientes para cada barra
-                const backgrounds = dadosSetores.map((d, i) => {
+                const backgrounds = dadosCategorias.map((d) => {
                     const gradient = ctx.createLinearGradient(0, 0, 0, 380);
-                    const baseColor = cores[i % cores.length];
-                    gradient.addColorStop(0, baseColor);
-                    gradient.addColorStop(1, baseColor.replace('0.85', '0.45'));
+                    gradient.addColorStop(0, d.cor + 'CC');
+                    gradient.addColorStop(1, d.cor + '44');
                     return gradient;
                 });
                 
                 graficoMensalChart = new Chart(canvas, {
                     type: 'bar',
                     data: {
-                        labels: dadosSetores.map(d => d.nome),
+                        labels: dadosCategorias.map(d => d.nome),
                         datasets: [{
-                            label: 'Custo Total (R$)',
-                            data: dadosSetores.map(d => d.valor),
+                            label: 'Total Gasto (R$)',
+                            data: dadosCategorias.map(d => d.total),
                             backgroundColor: backgrounds,
-                            borderColor: backgrounds.map(() => 'rgba(255,255,255,0.3)'),
+                            borderColor: dadosCategorias.map(d => d.cor),
                             borderWidth: 2,
-                            borderRadius: 10,
+                            borderRadius: 12,
                             borderSkipped: false,
-                            barPercentage: 0.75,
+                            barPercentage: 0.7,
                             categoryPercentage: 0.85,
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        interaction: {
-                            intersect: false,
-                            mode: 'index'
-                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
-                                backgroundColor: 'rgba(0,0,0,0.85)',
-                                titleFont: { size: 13, weight: 'bold' },
+                                backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                                titleFont: { size: 14, weight: 'bold' },
                                 bodyFont: { size: 12 },
-                                padding: 12,
-                                cornerRadius: 8,
-                                displayColors: false,
+                                padding: 14,
+                                cornerRadius: 10,
+                                displayColors: true,
                                 callbacks: {
                                     label: function(context) {
                                         const valor = context.parsed.y;
                                         const percentual = ((valor / totalGeral) * 100).toFixed(1);
+                                        const categoria = dadosCategorias[context.dataIndex];
+                                        const qtdItens = categoria.itens.length;
                                         return [
-                                            `Valor: R$ ${formatMoneySimples(valor)}`,
-                                            `Representa: ${percentual}% do total`
+                                            `💰 Total: R$ ${formatMoneySimples(valor)}`,
+                                            `📊 Representa: ${percentual}% do total`,
+                                            `📋 ${qtdItens} item(ns) nesta categoria`
                                         ];
                                     }
                                 }
@@ -1622,50 +1635,60 @@
                             y: {
                                 beginAtZero: true,
                                 grid: {
-                                    color: 'rgba(0, 0, 0, 0.06)',
+                                    color: 'rgba(0, 0, 0, 0.05)',
                                     drawBorder: false
                                 },
                                 ticks: {
                                     callback: function(value) {
-                                        if (value >= 1000) {
+                                        if (value >= 1000000) {
+                                            return 'R$ ' + (value / 1000000).toFixed(1) + 'M';
+                                        } else if (value >= 1000) {
                                             return 'R$ ' + (value / 1000).toFixed(0) + 'k';
                                         }
-                                        return 'R$ ' + value;
+                                        return 'R$ ' + value.toFixed(0);
                                     },
-                                    font: { size: 11 }
+                                    font: { size: 11 },
+                                    padding: 10
                                 }
                             },
                             x: {
                                 grid: { display: false },
                                 ticks: {
-                                    font: { size: 11, weight: '500' },
+                                    font: { size: 12, weight: '600' },
                                     maxRotation: 45,
-                                    minRotation: 0
+                                    minRotation: 0,
+                                    padding: 10
                                 }
                             }
+                        },
+                        layout: {
+                            padding: { top: 40 }
                         }
                     },
                     plugins: [{
-                        id: 'valorBarra',
+                        id: 'valoresNasBarras',
                         afterDatasetsDraw(chart) {
                             const { ctx } = chart;
-                            chart.data.datasets[0].data.forEach((value, index) => {
-                                const percentual = ((value / totalGeral) * 100).toFixed(1);
-                                const meta = chart.getDatasetMeta(0);
-                                const { x, y } = meta.data[index];
+                            const meta = chart.getDatasetMeta(0);
+                            
+                            meta.data.forEach((bar, index) => {
+                                const data = dadosCategorias[index];
+                                const valor = data.total;
+                                const percentual = ((valor / totalGeral) * 100).toFixed(1);
+                                const x = bar.x;
+                                const y = bar.y;
                                 
                                 ctx.save();
-                                ctx.font = 'bold 12px Inter, sans-serif';
+                                
+                                ctx.font = 'bold 14px Inter, system-ui, sans-serif';
                                 ctx.fillStyle = '#1a1a1a';
                                 ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(`R$ ${formatMoneySimples(valor)}`, x, y - 12);
                                 
-                                // Valor formatado
-                                ctx.fillText(`R$ ${formatMoneySimples(value)}`, x, y - 12);
-                                
-                                // Percentual
-                                ctx.font = '10px Inter, sans-serif';
+                                ctx.font = '11px Inter, system-ui, sans-serif';
                                 ctx.fillStyle = '#6b7280';
-                                ctx.fillText(`${percentual}%`, x, y - 28);
+                                ctx.fillText(`${percentual}%`, x, y - 32);
                                 
                                 ctx.restore();
                             });
@@ -1673,14 +1696,49 @@
                     }]
                 });
                 
-                // Resumo
-                const maior = dadosSetores[0];
+                const maiorCategoria = dadosCategorias[0];
+                
                 document.getElementById('graficoMensalResumo').innerHTML = `
-                    <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:0.5rem;">
-                        <div><strong>Total Geral:</strong> <span style="color:var(--primary);">R$ ${formatMoneySimples(totalGeral)}</span></div>
-                        <div><strong>Maior gasto:</strong> <span style="color:var(--warning);">${maior.nome} (R$ ${formatMoneySimples(maior.valor)})</span></div>
-                        <div><strong>Setores:</strong> ${dadosSetores.length}</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem;color:var(--text-light);margin-bottom:0.25rem;">TOTAL GERAL</div>
+                            <div style="font-size:1.3rem;font-weight:700;color:var(--primary);">R$ ${formatMoneySimples(totalGeral)}</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem;color:var(--text-light);margin-bottom:0.25rem;">MAIOR GASTO</div>
+                            <div style="font-size:1.1rem;font-weight:600;color:var(--warning);">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${maiorCategoria.cor};margin-right:4px;"></span>
+                                ${maiorCategoria.nome}
+                            </div>
+                            <div style="font-size:0.9rem;color:var(--text);">R$ ${formatMoneySimples(maiorCategoria.total)}</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem;color:var(--text-light);margin-bottom:0.25rem;">CATEGORIAS</div>
+                            <div style="font-size:1.3rem;font-weight:700;color:var(--info);">${dadosCategorias.length}</div>
+                        </div>
                     </div>
+                    
+                    <details style="margin-top:1rem;cursor:pointer;">
+                        <summary style="font-size:0.85rem;font-weight:600;color:var(--text-light);">
+                            <i class="fas fa-list"></i> Detalhamento por categoria
+                        </summary>
+                        <div style="margin-top:0.75rem;font-size:0.8rem;max-height:250px;overflow-y:auto;">
+                            ${dadosCategorias.map(cat => `
+                                <div style="padding:0.5rem;margin-bottom:0.5rem;background:#f9fafb;border-radius:6px;border-left:3px solid ${cat.cor};">
+                                    <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:0.25rem;">
+                                        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cat.cor};margin-right:4px;"></span>${cat.nome}</span>
+                                        <span style="color:var(--primary);">R$ ${formatMoneySimples(cat.total)} (${((cat.total/totalGeral)*100).toFixed(1)}%)</span>
+                                    </div>
+                                    <div style="color:var(--text-light);font-size:0.75rem;padding-left:12px;">
+                                        ${cat.itens.slice(0, 5).map(item => 
+                                            `<div>• ${item.nome} <span style="color:var(--text-light);">(${item.setor})</span> - R$ ${formatMoneySimples(item.valor)}</div>`
+                                        ).join('')}
+                                        ${cat.itens.length > 5 ? `<div style="font-style:italic;">... e mais ${cat.itens.length - 5} item(ns)</div>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </details>
                 `;
             }
             
@@ -1690,7 +1748,6 @@
                     return;
                 }
                 
-                // Mostrar tags
                 const tagsDiv = document.getElementById('graficoConsolidadoTags');
                 tagsDiv.innerHTML = Array.from(periodosSelecionadosResumo).map(pid => {
                     const per = periodos.find(p => p.id === pid);
@@ -1713,52 +1770,61 @@
                     graficoConsolidadoChart = null;
                 }
                 
-                const periodosArray = Array.from(periodosSelecionadosResumo)
-                    .map(pid => periodos.find(p => p.id === pid))
-                    .filter(p => p)
-                    .sort((a, b) => {
-                        if (a.ano !== b.ano) return a.ano - b.ano;
-                        return a.mes - b.mes;
+                const categoriasAgrupadas = {};
+                let totalGeral = 0;
+                
+                periodosSelecionadosResumo.forEach(pid => {
+                    const sets = getSetoresDoPeriodo(pid);
+                    sets.forEach(setor => {
+                        const itens = itensCusto.filter(i => i.setorId === setor.id);
+                        itens.forEach(item => {
+                            const valorAplicado = item.valorTotal * item.percentual / 100;
+                            const cat = categorias.find(c => c.id === item.categoriaId);
+                            const catNome = cat ? cat.nome : 'Sem Categoria';
+                            const catCor = cat ? cat.cor : '#999999';
+                            
+                            if (!categoriasAgrupadas[catNome]) {
+                                categoriasAgrupadas[catNome] = {
+                                    nome: catNome,
+                                    cor: catCor,
+                                    total: 0
+                                };
+                            }
+                            categoriasAgrupadas[catNome].total += valorAplicado;
+                            totalGeral += valorAplicado;
+                        });
                     });
-                
-                if (periodosArray.length === 0) return;
-                
-                const dados = periodosArray.map(per => {
-                    const resumo = calcularResumoPeriodo(per.id, new Set());
-                    return {
-                        label: `${getNomeMes(per.mes).substring(0,3)}/${per.ano}`,
-                        valor: resumo.custoTotalGeral,
-                        producao: resumo.producaoTotalGeral,
-                        setores: resumo.qtdSetores
-                    };
                 });
+                
+                const dadosCategorias = Object.values(categoriasAgrupadas)
+                    .sort((a, b) => b.total - a.total);
+                
+                if (dadosCategorias.length === 0) return;
                 
                 const canvas = document.getElementById('graficoConsolidadoCanvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Cores em gradiente do verde ao azul
-                const cores = dados.map((d, i) => {
-                    const ratio = i / (dados.length - 1 || 1);
-                    const r = Math.round(13 + (2 - 13) * ratio);
-                    const g = Math.round(144 + (119 - 144) * ratio);
-                    const b = Math.round(79 + (189 - 79) * ratio);
-                    return `rgba(${r}, ${g}, ${b}, 0.85)`;
+                const backgrounds = dadosCategorias.map((d) => {
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 450);
+                    gradient.addColorStop(0, d.cor + 'CC');
+                    gradient.addColorStop(1, d.cor + '44');
+                    return gradient;
                 });
                 
                 graficoConsolidadoChart = new Chart(canvas, {
                     type: 'bar',
                     data: {
-                        labels: dados.map(d => d.label),
+                        labels: dadosCategorias.map(d => d.nome),
                         datasets: [{
-                            label: 'Custo Total (R$)',
-                            data: dados.map(d => d.valor),
-                            backgroundColor: cores,
-                            borderColor: cores.map(() => 'rgba(255,255,255,0.3)'),
+                            label: 'Total Gasto (R$)',
+                            data: dadosCategorias.map(d => d.total),
+                            backgroundColor: backgrounds,
+                            borderColor: dadosCategorias.map(d => d.cor),
                             borderWidth: 2,
-                            borderRadius: 10,
+                            borderRadius: 12,
                             borderSkipped: false,
-                            barPercentage: 0.6,
-                            categoryPercentage: 0.8,
+                            barPercentage: 0.7,
+                            categoryPercentage: 0.85,
                         }]
                     },
                     options: {
@@ -1767,20 +1833,19 @@
                         plugins: {
                             legend: { display: false },
                             tooltip: {
-                                backgroundColor: 'rgba(0,0,0,0.85)',
-                                titleFont: { size: 13, weight: 'bold' },
+                                backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                                titleFont: { size: 14, weight: 'bold' },
                                 bodyFont: { size: 12 },
-                                padding: 12,
-                                cornerRadius: 8,
-                                displayColors: false,
+                                padding: 14,
+                                cornerRadius: 10,
                                 callbacks: {
                                     label: function(context) {
-                                        const idx = context.dataIndex;
-                                        const d = dados[idx];
+                                        const valor = context.parsed.y;
+                                        const percentual = ((valor / totalGeral) * 100).toFixed(1);
                                         return [
-                                            `Custo Total: R$ ${formatMoneySimples(d.valor)}`,
-                                            `Produção: ${d.producao.toLocaleString('pt-BR')} kg`,
-                                            `Setores: ${d.setores}`
+                                            `💰 Total: R$ ${formatMoneySimples(valor)}`,
+                                            `📊 Representa: ${percentual}% do total geral`,
+                                            `📅 ${periodosSelecionadosResumo.size} período(s) analisado(s)`
                                         ];
                                     }
                                 }
@@ -1790,15 +1855,17 @@
                             y: {
                                 beginAtZero: true,
                                 grid: {
-                                    color: 'rgba(0, 0, 0, 0.06)',
+                                    color: 'rgba(0, 0, 0, 0.05)',
                                     drawBorder: false
                                 },
                                 ticks: {
                                     callback: function(value) {
-                                        if (value >= 1000) {
+                                        if (value >= 1000000) {
+                                            return 'R$ ' + (value / 1000000).toFixed(1) + 'M';
+                                        } else if (value >= 1000) {
                                             return 'R$ ' + (value / 1000).toFixed(0) + 'k';
                                         }
-                                        return 'R$ ' + value;
+                                        return 'R$ ' + value.toFixed(0);
                                     },
                                     font: { size: 11 }
                                 }
@@ -1806,36 +1873,74 @@
                             x: {
                                 grid: { display: false },
                                 ticks: {
-                                    font: { size: 11, weight: '500' }
+                                    font: { size: 12, weight: '600' },
+                                    maxRotation: 45,
+                                    minRotation: 0
                                 }
                             }
+                        },
+                        layout: {
+                            padding: { top: 40 }
                         }
                     },
                     plugins: [{
-                        id: 'valorBarraConsolidado',
+                        id: 'valoresNasBarrasConsolidado',
                         afterDatasetsDraw(chart) {
                             const { ctx } = chart;
-                            chart.data.datasets[0].data.forEach((value, index) => {
-                                const meta = chart.getDatasetMeta(0);
-                                const { x, y } = meta.data[index];
+                            const meta = chart.getDatasetMeta(0);
+                            
+                            meta.data.forEach((bar, index) => {
+                                const data = dadosCategorias[index];
+                                const valor = data.total;
+                                const percentual = ((valor / totalGeral) * 100).toFixed(1);
+                                const x = bar.x;
+                                const y = bar.y;
                                 
                                 ctx.save();
-                                ctx.font = 'bold 13px Inter, sans-serif';
+                                
+                                ctx.font = 'bold 14px Inter, system-ui, sans-serif';
                                 ctx.fillStyle = '#1a1a1a';
                                 ctx.textAlign = 'center';
-                                ctx.fillText(`R$ ${formatMoneySimples(value)}`, x, y - 10);
+                                ctx.fillText(`R$ ${formatMoneySimples(valor)}`, x, y - 12);
+                                
+                                ctx.font = '11px Inter, system-ui, sans-serif';
+                                ctx.fillStyle = '#6b7280';
+                                ctx.fillText(`${percentual}%`, x, y - 32);
+                                
                                 ctx.restore();
                             });
                         }
                     }]
                 });
+                
+                const infoDiv = document.getElementById('graficoConsolidadoInfo');
+                if (infoDiv) {
+                    const maiorCategoria = dadosCategorias[0];
+                    infoDiv.innerHTML = `
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;text-align:center;">
+                            <div>
+                                <div style="color:var(--text-light);font-size:0.75rem;">Total Consolidado</div>
+                                <div style="font-size:1.3rem;font-weight:700;color:var(--primary);">R$ ${formatMoneySimples(totalGeral)}</div>
+                            </div>
+                            <div>
+                                <div style="color:var(--text-light);font-size:0.75rem;">Maior Categoria</div>
+                                <div style="font-weight:600;color:var(--warning);">${maiorCategoria.nome}</div>
+                                <div style="font-size:0.9rem;">R$ ${formatMoneySimples(maiorCategoria.total)}</div>
+                            </div>
+                            <div>
+                                <div style="color:var(--text-light);font-size:0.75rem;">Períodos</div>
+                                <div style="font-size:1.3rem;font-weight:700;color:var(--info);">${periodosSelecionadosResumo.size}</div>
+                            </div>
+                        </div>
+                    `;
+                }
             }
             
             window.exportarGraficoMensal = function() {
                 const canvas = document.getElementById('graficoMensalCanvas');
                 if (!canvas) return;
                 const link = document.createElement('a');
-                link.download = `grafico_setores_${new Date().toISOString().slice(0,10)}.png`;
+                link.download = `grafico_categorias_${new Date().toISOString().slice(0,10)}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             };
@@ -1844,7 +1949,7 @@
                 const canvas = document.getElementById('graficoConsolidadoCanvas');
                 if (!canvas) return;
                 const link = document.createElement('a');
-                link.download = `grafico_comparativo_${new Date().toISOString().slice(0,10)}.png`;
+                link.download = `grafico_consolidado_${new Date().toISOString().slice(0,10)}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             };
@@ -1971,7 +2076,7 @@
                                     title="Selecionar para resumo consolidado">
                             </div>
                             <div class="acoes">
-                                <button class="btn btn-purple btn-xs" onclick="event.stopPropagation(); window.abrirGraficoMensal('${per.id}')" title="Ver gráfico de setores"><i class="fas fa-chart-bar"></i></button>
+                                <button class="btn btn-purple btn-xs" onclick="event.stopPropagation(); window.abrirGraficoMensal('${per.id}')" title="Ver gráfico por categoria"><i class="fas fa-chart-bar"></i></button>
                                 <button class="btn btn-info btn-xs" onclick="event.stopPropagation(); window.abrirCopiarPeriodo('${per.id}')" title="Copiar período completo"><i class="fas fa-copy"></i></button>
                                 <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); window.editarPeriodo('${per.id}')"><i class="fas fa-edit"></i></button>
                                 <button class="btn btn-danger btn-xs" onclick="event.stopPropagation(); window.excluirPeriodo('${per.id}')"><i class="fas fa-trash"></i></button>
@@ -2051,25 +2156,10 @@
 
             window.abrirGraficoMensal = abrirGraficoMensal;
             window.abrirGraficoConsolidado = abrirGraficoConsolidado;
-            window.exportarGraficoMensal = function() {
-                const canvas = document.getElementById('graficoMensalCanvas');
-                if (!canvas) return;
-                const link = document.createElement('a');
-                link.download = `grafico_setores_${new Date().toISOString().slice(0,10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            };
-            window.exportarGraficoConsolidado = function() {
-                const canvas = document.getElementById('graficoConsolidadoCanvas');
-                if (!canvas) return;
-                const link = document.createElement('a');
-                link.download = `grafico_comparativo_${new Date().toISOString().slice(0,10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            };
+            window.exportarGraficoMensal = window.exportarGraficoMensal;
+            window.exportarGraficoConsolidado = window.exportarGraficoConsolidado;
 
-            // ========== DEMAIS FUNÇÕES (MANTER TODAS AS EXISTENTES) ==========
-            // ... (todo o restante do seu código JavaScript original deve permanecer aqui) ...
+            // ========== DEMAIS FUNÇÕES ==========
             
             // CUSTO FIXO COM PERÍODO
             window.abrirModalCustoFixo = function(id = null) {
@@ -2284,7 +2374,12 @@
 
                 container.innerHTML = `
                     <div class="resumo-consolidado" style="background:linear-gradient(135deg,#2d3748 0%,#1a202c 100%);">
-                        <h3 style="color:#63b3ed;"><i class="fas fa-chart-pie"></i> Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                            <h3 style="color:#63b3ed;margin:0;"><i class="fas fa-chart-pie"></i> Fechamento: ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</h3>
+                            <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoMensal('${periodoAtual.id}')">
+                                <i class="fas fa-chart-bar"></i> Gráfico por Categoria
+                            </button>
+                        </div>
                         ${setoresExcluidosResumo.size > 0 ? `
                         <div class="periodos-selecionados-tags" style="margin-bottom:1rem;">
                             <span class="periodo-tag" style="background:rgba(239,83,80,0.3);">
@@ -2354,7 +2449,6 @@
                         <div class="card-header">
                             <span class="card-title"><i class="fas fa-industry"></i> Setores</span>
                             <div style="display:flex;gap:0.5rem;">
-                                <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoMensal('${periodoAtual.id}')"><i class="fas fa-chart-bar"></i> Gráfico</button>
                                 <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo</button>
                                 <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCentralCustos()"><i class="fas fa-file-pdf"></i> PDF</button>
                                 <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -2397,7 +2491,7 @@
                 });
             }
 
-            // ANÁLISE (manter igual)
+            // ANÁLISE (mantida igual)
             function renderizarAnalise() {
                 if (!setorAtual) { navegarPara('setores'); return; }
                 const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(setorAtual.id);
@@ -3079,7 +3173,7 @@
             window.excluirMaterial = async function(id) { if(confirm('Excluir material e todo seu histórico?')){custosMateriais=custosMateriais.filter(c=>c.materialId!==id);materiais=materiais.filter(m=>m.id!==id);await excluirFB('custos_materiais',id);saveLocalData();renderizarTela();}};
             window.abrirHistoricoMaterial = function(id) { window.historicoMaterialId = id; nivelAtual = 'historicoMaterial'; renderizarTela(); };
 
-            // GRÁFICOS DO SETOR
+            // GRÁFICOS DO SETOR (mantidos iguais)
             function getCustosAgrupados() {
                 if (!setorAtual) return { porCategoria: {} };
                 const itens = itensCusto.filter(i => i.setorId === setorAtual.id);
@@ -3164,7 +3258,6 @@
             window.salvarConfigCampos = function() { Object.keys(configCampos).forEach(k => { const inp = document.getElementById('config_' + k); if (inp) configCampos[k] = inp.value.trim() || configCampos[k]; }); saveConfig(); window.fecharModal('modalConfigCampos'); renderizarTela(); };
             window.fecharModal = function(id) {
                 document.getElementById(id).classList.remove('active');
-                // Destruir gráficos se fechar os modais deles
                 if (id === 'modalGraficoMensal' && graficoMensalChart) {
                     graficoMensalChart.destroy();
                     graficoMensalChart = null;
