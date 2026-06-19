@@ -571,6 +571,8 @@
   color: #e65100;
 }
 
+/* ========== MODAIS ========== */
+
 .modal-overlay {
   display: none;
   position: fixed;
@@ -578,12 +580,13 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.65);
   z-index: 1100;
   justify-content: center;
-  align-items: flex-start;
-  padding-top: 2rem;
+  align-items: center;
+  padding: 1rem;
 }
+
 .modal-overlay.active {
   display: flex;
 }
@@ -591,16 +594,16 @@
 .modal {
   background: #fff;
   border-radius: 14px;
-  padding: 1.75rem;
+  padding: 1.5rem;
   width: 90%;
   max-width: 650px;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
 }
-.modal.modal-lg {
-  max-width: 850px;
-}
+
 .modal h2 {
   margin: 0 0 1.25rem 0;
   font-size: 1.25rem;
@@ -608,12 +611,196 @@
   align-items: center;
   gap: 0.5rem;
 }
+
 .modal-actions {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
 }
+
+/* ========== MODAL GRANDE PARA GRÁFICOS ========== */
+
+.modal.modal-lg {
+  max-width: 95vw !important;
+  max-height: 92vh !important;
+  width: 95vw !important;
+  height: 92vh !important;
+  padding: 1.2rem;
+}
+
+.modal.modal-lg h2 {
+  flex-shrink: 0;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.modal.modal-lg h2 .btn-group {
+  margin-left: auto;
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ========== GRÁFICOS ========== */
+
+.grafico-container {
+  position: relative;
+  flex: 1;
+  min-height: 350px;
+  width: 100%;
+  margin: 0.5rem 0;
+  resize: vertical;
+  overflow: auto;
+  border: 2px dashed transparent;
+  transition: border-color 0.2s;
+  cursor: ns-resize;
+}
+
+.grafico-container:hover {
+  border-color: var(--border);
+}
+
+.grafico-container.grafico-consolidado {
+  min-height: 400px;
+}
+
+.grafico-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.grafico-resumo {
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.modal-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* Botões de controle do gráfico */
+.btn-grafico-controle {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.btn-grafico-controle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.btn-grafico-controle.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.grafico-tamanho-info {
+  font-size: 0.6rem;
+  color: var(--text-light);
+  padding: 0.1rem 0.4rem;
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+/* Tela cheia total do gráfico */
+.grafico-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background: #fff;
+  padding: 1rem;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  cursor: default;
+}
+
+.grafico-container.fullscreen canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.grafico-container.fullscreen .grafico-fullscreen-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10000;
+  padding: 0.5rem 1rem;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.grafico-container.fullscreen .grafico-fullscreen-close:hover {
+  background: rgba(0,0,0,0.9);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .modal.modal-lg {
+    max-width: 98vw !important;
+    max-height: 95vh !important;
+    width: 98vw !important;
+    height: 95vh !important;
+    padding: 0.8rem;
+  }
+  
+  .modal.modal-lg h2 {
+    font-size: 0.9rem;
+  }
+  
+  .grafico-container {
+    min-height: 250px;
+  }
+
+  .btn-grafico-controle {
+    font-size: 0.55rem;
+    padding: 0.15rem 0.35rem;
+  }
+}
+
+/* ========== FORMULÁRIOS ========== */
 
 .form-group {
   margin-bottom: 1rem;
@@ -699,73 +886,6 @@
 .breadcrumb-sep {
   color: var(--text-light);
   font-size: 0.7rem;
-}
-
-/* Gráficos */
-.grafico-container {
-  position: relative;
-  height: 400px;
-  width: 100%;
-  margin: 1rem 0;
-  min-height: 300px;
-  resize: vertical;
-  overflow: auto;
-  border: 2px dashed transparent;
-  transition: border-color 0.2s;
-  cursor: ns-resize;
-}
-.grafico-container:hover {
-  border-color: var(--border);
-}
-.grafico-container.grafico-consolidado {
-  height: 450px;
-  min-height: 350px;
-}
-.grafico-container::after {
-  content: "↑ Arraste ou use Ctrl+Scroll para redimensionar";
-  position: absolute;
-  bottom: 5px;
-  right: 10px;
-  font-size: 0.65rem;
-  color: #ccc;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.grafico-container:hover::after {
-  opacity: 1;
-}
-
-.grafico-card {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border);
-  margin-bottom: 1.5rem;
-}
-
-.grafico-titulo {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.grafico-titulo i {
-  color: var(--primary);
-}
-
-.sem-dados-grafico {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: var(--text-light);
-  text-align: center;
 }
 
 /* Custos Fixos */
