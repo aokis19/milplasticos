@@ -435,76 +435,84 @@
 
   <!-- ========== MODAIS PARA GRÁFICOS ========== -->
 
-  <!-- MODAL GRÁFICO MENSAL -->
+  <!-- MODAL GRÁFICO MENSAL - CORRIGIDO -->
   <div class="modal-overlay" id="modalGraficoMensal">
     <div class="modal modal-lg">
       <h2>
         <i class="fas fa-chart-bar"></i> Gastos por Categoria
-        <span style="margin-left:auto;display:flex;gap:0.3rem;">
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('mensal', 'menor')" title="Diminuir gráfico">
-            <i class="fas fa-compress"></i>
+        <span class="btn-group">
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'pequeno')" title="Pequeno">
+            <i class="fas fa-compress"></i> P
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('mensal', 'padrao')" title="Tamanho padrão">
-            <i class="fas fa-expand"></i>
+          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('mensal', 'medio')" title="Médio">
+            <i class="fas fa-expand"></i> M
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('mensal', 'maior')" title="Aumentar gráfico">
-            <i class="fas fa-arrows-alt-v"></i>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'grande')" title="Grande">
+            <i class="fas fa-arrows-alt-v"></i> G
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('mensal', 'telaCheia')" title="Tela cheia">
-            <i class="fas fa-maximize"></i>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'telaCheia')" title="Tela Cheia">
+            <i class="fas fa-maximize"></i> ⛶
           </button>
+          <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('mensal')" title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
+            <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
+          </button>
+          <span class="grafico-tamanho-info" id="graficoMensalTamanho">500px</span>
         </span>
       </h2>
-      <div style="margin-bottom: 0.5rem;">
-        <p id="graficoMensalTitulo" style="font-weight: 600; color: var(--primary); margin: 0; font-size: 1rem;"></p>
+      <div style="flex-shrink:0;margin-bottom:0.3rem;">
+        <p id="graficoMensalTitulo" style="font-weight:600;color:var(--primary);margin:0;font-size:0.9rem;"></p>
       </div>
-      <div class="grafico-container" id="graficoMensalContainer">
+      <div class="grafico-container" id="graficoMensalContainer" style="height:500px;">
         <canvas id="graficoMensalCanvas"></canvas>
       </div>
-      <div id="graficoMensalResumo" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; font-size: 0.85rem;"></div>
+      <div id="graficoMensalResumo" class="grafico-resumo"></div>
       <div class="modal-actions">
         <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoMensal()">
           <i class="fas fa-download"></i> Exportar Imagem
         </button>
-        <button class="btn btn-outline" onclick="window.fecharModal('modalGraficoMensal')">Fechar</button>
+        <button class="btn btn-outline btn-sm" onclick="window.fecharModal('modalGraficoMensal')">Fechar</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL GRÁFICO CONSOLIDADO -->
+  <!-- MODAL GRÁFICO CONSOLIDADO - CORRIGIDO -->
   <div class="modal-overlay" id="modalGraficoConsolidado">
     <div class="modal modal-lg">
       <h2>
         <i class="fas fa-chart-bar"></i> Gastos por Categoria (Consolidado)
-        <span style="margin-left:auto;display:flex;gap:0.3rem;">
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('consolidado', 'menor')" title="Diminuir gráfico">
-            <i class="fas fa-compress"></i>
+        <span class="btn-group">
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'pequeno')" title="Pequeno">
+            <i class="fas fa-compress"></i> P
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('consolidado', 'padrao')" title="Tamanho padrão">
-            <i class="fas fa-expand"></i>
+          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('consolidado', 'medio')" title="Médio">
+            <i class="fas fa-expand"></i> M
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('consolidado', 'maior')" title="Aumentar gráfico">
-            <i class="fas fa-arrows-alt-v"></i>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'grande')" title="Grande">
+            <i class="fas fa-arrows-alt-v"></i> G
           </button>
-          <button class="btn btn-xs btn-outline" onclick="window.ajustarGrafico('consolidado', 'telaCheia')" title="Tela cheia">
-            <i class="fas fa-maximize"></i>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'telaCheia')" title="Tela Cheia">
+            <i class="fas fa-maximize"></i> ⛶
           </button>
+          <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('consolidado')" title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
+            <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
+          </button>
+          <span class="grafico-tamanho-info" id="graficoConsolidadoTamanho">500px</span>
         </span>
       </h2>
-      <div style="margin-bottom: 0.5rem;">
-        <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom: 0.5rem;"></div>
+      <div style="flex-shrink:0;margin-bottom:0.3rem;">
+        <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom:0.3rem;"></div>
       </div>
-      <div class="grafico-container grafico-consolidado" id="graficoConsolidadoContainer">
+      <div class="grafico-container grafico-consolidado" id="graficoConsolidadoContainer" style="height:500px;">
         <canvas id="graficoConsolidadoCanvas"></canvas>
       </div>
-      <div id="graficoConsolidadoInfo" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 8px; font-size: 0.85rem; text-align: center; color: var(--text-light);">
+      <div id="graficoConsolidadoInfo" class="grafico-resumo" style="text-align:center;color:var(--text-light);">
         Valores totais por categoria (todos os setores, com custos fixos distribuídos)
       </div>
       <div class="modal-actions">
         <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()">
           <i class="fas fa-download"></i> Exportar Imagem
         </button>
-        <button class="btn btn-outline" onclick="window.fecharModal('modalGraficoConsolidado')">Fechar</button>
+        <button class="btn btn-outline btn-sm" onclick="window.fecharModal('modalGraficoConsolidado')">Fechar</button>
       </div>
     </div>
   </div>
