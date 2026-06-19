@@ -25,8 +25,7 @@
   let graficoMensalChart = null;
   let graficoConsolidadoChart = null;
 
-  // NOVA: Filtro por tipo (custo/despesa)
-  let filtroTipoSetor = 'todos'; // 'todos', 'custo', 'despesa'
+  let filtroTipoSetor = 'todos';
 
   let configCampos = {
     setorNome: 'Nome do Setor',
@@ -125,8 +124,9 @@
       saveLocalData();
       renderizarTela();
       document.getElementById('loadingOverlay').classList.remove('active');
+      verificarStatusFirebase();
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao carregar dados do Firebase:', e);
       renderizarTela();
     }
   }
@@ -140,12 +140,12 @@
         const ref = await db.collection(col).add(dados);
         dados.id = ref.id;
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Erro ao salvar no Firebase:', e); }
   }
 
   async function excluirFB(col, id) {
     if (!usandoFirebase || !db || !id) return;
-    try { await db.collection(col).doc(id).delete(); } catch (e) { console.error(e); }
+    try { await db.collection(col).doc(id).delete(); } catch (e) { console.error('Erro ao excluir do Firebase:', e); }
   }
 
   function formatMoney(v) {
@@ -959,6 +959,15 @@
     if (setoresDespesa.length === 0) {
       gridDespesa.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);grid-column:1/-1;">Nenhuma despesa cadastrada</p>';
     }
+
+    // Adicionar evento para mudar tipo diretamente nos cards
+    document.querySelectorAll('.setor-tipo-select').forEach(select => {
+      select.addEventListener('change', function() {
+        const setorId = this.dataset.setorId;
+        const novoTipo = this.value;
+        window.atualizarTipoSetor(setorId, novoTipo);
+      });
+    });
   }
 
   // Função auxiliar para criar card de setor
@@ -982,7 +991,10 @@
       <div class="setor-nome" onclick="window.selecionarSetor('${setor.id}')">
         ${setor.nome}
         <span class="badge ${isFinal ? 'badge-orange' : 'badge-green'}">${isFinal ? 'FINAL' : 'Etapa ' + setor.ordem}</span>
-        <span class="badge ${tipo === 'custo' ? 'badge-custo' : 'badge-despesa'}">${tipo === 'custo' ? 'Custo' : 'Despesa'}</span>
+        <select class="setor-tipo-select" data-setor-id="${setor.id}" onclick="event.stopPropagation();">
+          <option value="custo" ${tipo === 'custo' ? 'selected' : ''}>💰 Custo</option>
+          <option value="despesa" ${tipo === 'despesa' ? 'selected' : ''}>📝 Despesa</option>
+        </select>
         ${isExcluido ? '<span class="badge" style="background:#ffcdd2;color:#c62828;">Excluído</span>' : ''}
       </div>
       <div class="setor-desc" onclick="window.selecionarSetor('${setor.id}')">${setor.descricao || ''}</div>
@@ -1000,7 +1012,7 @@
     return div;
   }
 
-  // ===== NOVAS FUNÇÕES PARA SELEÇÃO EM MASSA =====
+  // ===== FUNÇÕES DE SELEÇÃO EM MASSA =====
   window.selecionarTodosSetores = function (tipo) {
     const sets = getSetoresDoPeriodo();
     sets.forEach(s => {
@@ -1023,6 +1035,52 @@
     });
     renderizarSetores();
   };
+
+  // ===== FUNÇÃO PARA ATUALIZAR TIPO DO SETOR =====
+  window.atualizarTipoSetor = async function (setorId, novoTipo) {
+    const setor = setores.find(s => s.id === setorId);
+    if (!setor) {
+      console.error('Setor não encontrado:', setorId);
+      return;
+    }
+    
+    setor.tipo = novoTipo;
+    
+    try {
+      await salvarFB('custos_setores', setor);
+      saveLocalData();
+      renderizarSetores();
+      console.log(`🔄 Tipo do setor "${setor.nome}" alterado para: ${novoTipo}`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar tipo do setor:', error);
+    }
+  };
+
+  // ===== VERIFICAR STATUS DO FIREBASE =====
+  function verificarStatusFirebase() {
+    const statusEl = document.getElementById('firebaseStatus');
+    if (!statusEl) return;
+    
+    if (usandoFirebase && db) {
+      db.collection('custos_periodos').limit(1).get()
+        .then(() => {
+          statusEl.innerHTML = '<span class="status-dot"></span> Firebase ✅';
+          statusEl.className = 'firebase-status status-firebase';
+          console.log('✅ Firebase conectado e funcionando!');
+        })
+        .catch((err) => {
+          console.warn('⚠️ Firebase conectado mas com erro de leitura:', err);
+          statusEl.innerHTML = '<span class="status-dot"></span> Firebase (erro)';
+          statusEl.className = 'firebase-status status-local';
+        });
+    } else if (usandoFirebase) {
+      statusEl.innerHTML = '<span class="status-dot"></span> Firebase (offline)';
+      statusEl.className = 'firebase-status status-local';
+    } else {
+      statusEl.innerHTML = '<span class="status-dot"></span> Local';
+      statusEl.className = 'firebase-status status-local';
+    }
+  }
 
   // ===== FUNÇÕES PARA PERÍODOS =====
   window.mudarFiltroAno = function (value) {
@@ -1180,72 +1238,117 @@
 
   // ========== CRUD SETORES (com tipo Custo/Despesa) ==========
 
+  function limparFormularioSetor() {
+    document.getElementById('modalSetorTitulo').innerHTML = '<i class="fas fa-plus"></i> Novo Setor';
+    document.getElementById('setorEditId').value = '';
+    document.getElementById('setorNome').value = '';
+    document.getElementById('setorDescricao').value = '';
+    document.getElementById('setorOrdem').value = '1';
+    document.getElementById('setorProdutoFinal').checked = false;
+    document.getElementById('setorTipo').value = 'custo';
+  }
+
   window.abrirModalSetor = function (id = null) {
-    if (!periodoAtual) return;
+    if (!periodoAtual) {
+      alert('Selecione um período primeiro!');
+      return;
+    }
     document.getElementById('modalSetor').classList.add('active');
+    
     if (id) {
       const s = setores.find(x => x.id === id);
       if (s) {
         document.getElementById('modalSetorTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Setor';
         document.getElementById('setorEditId').value = s.id;
-        document.getElementById('setorNome').value = s.nome;
+        document.getElementById('setorNome').value = s.nome || '';
         document.getElementById('setorDescricao').value = s.descricao || '';
-        document.getElementById('setorOrdem').value = s.ordem;
+        document.getElementById('setorOrdem').value = s.ordem || 1;
         document.getElementById('setorProdutoFinal').checked = s.produtoFinal || false;
         document.getElementById('setorTipo').value = s.tipo || 'custo';
+      } else {
+        limparFormularioSetor();
       }
     } else {
-      document.getElementById('modalSetorTitulo').innerHTML = '<i class="fas fa-plus"></i> Novo Setor';
-      document.getElementById('setorEditId').value = '';
-      document.getElementById('setorNome').value = '';
-      document.getElementById('setorDescricao').value = '';
-      document.getElementById('setorOrdem').value = '1';
-      document.getElementById('setorProdutoFinal').checked = false;
-      document.getElementById('setorTipo').value = 'custo';
+      limparFormularioSetor();
     }
   };
 
   window.salvarSetor = async function () {
+    if (!periodoAtual) {
+      alert('Nenhum período selecionado!');
+      return;
+    }
+
+    const nome = document.getElementById('setorNome').value.trim();
+    if (!nome) {
+      alert('Digite o nome do setor!');
+      document.getElementById('setorNome').focus();
+      return;
+    }
+
     const s = {
       periodoId: periodoAtual.id,
-      nome: document.getElementById('setorNome').value.trim(),
-      descricao: document.getElementById('setorDescricao').value.trim(),
+      nome: nome,
+      descricao: document.getElementById('setorDescricao').value.trim() || '',
       ordem: parseInt(document.getElementById('setorOrdem').value) || 1,
-      produtoFinal: document.getElementById('setorProdutoFinal').checked,
+      produtoFinal: document.getElementById('setorProdutoFinal').checked || false,
       tipo: document.getElementById('setorTipo').value || 'custo',
       createdAt: new Date().toISOString()
     };
 
-    if (!s.nome) { alert('Digite o nome do setor!'); return; }
-
     const editId = document.getElementById('setorEditId').value;
-    if (editId) {
-      s.id = editId;
-      const idx = setores.findIndex(x => x.id === editId);
-      if (idx !== -1) setores[idx] = s;
-    } else {
-      s.id = 'set_' + Date.now();
-      setores.push(s);
-    }
+    
+    try {
+      if (editId) {
+        s.id = editId;
+        const idx = setores.findIndex(x => x.id === editId);
+        if (idx !== -1) {
+          setores[idx] = s;
+        } else {
+          setores.push(s);
+        }
+        console.log('✏️ Editando setor:', s);
+      } else {
+        s.id = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        setores.push(s);
+        console.log('➕ Novo setor criado:', s);
+      }
 
-    await salvarFB('custos_setores', s);
-    saveLocalData();
-    window.fecharModal('modalSetor');
-    renderizarTela();
+      await salvarFB('custos_setores', s);
+      saveLocalData();
+      window.fecharModal('modalSetor');
+      renderizarTela();
+      console.log('✅ Setor salvo com sucesso!');
+      
+    } catch (error) {
+      console.error('❌ Erro ao salvar setor:', error);
+      alert('Erro ao salvar setor. Verifique o console para mais detalhes.');
+    }
   };
 
-  window.editarSetor = (id) => window.abrirModalSetor(id);
+  window.editarSetor = function (id) {
+    console.log('✏️ Editando setor ID:', id);
+    window.abrirModalSetor(id);
+  };
 
   window.excluirSetor = async function (id) {
-    if (confirm('Excluir setor e todos os seus itens/produções?')) {
+    if (!confirm('Excluir setor e todos os seus itens/produções?')) return;
+    
+    try {
       itensCusto = itensCusto.filter(i => i.setorId !== id);
       producoes = producoes.filter(p => p.setorId !== id);
       setores = setores.filter(s => s.id !== id);
       setoresExcluidosResumo.delete(id);
       await excluirFB('custos_setores', id);
       saveLocalData();
-      if (setorAtual && setorAtual.id === id) setorAtual = null;
+      if (setorAtual && setorAtual.id === id) {
+        setorAtual = null;
+      }
       renderizarTela();
+      console.log('🗑️ Setor excluído:', id);
+    } catch (error) {
+      console.error('❌ Erro ao excluir setor:', error);
+      alert('Erro ao excluir setor. Verifique o console.');
     }
   };
 
@@ -1407,7 +1510,6 @@
         setores.push(novoSetor);
         await salvarFB('custos_setores', novoSetor);
 
-        // Copiar itens
         const itensDoSetor = itensCusto.filter(i => i.setorId === setorOrig.id);
         for (const item of itensDoSetor) {
           const novoItem = {
@@ -1421,7 +1523,6 @@
           totalItensCopiados++;
         }
 
-        // Copiar produções
         const producoesDoSetor = producoes.filter(p => p.setorId === setorOrig.id);
         for (const prod of producoesDoSetor) {
           const novaProd = {
@@ -1436,7 +1537,6 @@
         }
       }
 
-      // Copiar custos fixos
       const custosFixosOrigem = custosFixos.filter(cf => cf.periodoId === periodoOrigemCopia);
       let totalCFCopiados = 0;
       for (const cf of custosFixosOrigem) {
@@ -1472,7 +1572,7 @@
     }
   };
 
-  // ========== ANÁLISE (mantida igual) ==========
+  // ========== ANÁLISE ==========
 
   function renderizarAnalise() {
     if (!setorAtual) { navegarPara('setores'); return; }
@@ -2725,6 +2825,7 @@
   function init() {
     renderizarTela();
     document.getElementById('loadingOverlay').classList.remove('active');
+    setTimeout(verificarStatusFirebase, 1000);
   }
 
   init();
