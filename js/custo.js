@@ -292,7 +292,8 @@
   }
 
   // ============================================================
-  // FUNÇÃO CORRIGIDA - AGORA CONSIDERA APENAS PRODUTOS FINAIS
+  // FUNÇÃO CORRIGIDA - Custo Total: TODOS os setores selecionados
+  // Produção Total: APENAS produtos finais
   // ============================================================
   function calcularResumoPeriodo(periodoIdParam, excluirSetores = null) {
     const pid = periodoIdParam || (periodoAtual ? periodoAtual.id : null);
@@ -309,16 +310,23 @@
 
     const sets = getSetoresDoPeriodo(pid);
     
-    // FILTRAR APENAS SETORES QUE SÃO PRODUTO FINAL
-    const setsFinais = sets.filter(s => s.produtoFinal === true && !excluir.has(s.id));
+    // FILTRAR APENAS SETORES NÃO EXCLUÍDOS
+    const setsAtivos = sets.filter(s => !excluir.has(s.id));
     
+    // CUSTO TOTAL = SOMA DE TODOS OS SETORES ATIVOS (CUSTO + DESPESA)
     let custoTotalGeral = 0;
+    setsAtivos.forEach(s => {
+      const { totalCusto } = calcularCustosSetor(s.id);
+      custoTotalGeral += totalCusto;
+    });
+
+    // PRODUÇÃO TOTAL = SOMA APENAS DOS PRODUTOS FINAIS
+    const setsFinais = setsAtivos.filter(s => s.produtoFinal === true);
     let producaoTotalGeral = 0;
     const detalhesFinais = [];
 
     setsFinais.forEach(sf => {
       const { totalCusto, totalKg, custoPorKg } = calcularCustosSetor(sf.id);
-      custoTotalGeral += totalCusto;
       producaoTotalGeral += totalKg;
       detalhesFinais.push({ 
         setor: sf, 
@@ -332,7 +340,7 @@
       custoTotalGeral,
       producaoTotalGeral,
       custoPorKgGeral: producaoTotalGeral > 0 ? custoTotalGeral / producaoTotalGeral : 0,
-      qtdSetores: sets.filter(s => !excluir.has(s.id)).length,
+      qtdSetores: setsAtivos.length,
       qtdProdutosFinais: setsFinais.length,
       setoresFinais: detalhesFinais
     };
@@ -954,8 +962,8 @@
         ` : ''}
         <div class="stats-grid-resumo">
           <div class="stat-resumo">
-            <div class="sr-valor">${resumo.qtdProdutosFinais}</div>
-            <div class="sr-label">Produtos Finais</div>
+            <div class="sr-valor">${resumo.qtdSetores}</div>
+            <div class="sr-label">Setores Ativos</div>
           </div>
           <div class="stat-resumo">
             <div class="sr-valor">${formatMoney(resumo.custoTotalGeral)}</div>
@@ -1044,8 +1052,8 @@
           <span class="card-title"><i class="fas fa-industry"></i> Setores</span>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo</button>
-            <button class="btn btn-success btn-sm" onclick="window.selecionarTodosSetores('custo')"><i class="fas fa-check-double"></i> Todos Custos</button>
-            <button class="btn btn-danger btn-sm" onclick="window.selecionarTodosSetores('despesa')"><i class="fas fa-check-double"></i> Todos Despesas</button>
+            <button class="btn btn-success btn-sm" onclick="window.alternarSelecaoTipo('custo')"><i class="fas fa-check-double"></i> Todos Custos</button>
+            <button class="btn btn-danger btn-sm" onclick="window.alternarSelecaoTipo('despesa')"><i class="fas fa-check-double"></i> Todos Despesas</button>
             <button class="btn btn-outline btn-sm" onclick="window.deselecionarTodosSetores()"><i class="fas fa-times"></i> Desmarcar</button>
             <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCentralCustos()"><i class="fas fa-file-pdf"></i> PDF</button>
             <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -1142,17 +1150,30 @@
     return div;
   }
 
-  // ===== FUNÇÕES DE SELEÇÃO EM MASSA =====
-  window.selecionarTodosSetores = function (tipo) {
+  // ===== FUNÇÕES DE SELEÇÃO EM MASSA (ALTERNA) =====
+  window.alternarSelecaoTipo = function (tipo) {
     const sets = getSetoresDoPeriodo();
-    sets.forEach(s => {
-      const sTipo = s.tipo || 'custo';
-      if (sTipo === tipo) {
+    // Verificar se todos os setores deste tipo estão excluídos
+    const setsDoTipo = sets.filter(s => (s.tipo || 'custo') === tipo);
+    const todosExcluidos = setsDoTipo.every(s => setoresExcluidosResumo.has(s.id));
+    
+    // Se todos estão excluídos, incluir todos; senão, excluir todos
+    setsDoTipo.forEach(s => {
+      if (todosExcluidos) {
         setoresExcluidosResumo.delete(s.id);
-        const checkbox = document.getElementById(`toggle_setor_${s.id}`);
-        if (checkbox) checkbox.checked = false;
+      } else {
+        setoresExcluidosResumo.add(s.id);
       }
     });
+    
+    // Atualizar os checkboxes
+    setsDoTipo.forEach(s => {
+      const checkbox = document.getElementById(`toggle_setor_${s.id}`);
+      if (checkbox) {
+        checkbox.checked = setoresExcluidosResumo.has(s.id);
+      }
+    });
+    
     renderizarSetores();
   };
 
