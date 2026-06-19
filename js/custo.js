@@ -25,8 +25,6 @@
   let graficoMensalChart = null;
   let graficoConsolidadoChart = null;
 
-  let filtroTipoSetor = 'todos';
-
   let configCampos = {
     setorNome: 'Nome do Setor',
     setorDesc: 'Descrição',
@@ -38,43 +36,150 @@
   const STORAGE_KEY = 'centralCustos_v14_milplastics';
   const CONFIG_KEY = 'centralCustos_config_v14';
 
+  // ========== FUNÇÕES DE ARMAZENAMENTO OTIMIZADAS ==========
+
   function loadLocalData() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      const p = JSON.parse(data);
-      periodos = p.periodos || [];
-      setores = p.setores || [];
-      categorias = p.categorias || [];
-      itensCusto = p.itensCusto || [];
-      producoes = p.producoes || [];
-      materiais = p.materiais || [];
-      custosMateriais = p.custosMateriais || [];
-      custosFixos = p.custosFixos || [];
-    } else {
-      periodos = [];
-      setores = [];
-      materiais = [];
-      custosMateriais = [];
-      custosFixos = [];
-      categorias = [
-        { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
-        { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
-        { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
-        { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
-        { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
-      ];
-      itensCusto = [];
-      producoes = [];
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        const p = JSON.parse(data);
+        periodos = p.periodos || [];
+        setores = p.setores || [];
+        categorias = p.categorias || [];
+        itensCusto = p.itensCusto || [];
+        producoes = p.producoes || [];
+        materiais = p.materiais || [];
+        custosMateriais = p.custosMateriais || [];
+        custosFixos = p.custosFixos || [];
+      } else {
+        inicializarDadosPadrao();
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar dados do LocalStorage, usando dados padrão:', e);
+      inicializarDadosPadrao();
     }
+    
     const savedConfig = localStorage.getItem(CONFIG_KEY);
     if (savedConfig) configCampos = { ...configCampos, ...JSON.parse(savedConfig) };
   }
 
+  function inicializarDadosPadrao() {
+    periodos = [];
+    setores = [];
+    materiais = [];
+    custosMateriais = [];
+    custosFixos = [];
+    categorias = [
+      { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
+      { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
+      { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
+      { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
+      { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
+    ];
+    itensCusto = [];
+    producoes = [];
+  }
+
   function saveLocalData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      periodos, setores, categorias, itensCusto, producoes,
-      materiais, custosMateriais, custosFixos
-    }));
+    try {
+      const dados = {
+        periodos, setores, categorias, itensCusto, producoes,
+        materiais, custosMateriais, custosFixos
+      };
+      
+      // Verificar tamanho dos dados antes de salvar
+      const json = JSON.stringify(dados);
+      const tamanhoEmMB = new Blob([json]).size / (1024 * 1024);
+      
+      if (tamanhoEmMB > 4.5) {
+        console.warn('⚠️ Dados estão grandes (~' + tamanhoEmMB.toFixed(2) + 'MB). Pode exceder o limite do LocalStorage.');
+        
+        // Compactar dados removendo campos desnecessários
+        const dadosCompactados = compactarDados(dados);
+        const jsonCompactado = JSON.stringify(dadosCompactados);
+        const tamanhoCompactado = new Blob([jsonCompactado]).size / (1024 * 1024);
+        
+        if (tamanhoCompactado < tamanhoEmMB) {
+          console.log('✅ Dados compactados de ' + tamanhoEmMB.toFixed(2) + 'MB para ' + tamanhoCompactado.toFixed(2) + 'MB');
+          localStorage.setItem(STORAGE_KEY, jsonCompactado);
+          return;
+        }
+      }
+      
+      localStorage.setItem(STORAGE_KEY, json);
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        console.error('❌ Erro de cota do LocalStorage. Tentando compactar dados...');
+        try {
+          const dadosCompactados = compactarDados({
+            periodos, setores, categorias, itensCusto, producoes,
+            materiais, custosMateriais, custosFixos
+          });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosCompactados));
+          console.log('✅ Dados salvos após compactação.');
+        } catch (e2) {
+          console.error('❌ Falha ao salvar mesmo após compactação. Limpando dados antigos...');
+          limparDadosAntigos();
+        }
+      } else {
+        console.error('❌ Erro ao salvar dados:', e);
+      }
+    }
+  }
+
+  function compactarDados(dados) {
+    // Remover campos desnecessários para reduzir tamanho
+    const compactado = {
+      periodos: dados.periodos.map(p => ({ 
+        id: p.id, mes: p.mes, ano: p.ano, obs: p.obs || '' 
+      })),
+      setores: dados.setores.map(s => ({ 
+        id: s.id, periodoId: s.periodoId, nome: s.nome, 
+        descricao: s.descricao || '', ordem: s.ordem, 
+        produtoFinal: s.produtoFinal || false, tipo: s.tipo || 'custo'
+      })),
+      categorias: dados.categorias.map(c => ({ 
+        id: c.id, nome: c.nome, cor: c.cor 
+      })),
+      itensCusto: dados.itensCusto.map(i => ({ 
+        id: i.id, setorId: i.setorId, categoriaId: i.categoriaId, 
+        nome: i.nome, valorTotal: i.valorTotal, percentual: i.percentual,
+        tipo: i.tipo || 'normal', custoFixoId: i.custoFixoId || null,
+        obs: i.obs || ''
+      })),
+      producoes: dados.producoes.map(p => ({ 
+        id: p.id, setorId: p.setorId, produto: p.produto, 
+        kg: p.kg, data: p.data 
+      })),
+      materiais: dados.materiais.map(m => ({ 
+        id: m.id, nome: m.nome, descricao: m.descricao || '' 
+      })),
+      custosMateriais: dados.custosMateriais.map(c => ({ 
+        id: c.id, materialId: c.materialId, periodoId: c.periodoId,
+        mes: c.mes, ano: c.ano, custoKgFinal: c.custoKgFinal,
+        subtotal: c.subtotal, imposto: c.imposto, valorImposto: c.valorImposto,
+        margem: c.margem, precoSugerido: c.precoSugerido, valorAtual: c.valorAtual,
+        setoresDetalhes: c.setoresDetalhes, insumos: c.insumos,
+        setoresUtilizados: c.setoresUtilizados
+      })),
+      custosFixos: dados.custosFixos.map(c => ({ 
+        id: c.id, periodoId: c.periodoId, categoriaId: c.categoriaId,
+        nome: c.nome, valor: c.valor 
+      }))
+    };
+    return compactado;
+  }
+
+  function limparDadosAntigos() {
+    // Manter apenas os últimos 50 registros de cada tipo
+    if (periodos.length > 50) periodos = periodos.slice(-50);
+    if (setores.length > 200) setores = setores.slice(-200);
+    if (itensCusto.length > 500) itensCusto = itensCusto.slice(-500);
+    if (producoes.length > 500) producoes = producoes.slice(-500);
+    if (custosMateriais.length > 200) custosMateriais = custosMateriais.slice(-200);
+    if (custosFixos.length > 200) custosFixos = custosFixos.slice(-200);
+    
+    saveLocalData();
   }
 
   function saveConfig() { localStorage.setItem(CONFIG_KEY, JSON.stringify(configCampos)); }
@@ -962,7 +1067,8 @@
 
     // Adicionar evento para mudar tipo diretamente nos cards
     document.querySelectorAll('.setor-tipo-select').forEach(select => {
-      select.addEventListener('change', function() {
+      select.removeEventListener('change', window._handleTipoChange);
+      select.addEventListener('change', window._handleTipoChange = function() {
         const setorId = this.dataset.setorId;
         const novoTipo = this.value;
         window.atualizarTipoSetor(setorId, novoTipo);
@@ -978,6 +1084,7 @@
     const tipo = setor.tipo || 'custo';
     const div = document.createElement('div');
     div.className = `setor-card tipo-${tipo} ${isFinal ? 'produto-final' : ''} ${isExcluido ? 'excluido-resumo' : ''}`;
+    div.dataset.setorId = setor.id;
 
     div.innerHTML = `
       <div class="setor-toggle" onclick="event.stopPropagation();" title="${isExcluido ? 'Incluir no resumo' : 'Excluir do resumo'}">
@@ -1044,15 +1151,26 @@
       return;
     }
     
+    const tipoAntigo = setor.tipo || 'custo';
     setor.tipo = novoTipo;
     
     try {
       await salvarFB('custos_setores', setor);
       saveLocalData();
-      renderizarSetores();
-      console.log(`🔄 Tipo do setor "${setor.nome}" alterado para: ${novoTipo}`);
+      
+      // Atualizar apenas a classe visual do card
+      const card = document.querySelector(`.setor-card[data-setor-id="${setorId}"]`);
+      if (card) {
+        card.classList.remove('tipo-custo', 'tipo-despesa');
+        card.classList.add(`tipo-${novoTipo}`);
+      }
+      
+      console.log(`🔄 Tipo do setor "${setor.nome}" alterado de "${tipoAntigo}" para "${novoTipo}"`);
     } catch (error) {
       console.error('❌ Erro ao atualizar tipo do setor:', error);
+      // Reverter mudança
+      setor.tipo = tipoAntigo;
+      alert('Erro ao atualizar tipo. Tente novamente.');
     }
   };
 
@@ -1236,7 +1354,7 @@
     }
   };
 
-  // ========== CRUD SETORES (com tipo Custo/Despesa) ==========
+  // ========== CRUD SETORES (CORRIGIDO - SEM DUPLICAÇÃO) ==========
 
   function limparFormularioSetor() {
     document.getElementById('modalSetorTitulo').innerHTML = '<i class="fas fa-plus"></i> Novo Setor';
@@ -1300,23 +1418,45 @@
     
     try {
       if (editId) {
+        // EDITAR - ATUALIZAR EXISTENTE
         s.id = editId;
         const idx = setores.findIndex(x => x.id === editId);
         if (idx !== -1) {
-          setores[idx] = s;
+          // Preservar dados existentes não sobrescritos
+          setores[idx] = { ...setores[idx], ...s };
         } else {
+          // Se não encontrou, adicionar (fallback)
           setores.push(s);
         }
-        console.log('✏️ Editando setor:', s);
+        console.log('✏️ Setor atualizado:', s.nome);
       } else {
+        // NOVO - VERIFICAR SE JÁ EXISTE
+        const existe = setores.some(x => 
+          x.periodoId === s.periodoId && 
+          x.nome.toLowerCase() === s.nome.toLowerCase()
+        );
+        
+        if (existe) {
+          if (!confirm(`Já existe um setor com o nome "${s.nome}" neste período. Deseja criar mesmo assim?`)) {
+            return;
+          }
+        }
+        
         s.id = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         setores.push(s);
-        console.log('➕ Novo setor criado:', s);
+        console.log('➕ Novo setor criado:', s.nome);
       }
 
+      // Salvar no Firebase
       await salvarFB('custos_setores', s);
+      
+      // Salvar no LocalStorage
       saveLocalData();
+      
+      // Fechar modal
       window.fecharModal('modalSetor');
+      
+      // Recarregar tela
       renderizarTela();
       console.log('✅ Setor salvo com sucesso!');
       
@@ -1332,23 +1472,58 @@
   };
 
   window.excluirSetor = async function (id) {
-    if (!confirm('Excluir setor e todos os seus itens/produções?')) return;
+    if (!confirm('⚠️ Excluir setor e todos os seus itens/produções?')) return;
     
     try {
+      // Buscar o setor antes de excluir
+      const setor = setores.find(s => s.id === id);
+      if (!setor) {
+        alert('Setor não encontrado!');
+        return;
+      }
+      
+      console.log(`🗑️ Excluindo setor: ${setor.nome} (ID: ${id})`);
+      
+      // Remover itens vinculados
+      const itensParaRemover = itensCusto.filter(i => i.setorId === id);
+      console.log(`📦 Removendo ${itensParaRemover.length} itens de custo vinculados`);
       itensCusto = itensCusto.filter(i => i.setorId !== id);
+      
+      // Remover produções vinculadas
+      const prodsParaRemover = producoes.filter(p => p.setorId === id);
+      console.log(`📦 Removendo ${prodsParaRemover.length} produções vinculadas`);
       producoes = producoes.filter(p => p.setorId !== id);
+      
+      // Remover setor
       setores = setores.filter(s => s.id !== id);
       setoresExcluidosResumo.delete(id);
+      
+      // Excluir do Firebase
       await excluirFB('custos_setores', id);
+      
+      // Salvar LocalStorage
       saveLocalData();
+      
+      // Se o setor atual for o excluído, limpar referência
       if (setorAtual && setorAtual.id === id) {
         setorAtual = null;
       }
+      
+      // Recarregar tela
       renderizarTela();
-      console.log('🗑️ Setor excluído:', id);
+      console.log('✅ Setor excluído com sucesso!');
+      
     } catch (error) {
       console.error('❌ Erro ao excluir setor:', error);
-      alert('Erro ao excluir setor. Verifique o console.');
+      
+      // Tentar salvar mesmo com erro
+      try {
+        saveLocalData();
+      } catch (e) {
+        console.error('❌ Erro ao salvar dados após exclusão:', e);
+      }
+      
+      alert(`Erro ao excluir setor: ${error.message || 'Verifique o console para mais detalhes.'}`);
     }
   };
 
