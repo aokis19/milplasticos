@@ -379,6 +379,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
   padding-left: 1.8rem;
 }
 .setor-card .setor-desc {
@@ -442,6 +443,25 @@
 .setor-secao .secao-titulo .badge-despesa {
   background: #ffebee;
   color: #c62828;
+}
+
+/* Seletor de tipo nos cards */
+.setor-tipo-select {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.setor-tipo-select:hover {
+  border-color: var(--primary);
+}
+.setor-tipo-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(13, 144, 79, 0.2);
 }
 
 .badge {
