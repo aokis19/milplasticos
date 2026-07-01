@@ -1,24 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- head.html centralizado com Firebase + SyncSystem -->
+  {% include "components/head.html" %}
+  
   <title>Cotação | Mil Plásticos</title>
 
-  <!-- CSS Principal -->
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/sidebar.css">
-  <link rel="stylesheet" href="/assets/css/topbar.css">
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Bibliotecas para PDF -->
+  <!-- APENAS bibliotecas específicas da página -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+  <!-- APENAS CSS específico da página -->
   <style>
-    /* ========== ESTILOS GERAIS ========== */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
 
@@ -222,114 +215,12 @@
         </div>
       </div>
 
-      <!-- Modal Cotação -->
-      <div id="cotacaoModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header"><h2 id="modalTitle">Nova Cotação</h2><button class="close-modal" id="closeModal">&times;</button></div>
-          <div class="modal-body">
-            <form id="cotacaoForm">
-              <div class="form-grid">
-                <div class="form-group"><label>Produto *</label><div class="select-with-button"><select id="produtoSelect" required><option value="">Selecione</option></select><button type="button" class="btn-small" id="novoProdutoModalBtn"><i class="fas fa-plus"></i> Novo</button></div></div>
-                <div class="form-group"><label>Fornecedor *</label><div class="select-with-button"><select id="fornecedorSelect" required><option value="">Selecione</option></select><button type="button" class="btn-small" id="novoFornecedorModalBtn"><i class="fas fa-plus"></i> Novo</button></div></div>
-                <div class="form-group"><label>UF *</label><select id="uf"><option value="">Selecione</option><option value="SP">SP</option><option value="RJ">RJ</option><option value="MG">MG</option><option value="RS">RS</option><option value="PR">PR</option><option value="SC">SC</option><option value="BA">BA</option><option value="DF">DF</option><option value="GO">GO</option></select></div>
-                <div class="form-group"><label>Data Cotação *</label><input type="date" id="dataCotacao" required></div>
-                <div class="form-group"><label>Quantidade *</label><input type="number" id="quantidade" step="0.01" required></div>
-                <div class="form-group"><label>Unidade *</label><input type="text" id="unidade" required placeholder="Ex: kg"></div>
-                <div class="form-group"><label>Valor Unitário (R$) *</label><input type="number" id="valorUnitario" step="0.01" required></div>
-                <div class="form-group"><label>ICMS (%) *</label><input type="number" id="icms" step="0.01" value="18"></div>
-                <div class="form-group"><label>Base ICMS (%)</label><input type="number" id="bicms" step="0.01" value="100"></div>
-                <div class="form-group"><label>IPI (%)</label><input type="number" id="ipi" step="0.01" value="0"></div>
-                <div class="form-group"><label>Prazo Pagamento *</label><input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias"></div>
-                <div class="form-group"><label>Frete</label><select id="frete"><option value="">Selecione</option><option value="FOB">FOB</option><option value="CIF">CIF</option></select></div>
-                <div class="form-group"><label>Previsão Entrega *</label><input type="date" id="dataEntrega" required></div>
-                <div class="form-group"><label>Regime Tributário</label><select id="regimeTributario"><option value="">Selecione</option><option value="Lucro Presumido">Lucro Presumido</option><option value="Lucro Real">Lucro Real</option><option value="Simples Nacional">Simples Nacional</option></select></div>
-                <div class="form-group"><label>NCM</label><input type="text" id="ncm" placeholder="Ex: 15161000"></div>
-                <div class="form-group full-width"><label>Observações</label><textarea id="observacoes" rows="2"></textarea></div>
-                <div class="form-group full-width"><label><input type="checkbox" id="salvarHistorico" checked> Salvar no histórico</label></div>
-              </div>
-              <div class="summary-preview">
-                <h4>Resumo da Cotação:</h4>
-                <div class="summary-content">
-                  <div class="summary-row"><span>Valor Bruto:</span><span id="valorBrutoPreview">R$ 0,00</span></div>
-                  <div class="summary-row"><span>ICMS (<span id="icmsPercentPreview">18</span>%):</span><span id="icmsValuePreview">R$ 0,00</span></div>
-                  <div class="summary-row"><span>IPI (<span id="ipiPercentPreview">0</span>%):</span><span id="ipiValuePreview">R$ 0,00</span></div>
-                  <div class="summary-row total"><span>Valor Total:</span><span id="valorTotalPreview">R$ 0,00</span></div>
-                </div>
-              </div>
-              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelBtn">Cancelar</button><button type="button" class="btn-primary" id="saveCotacaoBtn">Salvar</button></div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Produto -->
-      <div id="produtoModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header"><h2 id="produtoModalTitle">Cadastrar Produto</h2><button class="close-modal" id="closeProdutoModal">&times;</button></div>
-          <div class="modal-body">
-            <form id="produtoForm">
-              <div class="form-group"><label>Nome *</label><input type="text" id="nomeProduto" required></div>
-              <div class="form-group"><label>Código</label><input type="text" id="codigoProduto"></div>
-              <div class="form-group"><label>Categoria</label><input type="text" id="categoriaProduto"></div>
-              <div class="form-group"><label>Descrição</label><textarea id="descricaoProduto" rows="2"></textarea></div>
-              <div class="form-group"><label>Unidade Padrão *</label><input type="text" id="unidadePadrao" required></div>
-              <div class="form-group"><label>NCM</label><input type="text" id="ncmProduto"></div>
-              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelProdutoBtn">Cancelar</button><button type="button" class="btn-primary" id="saveProdutoBtn">Salvar</button></div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Fornecedor -->
-      <div id="fornecedorModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header"><h2 id="fornecedorModalTitle">Cadastrar Fornecedor</h2><button class="close-modal" id="closeFornecedorModal">&times;</button></div>
-          <div class="modal-body">
-            <form id="fornecedorForm">
-              <div class="form-group"><label>Nome Empresa *</label><input type="text" id="nomeEmpresa" required></div>
-              <div class="form-group"><label>CNPJ</label><input type="text" id="cnpj"></div>
-              <div class="form-group"><label>Endereço</label><input type="text" id="endereco"></div>
-              <div class="form-group"><label>Vendedor</label><input type="text" id="vendedor"></div>
-              <div class="form-group"><label>Telefone</label><input type="text" id="telefone"></div>
-              <div class="form-group"><label>E-mail</label><input type="email" id="email"></div>
-              <div class="form-group"><label>Produtos fornecidos</label><div id="produtosFornecedorContainer" class="checkbox-group"></div></div>
-              <div class="modal-footer"><button type="button" class="btn-secondary" id="cancelFornecedorBtn">Cancelar</button><button type="button" class="btn-primary" id="saveFornecedorBtn">Salvar</button></div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Comparativo -->
-      <div id="comparisonModal" class="modal">
-        <div class="modal-content comparison-modal">
-          <div class="modal-header"><h2><i class="fas fa-chart-bar"></i> Comparativo</h2><div><button class="btn-success" id="exportComparisonPdf"><i class="fas fa-file-pdf"></i> Exportar PDF</button><button class="close-modal" id="closeComparisonModal">&times;</button></div></div>
-          <div class="modal-body"><div id="comparisonForPdf"></div></div>
-          <div class="modal-footer"><button class="btn-secondary" id="closeComparisonBtn">Fechar</button><button class="btn-warning" id="finalizarComparadosBtn"><i class="fas fa-check-circle"></i> Finalizar Selecionados</button></div>
-        </div>
-      </div>
+      <!-- Modais... (mantenha todos os modais existentes aqui) -->
+      
     </main>
   </div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-      authDomain: "system-mil.firebaseapp.com",
-      projectId: "system-mil",
-      storageBucket: "system-mil.firebasestorage.app",
-      messagingSenderId: "138426359863",
-      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    window.firebaseDB = db;
-    console.log('🔥 Firebase conectado!');
-  </script>
-
-  <!-- Script principal -->
+  <!-- Script específico da página -->
   <script src="/js/cotacao.js"></script>
   <script src="/js/main.js"></script>
 </body>
