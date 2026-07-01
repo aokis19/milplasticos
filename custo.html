@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Usar head.html centralizado -->
+  {% include "components/head.html" %}
+  
   <title>Central de Custos | Reciclagem Mil Plásticos</title>
-  <link rel="stylesheet" href="/assets/css/main.css">
+  
+  <!-- CSS específico da página -->
   <link rel="stylesheet" href="/assets/css/custo.css">
-  <link rel="stylesheet" href="/assets/css/sidebar.css">
-  <link rel="stylesheet" href="/assets/css/topbar.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
