@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Verificação dos HTMLs - Mil Plásticos</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .pass { color: #0d904f; }
+        .fail { color: #d93025; }
+        .warn { color: #f9ab00; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background: #f0f0f0; }
+        .badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; }
+        .badge-ok { background: #e6f4ea; color: #0d904f; }
+        .badge-warn { background: #fef7e0; color: #e37400; }
+        .badge-error { background: #fce8e6; color: #d93025; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔍 Verificação de Compatibilidade dos HTMLs</h1>
+        <p>Este teste verifica se todos os seus HTMLs estão compatíveis com o SyncSystem</p>
+    </div>
+
+    <div class="card">
+        <h3>📋 Lista de Páginas</h3>
+        <p>Cole os nomes dos seus 6 arquivos HTML abaixo e clique em Verificar:</p>
+        <textarea id="htmlList" rows="6" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd">
+index.html
+cadastro.html
+ponto.html
+banco.html
+km.html
+pagamentos.html
+        </textarea>
+        <br><br>
+        <button onclick="verificarHTMLs()" style="padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px">
+            🔍 Verificar Compatibilidade
+        </button>
+        <button onclick="testarSyncEmTodasPaginas()" style="padding:10px 20px;background:#0d904f;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-left:10px">
+            🧪 Testar Sync em Todas as Páginas
+        </button>
+    </div>
+
+    <div id="resultados"></div>
+
+    <div class="card">
+        <h3>📊 Resumo da Sincronização</h3>
+        <div id="syncSummary"></div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-init.js"></script>
+    <script src="/js/firebase-sync.js"></script>
+
+    <script>
+        // Lista de chaves que o SyncSystem usa
+        const CHAVES_PERMITIDAS = [
+            'controleMotoristas_systemmil_v2',
+            'controleMotoristas_backup_',
+            'controleMotoristas_sync_queue'
+        ];
+
+        async function verificarHTMLs() {
+            const htmlList = document.getElementById('htmlList').value
+                .split('\n')
+                .map(h => h.trim())
+                .filter(h => h);
+
+            let resultadosHTML = '';
+            let todasCompativeis = true;
+
+            // Verificar cada HTML
+            for (const html of htmlList) {
+                const status = await verificarPagina(html);
+                resultadosHTML += `
+                    <tr>
+                        <td><strong>${html}</strong></td>
+                        <td><span class="badge ${status.compativeis ? 'badge-ok' : 'badge-error'}">
+                            ${status.compativeis ? '✅ Compatível' : '❌ Problemas'}
+                        </span></td>
+                        <td>${status.mensagem}</td>
+                    </tr>
+                `;
+                if (!status.compativeis) todasCompativeis = false;
+            }
+
+            document.getElementById('resultados').innerHTML = `
+                <div class="card">
+                    <h3>📋 Resultados da Verificação</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Página</th>
+                                <th>Status</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>${resultadosHTML}</tbody>
+                    </table>
+                    <br>
+                    <div style="padding:15px;border-radius:8px;${todasCompativeis ? 'background:#e6f4ea' : 'background:#fce8e6'}">
+                        <strong>${todasCompativeis ? '✅ Todas as páginas compatíveis!' : '⚠️ Existem problemas a corrigir'}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function verificarPagina(nomePagina) {
+            const problemas = [];
+
+            // 1. Verificar se a página carrega o SyncSystem
+            if (typeof window.SyncSystem === 'undefined') {
+                problemas.push('SyncSystem não carregado');
+            }
+
+            // 2. Verificar localStorage
+            const chavesEncontradas = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.includes('controleMotoristas')) {
+                    chavesEncontradas.push(key);
+                }
+            }
+
+            // 3. Verificar se há chaves antigas/perigosas
+            const chavesPerigosas = chavesEncontradas.filter(key => 
+                !CHAVES_PERMITIDAS.includes(key) && key.includes('controleMotoristas')
+            );
+
+            if (chavesPerigosas.length > 0) {
+                problemas.push(`Chaves antigas encontradas: ${chavesPerigosas.join(', ')}`);
+            }
+
+            // 4. Verificar integridade dos dados
+            try {
+                const dados = window.SyncSystem.getData();
+                if (!dados || !dados._metadata) {
+                    problemas.push('Dados não possuem metadados');
+                }
+            } catch (e) {
+                problemas.push('Erro ao acessar dados: ' + e.message);
+            }
+
+            // 5. Verificar tamanho dos dados
+            const dataStr = localStorage.getItem('controleMotoristas_systemmil_v2');
+            if (dataStr) {
+                const tamanhoKB = (dataStr.length / 1024).toFixed(2);
+                if (tamanhoKB > 5000) {
+                    problemas.push(`Dados muito grandes: ${tamanhoKB}KB (risco de estourar localStorage)`);
+                }
+            }
+
+            return {
+                compativeis: problemas.length === 0,
+                mensagem: problemas.length > 0 ? problemas.join('; ') : 'Tudo OK'
+            };
+        }
+
+        async function testarSyncEmTodasPaginas() {
+            const resultados = [];
+            
+            // Teste 1: Escrever dados
+            try {
+                const dadosTeste = {
+                    motoristas: [{
+                        cod: 9999,
+                        nome: 'TESTE COMPATIBILIDADE',
+                        funcao: 'TESTE',
+                        ativo: true,
+                        _teste: true
+                    }]
+                };
+                
+                await window.SyncSystem.updateData(dadosTeste, 'teste_compatibilidade');
+                resultados.push({ teste: 'Escrita SyncSystem', status: 'OK' });
+            } catch (e) {
+                resultados.push({ teste: 'Escrita SyncSystem', status: 'ERRO: ' + e.message });
+            }
+
+            // Teste 2: Ler dados
+            try {
+                const dados = window.SyncSystem.getData();
+                const temTeste = dados.motoristas?.some(m => m.cod === 9999);
+                resultados.push({ 
+                    teste: 'Leitura SyncSystem', 
+                    status: temTeste ? 'OK' : 'ERRO: Dados não encontrados' 
+                });
+            } catch (e) {
+                resultados.push({ teste: 'Leitura SyncSystem', status: 'ERRO: ' + e.message });
+            }
+
+            // Teste 3: Verificar sincronização
+            try {
+                const status = window.SyncSystem.getStatus();
+                resultados.push({ 
+                    teste: 'Status SyncSystem', 
+                    status: `Online: ${status.online}, Versão: ${status.version}, Fila: ${status.queueSize}` 
+                });
+            } catch (e) {
+                resultados.push({ teste: 'Status SyncSystem', status: 'ERRO: ' + e.message });
+            }
+
+            // Teste 4: Backup
+            try {
+                const backupKey = window.SyncSystem.createBackup();
+                resultados.push({ teste: 'Backup', status: backupKey ? 'OK' : 'ERRO' });
+            } catch (e) {
+                resultados.push({ teste: 'Backup', status: 'ERRO: ' + e.message });
+            }
+
+            // Teste 5: Limpar dados de teste
+            try {
+                const dados = window.SyncSystem.getData();
+                dados.motoristas = dados.motoristas.filter(m => m.cod !== 9999);
+                await window.SyncSystem.updateData(dados, 'limpeza_teste');
+                resultados.push({ teste: 'Limpeza', status: 'OK' });
+            } catch (e) {
+                resultados.push({ teste: 'Limpeza', status: 'ERRO: ' + e.message });
+            }
+
+            // Mostrar resultados
+            document.getElementById('syncSummary').innerHTML = `
+                <table>
+                    <thead>
+                        <tr><th>Teste</th><th>Resultado</th></tr>
+                    </thead>
+                    <tbody>
+                        ${resultados.map(r => `
+                            <tr>
+                                <td>${r.teste}</td>
+                                <td class="${r.status.includes('ERRO') ? 'fail' : 'pass'}">${r.status}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Auto-verificar ao carregar
+        window.addEventListener('load', () => {
+            verificarHTMLs();
+            testarSyncEmTodasPaginas();
+        });
+    </script>
+</body>
+</html>
