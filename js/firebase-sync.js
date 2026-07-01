@@ -1,6 +1,6 @@
 // firebase-sync.js
 // Sistema de Sincronização Segura Firebase ↔ LocalStorage
-// Versão 2.0 - Com controle de versão e backup
+// Versão 2.1 - Corrigida e Estável
 
 (function() {
     'use strict';
@@ -10,10 +10,9 @@
         STORAGE_KEY: 'controleMotoristas_systemmil_v2',
         BACKUP_KEY: 'controleMotoristas_backup_',
         SYNC_QUEUE_KEY: 'controleMotoristas_sync_queue',
-        VERSION_KEY: 'controleMotoristas_data_version',
         MAX_BACKUPS: 5,
-        SYNC_INTERVAL: 30000, // 30 segundos
-        RETRY_DELAY: 5000,    // 5 segundos entre tentativas
+        SYNC_INTERVAL: 30000,
+        RETRY_DELAY: 5000,
     };
 
     // ============ ESTADO DO SISTEMA ============
@@ -22,56 +21,78 @@
     let isSyncing = false;
     let dataVersion = 0;
     let syncQueue = [];
-    let appData = {
-        motoristas: [],
-        ponto: {},
-        pagamentos: [],
-        registrosKM: [],
-        _metadata: {
-            version: 0,
-            lastSync: null,
-            lastModified: null,
-            modifiedBy: 'sistema'
+    let appData = null;
+
+    // ============ FUNÇÕES AUXILIARES ============
+    function criarDadosVazios() {
+        return {
+            motoristas: [],
+            ponto: {},
+            pagamentos: [],
+            registrosKM: [],
+            _metadata: {
+                version: 0,
+                lastSync: null,
+                lastModified: new Date().toISOString(),
+                modifiedBy: 'sistema'
+            }
+        };
+    }
+
+    function garantirAppData() {
+        if (!appData) {
+            appData = criarDadosVazios();
         }
-    };
+        if (!appData._metadata) {
+            appData._metadata = {
+                version: 0,
+                lastSync: null,
+                lastModified: new Date().toISOString(),
+                modifiedBy: 'sistema'
+            };
+        }
+        return appData;
+    }
 
     // ============ INICIALIZAÇÃO ============
-    function init() {
-        console.log('🚀 Inicializando Sync System v2.0');
+    async function init() {
+        console.log('🚀 Inicializando Sync System v2.1');
         
         // Verificar Firebase
-        if (!db && typeof firebase !== 'undefined') {
+        if (!db && typeof firebase !== 'undefined' && firebase.firestore) {
             db = firebase.firestore();
             window.firebaseDB = db;
         }
 
         // Configurar persistência offline
         if (db) {
-            db.enablePersistence({ synchronizeTabs: true })
-                .then(() => console.log('✅ Persistência offline ativada'))
-                .catch((err) => {
-                    if (err.code === 'failed-precondition') {
-                        console.warn('⚠️ Múltiplas abas abertas - persistência limitada');
-                    } else if (err.code === 'unimplemented') {
-                        console.warn('⚠️ Navegador não suporta persistência offline');
-                    }
-                });
+            try {
+                await db.enablePersistence({ synchronizeTabs: true });
+                console.log('✅ Persistência offline ativada');
+            } catch (err) {
+                if (err.code === 'failed-precondition') {
+                    console.warn('⚠️ Múltiplas abas abertas - persistência limitada');
+                } else if (err.code === 'unimplemented') {
+                    console.warn('⚠️ Navegador não suporta persistência offline');
+                }
+            }
 
-            // Monitorar conexão
-            db.enableNetwork()
-                .then(() => {
-                    isOnline = true;
-                    console.log('✅ Firebase conectado');
-                    processarFilaSync();
-                })
-                .catch(() => {
-                    isOnline = false;
-                    console.warn('⚠️ Firebase offline - usando cache local');
-                });
+            // Verificar conexão
+            try {
+                await db.enableNetwork();
+                isOnline = true;
+                console.log('✅ Firebase conectado');
+            } catch (e) {
+                isOnline = false;
+                console.warn('⚠️ Firebase offline - usando cache local');
+            }
         }
 
+        // Garantir dados iniciais
+        garantirAppData();
+        
         // Carregar dados
-        carregarDadosIniciais();
+        await carregarDadosIniciais();
         
         // Carregar fila de sincronização
         carregarFilaSync();
@@ -83,7 +104,9 @@
         window.addEventListener('online', () => {
             console.log('🌐 Conexão restaurada');
             isOnline = true;
-            if (db) db.enableNetwork();
+            if (db) {
+                db.enableNetwork().catch(() => {});
+            }
             processarFilaSync();
         });
         
@@ -97,92 +120,19 @@
             salvarDadosLocalmente();
         });
 
-        console.log('✅ Sync System inicializado');
+        console.log('✅ Sync System inicializado - Versão:', appData._metadata.version);
     }
 
     // ============ CARREGAMENTO DE DADOS ============
-    async function carregarDadosIniciais() {
-        console.log('📥 Carregando dados...');
-        
-        // 1. Carregar versão local
-        const localData = carregarDoLocalStorage();
-        const localVersion = localData?._metadata?.version || 0;
-        
-        // 2. Tentar carregar do Firebase
-        if (db && isOnline) {
-            try {
-                const firebaseData = await carregarDoFirebase();
-                const firebaseVersion = firebaseData?._metadata?.version || 0;
-                
-                console.log(`📊 Versão Local: ${localVersion} | Firebase: ${firebaseVersion}`);
-                
-                if (firebaseVersion > localVersion) {
-                    // Firebase tem dados mais recentes
-                    console.log('☁️ Firebase mais recente - usando dados da nuvem');
-                    appData = firebaseData;
-                    salvarDadosLocalmente();
-                } else if (localVersion > firebaseVersion) {
-                    // Local tem dados mais recentes
-                    console.log('💾 Local mais recente - enviando para nuvem');
-                    appData = localData;
-                    await salvarNoFirebase();
-                } else if (firebaseVersion === localVersion && firebaseVersion > 0) {
-                    // Versões iguais - usar local (mais rápido)
-                    console.log('✅ Versões sincronizadas');
-                    appData = localData;
-                } else {
-                    // Ambos vazios - inicializar
-                    console.log('🆕 Dados novos - inicializando');
-                    appData = localData || criarDadosVazios();
-                }
-                
-                dataVersion = appData._metadata.version;
-                isOnline = true;
-                
-            } catch (error) {
-                console.error('❌ Erro ao carregar Firebase:', error);
-                usarDadosLocais(localData, 'Erro de conexão');
-            }
-        } else {
-            usarDadosLocais(localData, 'Firebase offline');
-        }
-        
-        // Criar backup automático
-        criarBackupAutomatico();
-        
-        console.log('✅ Dados carregados - Versão:', appData._metadata.version);
-        return appData;
-    }
-
-    function usarDadosLocais(localData, motivo) {
-        console.log(`💾 Usando dados locais (${motivo})`);
-        appData = localData || criarDadosVazios();
-        isOnline = false;
-    }
-
-    function criarDadosVazios() {
-        return {
-            motoristas: [],
-            ponto: {},
-            pagamentos: [],
-            registrosKM: [],
-            _metadata: {
-                version: 1,
-                lastSync: new Date().toISOString(),
-                lastModified: new Date().toISOString(),
-                modifiedBy: 'sistema'
-            }
-        };
-    }
-
-    // ============ CARREGAR DO LOCALSTORAGE ============
     function carregarDoLocalStorage() {
         try {
             const dataStr = localStorage.getItem(CONFIG.STORAGE_KEY);
             if (dataStr) {
                 const data = JSON.parse(dataStr);
-                console.log('📦 Dados locais carregados - Versão:', data?._metadata?.version || 0);
-                return data;
+                if (data && data._metadata) {
+                    console.log('📦 Dados locais carregados - Versão:', data._metadata.version || 0);
+                    return data;
+                }
             }
         } catch (e) {
             console.error('❌ Erro ao carregar LocalStorage:', e);
@@ -190,9 +140,10 @@
         return null;
     }
 
-    // ============ CARREGAR DO FIREBASE ============
     async function carregarDoFirebase() {
         const data = criarDadosVazios();
+        
+        if (!db) return data;
         
         try {
             // Carregar metadados
@@ -210,14 +161,13 @@
             });
             console.log(`👥 ${data.motoristas.length} motoristas carregados`);
             
-            // Carregar pontos (apenas os modificados recentemente)
+            // Carregar pontos
             const pontosSnap = await db.collection('pontos')
-                .orderBy('_modifiedAt', 'desc')
                 .limit(1000)
                 .get();
             pontosSnap.forEach(doc => {
                 const pontoData = doc.data();
-                delete pontoData._modifiedAt; // Limpar campo interno
+                delete pontoData._modifiedAt;
                 data.ponto[doc.id] = pontoData;
             });
             console.log(`📅 ${pontosSnap.size} registros de ponto carregados`);
@@ -250,9 +200,80 @@
         }
     }
 
+    async function carregarDadosIniciais() {
+        console.log('📥 Carregando dados...');
+        
+        garantirAppData();
+        
+        // 1. Carregar versão local
+        const localData = carregarDoLocalStorage();
+        const localVersion = localData?._metadata?.version || 0;
+        
+        // 2. Tentar carregar do Firebase
+        if (db && isOnline) {
+            try {
+                const firebaseData = await carregarDoFirebase();
+                const firebaseVersion = firebaseData?._metadata?.version || 0;
+                
+                console.log(`📊 Versão Local: ${localVersion} | Firebase: ${firebaseVersion}`);
+                
+                if (firebaseVersion > localVersion) {
+                    console.log('☁️ Firebase mais recente - usando dados da nuvem');
+                    appData = firebaseData;
+                    dataVersion = firebaseVersion;
+                    salvarDadosLocalmente();
+                } else if (localVersion > firebaseVersion) {
+                    console.log('💾 Local mais recente - enviando para nuvem');
+                    appData = localData;
+                    dataVersion = localVersion;
+                    await salvarNoFirebase();
+                } else if (firebaseVersion === localVersion && firebaseVersion > 0) {
+                    console.log('✅ Versões sincronizadas');
+                    appData = localData;
+                    dataVersion = localVersion;
+                } else {
+                    console.log('🆕 Dados novos - inicializando');
+                    appData = localData || criarDadosVazios();
+                    dataVersion = appData._metadata.version || 0;
+                }
+                
+                isOnline = true;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar Firebase:', error);
+                usarDadosLocais(localData, 'Erro de conexão');
+            }
+        } else {
+            usarDadosLocais(localData, 'Firebase offline');
+        }
+        
+        // Garantir que appData existe
+        garantirAppData();
+        
+        // Criar backup automático
+        criarBackupAutomatico();
+        
+        console.log('✅ Dados carregados - Versão:', appData._metadata.version || 0);
+        return appData;
+    }
+
+    function usarDadosLocais(localData, motivo) {
+        console.log(`💾 Usando dados locais (${motivo})`);
+        if (localData && localData._metadata) {
+            appData = localData;
+            dataVersion = localData._metadata.version || 0;
+        } else {
+            appData = criarDadosVazios();
+            dataVersion = 0;
+        }
+        isOnline = false;
+    }
+
     // ============ SALVAR DADOS ============
     function salvarDadosLocalmente() {
         try {
+            garantirAppData();
+            
             // Atualizar metadados
             appData._metadata.version = (appData._metadata.version || 0) + 1;
             appData._metadata.lastModified = new Date().toISOString();
@@ -264,15 +285,13 @@
             // Atualizar versão
             dataVersion = appData._metadata.version;
             
-            console.log('💾 Dados salvos localmente - Versão:', appData._metadata.version);
             return true;
         } catch (e) {
             console.error('❌ Erro ao salvar LocalStorage:', e);
             
-            // Se o localStorage estiver cheio, tentar limpar backups antigos
             if (e.name === 'QuotaExceededError') {
                 console.warn('⚠️ Armazenamento cheio - limpando backups antigos');
-                limparBackupsAntigos(2); // Manter apenas 2 backups
+                limparBackupsAntigos(2);
                 try {
                     localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(appData));
                     return true;
@@ -292,14 +311,14 @@
             return false;
         }
 
+        garantirAppData();
+
         try {
             const batch = db.batch();
-            let totalDocs = 0;
             
             // Salvar metadados
             const metaRef = db.collection('_metadata').doc('appData');
             batch.set(metaRef, appData._metadata, { merge: true });
-            totalDocs++;
             
             // Salvar motoristas
             for (const motorista of appData.motoristas) {
@@ -315,29 +334,29 @@
                     batch.set(newRef, motoristaClean);
                     motorista.firebaseId = newRef.id;
                 }
-                totalDocs++;
             }
             
             // Salvar pontos (em lotes para não estourar o batch)
-            const pontoKeys = Object.keys(appData.ponto);
-            for (let i = 0; i < pontoKeys.length; i++) {
-                if (totalDocs >= 400) { // Limite do batch é 500
+            const pontoKeys = Object.keys(appData.ponto || {});
+            let count = 0;
+            
+            for (const key of pontoKeys) {
+                if (count >= 400) {
                     await batch.commit();
-                    totalDocs = 0;
+                    count = 0;
                 }
                 
-                const key = pontoKeys[i];
                 const pontoData = { ...appData.ponto[key] };
                 pontoData._modifiedAt = firebase.firestore.FieldValue.serverTimestamp();
                 batch.set(db.collection('pontos').doc(key), pontoData, { merge: true });
-                totalDocs++;
+                count++;
             }
             
             // Salvar pagamentos
-            for (const pag of appData.pagamentos) {
-                if (totalDocs >= 400) {
+            for (const pag of (appData.pagamentos || [])) {
+                if (count >= 400) {
                     await batch.commit();
-                    totalDocs = 0;
+                    count = 0;
                 }
                 
                 const pagClean = { ...pag };
@@ -351,30 +370,29 @@
                     batch.set(newRef, pagClean);
                     pag.firebaseId = newRef.id;
                 }
-                totalDocs++;
+                count++;
             }
             
             // Salvar registros KM
-            for (const km of appData.registrosKM) {
-                if (totalDocs >= 400) {
+            for (const km of (appData.registrosKM || [])) {
+                if (count >= 400) {
                     await batch.commit();
-                    totalDocs = 0;
+                    count = 0;
                 }
                 
                 const kmClean = { ...km };
                 delete kmClean.firebaseId;
                 kmClean._modifiedAt = firebase.firestore.FieldValue.serverTimestamp();
                 
-                if (km.firebaseId) {
-                    batch.set(db.collection('registrosKM').doc(km.firebaseId), kmClean, { merge: true });
-                } else if (km.id) {
-                    batch.set(db.collection('registrosKM').doc(km.id), kmClean, { merge: true });
+                const docId = km.firebaseId || km.id;
+                if (docId) {
+                    batch.set(db.collection('registrosKM').doc(docId), kmClean, { merge: true });
                 } else {
                     const newRef = db.collection('registrosKM').doc();
                     batch.set(newRef, kmClean);
                     km.id = newRef.id;
                 }
-                totalDocs++;
+                count++;
             }
             
             // Commit final
@@ -384,7 +402,7 @@
             appData._metadata.lastSync = new Date().toISOString();
             salvarDadosLocalmente();
             
-            console.log('☁️ Dados salvos no Firebase -', totalDocs, 'documentos');
+            console.log('☁️ Dados salvos no Firebase');
             return true;
             
         } catch (error) {
@@ -408,6 +426,8 @@
     }
 
     function adicionarAFilaSync() {
+        garantirAppData();
+        
         const operacao = {
             timestamp: new Date().toISOString(),
             tentativas: 0,
@@ -436,6 +456,7 @@
             
             try {
                 op.tentativas++;
+                const tempData = appData;
                 appData = op.dados;
                 const success = await salvarNoFirebase();
                 
@@ -443,6 +464,7 @@
                     syncQueue.splice(i, 1);
                     console.log('✅ Operação sincronizada:', op.timestamp);
                 } else {
+                    appData = tempData;
                     console.warn('⚠️ Falha na tentativa', op.tentativas);
                 }
             } catch (error) {
@@ -453,7 +475,6 @@
         
         localStorage.setItem(CONFIG.SYNC_QUEUE_KEY, JSON.stringify(syncQueue));
         isSyncing = false;
-        console.log('✅ Fila processada -', syncQueue.length, 'restantes');
     }
 
     // ============ BACKUP AUTOMÁTICO ============
@@ -462,13 +483,9 @@
             const hoje = new Date().toISOString().split('T')[0];
             const backupKey = CONFIG.BACKUP_KEY + hoje;
             
-            // Verificar se já existe backup de hoje
-            if (!localStorage.getItem(backupKey)) {
-                const dataStr = JSON.stringify(appData);
-                localStorage.setItem(backupKey, dataStr);
+            if (!localStorage.getItem(backupKey) && appData) {
+                localStorage.setItem(backupKey, JSON.stringify(appData));
                 console.log('📦 Backup diário criado:', hoje);
-                
-                // Limpar backups antigos
                 limparBackupsAntigos(CONFIG.MAX_BACKUPS);
             }
         } catch (e) {
@@ -480,18 +497,15 @@
         const backups = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.startsWith(CONFIG.BACKUP_KEY)) {
+            if (key && key.startsWith(CONFIG.BACKUP_KEY)) {
                 backups.push(key);
             }
         }
         
-        // Ordenar por data (mais recentes primeiro)
         backups.sort().reverse();
         
-        // Remover backups excedentes
         for (let i = manter; i < backups.length; i++) {
             localStorage.removeItem(backups[i]);
-            console.log('🗑️ Backup removido:', backups[i]);
         }
     }
 
@@ -509,15 +523,13 @@
                     console.log('🔄 Versão mais recente no Firebase - recarregando');
                     const firebaseData = await carregarDoFirebase();
                     appData = firebaseData;
-                    dataVersion = firebaseData._metadata.version;
+                    dataVersion = firebaseData._metadata.version || 0;
                     salvarDadosLocalmente();
                     
-                    // Notificar app sobre atualização
                     window.dispatchEvent(new CustomEvent('dataUpdated', { detail: appData }));
                 }
             }
             
-            // Processar fila pendente
             if (syncQueue.length > 0) {
                 await processarFilaSync();
             }
@@ -529,59 +541,56 @@
 
     // ============ API PÚBLICA ============
     window.SyncSystem = {
-        // Obter dados atuais
         getData: function() {
+            garantirAppData();
             return JSON.parse(JSON.stringify(appData));
         },
         
-        // Atualizar dados
         updateData: async function(newData, quemModificou = 'usuario') {
-            // Mesclar dados
+            garantirAppData();
+            
             appData = {
                 ...appData,
                 ...newData,
                 _metadata: {
                     ...appData._metadata,
+                    version: (appData._metadata.version || 0) + 1,
                     lastModified: new Date().toISOString(),
                     modifiedBy: quemModificou
                 }
             };
             
-            // Salvar localmente primeiro (sempre)
+            dataVersion = appData._metadata.version;
             salvarDadosLocalmente();
             
-            // Tentar salvar no Firebase
             if (isOnline && db) {
                 await salvarNoFirebase();
             } else {
                 adicionarAFilaSync();
             }
             
-            // Criar backup se necessário
             criarBackupAutomatico();
-            
             return true;
         },
         
-        // Forçar sincronização
         forceSync: async function() {
             await processarFilaSync();
         },
         
-        // Verificar status
         getStatus: function() {
+            garantirAppData();
             return {
                 online: isOnline,
                 syncing: isSyncing,
                 version: dataVersion,
                 queueSize: syncQueue.length,
-                lastSync: appData._metadata.lastSync,
-                lastModified: appData._metadata.lastModified
+                lastSync: appData._metadata.lastSync || null,
+                lastModified: appData._metadata.lastModified || null
             };
         },
         
-        // Criar backup manual
         createBackup: function() {
+            garantirAppData();
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const backupKey = CONFIG.BACKUP_KEY + 'manual_' + timestamp;
             localStorage.setItem(backupKey, JSON.stringify(appData));
@@ -589,38 +598,46 @@
             return backupKey;
         },
         
-        // Restaurar backup
         restoreBackup: function(backupKey) {
             const dataStr = localStorage.getItem(backupKey);
             if (dataStr) {
-                appData = JSON.parse(dataStr);
-                salvarDadosLocalmente();
-                console.log('🔄 Backup restaurado:', backupKey);
-                return true;
+                try {
+                    appData = JSON.parse(dataStr);
+                    dataVersion = appData._metadata.version || 0;
+                    salvarDadosLocalmente();
+                    console.log('🔄 Backup restaurado:', backupKey);
+                    return true;
+                } catch (e) {
+                    console.error('❌ Erro ao restaurar backup:', e);
+                    return false;
+                }
             }
             return false;
         },
         
-        // Listar backups
         listBackups: function() {
             const backups = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key.startsWith(CONFIG.BACKUP_KEY)) {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    backups.push({
-                        key: key,
-                        date: key.replace(CONFIG.BACKUP_KEY, ''),
-                        version: data._metadata?.version || 0,
-                        modifiedBy: data._metadata?.modifiedBy || 'desconhecido'
-                    });
+                if (key && key.startsWith(CONFIG.BACKUP_KEY)) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        backups.push({
+                            key: key,
+                            date: key.replace(CONFIG.BACKUP_KEY, ''),
+                            version: data?._metadata?.version || 0,
+                            modifiedBy: data?._metadata?.modifiedBy || 'desconhecido'
+                        });
+                    } catch (e) {
+                        // Ignorar backups corrompidos
+                    }
                 }
             }
             return backups.sort((a, b) => b.date.localeCompare(a.date));
         },
         
-        // Exportar dados
         exportData: function() {
+            garantirAppData();
             const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -630,7 +647,6 @@
             URL.revokeObjectURL(url);
         },
         
-        // Importar dados
         importData: async function(jsonData) {
             try {
                 const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
