@@ -1,7 +1,6 @@
 // firebase-init.js
 // Configuração única para todas as páginas
 
-// Seus dados do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
   authDomain: "system-mil.firebaseapp.com",
@@ -12,13 +11,22 @@ const firebaseConfig = {
   measurementId: "G-DYCDBRZSHZ"
 };
 
-// Inicializar (evita inicializar múltiplas vezes)
+// Inicializar Firebase (evita múltiplas inicializações)
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Disponibilizar globalmente
+// Disponibilizar Firestore globalmente
 if (typeof firebase !== 'undefined') {
     window.firebaseDB = firebase.firestore();
-    console.log('🔥 Firebase inicializado');
+    
+    // Configurar para melhor performance
+    window.firebaseDB.settings({
+        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+        merge: true
+    });
+    
+    console.log('🔥 Firebase inicializado e configurado');
+} else {
+    console.error('❌ Firebase SDK não carregado!');
 }
