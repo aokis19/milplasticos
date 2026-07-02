@@ -1,5 +1,86 @@
 // abastecimento.js
 // Versão completa e funcional
+// abastecimento.js - Versão Corrigida
+
+// ========== CORREÇÃO: Garantir Firebase disponível ==========
+// Aguardar o Firebase estar pronto antes de inicializar
+function aguardarFirebasePronto() {
+    return new Promise((resolve) => {
+        // Se já estiver disponível
+        if (window.firebaseDB) {
+            console.log('✅ Firebase já disponível');
+            resolve();
+            return;
+        }
+        
+        // Aguardar firebase-init.js carregar
+        let tentativas = 0;
+        const maxTentativas = 50; // 5 segundos
+        
+        const verificar = setInterval(() => {
+            tentativas++;
+            
+            if (window.firebaseDB) {
+                clearInterval(verificar);
+                console.log('✅ Firebase conectado após', tentativas * 100, 'ms');
+                resolve();
+                return;
+            }
+            
+            if (tentativas >= maxTentativas) {
+                clearInterval(verificar);
+                console.warn('⚠️ Firebase não disponível - usando localStorage');
+                resolve();
+            }
+        }, 100);
+    });
+}
+// ========== FIM DA CORREÇÃO ==========
+
+
+class GerenciadorAbastecimento {
+    constructor() {
+        this.abastecimentos = [];
+        this.veiculos = [];
+        this.editandoId = null;
+        this.filtrosAtivos = {
+            veiculo: '',
+            periodo: '30',
+            combustivel: '',
+            busca: ''
+        };
+        
+        // Aguardar DOM e Firebase antes de inicializar
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', async () => {
+                await aguardarFirebasePronto();
+                await this.inicializar();
+            });
+        } else {
+            (async () => {
+                await aguardarFirebasePronto();
+                await this.inicializar();
+            })();
+        }
+    }
+    
+    // ... resto do código permanece IGUAL ...
+}
+
+// Inicializar
+let gerenciador;
+
+window.fecharModais = () => {
+    const modal = document.getElementById('modalDetalhes');
+    if (modal) modal.style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await aguardarFirebasePronto();
+    gerenciador = new GerenciadorAbastecimento();
+    window.gerenciador = gerenciador;
+});
+
 class GerenciadorAbastecimento {
 constructor() {
 this.abastecimentos = [];
