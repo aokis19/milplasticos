@@ -140,200 +140,30 @@
 
         <!-- ABA 1: HISTÓRICO -->
         <div class="tab-content active" id="historico">
-          <!-- Card do Formulário -->
-          <div class="card" id="formCard" style="display: none;">
-            <div class="card-header">
-              <h2 id="formTitle"><i class="fas fa-plus-circle"></i> Novo Abastecimento</h2>
-              <button class="btn-icon" id="btnFecharForm"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="card-body">
-              <form id="formAbastecimento">
-                <div class="form-grid">
-                  <div class="form-group">
-                    <label for="veiculoAbastecimento"><i class="fas fa-truck"></i> Veículo *</label>
-                    <select id="veiculoAbastecimento" required>
-                      <option value="">Selecione um veículo...</option>
-                    </select>
-                    <div class="vehicle-info" id="vehicleInfo" style="display: none;">
-                      <small><i class="fas fa-info-circle"></i>
-                        <span id="infoCombustivel"></span> |
-                        <span id="infoMedidor"></span> |
-                        <span id="infoStatus"></span>
-                      </small>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label for="dataAbastecimento"><i class="fas fa-calendar-alt"></i> Data e Hora *</label>
-                    <input type="datetime-local" id="dataAbastecimento" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="odometro"><i class="fas fa-tachometer-alt"></i> Odômetro/Horímetro *</label>
-                    <input type="number" id="odometro" min="0" step="1" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="tipoCombustivel"><i class="fas fa-gas-pump"></i> Tipo Combustível *</label>
-                    <select id="tipoCombustivel" required>
-                      <option value="">Selecione...</option>
-                      <option value="Gasolina">Gasolina</option>
-                      <option value="Etanol">Etanol</option>
-                      <option value="Diesel S10">Diesel S10</option>
-                      <option value="Diesel S500">Diesel S500</option>
-                      <option value="Aditivada">Gasolina Aditivada</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label for="quantidadeLitros"><i class="fas fa-oil-can"></i> Quantidade (Litros) *</label>
-                    <input type="number" id="quantidadeLitros" min="0" step="0.01" placeholder="Ex: 45.50" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="precoLitro"><i class="fas fa-tag"></i> Preço por Litro (R$) *</label>
-                    <input type="number" id="precoLitro" min="0" step="0.001" placeholder="Ex: 5.899" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="valorTotal"><i class="fas fa-calculator"></i> Valor Total (R$)</label>
-                    <input type="text" id="valorTotal" readonly>
-                    <small class="hint">Calculado automaticamente</small>
-                  </div>
-                  <div class="form-group full-width">
-                    <label for="posto"><i class="fas fa-store"></i> Posto/Fornecedor</label>
-                    <input type="text" id="posto" placeholder="Nome do posto ou fornecedor">
-                  </div>
-                  <div class="form-group full-width">
-                    <label for="observacoes"><i class="fas fa-sticky-note"></i> Observações</label>
-                    <textarea id="observacoes" rows="2" placeholder="Observações sobre o abastecimento..."></textarea>
-                  </div>
-                </div>
-                <div class="form-footer">
-                  <button type="button" class="btn btn-secondary" id="btnCancelarAbastecimento">
-                    <i class="fas fa-times"></i> Cancelar
-                  </button>
-                  <button type="submit" class="btn btn-success">
-                    <i class="fas fa-save"></i> Salvar Abastecimento
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- Tabela de Histórico -->
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-history"></i> Histórico de Abastecimentos</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="filterAbastecimentos" placeholder="Buscar abastecimentos...">
-                </div>
-                <span class="badge" id="totalRegistros">0 registros</span>
-              </div>
-            </div>
-            <div class="card-body table-responsive">
-              <table id="tabelaAbastecimentos">
-                <thead>
-                  <tr>
-                    <th><i class="fas fa-calendar"></i> Data</th>
-                    <th><i class="fas fa-truck"></i> Veículo</th>
-                    <th><i class="fas fa-tachometer-alt"></i> Odômetro</th>
-                    <th><i class="fas fa-gas-pump"></i> Combustível</th>
-                    <th><i class="fas fa-oil-can"></i> Litros</th>
-                    <th><i class="fas fa-tag"></i> Preço/L</th>
-                    <th><i class="fas fa-money-bill-wave"></i> Total</th>
-                    <th><i class="fas fa-store"></i> Posto</th>
-                    <th><i class="fas fa-cogs"></i> Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="tabelaAbastecimentosBody"></tbody>
-              </table>
-            </div>
-          </div>
+          <!-- ... conteúdo existente ... -->
         </div>
 
         <!-- ABA 2: CONSUMO POR VEÍCULO -->
         <div class="tab-content" id="consumo-veiculos">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-chart-line"></i> Consumo por Veículo</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="filterConsumo" placeholder="Buscar veículo...">
-                </div>
-                <span class="badge" id="totalVeiculosConsumo">0 veículos</span>
-              </div>
-            </div>
-            <div class="card-body table-responsive">
-              <table id="tabelaConsumoVeiculos">
-                <thead>
-                  <tr>
-                    <th><i class="fas fa-truck"></i> Veículo</th>
-                    <th><i class="fas fa-plate"></i> Placa</th>
-                    <th><i class="fas fa-tachometer-alt"></i> Medidor</th>
-                    <th><i class="fas fa-gas-pump"></i> Combustível</th>
-                    <th><i class="fas fa-oil-can"></i> Total Litros</th>
-                    <th><i class="fas fa-road"></i> Total KM/Horas</th>
-                    <th><i class="fas fa-chart-line"></i> Média Geral</th>
-                    <th><i class="fas fa-chart-line"></i> Última Média</th>
-                    <th><i class="fas fa-chart-line"></i> Melhor Média</th>
-                    <th><i class="fas fa-chart-line"></i> Pior Média</th>
-                  </tr>
-                </thead>
-                <tbody id="tabelaConsumoVeiculosBody"></tbody>
-              </table>
-            </div>
-          </div>
+          <!-- ... conteúdo existente ... -->
         </div>
 
         <!-- ABA 3: ESTATÍSTICAS -->
         <div class="tab-content" id="estatisticas">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-chart-bar"></i> Estatísticas Gerais</h2>
-            </div>
-            <div class="card-body">
-              <div class="stats-container" id="estatisticasContainer"></div>
-            </div>
-          </div>
+          <!-- ... conteúdo existente ... -->
         </div>
 
         <!-- Modal de Detalhes -->
         <div id="modalDetalhes" class="modal">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3><i class="fas fa-info-circle"></i> Detalhes do Abastecimento</h3>
-              <button class="btn-icon close-modal">&times;</button>
-            </div>
-            <div class="modal-body" id="modalDetalhesBody"></div>
-          </div>
+          <!-- ... conteúdo existente ... -->
         </div>
 
       </div>
     </main>
   </div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-      authDomain: "system-mil.firebaseapp.com",
-      projectId: "system-mil",
-      storageBucket: "system-mil.firebasestorage.app",
-      messagingSenderId: "138426359863",
-      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
-      measurementId: "G-DYCDBRZSHZ"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    window.firebaseDB = db;
-    console.log('🔥 Firebase conectado!');
-  </script>
-
   <!-- Scripts -->
   <script src="/js/main.js"></script>
   <script src="/js/abastecimento.js"></script>
 </body>
-
 </html>
