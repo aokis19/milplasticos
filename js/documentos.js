@@ -1,6 +1,6 @@
 // =============================================
-// DOCUMENTOS.JS - Versão Flexível
-// Aceita origem como ID ou nome da empresa
+// DOCUMENTOS.JS - Sistema Completo
+// Com visualização e download de PDFs
 // =============================================
 
 const db = window.firebaseDB;
@@ -80,7 +80,6 @@ async function carregarEmpresas() {
         const empresasSalvas = localStorage.getItem('empresas');
         if (empresasSalvas) {
             empresas = JSON.parse(empresasSalvas);
-            // Garantir que todos os IDs sejam strings
             empresas = empresas.map(e => ({ ...e, id: String(e.id) }));
             console.log('✅ Empresas do localStorage:', empresas.length);
             return;
@@ -137,7 +136,7 @@ async function carregarAlertasGlobais() {
     }
 }
 
-// ========== FUNÇÃO CHAVE - Encontrar empresa por ID ou nome ==========
+// ========== ENCONTRAR EMPRESA (FLEXÍVEL) ==========
 function encontrarEmpresa(origem) {
     if (!origem) return null;
     
@@ -147,13 +146,13 @@ function encontrarEmpresa(origem) {
     let empresa = empresas.find(e => String(e.id) === origemStr);
     if (empresa) return empresa;
     
-    // 2. Buscar por nome (case insensitive)
+    // 2. Buscar por nome exato (case insensitive)
     empresa = empresas.find(e => 
         e.nome && e.nome.toLowerCase().trim() === origemStr.toLowerCase().trim()
     );
     if (empresa) return empresa;
     
-    // 3. Buscar por nome parcial (contém)
+    // 3. Buscar por nome parcial
     empresa = empresas.find(e => 
         e.nome && (
             e.nome.toLowerCase().includes(origemStr.toLowerCase()) ||
@@ -255,6 +254,13 @@ function getCategoriaNome(cat) {
     return nomes[cat] || 'Documento';
 }
 
+function formatarTamanho(bytes) {
+    if (!bytes || bytes === 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
 // ========== RENDERIZAÇÃO ==========
 function renderizarTudo() {
     const container = document.getElementById('empresasContainer');
@@ -277,7 +283,6 @@ function renderizarTudo() {
     
     if (emptyState) emptyState.style.display = 'none';
     
-    // Agrupar documentos por empresa (usando a função flexível)
     const docsPorEmpresa = {};
     const docsSemEmpresa = [];
     
@@ -361,6 +366,11 @@ function renderizarCardDocumento(doc) {
                       diasRestantes <= (alertasGlobalConfig.diasVermelho || 30) ? 'negativo' :
                       diasRestantes <= (alertasGlobalConfig.diasAmarelo || 60) ? 'alerta' : 'positivo';
     
+    // Verificar se tem anexo PDF
+    const temAnexo = doc.anexo && doc.anexo.base64 && doc.anexo.base64.length > 50;
+    const nomeAnexo = doc.anexo?.nome || 'Documento PDF';
+    const tamanhoAnexo = doc.anexo?.tamanho ? formatarTamanho(doc.anexo.tamanho) : '';
+    
     return `
         <div class="documento-card ${status.classe}">
             <div class="documento-header">
@@ -393,6 +403,24 @@ function renderizarCardDocumento(doc) {
                     </div>
                 ` : ''}
                 
+                ${temAnexo ? `
+                    <div class="documento-preview" onclick="visualizarPDF('${doc.id}')" title="Clique para visualizar o PDF">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <i class="fas fa-file-pdf" style="color:#e74c3c;font-size:24px;"></i>
+                            <div>
+                                <div style="font-size:12px;font-weight:bold;color:#333;">${escapeHtml(nomeAnexo)}</div>
+                                ${tamanhoAnexo ? `<div style="font-size:10px;color:#999;">${tamanhoAnexo}</div>` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-icon" onclick="event.stopPropagation(); baixarPDF('${doc.id}')" title="Baixar PDF">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <i class="fas fa-chevron-right" style="color:#999;"></i>
+                        </div>
+                    </div>
+                ` : ''}
+                
                 <div class="documento-actions">
                     <button class="btn-icon" onclick="verDetalhes('${doc.id}')" title="Ver detalhes">
                         <i class="fas fa-eye"></i>
@@ -418,6 +446,63 @@ function atualizarSelectEmpresas() {
     });
 }
 
+// ========== VISUALIZAR E BAIXAR PDF ==========
+function visualizarPDF(docId) {
+    const doc = documentos.find(d => d.id == docId);
+    if (!doc || !doc.anexo || !doc.anexo.base64 || doc.anexo.base64.length < 50) {
+        mostrarNotificacao('PDF não encontrado!', 'error');
+        return;
+    }
+    
+    const nomePDF = doc.anexo.nome || doc.nome || 'documento.pdf';
+    
+    const novaJanela = window.open('', '_blank');
+    novaJanela.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${escapeHtml(nomePDF)}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { background: #525659; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+                .container { width: 100%; max-width: 900px; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+                .header { background: #323639; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+                .header h3 { font-size: 14px; font-weight: normal; }
+                .btn-download { background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; }
+                .btn-download:hover { background: #2980b9; }
+                embed { width: 100%; height: calc(100vh - 50px); border: none; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h3>📄 ${escapeHtml(nomePDF)}</h3>
+                    <a class="btn-download" href="${doc.anexo.base64}" download="${escapeHtml(nomePDF)}">📥 Baixar</a>
+                </div>
+                <embed src="${doc.anexo.base64}" type="application/pdf" width="100%" height="100%">
+            </div>
+        </body>
+        </html>
+    `);
+}
+
+function baixarPDF(docId) {
+    const doc = documentos.find(d => d.id == docId);
+    if (!doc || !doc.anexo || !doc.anexo.base64 || doc.anexo.base64.length < 50) {
+        mostrarNotificacao('PDF não encontrado!', 'error');
+        return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = doc.anexo.base64;
+    link.download = doc.anexo.nome || doc.nome || 'documento.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    mostrarNotificacao('📥 PDF baixado com sucesso!', 'success');
+}
+
 // ========== CRUD DOCUMENTOS ==========
 async function salvarDocumento(event) {
     event.preventDefault();
@@ -435,6 +520,14 @@ async function salvarDocumento(event) {
         status: 'ativo',
         dataAtualizacao: new Date().toISOString()
     };
+    
+    // Manter o anexo existente se estiver editando
+    if (editingDocId) {
+        const docExistente = documentos.find(d => d.id == editingDocId);
+        if (docExistente && docExistente.anexo) {
+            doc.anexo = docExistente.anexo;
+        }
+    }
     
     if (!doc.nome || !doc.categoria) {
         mostrarNotificacao('Preencha os campos obrigatórios!', 'error');
@@ -493,6 +586,7 @@ function verDetalhes(id) {
     const empresa = encontrarEmpresa(doc.origem);
     const diasRestantes = calcularDiasRestantes(doc.dataValidade);
     const status = getStatusDocumento(diasRestantes);
+    const temAnexo = doc.anexo && doc.anexo.base64 && doc.anexo.base64.length > 50;
     
     body.innerHTML = `
         <div class="details-container">
@@ -544,8 +638,25 @@ function verDetalhes(id) {
                     <span>${escapeHtml(doc.descricao)}</span>
                 </div>
             ` : ''}
+            ${temAnexo ? `
+                <div class="detail-item full-width">
+                    <strong>Anexo</strong>
+                    <span>
+                        📄 ${escapeHtml(doc.anexo.nome || 'PDF')} 
+                        ${doc.anexo.tamanho ? '(' + formatarTamanho(doc.anexo.tamanho) + ')' : ''}
+                    </span>
+                </div>
+            ` : ''}
         </div>
         <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #e9ecef;padding-top:15px;">
+            ${temAnexo ? `
+                <button class="btn btn-secondary" onclick="visualizarPDF('${doc.id}')">
+                    <i class="fas fa-eye"></i> Ver PDF
+                </button>
+                <button class="btn btn-secondary" onclick="baixarPDF('${doc.id}')">
+                    <i class="fas fa-download"></i> Baixar PDF
+                </button>
+            ` : ''}
             <button class="btn btn-primary" onclick="editarDocumento('${doc.id}');document.getElementById('modalDetalhes').style.display='none';">
                 <i class="fas fa-edit"></i> Editar
             </button>
@@ -704,10 +815,12 @@ function inicializarEventos() {
     console.log('✅ Eventos inicializados');
 }
 
-// Tornar funções globais
+// ========== TORNAR FUNÇÕES GLOBAIS ==========
 window.editarDocumento = editarDocumento;
 window.excluirDocumento = excluirDocumento;
 window.verDetalhes = verDetalhes;
 window.editarEmpresa = editarEmpresa;
 window.excluirEmpresa = excluirEmpresa;
 window.encontrarEmpresa = encontrarEmpresa;
+window.visualizarPDF = visualizarPDF;
+window.baixarPDF = baixarPDF;
