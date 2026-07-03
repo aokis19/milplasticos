@@ -4,17 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Produção | Mil Plásticos</title>
-  
+
   <!-- CSS Principal -->
-  <link rel="stylesheet" href="assets/css/main.css">
-  <link rel="stylesheet" href="assets/css/sidebar.css">
-  <link rel="stylesheet" href="assets/css/topbar.css">
-  <link rel="stylesheet" href="assets/css/producao.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
+  
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="/assets/css/producao.css">
   
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- jsPDF para gerar PDF -->
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Sync System -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
+  
+  <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -28,7 +39,6 @@
     
     <!-- Conteúdo principal -->
     <main class="main-content">
-      
       <div class="page-container">
         
         <!-- Cabeçalho da página -->
@@ -65,10 +75,10 @@
           </div>
         </div>
         
-        <!-- Conteúdo da Aba: Fechamentos -->
+        <!-- Aba: Fechamentos -->
         <div class="tab-content active" id="tab-fechamentos">
           
-          <!-- Card de Filtros -->
+          <!-- Filtros -->
           <div class="card card-filters">
             <div class="card-header">
               <h3><i class="fas fa-filter"></i> Filtros</h3>
@@ -81,7 +91,6 @@
                     <option value="">Todos os fornecedores</option>
                   </select>
                 </div>
-                
                 <div class="form-group">
                   <label for="filtroStatus"><i class="fas fa-tag"></i> Status</label>
                   <select id="filtroStatus">
@@ -91,7 +100,6 @@
                     <option value="concluido">Concluídos</option>
                   </select>
                 </div>
-                
                 <div class="form-group">
                   <label for="filtroPeriodo"><i class="fas fa-calendar-alt"></i> Período</label>
                   <select id="filtroPeriodo">
@@ -101,7 +109,6 @@
                     <option value="todos">Todos</option>
                   </select>
                 </div>
-                
                 <div class="form-actions">
                   <button class="btn btn-secondary" id="btnLimparFiltros">
                     <i class="fas fa-broom"></i> Limpar
@@ -114,42 +121,31 @@
             </div>
           </div>
           
-          <!-- Card de Estatísticas -->
+          <!-- Estatísticas -->
           <div class="stats-grid">
             <div class="stat-card">
-              <div class="stat-icon">
-                <i class="fas fa-folder"></i>
-              </div>
+              <div class="stat-icon"><i class="fas fa-folder"></i></div>
               <div class="stat-info">
                 <h3 id="totalFechamentos">0</h3>
                 <p>Fechamentos</p>
               </div>
             </div>
-            
             <div class="stat-card">
-              <div class="stat-icon">
-                <i class="fas fa-file-alt"></i>
-              </div>
+              <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
               <div class="stat-info">
                 <h3 id="totalFolhas">0</h3>
                 <p>Total de Folhas</p>
               </div>
             </div>
-            
             <div class="stat-card">
-              <div class="stat-icon">
-                <i class="fas fa-weight-hanging"></i>
-              </div>
+              <div class="stat-icon"><i class="fas fa-weight-hanging"></i></div>
               <div class="stat-info">
                 <h3 id="totalPeso">0 kg</h3>
                 <p>Peso Total</p>
               </div>
             </div>
-            
             <div class="stat-card">
-              <div class="stat-icon">
-                <i class="fas fa-hourglass-half"></i>
-              </div>
+              <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
               <div class="stat-info">
                 <h3 id="fechamentosAbertos">0</h3>
                 <p>Em Aberto</p>
@@ -157,7 +153,7 @@
             </div>
           </div>
           
-          <!-- Card da Lista de Fechamentos -->
+          <!-- Lista de Fechamentos -->
           <div class="card">
             <div class="card-header">
               <h2><i class="fas fa-history"></i> Histórico de Fechamentos</h2>
@@ -181,7 +177,7 @@
           </div>
         </div>
         
-        <!-- Conteúdo da Aba: Materiais -->
+        <!-- Aba: Materiais -->
         <div class="tab-content" id="tab-materiais">
           <div class="card">
             <div class="card-header">
@@ -199,14 +195,13 @@
                 <div class="empty-state">
                   <i class="fas fa-box-open"></i>
                   <p>Nenhum material cadastrado</p>
-                  <small>Clique em "Cadastrar Material" para adicionar</small>
                 </div>
               </div>
             </div>
           </div>
         </div>
         
-        <!-- Conteúdo da Aba: Fornecedores -->
+        <!-- Aba: Fornecedores -->
         <div class="tab-content" id="tab-fornecedores">
           <div class="card">
             <div class="card-header">
@@ -224,7 +219,6 @@
                 <div class="empty-state">
                   <i class="fas fa-truck"></i>
                   <p>Nenhum fornecedor cadastrado</p>
-                  <small>Clique em "Cadastrar Fornecedor" para adicionar</small>
                 </div>
               </div>
             </div>
@@ -232,11 +226,9 @@
         </div>
         
       </div>
-      
     </main>
-    
   </div>
-  
+
   <!-- Modal: Novo Fechamento -->
   <div id="modalNovoFechamento" class="modal">
     <div class="modal-content">
@@ -247,29 +239,21 @@
       <div class="modal-body">
         <form id="formNovoFechamento">
           <div class="form-group">
-            <label for="dataEntradaFechamento">
-              <i class="fas fa-calendar-alt"></i> Data de Entrada *
-            </label>
+            <label for="dataEntradaFechamento"><i class="fas fa-calendar-alt"></i> Data de Entrada *</label>
             <input type="date" id="dataEntradaFechamento" required>
           </div>
           <div class="form-group">
-            <label for="fechamentoFornecedor">
-              <i class="fas fa-truck"></i> Fornecedor *
-            </label>
+            <label for="fechamentoFornecedor"><i class="fas fa-truck"></i> Fornecedor *</label>
             <select id="fechamentoFornecedor" required>
               <option value="">Selecione um fornecedor...</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="pesoBrutoFechamento">
-              <i class="fas fa-weight-hanging"></i> Peso Bruto (kg)
-            </label>
+            <label for="pesoBrutoFechamento"><i class="fas fa-weight-hanging"></i> Peso Bruto (kg)</label>
             <input type="number" id="pesoBrutoFechamento" step="0.01" min="0" placeholder="Peso total da balança">
           </div>
           <div class="form-group">
-            <label for="estadoMaterialFechamento">
-              <i class="fas fa-tag"></i> Estado do Material *
-            </label>
+            <label for="estadoMaterialFechamento"><i class="fas fa-tag"></i> Estado do Material *</label>
             <select id="estadoMaterialFechamento" required>
               <option value="">Selecione o estado...</option>
               <option value="Separado">Separado</option>
@@ -288,7 +272,7 @@
     </div>
   </div>
   
-  <!-- Modal: Adicionar/Editar Folha -->
+  <!-- Modal: Folha -->
   <div id="modalFolha" class="modal">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -298,25 +282,17 @@
       <div class="modal-body">
         <input type="hidden" id="fechamentoAtualId">
         <input type="hidden" id="folhaEditandoId">
-        
         <form id="formFolha">
           <div class="form-grid">
             <div class="form-group">
-              <label for="folhaData">
-                <i class="fas fa-calendar-alt"></i> Data Pesagem *
-              </label>
+              <label for="folhaData"><i class="fas fa-calendar-alt"></i> Data Pesagem *</label>
               <input type="date" id="folhaData" required>
             </div>
-            
             <div class="form-group">
-              <label for="folhaDescricao">
-                <i class="fas fa-file-alt"></i> Descrição da Folha
-              </label>
+              <label for="folhaDescricao"><i class="fas fa-file-alt"></i> Descrição da Folha</label>
               <input type="text" id="folhaDescricao" placeholder="Ex: Folha 01, Lote A...">
-              <small>Use este campo para identificar a folha</small>
             </div>
           </div>
-          
           <div class="materiais-section">
             <div class="section-header">
               <h4><i class="fas fa-boxes"></i> Materiais e Pesos Individuais</h4>
@@ -324,16 +300,11 @@
                 <i class="fas fa-plus"></i> Adicionar Material
               </button>
             </div>
-            
             <div id="materiaisList" class="materiais-list"></div>
-            
             <div class="total-soma">
               Soma Total dos Materiais: <strong id="somaMateriais">0,00</strong> kg
             </div>
-            
-            <div id="comparativoDiv" class="comparativo-box">
-              Aguardando preenchimento...
-            </div>
+            <div id="comparativoDiv" class="comparativo-box">Aguardando preenchimento...</div>
           </div>
         </form>
       </div>
@@ -356,9 +327,7 @@
       <div class="modal-body">
         <form id="formCadastroMaterial">
           <div class="form-group">
-            <label for="novoMaterialNome">
-              <i class="fas fa-tag"></i> Nome do Material *
-            </label>
+            <label for="novoMaterialNome"><i class="fas fa-tag"></i> Nome do Material *</label>
             <input type="text" id="novoMaterialNome" placeholder="Ex: ABS Preto, PP Branco..." required>
           </div>
         </form>
@@ -382,9 +351,7 @@
       <div class="modal-body">
         <form id="formCadastroFornecedor">
           <div class="form-group">
-            <label for="novoFornecedorNome">
-              <i class="fas fa-tag"></i> Nome do Fornecedor *
-            </label>
+            <label for="novoFornecedorNome"><i class="fas fa-tag"></i> Nome do Fornecedor *</label>
             <input type="text" id="novoFornecedorNome" placeholder="Ex: Plásticos Silva Ltda" required>
           </div>
         </form>
@@ -403,42 +370,9 @@
     <i class="fas fa-info-circle"></i>
     <span id="mensagemAlerta"></span>
   </div>
-  
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-      authDomain: "system-mil.firebaseapp.com",
-      projectId: "system-mil",
-      storageBucket: "system-mil.firebasestorage.app",
-      messagingSenderId: "138426359863",
-      appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2",
-      measurementId: "G-DYCDBRZSHZ"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    window.db = db;
-    window.collection = collection;
-    window.addDoc = addDoc;
-    window.getDocs = getDocs;
-    window.query = query;
-    window.orderBy = orderBy;
-    window.deleteDoc = deleteDoc;
-    window.doc = doc;
-    window.updateDoc = updateDoc;
-    window.getDoc = getDoc;
-
-    console.log('🔥 Firebase inicializado com sucesso!');
-    window.dispatchEvent(new CustomEvent('firebaseReady'));
-  </script>
-  
-  <!-- Scripts da Aplicação -->
-  <script src="js/main.js"></script>
-  <script src="js/producao.js"></script>
+  <!-- ========== SCRIPTS ========== -->
+  <script src="/js/main.js"></script>
+  <script src="/js/producao.js"></script>
 </body>
 </html>
