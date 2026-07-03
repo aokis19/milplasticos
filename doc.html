@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/assets/css/sidebar.css">
   <link rel="stylesheet" href="/assets/css/topbar.css">
   
-  <!-- CSS Específico para Documentos -->
+  <!-- CSS Específico -->
   <link rel="stylesheet" href="/assets/css/documentos.css">
   
   <!-- Font Awesome -->
@@ -23,6 +23,380 @@
   <!-- Sync System -->
   <script src="/js/firebase-init.js"></script>
   <script src="/js/firebase-sync.js"></script>
+  
+  <style>
+    /* ========== ESTILOS GERAIS ========== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
+    
+    .page-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .page-header h1 { font-size: 24px; color: #2c3e50; }
+    .page-header h1 i { color: #3498db; margin-right: 10px; }
+    .page-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ========== BOTÕES ========== */
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-primary:hover { background: #2980b9; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-success:hover { background: #219a52; }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn-warning { background: #f39c12; color: white; }
+    .btn-warning:hover { background: #d68910; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-danger:hover { background: #c0392b; }
+    
+    .btn-icon {
+        background: none;
+        border: none;
+        color: #3498db;
+        cursor: pointer;
+        padding: 5px 8px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        font-size: 16px;
+    }
+    .btn-icon:hover { background: rgba(52,152,219,0.1); }
+    .btn-icon.delete { color: #e74c3c; }
+    .btn-icon.delete:hover { background: rgba(231,76,60,0.1); }
+
+    /* ========== MODAL ========== */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        overflow-y: auto;
+    }
+    .modal-content {
+        background: white;
+        margin: 50px auto;
+        max-width: 800px;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        animation: modalSlideIn 0.3s ease;
+    }
+    @keyframes modalSlideIn {
+        from { opacity: 0; transform: translateY(-50px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .modal-header {
+        padding: 20px 25px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px 12px 0 0;
+    }
+    .modal-header h2 { color: white; margin: 0; font-size: 20px; }
+    .modal-header h2 i { margin-right: 8px; }
+    .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: white;
+        transition: opacity 0.2s;
+        line-height: 1;
+    }
+    .close-modal:hover { opacity: 0.7; }
+
+    /* ========== FORMULÁRIO ========== */
+    .form-group { margin-bottom: 15px; }
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        color: #555;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        background: white;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52,152,219,0.1);
+    }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    .form-footer {
+        margin-top: 20px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    /* ========== EMPRESAS HEADER ========== */
+    .empresas-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        margin-top: 25px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #3498db;
+    }
+    .empresas-header:first-of-type { margin-top: 0; }
+    .empresas-header h2 {
+        font-size: 20px;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+    .empresas-header h2 i { color: #3498db; font-size: 24px; }
+    .empresa-badge {
+        background: #3498db;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    /* ========== DOCUMENTOS GRID ========== */
+    .documentos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 20px;
+        padding: 20px 0;
+    }
+    .documento-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .documento-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    .documento-card.vencido { border-left: 4px solid #dc3545; background: #fff5f5; }
+    .documento-card.urgente { border-left: 4px solid #ffc107; background: #fffbf0; }
+    .documento-card.atencao { border-left: 4px solid #28a745; background: #f0fff4; }
+    
+    .documento-header {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .documento-categoria {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    .documento-categoria.licenca { background: #e3f2fd; color: #1976d2; }
+    .documento-categoria.alvara { background: #e8f5e8; color: #388e3c; }
+    .documento-categoria.certificado { background: #fff3e0; color: #f57c00; }
+    .documento-categoria.seguro { background: #fce4ec; color: #c2185b; }
+    .documento-categoria.veiculo { background: #e0f7fa; color: #00838f; }
+    .documento-categoria.outros { background: #f3e5f5; color: #7b1fa2; }
+    
+    .documento-body { padding: 15px 20px; }
+    .documento-nome {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 8px;
+    }
+    .documento-origem {
+        display: inline-block;
+        background: #e9ecef;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    .documento-origem i { margin-right: 5px; }
+    .documento-descricao {
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 15px;
+        line-height: 1.4;
+    }
+    .documento-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 13px;
+    }
+    .documento-validade {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #666;
+    }
+    .documento-dias {
+        font-weight: bold;
+        font-size: 14px;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+    .documento-dias.positivo { color: #28a745; background: rgba(40,167,69,0.1); }
+    .documento-dias.negativo { color: #dc3545; background: rgba(220,53,69,0.1); }
+    .documento-dias.alerta { color: #ffc107; background: rgba(255,193,7,0.1); }
+    
+    .documento-contatos {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #666;
+    }
+    .documento-contatos i { margin-right: 3px; color: #3498db; }
+    
+    .documento-actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        border-top: 1px solid #e9ecef;
+        padding-top: 12px;
+    }
+
+    /* ========== STATUS BADGES ========== */
+    .status-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .status-ativo { background: #d4edda; color: #155724; }
+    .status-pendente { background: #fff3cd; color: #856404; }
+    .status-arquivado { background: #e2e3e5; color: #383d41; }
+
+    /* ========== ESTADO VAZIO ========== */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        color: #bdc3c7;
+    }
+    .empty-state h3 {
+        color: #7f8c8d;
+        margin-bottom: 10px;
+        font-size: 18px;
+    }
+    .empty-state p {
+        color: #95a5a6;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+
+    /* ========== DETALHES ========== */
+    .details-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .detail-item {
+        padding: 10px;
+        border-bottom: 1px solid #f0f0f0;
+        border-radius: 4px;
+    }
+    .detail-item strong {
+        display: block;
+        color: #666;
+        font-size: 11px;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .detail-item span {
+        font-size: 14px;
+        color: #333;
+        font-weight: 500;
+    }
+    .detail-item.full-width { grid-column: 1 / -1; }
+
+    /* ========== NOTIFICAÇÃO ========== */
+    #notificacao {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        z-index: 2000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        transition: opacity 0.3s ease;
+        font-weight: 500;
+        font-size: 14px;
+        max-width: 400px;
+    }
+
+    /* ========== RESPONSIVIDADE ========== */
+    @media (max-width: 768px) {
+        .documentos-grid { grid-template-columns: 1fr; }
+        .form-row { grid-template-columns: 1fr; }
+        .page-header { flex-direction: column; align-items: flex-start; }
+        .page-actions { width: 100%; }
+        .page-actions .btn { flex: 1; justify-content: center; }
+        .modal-content { margin: 20px auto; width: 95%; }
+        .details-container { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
   <!-- Topbar Container -->
@@ -39,19 +413,16 @@
         
         <!-- Cabeçalho da página -->
         <div class="page-header">
-          <div class="page-title">
-            <h1><i class="fas fa-file-alt"></i> Documentos e Licenças</h1>
-            <p>Gerencie documentos, licenças e certificados da frota</p>
-          </div>
+          <h1><i class="fas fa-file-alt"></i> Documentos e Licenças</h1>
           <div class="page-actions">
             <button class="btn btn-success" id="addEmpresaBtn">
-              <i class="fas fa-building"></i> Nova Empresa/Evento
+              <i class="fas fa-building"></i> Nova Empresa
             </button>
             <button class="btn btn-primary" id="addDocumentoBtn">
               <i class="fas fa-plus-circle"></i> Registrar Documento
             </button>
             <button class="btn btn-warning" id="configAlertasBtn">
-              <i class="fas fa-bell"></i> Configurar Alertas
+              <i class="fas fa-bell"></i> Alertas
             </button>
           </div>
         </div>
@@ -60,10 +431,8 @@
         <div id="empresasContainer"></div>
         
         <!-- Estado vazio -->
-        <div id="emptyDocumentos" class="empty-state">
-          <div class="empty-state-icon">
-            <i class="fas fa-file-alt"></i>
-          </div>
+        <div id="emptyDocumentos" class="empty-state" style="display:none;">
+          <i class="fas fa-file-alt"></i>
           <h3>Nenhum documento cadastrado</h3>
           <p>Clique em "Registrar Documento" para adicionar licenças, certificados ou documentos com validade.</p>
         </div>
@@ -72,24 +441,22 @@
     </main>
   </div>
 
-  <!-- Modal: Adicionar/Editar Documento -->
+  <!-- ========== MODAL: DOCUMENTO ========== -->
   <div id="modalDocumento" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 id="modalDocumentoTitulo"><i class="fas fa-file-alt"></i> Registrar Documento</h2>
-        <button class="close-modal" onclick="fecharModalDocumento()">&times;</button>
+        <h2 id="modalDocumentoTitulo"><i class="fas fa-plus-circle"></i> Registrar Documento</h2>
+        <button class="close-modal" onclick="document.getElementById('modalDocumento').style.display='none'">&times;</button>
       </div>
       <div class="modal-body">
         <form id="formDocumento">
-          <!-- Empresa/Origem -->
-          <div class="form-group">
-            <label for="docOrigem"><i class="fas fa-building"></i> Empresa/Origem *</label>
-            <select id="docOrigem" required>
-              <option value="">Selecione a empresa...</option>
-            </select>
-          </div>
-          
           <div class="form-row">
+            <div class="form-group">
+              <label for="docOrigem"><i class="fas fa-building"></i> Empresa</label>
+              <select id="docOrigem">
+                <option value="">Selecione a empresa...</option>
+              </select>
+            </div>
             <div class="form-group">
               <label for="docCategoria"><i class="fas fa-tag"></i> Categoria *</label>
               <select id="docCategoria" required>
@@ -102,15 +469,16 @@
                 <option value="outros">Outros</option>
               </select>
             </div>
-            <div class="form-group">
-              <label for="docNome"><i class="fas fa-file-signature"></i> Nome do Documento *</label>
-              <input type="text" id="docNome" placeholder="Ex: Licença Ambiental" required>
-            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="docNome"><i class="fas fa-file-signature"></i> Nome do Documento *</label>
+            <input type="text" id="docNome" placeholder="Ex: Licença Ambiental, Alvará de Funcionamento..." required>
           </div>
           
           <div class="form-group">
             <label for="docDescricao"><i class="fas fa-align-left"></i> Descrição</label>
-            <textarea id="docDescricao" rows="3" placeholder="Detalhes do documento..."></textarea>
+            <textarea id="docDescricao" rows="2" placeholder="Detalhes adicionais sobre o documento..."></textarea>
           </div>
           
           <div class="form-row">
@@ -131,51 +499,12 @@
             </div>
             <div class="form-group">
               <label for="docContato"><i class="fas fa-phone"></i> Contato</label>
-              <input type="text" id="docContato" placeholder="Telefone/Email">
-            </div>
-          </div>
-          
-          <!-- Configuração de Alertas Individuais -->
-          <div class="alertas-config-card">
-            <h4><i class="fas fa-bell"></i> Alertas Individuais para este Documento</h4>
-            <div class="alertas-grid">
-              <div class="alerta-level verde">
-                <label>🟢 Verde (OK)</label>
-                <input type="number" id="alertaVerde" placeholder="90 dias" min="1">
-                <small>Notificar com esta antecedência</small>
-              </div>
-              <div class="alerta-level amarelo">
-                <label>🟡 Amarelo (Atenção)</label>
-                <input type="number" id="alertaAmarelo" placeholder="60 dias" min="1">
-                <small>Notificar com esta antecedência</small>
-              </div>
-              <div class="alerta-level vermelho">
-                <label>🔴 Vermelho (Urgente)</label>
-                <input type="number" id="alertaVermelho" placeholder="30 dias" min="1">
-                <small>Notificar com esta antecedência</small>
-              </div>
-            </div>
-            
-            <div class="contatos-especificos">
-              <h4>Contatos para Notificação</h4>
-              <div class="notificacoes-grid">
-                <div class="notificacao-item">
-                  <input type="checkbox" id="notificarEmail">
-                  <label for="notificarEmail"><i class="fas fa-envelope"></i> Email</label>
-                  <input type="email" id="emailNotificacao" placeholder="email@exemplo.com" style="flex: 1;">
-                </div>
-                <div class="notificacao-item">
-                  <input type="checkbox" id="notificarWhatsapp">
-                  <label for="notificarWhatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</label>
-                  <input type="tel" id="whatsappNotificacao" placeholder="(00) 00000-0000" style="flex: 1;">
-                </div>
-              </div>
-              <small>Deixe em branco para usar as configurações globais de alerta.</small>
+              <input type="text" id="docContato" placeholder="Telefone ou Email">
             </div>
           </div>
           
           <div class="form-footer">
-            <button type="button" class="btn btn-secondary" onclick="fecharModalDocumento()">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalDocumento').style.display='none'">
               <i class="fas fa-times"></i> Cancelar
             </button>
             <button type="submit" class="btn btn-success">
@@ -187,29 +516,29 @@
     </div>
   </div>
 
-  <!-- Modal: Adicionar Empresa -->
+  <!-- ========== MODAL: EMPRESA ========== -->
   <div id="modalEmpresa" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2><i class="fas fa-building"></i> Nova Empresa/Evento</h2>
-        <button class="close-modal" onclick="fecharModalEmpresa()">&times;</button>
+        <h2><i class="fas fa-building"></i> Nova Empresa</h2>
+        <button class="close-modal" onclick="document.getElementById('modalEmpresa').style.display='none'">&times;</button>
       </div>
       <div class="modal-body">
         <form id="formEmpresa">
           <div class="form-group">
             <label for="empresaNome"><i class="fas fa-building"></i> Nome da Empresa *</label>
-            <input type="text" id="empresaNome" placeholder="Nome da empresa ou evento" required>
+            <input type="text" id="empresaNome" placeholder="Ex: Mil Plásticos, Transportadora XYZ..." required>
           </div>
           <div class="form-group">
             <label for="empresaDescricao"><i class="fas fa-align-left"></i> Descrição</label>
-            <textarea id="empresaDescricao" rows="2" placeholder="Breve descrição..."></textarea>
+            <textarea id="empresaDescricao" rows="2" placeholder="Breve descrição da empresa..."></textarea>
           </div>
           <div class="form-footer">
-            <button type="button" class="btn btn-secondary" onclick="fecharModalEmpresa()">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalEmpresa').style.display='none'">
               <i class="fas fa-times"></i> Cancelar
             </button>
             <button type="submit" class="btn btn-success">
-              <i class="fas fa-save"></i> Salvar
+              <i class="fas fa-save"></i> Salvar Empresa
             </button>
           </div>
         </form>
@@ -217,51 +546,20 @@
     </div>
   </div>
 
-  <!-- Modal: Configurar Alertas Globais -->
-  <div id="modalAlertasGlobais" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2><i class="fas fa-bell"></i> Configurar Alertas Globais</h2>
-        <button class="close-modal" onclick="fecharModalAlertas()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="alertas-config-global">
-          <h3>Contatos para Notificações</h3>
-          <div class="form-group">
-            <label for="alertasEmails"><i class="fas fa-envelope"></i> Emails (separados por vírgula)</label>
-            <input type="text" id="alertasEmails" placeholder="email1@exemplo.com, email2@exemplo.com">
-          </div>
-          <div class="form-group">
-            <label for="alertasWhatsapps"><i class="fab fa-whatsapp"></i> WhatsApps (separados por vírgula)</label>
-            <input type="text" id="alertasWhatsapps" placeholder="(00) 00000-0000, (00) 00000-0000">
-          </div>
-          <div class="form-footer">
-            <button type="button" class="btn btn-secondary" onclick="fecharModalAlertas()">
-              <i class="fas fa-times"></i> Cancelar
-            </button>
-            <button type="button" class="btn btn-primary" onclick="salvarAlertasGlobais()">
-              <i class="fas fa-save"></i> Salvar Configurações
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Visualizar Detalhes -->
+  <!-- ========== MODAL: DETALHES ========== -->
   <div id="modalDetalhes" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h2><i class="fas fa-info-circle"></i> Detalhes do Documento</h2>
-        <button class="close-modal" onclick="fecharModalDetalhes()">&times;</button>
+        <button class="close-modal" onclick="document.getElementById('modalDetalhes').style.display='none'">&times;</button>
       </div>
       <div class="modal-body" id="modalDetalhesBody">
-        <!-- Preenchido dinamicamente -->
+        <!-- Preenchido dinamicamente pelo JavaScript -->
       </div>
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- ========== SCRIPTS ========== -->
   <script src="/js/main.js"></script>
   <script src="/js/documentos.js"></script>
 </body>
