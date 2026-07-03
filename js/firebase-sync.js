@@ -1,6 +1,8 @@
-// firebase-sync.js
-// Sistema de Sincronização Segura Firebase ↔ LocalStorage
-// Versão 2.2 - Corrigida e Estável
+// =============================================
+// FIREBASE-SYNC.JS - Versão 3.0 Unificada
+// Sincronização Firebase ↔ LocalStorage (Cache)
+// Todos os módulos centralizados
+// =============================================
 
 (function() {
     'use strict';
@@ -14,13 +16,32 @@
         SYNC_INTERVAL: 30000,
     };
 
+    // Mapeamento de chaves localStorage ↔ coleções Firebase
+    const MODULE_MAPPINGS = {
+        'abastecimentos': 'abastecimentos',
+        'documentos': 'documentos',
+        'empresas': 'empresas',
+        'empresas_docs': 'empresas',
+        'produtos': 'produtos',
+        'produtos_cotacao': 'produtos',
+        'cotacoes': 'cotacoes',
+        'historico': 'historico',
+        'historico_cotacao': 'historico',
+        'fornecedores': 'fornecedores',
+        'manutencoes': 'manutencoes',
+        'manutencoesCorretivas': 'manutencoes',
+        'veiculos': 'veiculos',
+        'tiposManutencao': 'tiposManutencao',
+        'alertasGlobalConfig': 'configuracoes'
+    };
+
     // ============ ESTADO DO SISTEMA ============
     let db = null;
     let isOnline = false;
     let isSyncing = false;
     let dataVersion = 0;
     let syncQueue = [];
-    let appData = criarDadosVazios(); // INICIALIZA IMEDIATAMENTE
+    let appData = criarDadosVazios();
 
     // ============ FUNÇÕES AUXILIARES ============
     function criarDadosVazios() {
@@ -40,16 +61,21 @@
 
     // ============ INICIALIZAÇÃO ============
     function init() {
-        console.log('🚀 Inicializando Sync System v2.2');
+        console.log('🚀 Inicializando Sync System v3.0 - Multi-Módulos');
         
         // Verificar Firebase
         if (typeof firebase !== 'undefined' && firebase.firestore) {
             if (!firebase.apps.length) {
-                console.warn('⚠️ Firebase não inicializado');
+                console.warn('⚠️ Firebase não inicializado - aguardando...');
+                setTimeout(init, 1000);
+                return;
             } else {
                 db = firebase.firestore();
                 window.firebaseDB = db;
+                console.log('✅ Firestore conectado');
             }
+        } else {
+            console.warn('⚠️ Firebase SDK não carregado');
         }
 
         // Configurar persistência offline
@@ -58,15 +84,16 @@
                 .then(() => console.log('✅ Persistência offline ativada'))
                 .catch((err) => {
                     if (err.code === 'failed-precondition') {
-                        console.warn('⚠️ Múltiplas abas abertas');
+                        console.warn('⚠️ Múltiplas abas abertas - persistência limitada');
                     }
                 });
 
             db.enableNetwork()
                 .then(() => {
                     isOnline = true;
-                    console.log('✅ Firebase conectado');
+                    console.log('🌐 Firebase online');
                     processarFilaSync();
+                    sincronizarTodosModulos();
                 })
                 .catch(() => {
                     isOnline = false;
@@ -74,28 +101,31 @@
                 });
         }
 
-        // Carregar dados salvos
+        // Carregar dados locais
         carregarDadosLocais();
-        
-        // Carregar fila de sincronização
         carregarFilaSync();
         
         // Sincronizar com Firebase
-        sincronizarComFirebase();
+        if (db && isOnline) {
+            sincronizarComFirebase();
+        }
         
-        // Configurar sincronização periódica
+        // Sincronização periódica
         setInterval(sincronizarPeriodicamente, CONFIG.SYNC_INTERVAL);
         
         // Monitorar online/offline
         window.addEventListener('online', () => {
             console.log('🌐 Conexão restaurada');
             isOnline = true;
-            if (db) db.enableNetwork().catch(() => {});
+            if (db) {
+                db.enableNetwork().catch(() => {});
+            }
             processarFilaSync();
+            sincronizarTodosModulos();
         });
         
         window.addEventListener('offline', () => {
-            console.log('📡 Conexão perdida');
+            console.log('📡 Conexão perdida - modo offline');
             isOnline = false;
         });
 
@@ -104,7 +134,8 @@
             salvarLocalStorage();
         });
 
-        console.log('✅ Sync System inicializado');
+        console.log('✅ Sync System v3.0 inicializado');
+        console.log('   Módulos gerenciados:', Object.keys(MODULE_MAPPINGS).length);
     }
 
     // ============ CARREGAR DADOS LOCAIS ============
@@ -124,21 +155,18 @@
             console.error('❌ Erro ao carregar localStorage:', e);
         }
         
-        // Se não encontrou dados, criar vazios
         appData = criarDadosVazios();
         dataVersion = 0;
-        console.log('📦 Nenhum dado local - iniciando vazio');
     }
 
-    // ============ SINCRONIZAR COM FIREBASE ============
+    // ============ SINCRONIZAR COM FIREBASE (Motoristas) ============
     async function sincronizarComFirebase() {
         if (!db || !isOnline) {
-            console.log('💾 Firebase offline - usando apenas dados locais');
+            console.log('💾 Firebase offline - usando cache local');
             return;
         }
 
         try {
-            // Buscar versão do Firebase
             const metaDoc = await db.collection('_metadata').doc('appData').get();
             
             if (metaDoc.exists) {
@@ -146,18 +174,15 @@
                 console.log(`📊 Versão Local: ${dataVersion} | Firebase: ${firebaseVersion}`);
                 
                 if (firebaseVersion > dataVersion) {
-                    // Firebase mais recente - baixar todos os dados
-                    console.log('☁️ Baixando dados do Firebase...');
+                    console.log('☁️ Firebase mais recente - baixando...');
                     await baixarDadosFirebase();
                 } else if (dataVersion > firebaseVersion) {
-                    // Local mais recente - enviar para Firebase
-                    console.log('💾 Enviando dados locais para Firebase...');
+                    console.log('💾 Local mais recente - enviando...');
                     await salvarNoFirebase();
                 } else {
                     console.log('✅ Dados já sincronizados');
                 }
             } else {
-                // Firebase vazio - enviar dados locais
                 console.log('☁️ Firebase vazio - enviando dados locais');
                 await salvarNoFirebase();
             }
@@ -214,7 +239,6 @@
                 newData.registrosKM.push({ firebaseId: doc.id, ...doc.data() });
             });
             
-            // Atualizar dados locais
             appData = newData;
             dataVersion = newData._metadata.version || 0;
             salvarLocalStorage();
@@ -226,7 +250,7 @@
         }
     }
 
-    // ============ SALVAR DADOS ============
+    // ============ SALVAR DADOS (Motoristas) ============
     function salvarLocalStorage() {
         try {
             appData._metadata.version = (appData._metadata.version || 0) + 1;
@@ -315,7 +339,7 @@
             appData._metadata.lastSync = new Date().toISOString();
             salvarLocalStorage();
             
-            console.log('☁️ Dados salvos no Firebase');
+            console.log('☁️ Dados de Motoristas salvos no Firebase');
             return true;
             
         } catch (error) {
@@ -331,7 +355,7 @@
             const str = localStorage.getItem(CONFIG.SYNC_QUEUE_KEY);
             syncQueue = str ? JSON.parse(str) : [];
             if (syncQueue.length > 0) {
-                console.log(`📋 ${syncQueue.length} operações na fila`);
+                console.log(`📋 ${syncQueue.length} operações na fila de sync`);
             }
         } catch (e) {
             syncQueue = [];
@@ -345,13 +369,12 @@
             dados: JSON.parse(JSON.stringify(appData))
         });
         localStorage.setItem(CONFIG.SYNC_QUEUE_KEY, JSON.stringify(syncQueue));
-        console.log('📋 Adicionado à fila -', syncQueue.length, 'pendentes');
     }
 
     async function processarFilaSync() {
         if (!isOnline || !db || syncQueue.length === 0) return;
         
-        console.log('🔄 Processando fila...');
+        console.log('🔄 Processando fila de sincronização...');
         isSyncing = true;
         
         for (let i = syncQueue.length - 1; i >= 0; i--) {
@@ -371,7 +394,7 @@
                 
                 if (ok) {
                     syncQueue.splice(i, 1);
-                    console.log('✅ Sincronizado com sucesso');
+                    console.log('✅ Item da fila sincronizado');
                 } else {
                     appData = backup;
                 }
@@ -393,7 +416,6 @@
             
             if (!localStorage.getItem(key)) {
                 localStorage.setItem(key, JSON.stringify(appData));
-                console.log('📦 Backup diário:', hoje);
                 
                 // Limpar antigos
                 const backups = [];
@@ -420,7 +442,7 @@
             if (metaDoc.exists) {
                 const fbVersion = metaDoc.data().version || 0;
                 if (fbVersion > dataVersion) {
-                    console.log('🔄 Firebase mais recente - atualizando');
+                    console.log('🔄 Firebase mais recente - atualizando motoristas');
                     await baixarDadosFirebase();
                     window.dispatchEvent(new CustomEvent('dataUpdated', { detail: appData }));
                 }
@@ -434,8 +456,197 @@
         }
     }
 
-    // ============ API PÚBLICA ============
+    // =============================================
+    // NOVAS FUNÇÕES - MULTI-MÓDULOS (v3.0)
+    // =============================================
+
+    async function sincronizarTodosModulos() {
+        if (!db || !isOnline) return;
+        
+        console.log('🔄 Sincronizando todos os módulos...');
+        
+        for (const [localKey, collection] of Object.entries(MODULE_MAPPINGS)) {
+            try {
+                // Verificar se Firebase tem dados
+                const snapshot = await db.collection(collection).limit(1).get();
+                
+                if (!snapshot.empty) {
+                    // Firebase tem dados → baixar tudo
+                    const fullSnapshot = await db.collection(collection).get();
+                    const data = [];
+                    fullSnapshot.forEach(doc => {
+                        const item = doc.data();
+                        delete item._modifiedAt;
+                        delete item._createdAt;
+                        data.push({ id: doc.id, ...item });
+                    });
+                    
+                    if (data.length > 0) {
+                        localStorage.setItem(localKey, JSON.stringify(data));
+                        console.log(`  ✅ ${collection}: ${data.length} itens sincronizados`);
+                    }
+                } else {
+                    // Firebase vazio → enviar localStorage
+                    const localData = localStorage.getItem(localKey);
+                    if (localData) {
+                        const parsed = JSON.parse(localData);
+                        const items = Array.isArray(parsed) ? parsed : [parsed];
+                        
+                        if (items.length > 0) {
+                            await saveModuleData(collection, items);
+                            console.log(`  ⬆️ ${collection}: ${items.length} itens enviados`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`  ⚠️ ${collection}: ${error.message}`);
+            }
+        }
+        
+        console.log('✅ Sincronização de módulos concluída');
+    }
+
+    async function saveModuleData(collectionName, dataArray) {
+        if (!db || !isOnline) return false;
+        
+        try {
+            const batch = db.batch();
+            let count = 0;
+            
+            for (const item of dataArray) {
+                if (!item || !item.id) continue;
+                
+                const cleanData = { ...item };
+                delete cleanData.firebaseId;
+                cleanData._modifiedAt = firebase.firestore.FieldValue.serverTimestamp();
+                cleanData._syncedAt = new Date().toISOString();
+                
+                const docId = String(item.id);
+                batch.set(db.collection(collectionName).doc(docId), cleanData, { merge: true });
+                count++;
+                
+                if (count >= 450) {
+                    await batch.commit();
+                    count = 0;
+                }
+            }
+            
+            if (count > 0) {
+                await batch.commit();
+            }
+            
+            return true;
+        } catch (error) {
+            console.error(`❌ Erro ao salvar ${collectionName}:`, error);
+            return false;
+        }
+    }
+
+    async function loadModuleData(collectionName) {
+        if (!db || !isOnline) return null;
+        
+        try {
+            const snapshot = await db.collection(collectionName).get();
+            const data = [];
+            
+            snapshot.forEach(doc => {
+                const item = doc.data();
+                delete item._modifiedAt;
+                delete item._createdAt;
+                data.push({ id: doc.id, ...item });
+            });
+            
+            return data;
+        } catch (error) {
+            console.error(`❌ Erro ao carregar ${collectionName}:`, error);
+            return null;
+        }
+    }
+
+    async function deleteModuleItem(collectionName, itemId) {
+        if (!db || !isOnline) return false;
+        
+        try {
+            await db.collection(collectionName).doc(String(itemId)).delete();
+            return true;
+        } catch (error) {
+            console.error(`❌ Erro ao excluir ${collectionName}/${itemId}:`, error);
+            return false;
+        }
+    }
+
+    async function addModuleItem(collectionName, item) {
+        if (!db || !isOnline) return null;
+        
+        try {
+            const docData = {
+                ...item,
+                _createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                _modifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                _syncedAt: new Date().toISOString()
+            };
+            delete docData.firebaseId;
+            delete docData.id;
+            
+            const docRef = await db.collection(collectionName).add(docData);
+            return { id: docRef.id, ...item };
+        } catch (error) {
+            console.error(`❌ Erro ao adicionar em ${collectionName}:`, error);
+            return null;
+        }
+    }
+
+    async function migrateAllToFirebase() {
+        if (!db || !isOnline) {
+            console.error('❌ Firebase não disponível');
+            alert('Firebase não está conectado! Verifique sua conexão.');
+            return;
+        }
+        
+        console.log('🚀 Iniciando migração completa localStorage → Firebase...');
+        let totalMigrados = 0;
+        const resultados = [];
+        
+        for (const [localKey, collection] of Object.entries(MODULE_MAPPINGS)) {
+            const localData = localStorage.getItem(localKey);
+            
+            if (localData) {
+                try {
+                    const parsed = JSON.parse(localData);
+                    const items = Array.isArray(parsed) ? parsed : [parsed];
+                    
+                    if (items.length > 0) {
+                        await saveModuleData(collection, items);
+                        totalMigrados += items.length;
+                        resultados.push(`✅ ${localKey} → ${collection}: ${items.length} itens`);
+                        console.log(`  ✅ "${localKey}" → "${collection}": ${items.length} itens`);
+                    }
+                } catch (error) {
+                    resultados.push(`⚠️ ${localKey}: erro - ${error.message}`);
+                    console.log(`  ⚠️ "${localKey}": ${error.message}`);
+                }
+            }
+        }
+        
+        console.log(`✅ Migração concluída! ${totalMigrados} itens migrados.`);
+        
+        const mensagem = `Migração concluída!\n\n${resultados.join('\n')}\n\nTotal: ${totalMigrados} itens migrados.\n\nDeseja LIMPAR o localStorage? (Recomendado)`;
+        
+        if (totalMigrados > 0 && confirm(mensagem)) {
+            for (const localKey of Object.keys(MODULE_MAPPINGS)) {
+                localStorage.removeItem(localKey);
+            }
+            console.log('🗑️ localStorage limpo!');
+            alert('localStorage limpo! Recarregue a página (F5).');
+            location.reload();
+        }
+    }
+
+    // =============================================
+    // API PÚBLICA (ESTENDIDA)
+    // =============================================
     window.SyncSystem = {
+        // Funções originais (Motoristas)
         getData: function() {
             return JSON.parse(JSON.stringify(appData));
         },
@@ -467,6 +678,7 @@
         
         forceSync: async function() {
             await processarFilaSync();
+            await sincronizarTodosModulos();
         },
         
         getStatus: function() {
@@ -476,7 +688,8 @@
                 version: dataVersion,
                 queueSize: syncQueue.length,
                 lastSync: appData._metadata.lastSync,
-                lastModified: appData._metadata.lastModified
+                lastModified: appData._metadata.lastModified,
+                firebaseConnected: !!db
             };
         },
         
@@ -538,16 +751,75 @@
             } catch (e) {
                 return false;
             }
+        },
+
+        // ========== NOVAS FUNÇÕES MULTI-MÓDULOS ==========
+        
+        saveModuleData: saveModuleData,
+        loadModuleData: loadModuleData,
+        deleteModuleItem: deleteModuleItem,
+        addModuleItem: addModuleItem,
+        migrateAllToFirebase: migrateAllToFirebase,
+        syncAllModules: sincronizarTodosModulos,
+        
+        // Função para salvar dados de qualquer módulo
+        salvarModulo: async function(nomeModulo, dados) {
+            const collection = MODULE_MAPPINGS[nomeModulo] || nomeModulo;
+            
+            // Sempre salvar no localStorage como cache
+            localStorage.setItem(nomeModulo, JSON.stringify(dados));
+            
+            // Salvar no Firebase se online
+            if (isOnline && db) {
+                return await saveModuleData(collection, dados);
+            }
+            return false;
+        },
+        
+        // Função para carregar dados de qualquer módulo
+        carregarModulo: async function(nomeModulo) {
+            const collection = MODULE_MAPPINGS[nomeModulo] || nomeModulo;
+            
+            // Tentar Firebase primeiro
+            if (isOnline && db) {
+                try {
+                    const data = await loadModuleData(collection);
+                    if (data && data.length > 0) {
+                        // Atualizar cache local
+                        localStorage.setItem(nomeModulo, JSON.stringify(data));
+                        return data;
+                    }
+                } catch(e) {
+                    console.warn(`⚠️ Firebase indisponível para ${nomeModulo}, usando cache`);
+                }
+            }
+            
+            // Fallback para localStorage
+            const localData = localStorage.getItem(nomeModulo);
+            return localData ? JSON.parse(localData) : [];
         }
     };
 
+    // ========== FUNÇÕES GLOBAIS (CONSOLE) ==========
+    window.migrarTudoParaFirebase = () => window.SyncSystem.migrateAllToFirebase();
+    window.syncAllModules = () => window.SyncSystem.syncAllModules();
+    window.verStatusSync = () => {
+        const status = window.SyncSystem.getStatus();
+        console.log('📊 Status do Sync System:');
+        console.log('   Online:', status.online ? '✅' : '❌');
+        console.log('   Firebase:', status.firebaseConnected ? '✅' : '❌');
+        console.log('   Sincronizando:', status.syncing ? '🔄' : '⏸️');
+        console.log('   Versão:', status.version);
+        console.log('   Fila:', status.queueSize);
+        console.log('   Último sync:', status.lastSync);
+        return status;
+    };
+
     // ============ INICIAR ============
-    // Garantir que appData existe antes de tudo
     if (!appData) {
         appData = criarDadosVazios();
     }
     
-    // Iniciar quando o DOM estiver pronto
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
