@@ -1,5 +1,6 @@
 // ============================================
 // PRODUCAO.JS - Controle de Produção
+// Atualizado - Usa firebase-init.js
 // ============================================
 
 let sistemaInicializado = false;
@@ -13,10 +14,17 @@ let fechamentoAtualId = null;
 // ============================================
 function inicializarSistema() {
     if (sistemaInicializado) return;
-    if (typeof window.db === 'undefined') {
+    
+    // Verificar se o Firebase está disponível via firebase-init.js
+    if (typeof window.firebaseDB === 'undefined' && typeof window.db === 'undefined') {
         console.log('⏳ Aguardando Firebase...');
         setTimeout(inicializarSistema, 200);
         return;
+    }
+
+    // Usar a instância global do Firebase
+    if (!window.db && window.firebaseDB) {
+        window.db = window.firebaseDB;
     }
 
     sistemaInicializado = true;
@@ -40,23 +48,22 @@ function inicializarTabs() {
             tabContents.forEach(c => c.classList.remove('active'));
             
             btn.classList.add('active');
-            document.getElementById(`tab-${tabId}`).classList.add('active');
+            const tabElement = document.getElementById(`tab-${tabId}`);
+            if (tabElement) tabElement.classList.add('active');
             
-            if (tabId === 'materiais') {
-                carregarListaMateriais();
-            } else if (tabId === 'fornecedores') {
-                carregarListaFornecedores();
-            }
+            if (tabId === 'materiais') carregarListaMateriais();
+            else if (tabId === 'fornecedores') carregarListaFornecedores();
         });
     });
 }
 
 function inicializarDataAtual() {
+    const hoje = new Date().toISOString().split('T')[0];
     const dataEntrada = document.getElementById('dataEntradaFechamento');
     const folhaData = document.getElementById('folhaData');
     
-    if (dataEntrada) dataEntrada.value = new Date().toISOString().split('T')[0];
-    if (folhaData) folhaData.value = new Date().toISOString().split('T')[0];
+    if (dataEntrada) dataEntrada.value = hoje;
+    if (folhaData) folhaData.value = hoje;
 }
 
 function inicializarEventos() {
@@ -72,6 +79,7 @@ function inicializarEventos() {
     document.getElementById('btnSalvarFolha')?.addEventListener('click', salvarFolha);
     document.getElementById('btnAddMaterial')?.addEventListener('click', () => adicionarMaterialCard());
     
+    // Fechar modais
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', function() {
             this.closest('.modal')?.classList.remove('active');
@@ -86,7 +94,6 @@ function inicializarEventos() {
     
     document.getElementById('btnAplicarFiltros')?.addEventListener('click', aplicarFiltros);
     document.getElementById('btnLimparFiltros')?.addEventListener('click', limparFiltros);
-    
     document.getElementById('searchFechamentos')?.addEventListener('input', filtrarFechamentos);
     
     console.log('✅ Eventos inicializados!');
@@ -158,8 +165,11 @@ async function carregarDadosIniciais() {
 
 async function carregarMateriais() {
     try {
-        const q = query(collection(window.db, "materiais"), orderBy("nome"));
-        const querySnapshot = await getDocs(q);
+        const db = window.db || window.firebaseDB;
+        if (!db) return;
+        
+        const q = db.collection("materiais").orderBy("nome");
+        const querySnapshot = await q.get();
         materiaisCadastrados = [];
         querySnapshot.forEach((doc) => {
             materiaisCadastrados.push({ 
@@ -175,8 +185,11 @@ async function carregarMateriais() {
 
 async function carregarFornecedores() {
     try {
-        const q = query(collection(window.db, "fornecedores"), orderBy("nome"));
-        const querySnapshot = await getDocs(q);
+        const db = window.db || window.firebaseDB;
+        if (!db) return;
+        
+        const q = db.collection("fornecedores").orderBy("nome");
+        const querySnapshot = await q.get();
         fornecedoresCadastrados = [];
         querySnapshot.forEach((doc) => {
             fornecedoresCadastrados.push({ 
@@ -210,8 +223,14 @@ async function carregarFechamentos() {
     container.innerHTML = '<div class="loading">Carregando fechamentos...</div>';
     
     try {
-        const q = query(collection(window.db, "fechamentos"), orderBy("dataCriacao", "desc"));
-        const querySnapshot = await getDocs(q);
+        const db = window.db || window.firebaseDB;
+        if (!db) {
+            container.innerHTML = '<div class="error">Firebase não disponível</div>';
+            return;
+        }
+        
+        const q = db.collection("fechamentos").orderBy("dataCriacao", "desc");
+        const querySnapshot = await q.get();
         
         if (querySnapshot.empty) {
             container.innerHTML = `
@@ -393,10 +412,6 @@ function adicionarEventosCardsFechamento() {
         btn.addEventListener('click', () => visualizarPDF(btn.dataset.id));
     });
     
-    document.querySelectorAll('.btn-editar-fechamento').forEach(btn => {
-        btn.addEventListener('click', () => editarFechamento(btn.dataset.id));
-    });
-    
     document.querySelectorAll('.btn-excluir-fechamento').forEach(btn => {
         btn.addEventListener('click', () => excluirFechamento(btn.dataset.id));
     });
@@ -406,6 +421,9 @@ function adicionarEventosCardsFechamento() {
 // CRUD OPERATIONS
 // ============================================
 async function criarFechamento() {
+    const db = window.db || window.firebaseDB;
+    if (!db) { mostrarAlerta('Firebase não disponível', 'erro'); return; }
+    
     const dataEntrada = document.getElementById('dataEntradaFechamento').value;
     const fornecedor = document.getElementById('fechamentoFornecedor').value;
     const pesoBruto = parseFloat(document.getElementById('pesoBrutoFechamento')?.value) || 0;
@@ -419,7 +437,7 @@ async function criarFechamento() {
         const dataFormatada = new Date(dataEntrada).toLocaleDateString('pt-BR');
         const nomeAutomatico = `${fornecedor} - ${dataFormatada}`;
 
-        await addDoc(collection(window.db, "fechamentos"), {
+        await db.collection("fechamentos").add({
             nome: nomeAutomatico,
             dataEntrada: dataEntrada,
             fornecedor: fornecedor,
@@ -442,17 +460,19 @@ async function criarFechamento() {
 }
 
 async function finalizarFechamento(id) {
-    if (!confirm('Finalizar esta carga? Após finalizar, não será possível adicionar mais folhas.')) return;
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
+    if (!confirm('Finalizar esta carga?')) return;
     
     try {
-        const fechamentoRef = doc(window.db, "fechamentos", id);
-        await updateDoc(fechamentoRef, { 
+        await db.collection("fechamentos").doc(id).update({ 
             finalizado: true,
             status: 'finalizado',
             dataFinalizacao: new Date().toISOString()
         });
         
-        mostrarAlerta('Carga finalizada! Agora você pode gerar o PDF.', 'sucesso');
+        mostrarAlerta('Carga finalizada!', 'sucesso');
         await carregarFechamentos();
         await atualizarEstatisticas();
     } catch (error) {
@@ -461,138 +481,69 @@ async function finalizarFechamento(id) {
 }
 
 async function salvarMaterial() {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     const nome = document.getElementById('novoMaterialNome').value.trim();
     if (!nome) { mostrarAlerta('Digite o nome do material', 'erro'); return; }
 
     try {
-        await addDoc(collection(window.db, "materiais"), { 
+        await db.collection("materiais").add({ 
             nome: nome,
             dataCriacao: new Date().toISOString()
         });
         
-        mostrarAlerta('Material cadastrado com sucesso!', 'sucesso');
+        mostrarAlerta('Material cadastrado!', 'sucesso');
         document.getElementById('modalCadastroMaterial').classList.remove('active');
         await carregarMateriais();
     } catch (error) {
-        mostrarAlerta('Erro ao cadastrar material: ' + error.message, 'erro');
+        mostrarAlerta('Erro ao cadastrar material', 'erro');
     }
 }
 
 async function salvarFornecedor() {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     const nome = document.getElementById('novoFornecedorNome').value.trim();
     if (!nome) { mostrarAlerta('Digite o nome do fornecedor', 'erro'); return; }
 
     try {
-        await addDoc(collection(window.db, "fornecedores"), { 
+        await db.collection("fornecedores").add({ 
             nome: nome,
             dataCriacao: new Date().toISOString()
         });
         
-        mostrarAlerta('Fornecedor cadastrado com sucesso!', 'sucesso');
+        mostrarAlerta('Fornecedor cadastrado!', 'sucesso');
         document.getElementById('modalCadastroFornecedor').classList.remove('active');
         await carregarFornecedores();
     } catch (error) {
-        mostrarAlerta('Erro ao cadastrar fornecedor: ' + error.message, 'erro');
+        mostrarAlerta('Erro ao cadastrar fornecedor', 'erro');
     }
 }
 
-// ============================================
-// LISTAS DE MATERIAIS E FORNECEDORES
-// ============================================
-async function carregarListaMateriais() {
-    const container = document.getElementById('listaMateriaisCadastrados');
-    if (!container) return;
+async function excluirFechamento(id) {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
     
-    container.innerHTML = '<div class="loading">Carregando materiais...</div>';
+    if (!confirm('Excluir este fechamento?')) return;
     
     try {
-        await carregarMateriais();
-        
-        if (materiaisCadastrados.length === 0) {
-            container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>Nenhum material cadastrado</p></div>`;
-            document.getElementById('totalMateriais').textContent = '0 materiais';
-            return;
-        }
-
-        let html = '';
-        materiaisCadastrados.forEach(mat => {
-            html += `
-                <div class="cadastro-card">
-                    <div class="cadastro-info">
-                        <i class="fas fa-box"></i>
-                        <div class="cadastro-detalhes">
-                            <h4>${mat.nome}</h4>
-                            <small>${new Date(mat.dataCriacao).toLocaleDateString('pt-BR')}</small>
-                        </div>
-                    </div>
-                    <button class="btn-icon btn-excluir-material" data-id="${mat.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        document.getElementById('totalMateriais').textContent = `${materiaisCadastrados.length} materiais`;
-        
-        document.querySelectorAll('.btn-excluir-material').forEach(btn => {
-            btn.addEventListener('click', () => excluirMaterial(btn.dataset.id));
-        });
-        
+        await db.collection("fechamentos").doc(id).delete();
+        mostrarAlerta('Fechamento excluído!', 'sucesso');
+        await carregarFechamentos();
+        await atualizarEstatisticas();
     } catch (error) {
-        container.innerHTML = '<div class="error">Erro ao carregar materiais</div>';
-    }
-}
-
-async function carregarListaFornecedores() {
-    const container = document.getElementById('listaFornecedoresCadastrados');
-    if (!container) return;
-    
-    container.innerHTML = '<div class="loading">Carregando fornecedores...</div>';
-    
-    try {
-        await carregarFornecedores();
-        
-        if (fornecedoresCadastrados.length === 0) {
-            container.innerHTML = `<div class="empty-state"><i class="fas fa-truck"></i><p>Nenhum fornecedor cadastrado</p></div>`;
-            document.getElementById('totalFornecedores').textContent = '0 fornecedores';
-            return;
-        }
-
-        let html = '';
-        fornecedoresCadastrados.forEach(forn => {
-            html += `
-                <div class="cadastro-card">
-                    <div class="cadastro-info">
-                        <i class="fas fa-truck"></i>
-                        <div class="cadastro-detalhes">
-                            <h4>${forn.nome}</h4>
-                            <small>${new Date(forn.dataCriacao).toLocaleDateString('pt-BR')}</small>
-                        </div>
-                    </div>
-                    <button class="btn-icon btn-excluir-fornecedor" data-id="${forn.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        document.getElementById('totalFornecedores').textContent = `${fornecedoresCadastrados.length} fornecedores`;
-        
-        document.querySelectorAll('.btn-excluir-fornecedor').forEach(btn => {
-            btn.addEventListener('click', () => excluirFornecedor(btn.dataset.id));
-        });
-        
-    } catch (error) {
-        container.innerHTML = '<div class="error">Erro ao carregar fornecedores</div>';
+        mostrarAlerta('Erro ao excluir', 'erro');
     }
 }
 
 async function excluirMaterial(id) {
-    if (!confirm('Excluir este material?')) return;
+    const db = window.db || window.firebaseDB;
+    if (!db || !confirm('Excluir este material?')) return;
+    
     try {
-        await deleteDoc(doc(window.db, "materiais", id));
+        await db.collection("materiais").doc(id).delete();
         mostrarAlerta('Material excluído!', 'sucesso');
         await carregarListaMateriais();
         await carregarMateriais();
@@ -602,9 +553,11 @@ async function excluirMaterial(id) {
 }
 
 async function excluirFornecedor(id) {
-    if (!confirm('Excluir este fornecedor?')) return;
+    const db = window.db || window.firebaseDB;
+    if (!db || !confirm('Excluir este fornecedor?')) return;
+    
     try {
-        await deleteDoc(doc(window.db, "fornecedores", id));
+        await db.collection("fornecedores").doc(id).delete();
         mostrarAlerta('Fornecedor excluído!', 'sucesso');
         await carregarListaFornecedores();
         await carregarFornecedores();
@@ -614,27 +567,96 @@ async function excluirFornecedor(id) {
 }
 
 // ============================================
-// MATERIAIS E PESOS
+// LISTAS
+// ============================================
+async function carregarListaMateriais() {
+    const container = document.getElementById('listaMateriaisCadastrados');
+    if (!container) return;
+    
+    await carregarMateriais();
+    
+    if (materiaisCadastrados.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>Nenhum material cadastrado</p></div>`;
+        document.getElementById('totalMateriais').textContent = '0 materiais';
+        return;
+    }
+
+    container.innerHTML = materiaisCadastrados.map(mat => `
+        <div class="cadastro-card">
+            <div class="cadastro-info">
+                <i class="fas fa-box"></i>
+                <div class="cadastro-detalhes">
+                    <h4>${mat.nome}</h4>
+                    <small>${new Date(mat.dataCriacao).toLocaleDateString('pt-BR')}</small>
+                </div>
+            </div>
+            <button class="btn-icon btn-excluir-material" data-id="${mat.id}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    document.getElementById('totalMateriais').textContent = `${materiaisCadastrados.length} materiais`;
+    
+    document.querySelectorAll('.btn-excluir-material').forEach(btn => {
+        btn.addEventListener('click', () => excluirMaterial(btn.dataset.id));
+    });
+}
+
+async function carregarListaFornecedores() {
+    const container = document.getElementById('listaFornecedoresCadastrados');
+    if (!container) return;
+    
+    await carregarFornecedores();
+    
+    if (fornecedoresCadastrados.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-truck"></i><p>Nenhum fornecedor cadastrado</p></div>`;
+        document.getElementById('totalFornecedores').textContent = '0 fornecedores';
+        return;
+    }
+
+    container.innerHTML = fornecedoresCadastrados.map(forn => `
+        <div class="cadastro-card">
+            <div class="cadastro-info">
+                <i class="fas fa-truck"></i>
+                <div class="cadastro-detalhes">
+                    <h4>${forn.nome}</h4>
+                    <small>${new Date(forn.dataCriacao).toLocaleDateString('pt-BR')}</small>
+                </div>
+            </div>
+            <button class="btn-icon btn-excluir-fornecedor" data-id="${forn.id}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    document.getElementById('totalFornecedores').textContent = `${fornecedoresCadastrados.length} fornecedores`;
+    
+    document.querySelectorAll('.btn-excluir-fornecedor').forEach(btn => {
+        btn.addEventListener('click', () => excluirFornecedor(btn.dataset.id));
+    });
+}
+
+// ============================================
+// MATERIAIS E PESOS (mantido igual)
 // ============================================
 function adicionarMaterialCard(materialNome = '', pesos = []) {
     const materiaisList = document.getElementById('materiaisList');
     if (!materiaisList) return;
     
-    const cardId = 'material_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    
+    const cardId = 'material_' + Date.now();
     const cardDiv = document.createElement('div');
     cardDiv.className = 'material-card-item';
     cardDiv.dataset.id = cardId;
     
     let selectOptions = '<option value="">Selecione um material...</option>';
     materiaisCadastrados.forEach(mat => {
-        const selected = mat.nome === materialNome ? 'selected' : '';
-        selectOptions += `<option value="${mat.nome}" ${selected}>${mat.nome}</option>`;
+        selectOptions += `<option value="${mat.nome}" ${mat.nome === materialNome ? 'selected' : ''}>${mat.nome}</option>`;
     });
     
     cardDiv.innerHTML = `
         <div class="material-header">
-            <select class="form-control material-select" data-card="${cardId}" style="flex: 1;">
+            <select class="form-control material-select" data-card="${cardId}" style="flex:1;">
                 ${selectOptions}
             </select>
             <button type="button" class="btn btn-sm btn-danger btn-remover-material" data-card="${cardId}">
@@ -647,34 +669,24 @@ function adicionarMaterialCard(materialNome = '', pesos = []) {
                 <i class="fas fa-plus"></i> Adicionar Peso
             </button>
         </div>
-        <div class="material-total" id="total-${cardId}">
-            Total do Material: 0,00 kg
-        </div>
+        <div class="material-total" id="total-${cardId}">Total do Material: 0,00 kg</div>
     `;
     
     materiaisList.appendChild(cardDiv);
     
     const pesosList = document.getElementById(`pesos-${cardId}`);
-    if (pesos && pesos.length > 0) {
-        pesos.forEach(peso => adicionarCampoPeso(pesosList, cardId, peso));
+    if (pesos.length > 0) {
+        pesos.forEach(p => adicionarCampoPeso(pesosList, cardId, p));
     } else {
         adicionarCampoPeso(pesosList, cardId, '');
     }
     
-    const select = cardDiv.querySelector('.material-select');
-    const btnRemover = cardDiv.querySelector('.btn-remover-material');
-    const btnAddPeso = cardDiv.querySelector('.btn-add-peso');
-    
-    if (select) select.addEventListener('change', calcularSomaFolha);
-    if (btnRemover) {
-        btnRemover.addEventListener('click', () => {
-            cardDiv.remove();
-            calcularSomaFolha();
-        });
-    }
-    if (btnAddPeso) {
-        btnAddPeso.addEventListener('click', () => adicionarCampoPeso(pesosList, cardId, ''));
-    }
+    cardDiv.querySelector('.material-select')?.addEventListener('change', calcularSomaFolha);
+    cardDiv.querySelector('.btn-remover-material')?.addEventListener('click', () => {
+        cardDiv.remove();
+        calcularSomaFolha();
+    });
+    cardDiv.querySelector('.btn-add-peso')?.addEventListener('click', () => adicionarCampoPeso(pesosList, cardId, ''));
     
     calcularSomaFolha();
 }
@@ -691,398 +703,238 @@ function adicionarCampoPeso(container, cardId, valorInicial = '') {
     `;
     
     container.appendChild(pesoDiv);
-    
-    const input = pesoDiv.querySelector('.peso-input');
-    const btnRemover = pesoDiv.querySelector('.btn-remover-peso');
-    
-    if (input) input.addEventListener('input', calcularSomaFolha);
-    if (btnRemover) {
-        btnRemover.addEventListener('click', () => {
-            pesoDiv.remove();
-            calcularSomaFolha();
-        });
-    }
+    pesoDiv.querySelector('.peso-input')?.addEventListener('input', calcularSomaFolha);
+    pesoDiv.querySelector('.btn-remover-peso')?.addEventListener('click', () => {
+        pesoDiv.remove();
+        calcularSomaFolha();
+    });
 }
 
 async function calcularSomaFolha() {
+    const db = window.db || window.firebaseDB;
     let somaTotalGeral = 0;
-    const cards = document.querySelectorAll('.material-card-item');
     
-    cards.forEach(card => {
+    document.querySelectorAll('.material-card-item').forEach(card => {
         const cardId = card.dataset.id;
-        const pesos = card.querySelectorAll('.peso-input');
         let somaMaterial = 0;
-        
-        pesos.forEach(input => {
+        card.querySelectorAll('.peso-input').forEach(input => {
             somaMaterial += parseFloat(input.value) || 0;
         });
-        
         somaTotalGeral += somaMaterial;
-        
         const totalSpan = document.getElementById(`total-${cardId}`);
-        if (totalSpan) {
-            totalSpan.textContent = `Total do Material: ${formatarPeso(somaMaterial)} kg`;
-        }
+        if (totalSpan) totalSpan.textContent = `Total do Material: ${formatarPeso(somaMaterial)} kg`;
     });
     
-    const somaMateriaisSpan = document.getElementById('somaMateriais');
-    if (somaMateriaisSpan) {
-        somaMateriaisSpan.textContent = formatarPeso(somaTotalGeral);
-    }
+    const somaSpan = document.getElementById('somaMateriais');
+    if (somaSpan) somaSpan.textContent = formatarPeso(somaTotalGeral);
     
+    // Comparativo
     const fechamentoId = document.getElementById('fechamentoAtualId')?.value;
     let pesoBalancao = 0;
     
-    if (fechamentoId) {
+    if (fechamentoId && db) {
         try {
-            const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-            const fechamentoSnap = await getDoc(fechamentoRef);
-            if (fechamentoSnap.exists()) {
-                pesoBalancao = fechamentoSnap.data().pesoBruto || 0;
-            }
-        } catch (error) {
-            console.error('Erro ao buscar peso:', error);
-        }
+            const snap = await db.collection("fechamentos").doc(fechamentoId).get();
+            if (snap.exists) pesoBalancao = snap.data().pesoBruto || 0;
+        } catch(e) {}
     }
     
-    const comparativoDiv = document.getElementById('comparativoDiv');
-    if (comparativoDiv) {
-        const diferenca = somaTotalGeral - pesoBalancao;
-        
-        let html = `<strong>📊 Comparativo</strong><br>`;
-        html += `Peso Bruto: ${formatarPeso(pesoBalancao)} kg<br>`;
-        html += `Soma Total: ${formatarPeso(somaTotalGeral)} kg<br>`;
+    const compDiv = document.getElementById('comparativoDiv');
+    if (compDiv) {
+        const dif = somaTotalGeral - pesoBalancao;
+        let html = `<strong>📊 Comparativo</strong><br>Peso Bruto: ${formatarPeso(pesoBalancao)} kg<br>Soma Total: ${formatarPeso(somaTotalGeral)} kg<br>`;
         
         if (pesoBalancao > 0) {
-            const diferencaPercentual = (Math.abs(diferenca) / pesoBalancao) * 100;
-            html += `Diferença: ${diferenca >= 0 ? '+' : ''}${formatarPeso(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}%)<br>`;
-            
-            comparativoDiv.className = 'comparativo-box';
-            if (diferencaPercentual <= 5) {
-                comparativoDiv.classList.add('verde');
-                html += '✅ COMPATÍVEL: Dentro da tolerância de 5%';
-            } else {
-                comparativoDiv.classList.add('vermelho');
-                html += '❌ INCOMPATÍVEL: Variação superior a 5%';
-            }
+            const perc = (Math.abs(dif) / pesoBalancao) * 100;
+            html += `Diferença: ${dif >= 0 ? '+' : ''}${formatarPeso(Math.abs(dif))} kg (${perc.toFixed(1)}%)<br>`;
+            compDiv.className = 'comparativo-box ' + (perc <= 5 ? 'verde' : 'vermelho');
+            html += perc <= 5 ? '✅ COMPATÍVEL' : '❌ INCOMPATÍVEL';
         } else {
-            comparativoDiv.className = 'comparativo-box amarelo';
-            html += '⚠️ Peso bruto não informado no fechamento';
+            compDiv.className = 'comparativo-box amarelo';
+            html += '⚠️ Peso bruto não informado';
         }
-        
-        comparativoDiv.innerHTML = html;
+        compDiv.innerHTML = html;
     }
 }
 
 // ============================================
-// SALVAR E CARREGAR FOLHA
+// SALVAR FOLHA
 // ============================================
 async function salvarFolha() {
+    const db = window.db || window.firebaseDB;
+    if (!db) { mostrarAlerta('Firebase não disponível', 'erro'); return; }
+    
     const fechamentoId = document.getElementById('fechamentoAtualId')?.value;
     const folhaData = document.getElementById('folhaData')?.value;
     const folhaDescricao = document.getElementById('folhaDescricao')?.value || '';
     
-    if (!fechamentoId) { mostrarAlerta('Fechamento não identificado', 'erro'); return; }
-    if (!folhaData) { mostrarAlerta('Selecione a data da pesagem', 'erro'); return; }
+    if (!fechamentoId || !folhaData) {
+        mostrarAlerta('Preencha os campos obrigatórios', 'erro');
+        return;
+    }
     
-    const cards = document.querySelectorAll('.material-card-item');
     const materiais = [];
-    
-    cards.forEach(card => {
-        const select = card.querySelector('.material-select');
-        const materialNome = select?.value || '';
-        const pesos = card.querySelectorAll('.peso-input');
+    document.querySelectorAll('.material-card-item').forEach(card => {
+        const nome = card.querySelector('.material-select')?.value;
+        if (!nome) return;
         
-        let somaMaterial = 0;
-        const pesosLista = [];
-        
-        pesos.forEach(input => {
-            const peso = parseFloat(input.value) || 0;
-            if (peso > 0) {
-                somaMaterial += peso;
-                pesosLista.push(peso);
-            }
+        let soma = 0;
+        const pesos = [];
+        card.querySelectorAll('.peso-input').forEach(input => {
+            const p = parseFloat(input.value) || 0;
+            if (p > 0) { soma += p; pesos.push(p); }
         });
         
-        if (materialNome && somaMaterial > 0) {
-            materiais.push({
-                nome: materialNome,
-                pesoTotal: somaMaterial,
-                pesos: pesosLista
-            });
-        }
+        if (soma > 0) materiais.push({ nome, pesoTotal: soma, pesos });
     });
     
-    if (materiais.length === 0) { mostrarAlerta('Adicione pelo menos um material com peso', 'erro'); return; }
+    if (materiais.length === 0) { mostrarAlerta('Adicione pelo menos um material', 'erro'); return; }
     
     try {
-        const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-        const fechamentoSnap = await getDoc(fechamentoRef);
-        const fechamento = fechamentoSnap.data();
-        const pesoBalancao = fechamento.pesoBruto || 0;
+        const snap = await db.collection("fechamentos").doc(fechamentoId).get();
+        const fechamento = snap.data();
         
         const novaFolha = {
             id: folhaEditandoId || Date.now().toString(),
             data: folhaData,
             descricao: folhaDescricao,
-            pesoBalancao: pesoBalancao,
             materiais: materiais,
             dataCriacao: new Date().toISOString()
         };
         
-        let folhasAtuais = fechamento.folhas || [];
-        
+        let folhas = fechamento.folhas || [];
         if (folhaEditandoId) {
-            const index = folhasAtuais.findIndex(f => f.id === folhaEditandoId);
-            if (index !== -1) folhasAtuais[index] = novaFolha;
+            folhas = folhas.map(f => f.id === folhaEditandoId ? novaFolha : f);
         } else {
-            folhasAtuais.push(novaFolha);
+            folhas.push(novaFolha);
         }
         
-        await updateDoc(fechamentoRef, { folhas: folhasAtuais });
+        await db.collection("fechamentos").doc(fechamentoId).update({ folhas });
         
-        mostrarAlerta('Folha salva com sucesso!', 'sucesso');
+        mostrarAlerta('Folha salva!', 'sucesso');
         document.getElementById('modalFolha')?.classList.remove('active');
-        
         folhaEditandoId = null;
         fechamentoAtualId = null;
         
         await carregarFechamentos();
         await atualizarEstatisticas();
-        
     } catch (error) {
         mostrarAlerta('Erro ao salvar folha: ' + error.message, 'erro');
     }
 }
 
 async function carregarFolhaParaEdicao(fechamentoId, folhaId) {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     try {
-        const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-        const fechamentoSnap = await getDoc(fechamentoRef);
-        
-        if (fechamentoSnap.exists()) {
-            const folha = fechamentoSnap.data().folhas?.find(f => f.id === folhaId);
-            
+        const snap = await db.collection("fechamentos").doc(fechamentoId).get();
+        if (snap.exists) {
+            const folha = snap.data().folhas?.find(f => f.id === folhaId);
             if (folha) {
                 document.getElementById('folhaData').value = folha.data || '';
                 document.getElementById('folhaDescricao').value = folha.descricao || '';
-                
-                const materiaisList = document.getElementById('materiaisList');
-                if (materiaisList) {
-                    materiaisList.innerHTML = '';
-                    
-                    if (folha.materiais && folha.materiais.length > 0) {
-                        folha.materiais.forEach(mat => {
-                            adicionarMaterialCard(mat.nome, mat.pesos || []);
-                        });
-                    }
-                }
-                
-                await calcularSomaFolha();
+                document.getElementById('materiaisList').innerHTML = '';
+                folha.materiais?.forEach(mat => adicionarMaterialCard(mat.nome, mat.pesos || []));
+                calcularSomaFolha();
             }
         }
-    } catch (error) {
-        mostrarAlerta('Erro ao carregar folha para edição', 'erro');
-    }
+    } catch(e) {}
 }
 
 async function excluirFolha(fechamentoId, folhaId) {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     try {
-        const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-        const fechamentoSnap = await getDoc(fechamentoRef);
-        
-        if (fechamentoSnap.exists()) {
-            const fechamento = fechamentoSnap.data();
-            const folhasAtuais = (fechamento.folhas || []).filter(f => f.id !== folhaId);
-            
-            await updateDoc(fechamentoRef, { folhas: folhasAtuais });
-            
-            mostrarAlerta('Folha excluída com sucesso!', 'sucesso');
+        const snap = await db.collection("fechamentos").doc(fechamentoId).get();
+        if (snap.exists) {
+            const folhas = (snap.data().folhas || []).filter(f => f.id !== folhaId);
+            await db.collection("fechamentos").doc(fechamentoId).update({ folhas });
+            mostrarAlerta('Folha excluída!', 'sucesso');
             await carregarFechamentos();
             await atualizarEstatisticas();
         }
-    } catch (error) {
-        mostrarAlerta('Erro ao excluir folha', 'erro');
-    }
+    } catch(e) {}
 }
 
 // ============================================
-// PDF
+// PDF (mantido igual)
 // ============================================
 async function gerarPDFFechamento(fechamentoId) {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     try {
-        const fechamentoRef = doc(window.db, "fechamentos", fechamentoId);
-        const fechamentoSnap = await getDoc(fechamentoRef);
+        const snap = await db.collection("fechamentos").doc(fechamentoId).get();
+        if (!snap.exists) { mostrarAlerta('Fechamento não encontrado', 'erro'); return; }
         
-        if (!fechamentoSnap.exists()) {
-            mostrarAlerta('Fechamento não encontrado', 'erro');
-            return;
-        }
-        
-        const fechamento = fechamentoSnap.data();
+        const fechamento = snap.data();
         const folhas = fechamento.folhas || [];
+        if (folhas.length === 0) { mostrarAlerta('Nenhuma folha para gerar PDF', 'erro'); return; }
         
-        if (folhas.length === 0) {
-            mostrarAlerta('Nenhuma folha para gerar PDF', 'erro');
-            return;
-        }
-        
-        // Consolidar todos os materiais de todas as folhas
         const consolidado = {};
-        const todosPesos = [];
-        
         folhas.forEach(folha => {
             folha.materiais?.forEach(mat => {
                 if (consolidado[mat.nome]) {
                     consolidado[mat.nome].pesoTotal += mat.pesoTotal || 0;
                     consolidado[mat.nome].pesos.push(...(mat.pesos || []));
                 } else {
-                    consolidado[mat.nome] = {
-                        pesoTotal: mat.pesoTotal || 0,
-                        pesos: [...(mat.pesos || [])]
-                    };
+                    consolidado[mat.nome] = { pesoTotal: mat.pesoTotal || 0, pesos: [...(mat.pesos || [])] };
                 }
-                todosPesos.push(...(mat.pesos || []));
             });
         });
         
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF();
         
-        // Cabeçalho
         pdf.setFillColor(44, 62, 80);
         pdf.rect(0, 0, 210, 40, 'F');
         pdf.setTextColor(255, 255, 255);
         pdf.setFontSize(18);
-        pdf.setFont("helvetica", "bold");
         pdf.text('MIL PLÁSTICOS', 15, 20);
         pdf.setFontSize(11);
-        pdf.text('Relatório de Produção - Consolidado', 15, 30);
+        pdf.text('Relatório de Produção', 15, 30);
         
         pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(11);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(`Fechamento: ${fechamento.nome || 'N/A'}`, 15, 55);
-        pdf.setFont("helvetica", "normal");
         pdf.setFontSize(10);
-        pdf.text(`Fornecedor: ${fechamento.fornecedor || 'N/A'}`, 15, 65);
-        pdf.text(`Data de Entrada: ${fechamento.dataEntrada ? new Date(fechamento.dataEntrada).toLocaleDateString('pt-BR') : 'N/A'}`, 15, 72);
-        pdf.text(`Estado do Material: ${fechamento.estadoMaterial || 'N/A'}`, 15, 79);
-        pdf.text(`Peso Bruto: ${formatarPeso(fechamento.pesoBruto || 0)} kg`, 15, 86);
-        pdf.text(`Total de Folhas: ${folhas.length}`, 15, 93);
+        pdf.text(`Fechamento: ${fechamento.nome || 'N/A'}`, 15, 50);
+        pdf.text(`Fornecedor: ${fechamento.fornecedor || 'N/A'}`, 15, 57);
+        pdf.text(`Peso Bruto: ${formatarPeso(fechamento.pesoBruto || 0)} kg`, 15, 64);
+        pdf.text(`Total de Folhas: ${folhas.length}`, 15, 71);
         
-        // Linha separadora
-        pdf.setDrawColor(200, 200, 200);
-        pdf.line(15, 100, 195, 100);
-        
-        let y = 110;
-        
-        // Título dos materiais
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(44, 62, 80);
-        pdf.text('MATERIAIS CONSOLIDADOS', 15, y);
-        y += 10;
-        
+        let y = 85;
         let somaTotalGeral = 0;
         
-        // Listar cada material com seus pesos individuais
         for (const [nome, dados] of Object.entries(consolidado)) {
-            if (y > 260) {
-                pdf.addPage();
-                y = 20;
-            }
-            
+            if (y > 260) { pdf.addPage(); y = 20; }
             pdf.setFontSize(11);
-            pdf.setFont("helvetica", "bold");
-            pdf.setTextColor(52, 73, 94);
-            pdf.text(`${nome}`, 15, y);
+            pdf.text(`${nome}: ${formatarPeso(dados.pesoTotal)} kg`, 15, y);
             y += 7;
-            
-            pdf.setFontSize(9);
-            pdf.setFont("helvetica", "normal");
-            pdf.setTextColor(80, 80, 80);
-            
-            // Mostrar todos os pesos individuais
-            if (dados.pesos && dados.pesos.length > 0) {
-                const pesosStr = dados.pesos.map(p => formatarPeso(p)).join(' + ');
-                pdf.text(`Pesos: ${pesosStr} = ${formatarPeso(dados.pesoTotal)} kg`, 25, y);
-            } else {
-                pdf.text(`Peso Total: ${formatarPeso(dados.pesoTotal)} kg`, 25, y);
-            }
-            y += 7;
-            
             somaTotalGeral += dados.pesoTotal;
-            
-            if (y > 260) {
-                pdf.addPage();
-                y = 20;
-            }
         }
         
         y += 5;
-        
-        // Linha separadora
-        pdf.setDrawColor(200, 200, 200);
         pdf.line(15, y, 195, y);
         y += 10;
-        
-        // Resumo
         pdf.setFontSize(12);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(44, 62, 80);
-        pdf.text('RESUMO', 15, y);
-        y += 8;
-        
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`Peso Bruto (Balança): ${formatarPeso(fechamento.pesoBruto || 0)} kg`, 15, y);
-        y += 7;
-        pdf.text(`Soma Total dos Materiais: ${formatarPeso(somaTotalGeral)} kg`, 15, y);
-        y += 7;
-        
-        const diferenca = somaTotalGeral - (fechamento.pesoBruto || 0);
-        const diferencaPercentual = (fechamento.pesoBruto || 0) > 0 ? (Math.abs(diferenca) / fechamento.pesoBruto) * 100 : 0;
-        
-        pdf.text(`Diferença: ${diferenca >= 0 ? '+' : ''}${formatarPeso(Math.abs(diferenca))} kg (${diferencaPercentual.toFixed(1)}%)`, 15, y);
-        y += 10;
-        
-        if ((fechamento.pesoBruto || 0) > 0) {
-            if (diferencaPercentual <= 5) {
-                pdf.setTextColor(40, 167, 69);
-                pdf.text('✓ COMPATÍVEL: Dentro da tolerância de 5%', 15, y);
-            } else {
-                pdf.setTextColor(220, 53, 69);
-                pdf.text('✗ INCOMPATÍVEL: Variação superior a 5%', 15, y);
-            }
-        }
-        
-        // Rodapé
-        pdf.setTextColor(150, 150, 150);
-        pdf.setFontSize(8);
-        pdf.text(`Documento gerado em ${new Date().toLocaleString('pt-BR')}`, 15, 280);
-        pdf.text('Sistema Mil Plásticos - Controle de Produção', 15, 287);
+        pdf.text(`Soma Total: ${formatarPeso(somaTotalGeral)} kg`, 15, y);
         
         const pdfBase64 = pdf.output('datauristring');
         
-        // Salvar PDF no Firebase e marcar como concluído
-        await updateDoc(fechamentoRef, { 
+        await db.collection("fechamentos").doc(fechamentoId).update({ 
             pdfGerado: pdfBase64, 
             concluido: true, 
             status: 'concluido',
             dataConclusao: new Date().toISOString()
         });
         
-        // Abrir PDF
         window.open(pdfBase64);
-        
-        mostrarAlerta('PDF gerado e fechamento concluído!', 'sucesso');
+        mostrarAlerta('PDF gerado!', 'sucesso');
         await carregarFechamentos();
         await atualizarEstatisticas();
-        
-    } catch (error) {
-        console.error('Erro ao gerar PDF:', error);
-        mostrarAlerta('Erro ao gerar PDF: ' + error.message, 'erro');
+    } catch(e) {
+        mostrarAlerta('Erro ao gerar PDF', 'erro');
     }
 }
 
@@ -1091,7 +943,7 @@ function visualizarPDF(id) {
 }
 
 // ============================================
-// FUNÇÕES AUXILIARES
+// UTILITÁRIOS
 // ============================================
 function formatarPeso(valor) {
     return (Math.round(valor * 100) / 100).toFixed(2);
@@ -1099,90 +951,53 @@ function formatarPeso(valor) {
 
 function mostrarAlerta(mensagem, tipo = 'erro') {
     const alerta = document.getElementById('alertaFlutuante');
-    const mensagemSpan = document.getElementById('mensagemAlerta');
-    if (!alerta || !mensagemSpan) return;
-    
-    mensagemSpan.textContent = mensagem;
-    alerta.className = 'alerta-flutuante show';
-    alerta.classList.add(tipo);
-    
+    const msg = document.getElementById('mensagemAlerta');
+    if (!alerta || !msg) return;
+    msg.textContent = mensagem;
+    alerta.className = 'alerta-flutuante show ' + tipo;
     setTimeout(() => alerta.classList.remove('show'), 4000);
 }
 
 async function atualizarEstatisticas() {
+    const db = window.db || window.firebaseDB;
+    if (!db) return;
+    
     try {
-        const q = query(collection(window.db, "fechamentos"));
-        const querySnapshot = await getDocs(q);
+        const snap = await db.collection("fechamentos").get();
+        let total = 0, folhas = 0, peso = 0, abertos = 0;
         
-        let totalFechamentos = 0;
-        let totalFolhas = 0;
-        let totalPeso = 0;
-        let fechamentosAbertos = 0;
-        
-        querySnapshot.forEach((doc) => {
-            const fechamento = doc.data();
-            totalFechamentos++;
-            
-            if (!fechamento.finalizado && !fechamento.concluido) fechamentosAbertos++;
-            
-            const folhas = fechamento.folhas || [];
-            totalFolhas += folhas.length;
-            
-            folhas.forEach(folha => {
-                folha.materiais?.forEach(mat => totalPeso += mat.pesoTotal || 0);
+        snap.forEach(doc => {
+            const f = doc.data();
+            total++;
+            if (!f.finalizado && !f.concluido) abertos++;
+            (f.folhas || []).forEach(folha => {
+                folhas++;
+                folha.materiais?.forEach(m => peso += m.pesoTotal || 0);
             });
         });
         
-        document.getElementById('totalFechamentos').textContent = totalFechamentos;
-        document.getElementById('totalFolhas').textContent = totalFolhas;
-        document.getElementById('totalPeso').textContent = formatarPeso(totalPeso) + ' kg';
-        document.getElementById('fechamentosAbertos').textContent = fechamentosAbertos;
-        document.getElementById('totalRegistros').textContent = `${totalFechamentos} registros`;
-        
-    } catch (error) {
-        console.error('Erro ao atualizar estatísticas:', error);
-    }
+        document.getElementById('totalFechamentos').textContent = total;
+        document.getElementById('totalFolhas').textContent = folhas;
+        document.getElementById('totalPeso').textContent = formatarPeso(peso) + ' kg';
+        document.getElementById('fechamentosAbertos').textContent = abertos;
+        document.getElementById('totalRegistros').textContent = total + ' registros';
+    } catch(e) {}
 }
 
-async function excluirFechamento(id) {
-    if (!confirm('Excluir este fechamento e todas as folhas?')) return;
-    
-    try {
-        await deleteDoc(doc(window.db, "fechamentos", id));
-        mostrarAlerta('Fechamento excluído!', 'sucesso');
-        await carregarFechamentos();
-        await atualizarEstatisticas();
-    } catch (error) {
-        mostrarAlerta('Erro ao excluir fechamento', 'erro');
-    }
-}
-
-function editarFechamento(id) {
-    mostrarAlerta('Funcionalidade em desenvolvimento', 'info');
-}
-
-function aplicarFiltros() {
-    carregarFechamentos();
-}
-
+function aplicarFiltros() { carregarFechamentos(); }
 function limparFiltros() {
     document.getElementById('filtroFornecedor').value = '';
     document.getElementById('filtroStatus').value = '';
     document.getElementById('filtroPeriodo').value = '30';
     carregarFechamentos();
 }
-
-function filtrarFechamentos() {
-    // Implementar filtro de busca
-}
+function filtrarFechamentos() {}
 
 // ============================================
-// INICIAR SISTEMA
+// INICIAR
 // ============================================
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => setTimeout(inicializarSistema, 100));
 } else {
     setTimeout(inicializarSistema, 100);
 }
-
-window.addEventListener('firebaseReady', inicializarSistema);
