@@ -1,831 +1,301 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
-    <!-- head.html centralizado com Firebase + SyncSystem -->
-    {% include "components/head.html" %}
-    
-    <title>Cotação | Mil Plásticos - Controle de Motoristas</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Motoristas | Mil Plásticos</title>
 
-    <!-- APENAS bibliotecas específicas da página -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Sync System -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
 
-    <!-- APENAS CSS específico da página -->
-    <style>
-        :root {
-            --primary: #1a73e8;
-            --primary-dark: #1557b0;
-            --success: #0d904f;
-            --danger: #d93025;
-            --warning: #f9ab00;
-            --info: #0288d1;
-            --bg: #f8f9fa;
-            --card: #ffffff;
-            --border: #dadce0;
-            --text: #202124;
-            --text-light: #5f6368;
-            --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-        }
-        .cotacao-container { padding: 1.5rem; }
-        .firebase-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
-        .firebase-status.online { background: #e6f4ea; color: #1e7e34; }
-        .firebase-status.offline { background: #fce8e6; color: #c5221f; }
-        .firebase-status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-        .firebase-status.online .dot { background: #1e7e34; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .cotacao-card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; border: 1px solid var(--border); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
-        .card-title { font-size: 1rem; font-weight: 600; color: var(--text); }
-        .stats-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-        .stat-card { background: var(--card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); border-left: 4px solid var(--primary); }
-        .stat-card.success { border-left-color: var(--success); }
-        .stat-card.danger { border-left-color: var(--danger); }
-        .stat-card.warning { border-left-color: var(--warning); }
-        .stat-card.info { border-left-color: var(--info); }
-        .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
-        .stat-label { color: var(--text-light); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
-        .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        th { background: #f8fafc; padding: 0.75rem; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
-        td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-        tr:hover { background: #f8f9fa; }
-        .cotacao-tabs { display: flex; gap: 0.25rem; background: var(--card); border-radius: 12px; padding: 0.25rem; margin-bottom: 1.25rem; border: 1px solid var(--border); flex-wrap: wrap; }
-        .cotacao-tab { padding: 0.6rem 1.25rem; border: none; background: transparent; cursor: pointer; border-radius: 8px; font-weight: 500; transition: all 0.2s; color: var(--text-light); font-size: 0.85rem; }
-        .cotacao-tab.active { background: var(--primary); color: white; }
-        .cotacao-tab-content { display: none; }
-        .cotacao-tab-content.active { display: block; }
-        .toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
-        .toolbar select, .toolbar input { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; }
-        .btn-cotacao { padding: 0.5rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
-        .btn-cotacao-primary { background: var(--primary); color: white; }
-        .btn-cotacao-primary:hover { background: var(--primary-dark); }
-        .btn-cotacao-success { background: var(--success); color: white; }
-        .btn-cotacao-danger { background: var(--danger); color: white; }
-        .btn-cotacao-warning { background: var(--warning); color: #1a1a1a; }
-        .btn-cotacao-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        .btn-cotacao-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
-        .form-group { margin-bottom: 0.75rem; }
-        .form-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.8rem; color: var(--text-light); }
-        .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1100; justify-content: center; align-items: center; }
-        .modal-overlay.active { display: flex; }
-        .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; }
-        .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
-        .modal h2 { margin-bottom: 1rem; font-size: 1.25rem; }
-        .grid { display: grid; gap: 1rem; }
-        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 1200; justify-content: center; align-items: center; flex-direction: column; }
-        .loading-overlay.active { display: flex; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .text-success { color: var(--success); }
-        .text-danger { color: var(--danger); }
-        .money { font-family: monospace; font-weight: 600; }
-        .intervalos-container { display: flex; flex-direction: column; gap: 0.5rem; }
-        .intervalo-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-        .intervalo-row input[type="time"] { padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; width: 110px; }
-        .intervalo-label { font-size: 0.7rem; font-weight: 600; color: var(--text-light); min-width: 30px; }
-        .btn-add-intervalo { margin-top: 0.5rem; background: var(--primary); color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.7rem; }
-        .btn-remove-intervalo { background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer; padding: 0.2rem 0.5rem; font-size: 0.7rem; }
-        .total-horas { font-weight: bold; background: #e8f0fe; border-radius: 8px; text-align: center; }
-        .periodo-config { display: flex; gap: 1rem; align-items: center; padding: 0.75rem; background: #f0f7ff; border-radius: 8px; margin-bottom: 1rem; }
-        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
-        .badge-success { background: #e6f4ea; color: #1e7e34; }
-        .badge-info { background: #e8f0fe; color: #1a73e8; }
-        .badge-warning { background: #fef7e0; color: #e37400; }
-    </style>
+  <!-- Bibliotecas específicas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #1a73e8; --primary-dark: #1557b0;
+      --success: #0d904f; --danger: #d93025;
+      --warning: #f9ab00; --info: #0288d1;
+      --bg: #f8f9fa; --card: #ffffff; --border: #dadce0;
+      --text: #202124; --text-light: #5f6368;
+      --shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    .page-container { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+    .firebase-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+    .firebase-status.online { background: #e6f4ea; color: #1e7e34; }
+    .firebase-status.offline { background: #fce8e6; color: #c5221f; }
+    .firebase-status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .firebase-status.online .dot { background: #1e7e34; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; border: 1px solid var(--border); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+    .stats-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .stat-card { background: var(--card); border-radius: 12px; padding: 1rem; border: 1px solid var(--border); border-left: 4px solid var(--primary); }
+    .stat-card.success { border-left-color: var(--success); }
+    .stat-card.danger { border-left-color: var(--danger); }
+    .stat-card.warning { border-left-color: var(--warning); }
+    .stat-value { font-size: 1.75rem; font-weight: 700; }
+    .stat-label { color: var(--text-light); font-size: 0.7rem; text-transform: uppercase; }
+    .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { background: #f8fafc; padding: 0.75rem; text-align: left; font-weight: 600; }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+    tr:hover { background: #f8f9fa; }
+    .tabs { display: flex; gap: 0.25rem; background: var(--card); border-radius: 12px; padding: 0.25rem; margin-bottom: 1.25rem; border: 1px solid var(--border); flex-wrap: wrap; }
+    .tab-btn { padding: 0.6rem 1.25rem; border: none; background: transparent; cursor: pointer; border-radius: 8px; font-weight: 500; color: var(--text-light); font-size: 0.85rem; }
+    .tab-btn.active { background: var(--primary); color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .toolbar select, .toolbar input { padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-warning { background: var(--warning); color: #1a1a1a; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+    .form-group { margin-bottom: 0.75rem; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.8rem; color: var(--text-light); }
+    .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; background: white; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1100; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 1200; justify-content: center; align-items: center; flex-direction: column; }
+    .loading-overlay.active { display: flex; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .text-success { color: var(--success); }
+    .text-danger { color: var(--danger); }
+    .money { font-family: monospace; font-weight: 600; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+    .badge-success { background: #e6f4ea; color: #1e7e34; }
+    .badge-info { background: #e8f0fe; color: #1a73e8; }
+    .badge-warning { background: #fef7e0; color: #e37400; }
+  </style>
 </head>
-
 <body>
 
-    <!-- TOPBAR E SIDEBAR -->
-    <div id="topbar-container"></div>
-    <div class="container">
-        <div id="sidebar-container"></div>
-        <main class="main-content">
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
 
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <p style="margin-top: 1rem;">Carregando dados...</p>
-    </div>
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
 
-    <div class="cotacao-container">
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      <div class="page-container">
+
         <span id="firebaseStatus" class="firebase-status offline">
-            <span class="dot"></span> Conectando...
+          <span class="dot"></span> Conectando...
         </span>
 
-        <nav class="cotacao-tabs" id="tabsNav">
-            <button class="cotacao-tab active" data-tab="painel">📊 Painel</button>
-            <button class="cotacao-tab" data-tab="cadastro">👥 Motoristas</button>
-            <button class="cotacao-tab" data-tab="ponto">📅 Ponto Mensal</button>
-            <button class="cotacao-tab" data-tab="banco">🏦 Banco de Horas</button>
-            <button class="cotacao-tab" data-tab="km">🚛 Controle KM</button>
-            <button class="cotacao-tab" data-tab="pagamentos">💰 Pagamentos</button>
-        </nav>
+        <!-- Tabs -->
+        <div class="tabs" id="tabsNav">
+          <button class="tab-btn active" data-tab="painel">📊 Painel</button>
+          <button class="tab-btn" data-tab="cadastro">👥 Motoristas</button>
+          <button class="tab-btn" data-tab="ponto">📅 Ponto Mensal</button>
+          <button class="tab-btn" data-tab="banco">🏦 Banco de Horas</button>
+          <button class="tab-btn" data-tab="km">🚛 Controle KM</button>
+          <button class="tab-btn" data-tab="pagamentos">💰 Pagamentos</button>
+        </div>
 
         <!-- PAINEL -->
-        <div class="cotacao-tab-content active" id="tab-painel">
-            <div class="cotacao-card">
-                <div class="card-header">
-                    <span class="card-title">📊 Dashboard do Mês</span>
-                    <button class="btn-cotacao btn-cotacao-primary btn-cotacao-sm" onclick="window.gerarRelatorioPDF()">🖨️ Gerar Relatório PDF</button>
-                </div>
-                <div class="toolbar" style="margin-bottom:1rem">
-                    <label>Motorista:</label>
-                    <select id="painelMotorista" onchange="window.atualizarPainel()"></select>
-                    <label>Mês:</label>
-                    <select id="painelMes" onchange="window.atualizarPainel()">
-                        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-                    </select>
-                    <label>Ano:</label>
-                    <input type="number" id="painelAno" value="2026" style="width:80px" onchange="window.atualizarPainel()">
-                    <label>Período:</label>
-                    <select id="painelPeriodo" onchange="window.atualizarPainel()">
-                        <option value="1-ultimo">Dia 1 ao Último</option>
-                        <option value="20-21" selected>Dia 20 ao 21</option>
-                        <option value="15-16">Dia 15 ao 16</option>
-                        <option value="personalizado">Personalizado</option>
-                    </select>
-                    <span id="periodoInfo" style="font-size:0.7rem;color:var(--text-light)"></span>
-                </div>
+        <div class="tab-content active" id="tab-painel">
+          <div class="card">
+            <div class="card-header">
+              <span>📊 Dashboard do Mês</span>
+              <button class="btn btn-primary btn-sm" onclick="window.gerarRelatorioPDF()">🖨️ Relatório PDF</button>
             </div>
-            <div class="stats-grid" id="statsContainer"></div>
-            <div class="cotacao-card" style="margin-top:1rem">
-                <div class="card-header"><span class="card-title">💰 Resumo Financeiro do Mês</span></div>
-                <div class="stats-grid" id="resumoFinanceiro"></div>
+            <div class="toolbar" style="margin-bottom:1rem">
+              <label>Motorista:</label><select id="painelMotorista" onchange="window.atualizarPainel()"></select>
+              <label>Mês:</label>
+              <select id="painelMes" onchange="window.atualizarPainel()">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <label>Ano:</label><input type="number" id="painelAno" value="2026" style="width:80px" onchange="window.atualizarPainel()">
             </div>
-            <div class="cotacao-card" style="margin-top:1rem">
-                <div class="card-header"><span class="card-title">📋 Detalhamento Diário</span></div>
-                <div class="table-container" id="tabelaDetalheMensal"></div>
-            </div>
+          </div>
+          <div class="stats-grid" id="statsContainer"></div>
+          <div class="card" style="margin-top:1rem">
+            <div class="card-header"><span>💰 Resumo Financeiro</span></div>
+            <div class="stats-grid" id="resumoFinanceiro"></div>
+          </div>
         </div>
 
         <!-- CADASTRO -->
-        <div class="cotacao-tab-content" id="tab-cadastro">
-            <div class="cotacao-card">
-                <div class="card-header">
-                    <span class="card-title">👥 Motoristas Cadastrados</span>
-                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="window.abrirModalMotorista()">+ Novo</button>
-                </div>
-                <div class="table-container">
-                    <table><thead><tr><th>Cód</th><th>Nome</th><th>Função</th><th>Jornada Base</th><th>Tolerância</th><th>Ad.Noturno</th><th>Ações</th></tr></thead>
-                    <tbody id="tabelaMotoristas"></tbody></table>
-                </div>
+        <div class="tab-content" id="tab-cadastro">
+          <div class="card">
+            <div class="card-header">
+              <span>👥 Motoristas Cadastrados</span>
+              <button class="btn btn-success btn-sm" onclick="window.abrirModalMotorista()">+ Novo</button>
             </div>
+            <div class="table-container">
+              <table><thead><tr><th>Cód</th><th>Nome</th><th>Função</th><th>Jornada</th><th>Tolerância</th><th>Ad.Noturno</th><th>Ações</th></tr></thead>
+              <tbody id="tabelaMotoristas"></tbody></table>
+            </div>
+          </div>
         </div>
 
         <!-- PONTO MENSAL -->
-        <div class="cotacao-tab-content" id="tab-ponto">
-            <div class="cotacao-card">
-                <div class="card-header"><span class="card-title">📅 Registro de Ponto</span></div>
-                <div class="periodo-config">
-                    <label><strong>Período de Apontamento:</strong></label>
-                    <label>Dia Início:</label>
-                    <input type="number" id="periodoDiaInicio" value="20" min="1" max="31" style="width:60px" onchange="window.carregarPonto()">
-                    <label>Dia Fim:</label>
-                    <input type="number" id="periodoDiaFim" value="21" min="1" max="31" style="width:60px" onchange="window.carregarPonto()">
-                    <small style="color:var(--text-light)">(Ex: 20 a 21 = mês do dia 20 até dia 21 do mês seguinte)</small>
-                </div>
-                <div class="toolbar" style="margin-bottom:1rem">
-                    <label>Motorista:</label><select id="pontoMotorista" onchange="window.carregarPonto()"></select>
-                    <label>Mês Ref.:</label>
-                    <select id="pontoMes" onchange="window.carregarPonto()">
-                        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-                    </select>
-                    <label>Ano:</label><input type="number" id="pontoAno" value="2026" style="width:80px" onchange="window.carregarPonto()">
-                    <button class="btn-cotacao btn-cotacao-primary btn-cotacao-sm" onclick="window.salvarPonto()">💾 Salvar</button>
-                </div>
-                <div class="table-container" id="pontoContainer"></div>
-                <div style="margin-top:1rem;display:flex;gap:1rem;flex-wrap:wrap" id="totaisPonto"></div>
+        <div class="tab-content" id="tab-ponto">
+          <div class="card">
+            <div class="card-header"><span>📅 Registro de Ponto</span></div>
+            <div class="toolbar" style="margin-bottom:1rem">
+              <label>Motorista:</label><select id="pontoMotorista" onchange="window.carregarPonto()"></select>
+              <label>Mês:</label>
+              <select id="pontoMes" onchange="window.carregarPonto()">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <label>Ano:</label><input type="number" id="pontoAno" value="2026" style="width:80px" onchange="window.carregarPonto()">
+              <button class="btn btn-primary btn-sm" onclick="window.salvarPonto()">💾 Salvar</button>
             </div>
+            <div class="table-container" id="pontoContainer"></div>
+          </div>
         </div>
 
         <!-- BANCO DE HORAS -->
-        <div class="cotacao-tab-content" id="tab-banco">
-            <div class="cotacao-card">
-                <div class="card-header">
-                    <span class="card-title">🏦 Saldo Banco de Horas</span>
-                    <div class="toolbar">
-                        <label>Motorista:</label><select id="bancoMotorista" onchange="window.carregarBancoHoras()"><option value="todos">Todos</option></select>
-                        <button class="btn-cotacao btn-cotacao-warning btn-cotacao-sm" onclick="window.carregarBancoHoras()">🔄 Atualizar</button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table><thead><tr><th>Motorista</th><th>Período</th><th>Intervalo Dias</th><th>Horas Trab.</th><th>Extras</th><th>Faltas</th><th>Saldo Período</th><th>Saldo Acumulado</th></tr></thead>
-                    <tbody id="tabelaBancoHoras"></tbody></table>
-                </div>
-                <div id="saldoBancoTotal" style="margin-top:1rem;font-weight:bold;font-size:1.1rem"></div>
+        <div class="tab-content" id="tab-banco">
+          <div class="card">
+            <div class="card-header">
+              <span>🏦 Saldo Banco de Horas</span>
+              <select id="bancoMotorista" onchange="window.carregarBancoHoras()"><option value="todos">Todos</option></select>
             </div>
+            <div class="table-container">
+              <table><thead><tr><th>Motorista</th><th>Período</th><th>Horas Trab.</th><th>Extras</th><th>Faltas</th><th>Saldo</th></tr></thead>
+              <tbody id="tabelaBancoHoras"></tbody></table>
+            </div>
+          </div>
         </div>
 
         <!-- CONTROLE KM -->
-        <div class="cotacao-tab-content" id="tab-km">
-            <div class="cotacao-card">
-                <div class="card-header">
-                    <span class="card-title">🚛 Controle de KM</span>
-                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="window.abrirModalKM()">+ Novo Registro</button>
-                </div>
-                <div class="toolbar" style="margin-bottom:1rem">
-                    <label>Motorista:</label><select id="kmFiltroMotorista" onchange="window.carregarKM()"><option value="todos">Todos</option></select>
-                    <label>Mês:</label>
-                    <select id="kmFiltroMes" onchange="window.carregarKM()">
-                        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-                    </select>
-                    <label>Ano:</label><input type="number" id="kmFiltroAno" value="2026" style="width:80px" onchange="window.carregarKM()">
-                </div>
-                <div class="table-container">
-                    <table><thead><tr><th>Data</th><th>Motorista</th><th>Veículo</th><th>KM Inicial</th><th>KM Final</th><th>Total KM</th><th>Destino</th><th>Chapa</th><th>Valor KM</th><th>Ações</th></tr></thead>
-                    <tbody id="tabelaKM"></tbody></table>
-                </div>
-                <div style="margin-top:1rem" id="totaisKM"></div>
+        <div class="tab-content" id="tab-km">
+          <div class="card">
+            <div class="card-header">
+              <span>🚛 Controle de KM</span>
+              <button class="btn btn-success btn-sm" onclick="window.abrirModalKM()">+ Novo</button>
             </div>
+            <div class="toolbar" style="margin-bottom:1rem">
+              <label>Motorista:</label><select id="kmFiltroMotorista" onchange="window.carregarKM()"><option value="todos">Todos</option></select>
+              <label>Mês:</label><select id="kmFiltroMes" onchange="window.carregarKM()">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <label>Ano:</label><input type="number" id="kmFiltroAno" value="2026" style="width:80px" onchange="window.carregarKM()">
+            </div>
+            <div class="table-container">
+              <table><thead><tr><th>Data</th><th>Motorista</th><th>Veículo</th><th>KM Inicial</th><th>KM Final</th><th>Total</th><th>Destino</th><th>Ações</th></tr></thead>
+              <tbody id="tabelaKM"></tbody></table>
+            </div>
+          </div>
         </div>
 
         <!-- PAGAMENTOS -->
-        <div class="cotacao-tab-content" id="tab-pagamentos">
-            <div class="cotacao-card">
-                <div class="card-header">
-                    <span class="card-title">💰 Pagamentos de Horas</span>
-                    <button class="btn-cotacao btn-cotacao-success btn-cotacao-sm" onclick="window.abrirModalPagamento()">+ Pagamento</button>
-                </div>
-                <div class="table-container">
-                    <table><thead><tr><th>Data</th><th>Motorista</th><th>Qtd Horas</th><th>Valor/Hora</th><th>Valor Total</th><th>Ações</th></tr></thead>
-                    <tbody id="tabelaPagamentos"></tbody></table>
-                </div>
+        <div class="tab-content" id="tab-pagamentos">
+          <div class="card">
+            <div class="card-header">
+              <span>💰 Pagamentos</span>
+              <button class="btn btn-success btn-sm" onclick="window.abrirModalPagamento()">+ Pagamento</button>
             </div>
+            <div class="table-container">
+              <table><thead><tr><th>Data</th><th>Motorista</th><th>Horas</th><th>Valor/Hora</th><th>Total</th><th>Ações</th></tr></thead>
+              <tbody id="tabelaPagamentos"></tbody></table>
+            </div>
+          </div>
         </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAIS (mantidos iguais) -->
+  <div class="modal-overlay" id="modalMotorista">
+    <div class="modal">
+      <h2 id="modalMotoristaTitulo">Novo Motorista</h2>
+      <div class="grid-2">
+        <div class="form-group"><label>Código</label><input type="number" id="motoristaCod"></div>
+        <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome"></div>
+        <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao"></div>
+        <div class="form-group"><label>Jornada Base (h/dia)</label><input type="number" id="jornadaBase" value="8" step="0.5"></div>
+        <div class="form-group"><label>Tolerância (min)</label><input type="number" id="motoristaTolerancia" value="10"></div>
+      </div>
+      <div class="form-group"><label><input type="checkbox" id="motoristaAdNoturno"> Adicional Noturno (22h-5h)</label></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="window.fecharModal('modalMotorista')">Cancelar</button>
+        <button class="btn btn-success" onclick="window.salvarMotorista()">Salvar</button>
+      </div>
     </div>
+  </div>
 
-    <!-- MODAIS -->
-    <div class="modal-overlay" id="modalMotorista">
-        <div class="modal">
-            <h2 id="modalMotoristaTitulo">Novo Motorista</h2><input type="hidden" id="motoristaEditId">
-            <div class="grid grid-2">
-                <div class="form-group"><label>Código</label><input type="number" id="motoristaCod" placeholder="Ex: 139"></div>
-                <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome" placeholder="Nome completo"></div>
-                <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao" placeholder="Ex: Motorista"></div>
-                <div class="form-group"><label>Jornada Base (horas/dia)</label><input type="number" id="jornadaBase" value="8" step="0.5"></div>
-                <div class="form-group"><label>Tolerância (minutos)</label><input type="number" id="motoristaTolerancia" value="10" step="1"></div>
-            </div>
-            <div class="form-group"><label><input type="checkbox" id="motoristaAdNoturno"> Aplica Adicional Noturno (22h-5h)</label></div>
-            <div class="modal-actions">
-                <button class="btn-cotacao btn-cotacao-outline" onclick="window.fecharModal('modalMotorista')">Cancelar</button>
-                <button class="btn-cotacao btn-cotacao-success" onclick="window.salvarMotorista()">Salvar</button>
-            </div>
-        </div>
+  <div class="modal-overlay" id="modalPagamento">
+    <div class="modal">
+      <h2>Registrar Pagamento</h2>
+      <div class="grid-2">
+        <div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
+        <div class="form-group"><label>Data</label><input type="date" id="pagData"></div>
+        <div class="form-group"><label>Horas</label><input type="number" id="pagHoras" step="0.5"></div>
+        <div class="form-group"><label>Valor/Hora (R$)</label><input type="number" id="pagValorHora" step="0.01" value="25"></div>
+      </div>
+      <div class="form-group"><label>Total: <strong id="pagValorTotal">R$ 0,00</strong></label></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="window.fecharModal('modalPagamento')">Cancelar</button>
+        <button class="btn btn-success" onclick="window.salvarPagamento()">Registrar</button>
+      </div>
     </div>
+  </div>
 
-    <div class="modal-overlay" id="modalPagamento">
-        <div class="modal">
-            <h2>Registrar Pagamento</h2>
-            <div class="grid grid-2">
-                <div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
-                <div class="form-group"><label>Data Pagamento</label><input type="date" id="pagData"></div>
-                <div class="form-group"><label>Quantidade Horas</label><input type="number" id="pagHoras" step="0.5" min="0.5"></div>
-                <div class="form-group"><label>Valor por Hora (R$)</label><input type="number" id="pagValorHora" step="0.01" min="0.01" value="25.00"></div>
-            </div>
-            <div class="form-group"><label>Valor Total: <strong id="pagValorTotal">R$ 0,00</strong></label></div>
-            <div class="modal-actions">
-                <button class="btn-cotacao btn-cotacao-outline" onclick="window.fecharModal('modalPagamento')">Cancelar</button>
-                <button class="btn-cotacao btn-cotacao-success" onclick="window.salvarPagamento()">Registrar Pagamento</button>
-            </div>
-        </div>
+  <div class="modal-overlay" id="modalKM">
+    <div class="modal">
+      <h2>Registro de KM</h2>
+      <div class="grid-2">
+        <div class="form-group"><label>Data</label><input type="date" id="kmData"></div>
+        <div class="form-group"><label>Motorista</label><select id="kmMotoristaSelect"></select></div>
+        <div class="form-group"><label>Veículo</label><input type="text" id="kmVeiculo"></div>
+        <div class="form-group"><label>KM Inicial</label><input type="number" id="kmInicial"></div>
+        <div class="form-group"><label>KM Final</label><input type="number" id="kmFinal"></div>
+        <div class="form-group"><label>Destino</label><input type="text" id="kmDestino"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="window.fecharModal('modalKM')">Cancelar</button>
+        <button class="btn btn-success" onclick="window.salvarKM()">Salvar</button>
+      </div>
     </div>
-
-    <div class="modal-overlay" id="modalKM">
-        <div class="modal">
-            <h2 id="modalKMTitulo">Registro de KM</h2><input type="hidden" id="kmEditId">
-            <div class="grid grid-2">
-                <div class="form-group"><label>Data</label><input type="date" id="kmData"></div>
-                <div class="form-group"><label>Motorista</label><select id="kmMotoristaSelect"></select></div>
-                <div class="form-group"><label>Veículo</label><input type="text" id="kmVeiculo" placeholder="Placa ou modelo"></div>
-                <div class="form-group"><label>KM Inicial</label><input type="number" id="kmInicial" step="1" min="0"></div>
-                <div class="form-group"><label>KM Final</label><input type="number" id="kmFinal" step="1" min="0"></div>
-                <div class="form-group"><label>Destino</label><input type="text" id="kmDestino" placeholder="Cidade/Bairro"></div>
-                <div class="form-group"><label>Chapa</label><input type="text" id="kmChapa" placeholder="Nº da chapa (opcional)"></div>
-                <div class="form-group"><label>Valor Chapa (R$) - se houver</label><input type="number" id="kmValorChapa" step="0.01" min="0" value="0"></div>
-            </div>
-            <div class="form-group"><label>Total KM: <strong id="kmTotalCalc">0 km</strong> | Valor KM: <strong id="kmValorCalc">R$ 0,00</strong> | Total Geral: <strong id="kmTotalGeral">R$ 0,00</strong></label></div>
-            <div class="modal-actions">
-                <button class="btn-cotacao btn-cotacao-outline" onclick="window.fecharModal('modalKM')">Cancelar</button>
-                <button class="btn-cotacao btn-cotacao-success" onclick="window.salvarKM()">Salvar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SCRIPT PRINCIPAL -->
-    <script>
-        (function() {
-            // ============ CONFIGURAÇÃO ============
-            const STORAGE_KEY = 'controleMotoristas_systemmil_v2';
-            const VALOR_KM = 0.10;
-            const VALOR_ALMOCO = 35.00;
-            const VALOR_JANTA = 35.00;
-            const VALOR_CAFE = 18.00;
-
-            let appData = { motoristas: [], ponto: {}, pagamentos: [], registrosKM: [] };
-
-            // ============ FUNÇÕES AUXILIARES ============
-            function timeToHours(timeStr) {
-                if (!timeStr) return 0;
-                const [h, m] = timeStr.split(':').map(Number);
-                return h + m / 60;
-            }
-
-            function formatHoras(horas) {
-                if (isNaN(horas) || horas === undefined) return '0,0h';
-                const h = Math.floor(Math.abs(horas));
-                const m = Math.round((Math.abs(horas) - h) * 60);
-                return (horas < 0 ? '-' : '') + h + ',' + String(m).padStart(2, '0') + 'h';
-            }
-
-            function formatMoney(valor) { return 'R$ ' + valor.toFixed(2).replace('.', ','); }
-
-            function getDiasNoMes(mes, ano) { return new Date(ano, mes, 0).getDate(); }
-
-            function getSemana(dia, mes, ano) {
-                const dias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
-                return dias[new Date(ano, mes - 1, dia).getDay()];
-            }
-
-            function showLoading() { document.getElementById('loadingOverlay')?.classList.add('active'); }
-            function hideLoading() { document.getElementById('loadingOverlay')?.classList.remove('active'); }
-
-            // ============ CARREGAR DADOS DO SYNC SYSTEM ============
-            function carregarDados() {
-                if (window.SyncSystem) {
-                    appData = window.SyncSystem.getData();
-                    console.log('✅ Dados carregados via SyncSystem');
-                } else {
-                    // Fallback: carregar direto do localStorage
-                    const data = localStorage.getItem(STORAGE_KEY);
-                    if (data) {
-                        try {
-                            appData = JSON.parse(data);
-                        } catch (e) {
-                            appData = { motoristas: [], ponto: {}, pagamentos: [], registrosKM: [] };
-                        }
-                    }
-                    console.warn('⚠️ SyncSystem não encontrado - usando localStorage direto');
-                }
-                
-                if (!appData.registrosKM) appData.registrosKM = [];
-                if (!appData.ponto) appData.ponto = {};
-                if (!appData.pagamentos) appData.pagamentos = [];
-            }
-
-            function salvarDados() {
-                if (window.SyncSystem) {
-                    window.SyncSystem.updateData(appData, 'cotacao');
-                } else {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-                }
-            }
-
-            function getPeriodoConfig() {
-                const diaInicio = parseInt(document.getElementById('periodoDiaInicio')?.value || 20);
-                const diaFim = parseInt(document.getElementById('periodoDiaFim')?.value || 21);
-                return { diaInicio, diaFim };
-            }
-
-            function getDatasPeriodo(mesRef, anoRef, diaInicio, diaFim) {
-                const datas = [];
-                const diasNoMes = getDiasNoMes(mesRef, anoRef);
-                const diaInicioAjustado = Math.min(diaInicio, diasNoMes);
-
-                for (let dia = diaInicioAjustado; dia <= diasNoMes; dia++) {
-                    datas.push({ dia, mes: mesRef, ano: anoRef });
-                }
-
-                let mesSeguinte = mesRef + 1;
-                let anoSeguinte = anoRef;
-                if (mesSeguinte > 12) { mesSeguinte = 1; anoSeguinte++; }
-                
-                const diasNoMesSeguinte = getDiasNoMes(mesSeguinte, anoSeguinte);
-                const diaFimAjustado = Math.min(diaFim, diasNoMesSeguinte);
-
-                for (let dia = 1; dia <= diaFimAjustado; dia++) {
-                    datas.push({ dia, mes: mesSeguinte, ano: anoSeguinte });
-                }
-
-                return datas;
-            }
-
-            function calcularTotalHoras(intervalos) {
-                if (!intervalos || intervalos.length === 0) return 0;
-                let total = 0;
-                for (const intervalo of intervalos) {
-                    if (intervalo.entrada && intervalo.saida) {
-                        const entrada = timeToHours(intervalo.entrada);
-                        const saida = timeToHours(intervalo.saida);
-                        if (saida > entrada) total += (saida - entrada);
-                        else if (saida < entrada) total += (24 - entrada) + saida;
-                    }
-                }
-                return total;
-            }
-
-            function calcularDiarias(intervalos, tipo, pernoite) {
-                let valorAlmoco = 0, valorJanta = 0, valorCafe = 0;
-
-                if (tipo === 'externo' && intervalos && intervalos.length > 0) {
-                    for (const intervalo of intervalos) {
-                        if (intervalo.saida) {
-                            const saidaHoras = timeToHours(intervalo.saida);
-                            if (saidaHoras >= 13 || (saidaHoras < 5 && saidaHoras >= 0)) valorAlmoco = VALOR_ALMOCO;
-                            if (saidaHoras >= 19.5 || (saidaHoras < 5 && saidaHoras >= 0)) valorJanta = VALOR_JANTA;
-                        }
-                    }
-                }
-
-                if (pernoite) valorCafe = VALOR_CAFE;
-
-                return { almoco: valorAlmoco, janta: valorJanta, cafe: valorCafe, total: valorAlmoco + valorJanta + valorCafe };
-            }
-
-            // ============ MOTORISTAS ============
-            function carregarSelectsMotoristas() {
-                const selects = ['painelMotorista', 'pontoMotorista', 'pagMotorista', 'kmMotoristaSelect', 'kmFiltroMotorista', 'bancoMotorista'];
-                const motoristasAtivos = (appData.motoristas || []).filter(m => m.ativo !== false);
-
-                selects.forEach(id => {
-                    const select = document.getElementById(id);
-                    if (!select) return;
-                    let options = '';
-                    if (id === 'kmFiltroMotorista' || id === 'bancoMotorista') options = '<option value="todos">Todos</option>';
-                    options += motoristasAtivos.map(m => `<option value="${m.cod}">${m.nome}</option>`).join('');
-                    select.innerHTML = options;
-                });
-            }
-
-            function carregarTabelaMotoristas() {
-                const tbody = document.getElementById('tabelaMotoristas');
-                if (!tbody) return;
-                tbody.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `
-                    <tr>
-                        <td>${m.cod}</td><td><strong>${m.nome}</strong></td><td>${m.funcao || '-'}</td>
-                        <td>${m.jornadaBase || 8}h</td><td>${m.tolerancia || 10}min</td><td>${m.adNoturno ? '✅' : '❌'}</td>
-                        <td>
-                            <button class="btn-cotacao btn-cotacao-outline btn-cotacao-sm" onclick="window.editarMotorista(${m.cod})">✏️</button>
-                            <button class="btn-cotacao btn-cotacao-danger btn-cotacao-sm" onclick="window.excluirMotorista(${m.cod})">🗑️</button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-
-            window.abrirModalMotorista = function(cod = null) {
-                const modal = document.getElementById('modalMotorista');
-                if (!modal) return;
-                modal.classList.add('active');
-                if (cod) {
-                    document.getElementById('modalMotoristaTitulo').innerText = 'Editar Motorista';
-                    const m = (appData.motoristas || []).find(m => m.cod === cod);
-                    if (m) {
-                        document.getElementById('motoristaEditId').value = m.cod;
-                        document.getElementById('motoristaCod').value = m.cod;
-                        document.getElementById('motoristaNome').value = m.nome;
-                        document.getElementById('motoristaFuncao').value = m.funcao || '';
-                        document.getElementById('jornadaBase').value = m.jornadaBase || 8;
-                        document.getElementById('motoristaTolerancia').value = m.tolerancia || 10;
-                        document.getElementById('motoristaAdNoturno').checked = m.adNoturno || false;
-                    }
-                } else {
-                    document.getElementById('modalMotoristaTitulo').innerText = 'Novo Motorista';
-                    ['motoristaEditId', 'motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => document.getElementById(id).value = '');
-                    document.getElementById('jornadaBase').value = 8;
-                    document.getElementById('motoristaTolerancia').value = 10;
-                    document.getElementById('motoristaAdNoturno').checked = false;
-                }
-            };
-
-            window.editarMotorista = function(cod) { window.abrirModalMotorista(cod); };
-
-            window.excluirMotorista = function(cod) {
-                if (confirm('Excluir motorista?')) {
-                    appData.motoristas = appData.motoristas.filter(m => m.cod !== cod);
-                    salvarDados();
-                    carregarSelectsMotoristas();
-                    carregarTabelaMotoristas();
-                    window.atualizarPainel();
-                }
-            };
-
-            window.salvarMotorista = function() {
-                const motorista = {
-                    cod: parseInt(document.getElementById('motoristaCod').value),
-                    nome: document.getElementById('motoristaNome').value.toUpperCase(),
-                    funcao: document.getElementById('motoristaFuncao').value.toUpperCase(),
-                    jornadaBase: parseFloat(document.getElementById('jornadaBase').value),
-                    tolerancia: parseInt(document.getElementById('motoristaTolerancia').value),
-                    adNoturno: document.getElementById('motoristaAdNoturno').checked,
-                    ativo: true
-                };
-                if (!motorista.cod || !motorista.nome) { alert('Preencha código e nome!'); return; }
-                appData.motoristas = (appData.motoristas || []).filter(m => m.cod !== motorista.cod);
-                appData.motoristas.push(motorista);
-                salvarDados();
-                window.fecharModal('modalMotorista');
-                carregarSelectsMotoristas();
-                carregarTabelaMotoristas();
-                window.atualizarPainel();
-            };
-
-            // ============ PONTO ============
-            window.carregarPonto = function() {
-                const cod = parseInt(document.getElementById('pontoMotorista').value);
-                const mesRef = parseInt(document.getElementById('pontoMes').value);
-                const anoRef = parseInt(document.getElementById('pontoAno').value);
-                const motorista = (appData.motoristas || []).find(m => m.cod === cod);
-                if (!motorista) return;
-
-                const { diaInicio, diaFim } = getPeriodoConfig();
-                const datasPeriodo = getDatasPeriodo(mesRef, anoRef, diaInicio, diaFim);
-
-                let html = `<table><thead><tr><th>Dia</th><th>Data</th><th>Sem.</th><th>Folga</th><th>Tipo</th><th>Intervalos</th><th>Total Horas</th><th>Saldo</th><th>Diárias</th><th>Pernoite</th></tr></thead><tbody>`;
-                let totalPeriodoHT = 0, totalPeriodoExtras = 0, totalDiariasPeriodo = 0;
-
-                for (const data of datasPeriodo) {
-                    const { dia, mes, ano } = data;
-                    const key = `${cod}_${ano}_${mes}_${dia}`;
-                    const reg = appData.ponto[key] || { intervalos: [{ entrada: '', saida: '' }], folga: false, tipo: 'interno', pernoite: false };
-                    if (!reg.intervalos || reg.intervalos.length === 0) reg.intervalos = [{ entrada: '', saida: '' }];
-                    if (!reg.tipo) reg.tipo = 'interno';
-                    if (reg.pernoite === undefined) reg.pernoite = false;
-
-                    const isFolga = reg.folga || getSemana(dia, mes, ano) === 'DOM';
-                    let totalHoras = 0, saldo = 0;
-
-                    if (!isFolga) {
-                        totalHoras = calcularTotalHoras(reg.intervalos);
-                        const jornadaBase = motorista.jornadaBase || 8;
-                        const toleranciaHoras = (motorista.tolerancia || 10) / 60;
-                        saldo = totalHoras - jornadaBase - toleranciaHoras;
-                        if (totalHoras > 0) {
-                            totalPeriodoHT += totalHoras;
-                            if (saldo > 0) totalPeriodoExtras += saldo;
-                        }
-                    }
-
-                    const diarias = calcularDiarias(reg.intervalos, reg.tipo, reg.pernoite);
-                    if (diarias.total > 0) totalDiariasPeriodo += diarias.total;
-
-                    const intervalosHtml = renderizarIntervalos(key, reg.intervalos);
-                    const dataStr = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
-
-                    html += `<tr data-key="${key}" style="${isFolga ? 'background:#fff3e0' : ''}">
-                        <td><strong>${dia}</strong></td><td>${dataStr}</td><td>${getSemana(dia, mes, ano)}</td>
-                        <td><input type="checkbox" ${isFolga ? 'checked' : ''} onchange="window.toggleFolga('${key}',${cod},${mes},${ano},${dia},this.checked)"></td>
-                        <td><select onchange="window.updateTipo('${key}', this.value)" style="font-size:0.7rem;padding:0.2rem">
-                            <option value="interno" ${reg.tipo === 'interno' ? 'selected' : ''}>Interno</option>
-                            <option value="externo" ${reg.tipo === 'externo' ? 'selected' : ''}>Externo</option>
-                        </select></td>
-                        <td>${intervalosHtml}</td>
-                        <td class="total-horas" id="total-${key}">${totalHoras > 0 ? formatHoras(totalHoras) : '-'}</td>
-                        <td class="${saldo > 0.05 ? 'text-success' : (saldo < -0.05 ? 'text-danger' : '')}">${Math.abs(saldo) > 0.05 ? formatHoras(saldo) : '-'}</td>
-                        <td>${diarias.total > 0 ? `<span class="badge badge-info">${formatMoney(diarias.total)}</span>` : '-'}</td>
-                        <td><input type="checkbox" ${reg.pernoite ? 'checked' : ''} onchange="window.togglePernoite('${key}', this.checked)"></td>
-                    </tr>`;
-                }
-
-                html += `</tbody></table>`;
-                document.getElementById('pontoContainer').innerHTML = html;
-
-                document.querySelectorAll('.intervalo-entrada, .intervalo-saida').forEach(input => {
-                    input.removeEventListener('change', window.handleIntervaloChange);
-                    input.addEventListener('change', window.handleIntervaloChange);
-                });
-
-                document.getElementById('totaisPonto').innerHTML = `
-                    <div class="stat-card"><div class="stat-value">${formatHoras(totalPeriodoHT)}</div><div class="stat-label">Total Horas Período</div></div>
-                    <div class="stat-card success"><div class="stat-value">${formatHoras(totalPeriodoExtras)}</div><div class="stat-label">Total Extras</div></div>
-                    <div class="stat-card warning"><div class="stat-value">${formatMoney(totalDiariasPeriodo)}</div><div class="stat-label">Total Diárias</div></div>
-                `;
-            };
-
-            function renderizarIntervalos(key, intervalos) {
-                if (!intervalos) intervalos = [{ entrada: '', saida: '' }];
-                let html = `<div class="intervalos-container" data-key="${key}">`;
-                intervalos.forEach((intervalo, idx) => {
-                    html += `<div class="intervalo-row" data-idx="${idx}">
-                        <span class="intervalo-label">${idx === 0 ? '📥' : '⏱️'}</span>
-                        <input type="time" class="intervalo-entrada" value="${intervalo.entrada || ''}">
-                        <span>→</span>
-                        <input type="time" class="intervalo-saida" value="${intervalo.saida || ''}">
-                        ${idx > 0 ? `<button class="btn-remove-intervalo" onclick="window.removerIntervalo('${key}', ${idx})">✖</button>` : ''}
-                    </div>`;
-                });
-                html += `<button class="btn-add-intervalo" onclick="window.adicionarIntervalo('${key}')">+ Adicionar Intervalo</button></div>`;
-                return html;
-            }
-
-            window.handleIntervaloChange = function(e) {
-                const container = e.target.closest('.intervalos-container');
-                const row = e.target.closest('.intervalo-row');
-                if (!container || !row) return;
-                const key = container.dataset.key;
-                const idx = parseInt(row.dataset.idx);
-                if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], tipo: 'interno', pernoite: false };
-                if (!appData.ponto[key].intervalos) appData.ponto[key].intervalos = [];
-                if (!appData.ponto[key].intervalos[idx]) appData.ponto[key].intervalos[idx] = {};
-                appData.ponto[key].intervalos[idx].entrada = row.querySelector('.intervalo-entrada').value;
-                appData.ponto[key].intervalos[idx].saida = row.querySelector('.intervalo-saida').value;
-                salvarDados();
-                window.carregarPonto();
-            };
-
-            window.adicionarIntervalo = function(key) {
-                if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [{ entrada: '', saida: '' }], tipo: 'interno', pernoite: false };
-                if (!appData.ponto[key].intervalos) appData.ponto[key].intervalos = [{ entrada: '', saida: '' }];
-                appData.ponto[key].intervalos.push({ entrada: '', saida: '' });
-                salvarDados();
-                window.carregarPonto();
-            };
-
-            window.removerIntervalo = function(key, idx) {
-                if (appData.ponto[key]?.intervalos?.length > 1) {
-                    appData.ponto[key].intervalos.splice(idx, 1);
-                    salvarDados();
-                    window.carregarPonto();
-                }
-            };
-
-            window.updateTipo = function(key, tipo) {
-                if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], pernoite: false };
-                appData.ponto[key].tipo = tipo;
-                salvarDados();
-                window.carregarPonto();
-            };
-
-            window.togglePernoite = function(key, checked) {
-                if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], tipo: 'interno' };
-                appData.ponto[key].pernoite = checked;
-                salvarDados();
-                window.carregarPonto();
-            };
-
-            window.toggleFolga = function(key, cod, mes, ano, dia, isFolga) {
-                if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [{ entrada: '', saida: '' }], tipo: 'interno', pernoite: false };
-                appData.ponto[key].folga = isFolga;
-                salvarDados();
-                window.carregarPonto();
-            };
-
-            window.salvarPonto = function() { salvarDados(); alert('✅ Registros salvos!'); };
-
-            // ============ PAINEL ============
-            window.atualizarPainel = function() {
-                const mes = parseInt(document.getElementById('painelMes').value);
-                const ano = parseInt(document.getElementById('painelAno').value);
-                const cod = parseInt(document.getElementById('painelMotorista').value);
-                const motorista = (appData.motoristas || []).find(m => m.cod === cod);
-                if (!motorista) return;
-
-                const { diaInicio, diaFim } = getPeriodoConfig();
-                const datasPeriodo = getDatasPeriodo(mes, ano, diaInicio, diaFim);
-
-                let totalHT = 0, totalExtras = 0, totalFaltas = 0, diasTrab = 0, totalDiarias = 0;
-                let detalhesDias = [];
-
-                for (const data of datasPeriodo) {
-                    const { dia, mes: m, ano: a } = data;
-                    const key = `${cod}_${a}_${m}_${dia}`;
-                    const reg = appData.ponto[key];
-                    if (!reg || reg.folga) continue;
-                    const totalHoras = calcularTotalHoras(reg.intervalos);
-                    if (totalHoras <= 0) continue;
-                    const jornadaBase = motorista.jornadaBase || 8;
-                    const tolerancia = (motorista.tolerancia || 10) / 60;
-                    const saldo = totalHoras - jornadaBase - tolerancia;
-                    const diarias = calcularDiarias(reg.intervalos, reg.tipo || 'interno', reg.pernoite || false);
-                    totalHT += totalHoras;
-                    diasTrab++;
-                    if (saldo > 0) totalExtras += saldo;
-                    else if (saldo < 0) totalFaltas += Math.abs(saldo);
-                    totalDiarias += diarias.total;
-                    detalhesDias.push({ dia, mes: m, ano: a, dataStr: `${String(dia).padStart(2,'0')}/${String(m).padStart(2,'0')}/${a}`, totalHoras, saldo, diarias, tipo: reg.tipo || 'interno', pernoite: reg.pernoite || false });
-                }
-
-                document.getElementById('statsContainer').innerHTML = `
-                    <div class="stat-card"><div class="stat-value">${diasTrab}</div><div class="stat-label">Dias Trabalhados</div></div>
-                    <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Horas Trabalhadas</div></div>
-                    <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras)}</div><div class="stat-label">Horas Extras</div></div>
-                    <div class="stat-card danger"><div class="stat-value">${formatHoras(totalFaltas)}</div><div class="stat-label">Faltas/Atrasos</div></div>
-                `;
-
-                let totalKM = 0, valorKMTotal = 0, valorChapaTotal = 0;
-                const registrosKM = (appData.registrosKM || []).filter(r => {
-                    const dataReg = new Date(r.data + 'T00:00:00');
-                    const primeiraData = new Date(datasPeriodo[0].ano, datasPeriodo[0].mes - 1, datasPeriodo[0].dia);
-                    const ultimaData = new Date(datasPeriodo[datasPeriodo.length - 1].ano, datasPeriodo[datasPeriodo.length - 1].mes - 1, datasPeriodo[datasPeriodo.length - 1].dia);
-                    ultimaData.setHours(23, 59, 59);
-                    return r.codMotorista === cod && dataReg >= primeiraData && dataReg <= ultimaData;
-                });
-                registrosKM.forEach(r => { totalKM += r.totalKM || 0; valorKMTotal += (r.totalKM || 0) * VALOR_KM; valorChapaTotal += (r.valorChapa || 0); });
-
-                document.getElementById('resumoFinanceiro').innerHTML = `
-                    <div class="stat-card warning"><div class="stat-value">${formatMoney(totalDiarias)}</div><div class="stat-label">Total Diárias</div></div>
-                    <div class="stat-card info"><div class="stat-value">${totalKM} km</div><div class="stat-label">Total KM</div></div>
-                    <div class="stat-card"><div class="stat-value">${formatMoney(valorKMTotal)}</div><div class="stat-label">Valor KM</div></div>
-                    <div class="stat-card success"><div class="stat-value">${formatMoney(valorChapaTotal)}</div><div class="stat-label">Total Chapas</div></div>
-                    <div class="stat-card" style="border-left-color:#e91e63"><div class="stat-value">${formatMoney(totalDiarias + valorKMTotal + valorChapaTotal)}</div><div class="stat-label">💰 Total Geral</div></div>
-                `;
-
-                let htmlTabela = `<table><thead><tr><th>Data</th><th>Total Horas</th><th>Saldo</th><th>Tipo</th><th>Almoço</th><th>Janta</th><th>Café</th><th>Total Diárias</th><th>Pernoite</th></tr></thead><tbody>`;
-                detalhesDias.forEach(d => {
-                    htmlTabela += `<tr>
-                        <td>${d.dataStr}</td><td>${formatHoras(d.totalHoras)}</td>
-                        <td class="${d.saldo > 0.05 ? 'text-success' : (d.saldo < -0.05 ? 'text-danger' : '')}">${Math.abs(d.saldo) > 0.05 ? formatHoras(d.saldo) : '-'}</td>
-                        <td><span class="badge ${d.tipo === 'externo' ? 'badge-warning' : 'badge-success'}">${d.tipo.toUpperCase()}</span></td>
-                        <td>${d.diarias.almoco > 0 ? formatMoney(d.diarias.almoco) : '-'}</td>
-                        <td>${d.diarias.janta > 0 ? formatMoney(d.diarias.janta) : '-'}</td>
-                        <td>${d.diarias.cafe > 0 ? formatMoney(d.diarias.cafe) : '-'}</td>
-                        <td><strong>${d.diarias.total > 0 ? formatMoney(d.diarias.total) : '-'}</strong></td>
-                        <td>${d.pernoite ? '✅' : '❌'}</td>
-                    </tr>`;
-                });
-                htmlTabela += `</tbody></table>`;
-                document.getElementById('tabelaDetalheMensal').innerHTML = htmlTabela;
-            };
-
-            window.fecharModal = function(id) {
-                const modal = document.getElementById(id);
-                if (modal) modal.classList.remove('active');
-            };
-
-            // ============ INICIALIZAÇÃO ============
-            function init() {
-                showLoading();
-                
-                // Atualizar status Firebase
-                if (window.SyncSystem) {
-                    const status = window.SyncSystem.getStatus();
-                    const statusEl = document.getElementById('firebaseStatus');
-                    if (statusEl && status.online) {
-                        statusEl.innerHTML = '<span class="dot"></span> Firebase Online';
-                        statusEl.classList.add('online');
-                    }
-                }
-                
-                carregarDados();
-                carregarSelectsMotoristas();
-                carregarTabelaMotoristas();
-
-                const hoje = new Date();
-                document.getElementById('painelMes').value = hoje.getMonth() + 1;
-                document.getElementById('pontoMes').value = hoje.getMonth() + 1;
-                document.getElementById('kmFiltroMes').value = hoje.getMonth() + 1;
-                document.getElementById('painelAno').value = hoje.getFullYear();
-                document.getElementById('pontoAno').value = hoje.getFullYear();
-                document.getElementById('kmFiltroAno').value = hoje.getFullYear();
-
-                window.atualizarPainel();
-                window.carregarPonto();
-                window.carregarBancoHoras();
-                window.carregarKM();
-                window.carregarPagamentos();
-
-                document.getElementById('pagHoras')?.addEventListener('input', window.calcPagamento);
-                document.getElementById('pagValorHora')?.addEventListener('input', window.calcPagamento);
-                document.getElementById('kmInicial')?.addEventListener('input', window.calcularKM);
-                document.getElementById('kmFinal')?.addEventListener('input', window.calcularKM);
-                document.getElementById('kmValorChapa')?.addEventListener('input', window.calcularKM);
-
-                document.querySelectorAll('.cotacao-tab').forEach(tab => {
-                    tab.addEventListener('click', () => {
-                        document.querySelectorAll('.cotacao-tab').forEach(t => t.classList.remove('active'));
-                        document.querySelectorAll('.cotacao-tab-content').forEach(c => c.classList.remove('active'));
-                        tab.classList.add('active');
-                        document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
-                    });
-                });
-
-                document.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
-                });
-
-                hideLoading();
-            }
-
-            // Aguardar SyncSystem estar pronto
-            if (window.SyncSystem) {
-                init();
-            } else {
-                window.addEventListener('load', init);
-            }
-        })();
-    </script>
-
-    </main></div>
-    <script src="/js/main.js"></script>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p>Carregando...</p>
+  </div>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script src="/js/main.js"></script>
+  <script src="/js/moto.js"></script>
 </body>
 </html>
