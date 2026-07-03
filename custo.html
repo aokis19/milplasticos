@@ -16,14 +16,9 @@
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK (necessário para o custo.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  
-  <!-- Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-  <script src="/js/data-loader.js"></script>
 </head>
 <body>
   <!-- Topbar Container -->
@@ -421,7 +416,7 @@
   <!-- CONTAINER PARA RELATÓRIOS PDF -->
   <div id="reportContainer" style="position:fixed;left:-9999px;top:0;width:800px;background:white;padding:30px;"></div>
 
-  <!-- ========== SCRIPTS (ORDEM CORRETA) ========== -->
+  <!-- ========== SCRIPTS ========== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -429,6 +424,5 @@
   
   <script src="/js/main.js"></script>
   <script src="/js/custo.js"></script>
-
 </body>
 </html>
