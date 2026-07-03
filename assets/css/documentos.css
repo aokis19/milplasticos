@@ -736,3 +736,21 @@
     grid-template-columns: 1fr;
   }
 }
+.documento-preview {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #e9ecef;
+}
+
+.documento-preview:hover {
+    background: #eef1f5;
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52,152,219,0.15);
+}
