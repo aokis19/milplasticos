@@ -1,371 +1,350 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <!-- Tudo centralizado aqui -->
-  {% include "components/head.html" %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Manutenção | Mil Plásticos</title>
+
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
   
-  <title>Controle Manutenção |  Mil Plásticos</title>
-  
-  <!-- APENAS CSS específico -->
+  <!-- CSS Específico -->
   <link rel="stylesheet" href="/assets/css/custo.css">
   
-  <!-- APENAS bibliotecas específicas da página -->
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Sync System -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
+</head>
+<body>
+  <!-- Topbar Container -->
+  <div id="topbar-container"></div>
+  
+  <!-- Container principal -->
+  <div class="container">
+    <!-- Sidebar Container -->
+    <div id="sidebar-container"></div>
+    
+    <!-- Conteúdo principal -->
+    <main class="main-content">
+      <div class="page-container">
+        
+        <!-- Cabeçalho -->
+        <div class="page-header">
+          <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
+          <p>Gerencie manutenções preventivas (com alertas) e corretivas (histórico de serviços)</p>
+          <div class="page-actions">
+            <button class="btn btn-success" id="btnNovaPreventiva">
+              <i class="fas fa-plus"></i> Preventiva
+            </button>
+            <button class="btn btn-primary" id="btnNovaCorretiva">
+              <i class="fas fa-wrench"></i> Corretiva
+            </button>
+            <button class="btn btn-warning" id="btnConfigurarTipos">
+              <i class="fas fa-cog"></i> Configurar Tipos
+            </button>
+            <button class="btn btn-warning" id="btnCheckAlertas">
+              <i class="fas fa-bell"></i> Verificar Alertas
+            </button>
+          </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="preventiva">
+            <i class="fas fa-calendar-check"></i> Preventivas
+          </button>
+          <button class="tab-btn" data-tab="proximas">
+            <i class="fas fa-clock"></i> Próximas
+          </button>
+          <button class="tab-btn" data-tab="corretiva">
+            <i class="fas fa-wrench"></i> Corretivas
+          </button>
+          <button class="tab-btn" data-tab="config">
+            <i class="fas fa-cog"></i> Configurações
+          </button>
+        </div>
+        
+        <!-- TAB 1: PREVENTIVAS -->
+        <div class="tab-content active" id="tab-preventiva">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-calendar-check"></i> Histórico de Preventivas</h2>
+              <div class="search-box">
+                <input type="text" id="searchPreventiva" placeholder="🔍 Buscar...">
+              </div>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th><th>Veículo</th><th>Tipo</th>
+                    <th>KM/Hora</th><th>Próxima</th><th>Status</th><th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="preventivaBody">
+                  <tr><td colspan="7" class="text-center">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- TAB 2: PRÓXIMAS -->
+        <div class="tab-content" id="tab-proximas">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-clock"></i> Próximas Manutenções</h2>
+              <span class="badge" id="totalProgramadas">0 programadas</span>
+            </div>
+            <div class="card-body" id="proximasBody">
+              <p class="text-center" style="color:#999;">Carregando...</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- TAB 3: CORRETIVAS -->
+        <div class="tab-content" id="tab-corretiva">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-wrench"></i> Histórico de Corretivas</h2>
+              <div class="search-box">
+                <input type="text" id="searchCorretiva" placeholder="🔍 Buscar...">
+              </div>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th><th>Veículo</th><th>Serviço</th>
+                    <th>Descrição</th><th>Valor (R$)</th><th>Garantia</th>
+                    <th>Anexo</th><th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="corretivaBody">
+                  <tr><td colspan="8" class="text-center">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- TAB 4: CONFIGURAÇÕES -->
+        <div class="tab-content" id="tab-config">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-truck"></i> Veículos da Frota</h2>
+              <button class="btn btn-primary btn-sm" id="btnNovoVeiculo">
+                <i class="fas fa-plus"></i> Novo Veículo
+              </button>
+            </div>
+            <div class="card-body" id="veiculosList">
+              <p class="text-center" style="color:#999;">Carregando...</p>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </main>
+  </div>
+
+  <!-- ========== MODAIS ========== -->
+  
+  <!-- MODAL: PREVENTIVA -->
+  <div id="modalPreventiva" class="modal-overlay" style="display:none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fas fa-calendar-check"></i> Registrar Manutenção Preventiva</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formPreventiva">
+          <div class="form-group">
+            <label><i class="fas fa-truck"></i> Veículo *</label>
+            <select id="preventivaVeiculo" required><option value="">Selecione...</option></select>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-cog"></i> Tipo de Manutenção *</label>
+            <select id="preventivaTipo" required><option value="">Selecione primeiro o veículo</option></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fas fa-calendar-alt"></i> Data *</label>
+              <input type="date" id="preventivaData" required>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-tachometer-alt"></i> KM/Hora Atual *</label>
+              <input type="number" id="preventivaKm" step="1" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-comment"></i> Observações</label>
+            <textarea id="preventivaObs" rows="3"></textarea>
+          </div>
+          <div class="form-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
+            <button type="submit" class="btn btn-success">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: CORRETIVA -->
+  <div id="modalCorretiva" class="modal-overlay" style="display:none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fas fa-wrench"></i> Registrar Manutenção Corretiva</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="formCorretiva">
+          <div class="form-group">
+            <label><i class="fas fa-truck"></i> Veículo *</label>
+            <select id="corretivaVeiculo" required><option value="">Selecione...</option></select>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-cog"></i> Tipo de Serviço *</label>
+            <select id="corretivaTipo" required>
+              <option value="">Selecione...</option>
+              <option value="Bateria">Bateria</option>
+              <option value="Pneus">Pneus</option>
+              <option value="Freios">Freios</option>
+              <option value="Motor">Motor</option>
+              <option value="Transmissão">Transmissão</option>
+              <option value="Suspensão">Suspensão</option>
+              <option value="Elétrica">Elétrica</option>
+              <option value="Ar Condicionado">Ar Condicionado</option>
+              <option value="Funilaria">Funilaria/Pintura</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fas fa-calendar-alt"></i> Data *</label>
+              <input type="date" id="corretivaData" required>
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-tachometer-alt"></i> KM/Hora</label>
+              <input type="number" id="corretivaKm" step="1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-sticky-note"></i> Descrição *</label>
+            <textarea id="corretivaDescricao" rows="3" required></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fas fa-money-bill-wave"></i> Valor (R$)</label>
+              <input type="number" id="corretivaValor" step="0.01">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-store"></i> Oficina</label>
+              <input type="text" id="corretivaOficina">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><i class="fas fa-calendar-check"></i> Garantia (meses)</label>
+              <input type="number" id="corretivaGarantiaMeses" min="0">
+            </div>
+            <div class="form-group">
+              <label><i class="fas fa-calendar-alt"></i> Fim da Garantia</label>
+              <input type="date" id="corretivaGarantiaFim" readonly>
+            </div>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-file-pdf"></i> Anexo</label>
+            <input type="file" id="corretivaAnexo" accept=".pdf,.jpg,.png">
+          </div>
+          <div class="form-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
+            <button type="submit" class="btn btn-success">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: CONFIGURAR TIPOS -->
+  <div id="modalConfigTipos" class="modal-overlay" style="display:none;">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3><i class="fas fa-cog"></i> Configurar Tipos</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Veículo</label>
+          <select id="configVeiculoSelect"><option value="">Selecione...</option></select>
+        </div>
+        <div id="tiposList" style="margin-top:20px;"></div>
+        <button class="btn btn-success btn-sm" id="btnAddTipo">+ Adicionar Tipo</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: NOVO VEÍCULO -->
+  <div id="modalNovoVeiculo" class="modal-overlay" style="display:none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fas fa-plus-circle"></i> Novo Veículo</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome do Veículo *</label>
+          <input type="text" id="novoVeiculoNome">
+        </div>
+        <div class="form-group">
+          <label>Tipo de Unidade</label>
+          <select id="novoVeiculoUnidade">
+            <option value="KM">KM (Quilômetros)</option>
+            <option value="HORAS">Horas</option>
+          </select>
+        </div>
+        <div class="form-footer">
+          <button class="btn btn-secondary modal-close">Cancelar</button>
+          <button class="btn btn-primary" id="salvarNovoVeiculo">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL: VISUALIZAR ANEXO -->
+  <div id="modalVisualizarAnexo" class="modal-overlay" style="display:none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>Visualizar Anexo</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <iframe id="visualizarAnexoIframe" style="width:100%;height:400px;border:none;"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="baixarAnexoBtn">Baixar</button>
+        <button class="btn btn-secondary modal-close">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SCRIPTS ========== -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-</head>
-<body>
-    <!-- Topbar -->
-    <div id="topbar-container"></div>
-    
-    <!-- Container principal -->
-    <div class="container">
-        <!-- Sidebar -->
-        <div id="sidebar-container"></div>
-        
-        <!-- Conteúdo principal -->
-        <main class="main-content">
-            <div class="page-container">
-                <!-- Cabeçalho -->
-                <div class="page-header">
-                    <h1><i class="fas fa-tools"></i> Controle de Manutenção</h1>
-                    <p>Gerencie manutenções preventivas (com alertas) e corretivas (histórico de serviços)</p>
-                    <div class="page-actions">
-                        <button class="btn btn-success" id="btnNovaPreventiva">
-                            <i class="fas fa-plus"></i> Preventiva
-                        </button>
-                        <button class="btn btn-primary" id="btnNovaCorretiva">
-                            <i class="fas fa-wrench"></i> Corretiva
-                        </button>
-                        <button class="btn btn-warning" id="btnConfigurarTipos">
-                            <i class="fas fa-cog"></i> Configurar Tipos
-                        </button>
-                        <button class="btn btn-warning" id="btnCheckAlertas">
-                            <i class="fas fa-bell"></i> Verificar Alertas
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="preventiva">
-                        <i class="fas fa-calendar-check"></i> Preventivas
-                    </button>
-                    <button class="tab-btn" data-tab="proximas">
-                        <i class="fas fa-clock"></i> Próximas
-                    </button>
-                    <button class="tab-btn" data-tab="corretiva">
-                        <i class="fas fa-wrench"></i> Corretivas
-                    </button>
-                    <button class="tab-btn" data-tab="config">
-                        <i class="fas fa-cog"></i> Configurações
-                    </button>
-                </div>
-                
-                <!-- TAB 1: MANUTENÇÕES PREVENTIVAS -->
-                <div class="tab-content active" id="tab-preventiva">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2><i class="fas fa-calendar-check"></i> Histórico de Manutenções Preventivas</h2>
-                            <div class="search-box">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="searchPreventiva" placeholder="Buscar...">
-                            </div>
-                        </div>
-                        <div class="card-body table-responsive">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Veículo</th>
-                                        <th>Tipo</th>
-                                        <th>KM/Hora</th>
-                                        <th>Próxima</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="preventivaBody">
-                                    <tr><td colspan="7" style="text-align:center;">Carregando...<\/td><\/tr>
-                                </tbody>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- TAB 2: PRÓXIMAS MANUTENÇÕES -->
-                <div class="tab-content" id="tab-proximas">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2><i class="fas fa-clock"></i> Próximas Manutenções Programadas</h2>
-                            <span class="badge" id="totalProgramadas">0 programadas</span>
-                        </div>
-                        <div class="card-body" id="proximasBody">
-                            <p style="text-align:center;color:#999;">Carregando...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- TAB 3: MANUTENÇÕES CORRETIVAS -->
-                <div class="tab-content" id="tab-corretiva">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2><i class="fas fa-wrench"></i> Histórico de Manutenções Corretivas</h2>
-                            <div class="search-box">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="searchCorretiva" placeholder="Buscar...">
-                            </div>
-                        </div>
-                        <div class="card-body table-responsive">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Veículo</th>
-                                        <th>Serviço</th>
-                                        <th>Descrição</th>
-                                        <th>Valor (R$)</th>
-                                        <th>Garantia</th>
-                                        <th>Anexo</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="corretivaBody">
-                                    <tr><td colspan="8" style="text-align:center;">Carregando...<\/td><\/tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- TAB 4: CONFIGURAÇÕES -->
-                <div class="tab-content" id="tab-config">
-                    <div class="card">
-                        <div class="card-header">
-                            <h2><i class="fas fa-truck"></i> Veículos da Frota</h2>
-                            <button class="btn btn-primary btn-sm" id="btnNovoVeiculo">
-                                <i class="fas fa-plus"></i> Novo Veículo
-                            </button>
-                        </div>
-                        <div class="card-body" id="veiculosList">
-                            <p style="text-align:center;color:#999;">Carregando...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-    
-    <!-- MODAL: MANUTENÇÃO PREVENTIVA -->
-    <div id="modalPreventiva" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3><i class="fas fa-calendar-check"></i> Registrar Manutenção Preventiva</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="formPreventiva">
-                    <div class="form-group">
-                        <label><i class="fas fa-truck"></i> Veículo *</label>
-                        <select id="preventivaVeiculo" required>
-                            <option value="">Selecione um veículo...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-cog"></i> Tipo de Manutenção *</label>
-                        <select id="preventivaTipo" required>
-                            <option value="">Selecione primeiro o veículo</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-calendar-alt"></i> Data *</label>
-                            <input type="date" id="preventivaData" required>
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-tachometer-alt"></i> KM/Hora Atual *</label>
-                            <input type="number" id="preventivaKm" step="1" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-comment"></i> Observações</label>
-                        <textarea id="preventivaObs" rows="3"></textarea>
-                    </div>
-                    <div class="form-footer">
-                        <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- MODAL: MANUTENÇÃO CORRETIVA -->
-    <div id="modalCorretiva" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3><i class="fas fa-wrench"></i> Registrar Manutenção Corretiva</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="formCorretiva">
-                    <div class="form-group">
-                        <label><i class="fas fa-truck"></i> Veículo *</label>
-                        <select id="corretivaVeiculo" required>
-                            <option value="">Selecione um veículo...</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-cog"></i> Tipo de Serviço *</label>
-                        <select id="corretivaTipo" required>
-                            <option value="">Selecione...</option>
-                            <option value="Bateria">Bateria</option>
-                            <option value="Pneus">Pneus</option>
-                            <option value="Freios">Freios</option>
-                            <option value="Motor">Motor</option>
-                            <option value="Transmissão">Transmissão</option>
-                            <option value="Suspensão">Suspensão</option>
-                            <option value="Elétrica">Elétrica</option>
-                            <option value="Ar Condicionado">Ar Condicionado</option>
-                            <option value="Funilaria">Funilaria/Pintura</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-calendar-alt"></i> Data *</label>
-                            <input type="date" id="corretivaData" required>
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-tachometer-alt"></i> KM/Hora</label>
-                            <input type="number" id="corretivaKm" step="1">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-sticky-note"></i> Descrição *</label>
-                        <textarea id="corretivaDescricao" rows="3" required></textarea>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-money-bill-wave"></i> Valor (R$)</label>
-                            <input type="number" id="corretivaValor" step="0.01">
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-store"></i> Oficina</label>
-                            <input type="text" id="corretivaOficina">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-calendar-check"></i> Garantia (meses)</label>
-                            <input type="number" id="corretivaGarantiaMeses" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-calendar-alt"></i> Fim da Garantia</label>
-                            <input type="date" id="corretivaGarantiaFim" readonly>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-file-pdf"></i> Anexo</label>
-                        <input type="file" id="corretivaAnexo" accept=".pdf,.jpg,.png">
-                        <div id="corretivaAnexoPreview" style="display:none; margin-top:10px; padding:8px; background:#f0f0f0; border-radius:4px;">
-                            <span id="corretivaAnexoNome"></span>
-                            <button type="button" class="btn-icon" id="corretivaRemoverAnexo">X</button>
-                        </div>
-                    </div>
-                    <div class="form-footer">
-                        <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
-                        <button type="submit" class="btn btn-success">Salvar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- MODAL: CONFIGURAR TIPOS -->
-    <div id="modalConfigTipos" class="modal-overlay">
-        <div class="modal-container modal-lg">
-            <div class="modal-header">
-                <h3><i class="fas fa-cog"></i> Configurar Tipos de Manutenção</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Veículo</label>
-                    <select id="configVeiculoSelect">
-                        <option value="">Selecione...</option>
-                    </select>
-                </div>
-                <div id="tiposList" style="margin-top:20px;"></div>
-                <button class="btn btn-success btn-sm" id="btnAddTipo">+ Adicionar Tipo</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- MODAL: NOVO VEÍCULO -->
-    <div id="modalNovoVeiculo" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3><i class="fas fa-plus-circle"></i> Novo Veículo</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Nome do Veículo *</label>
-                    <input type="text" id="novoVeiculoNome">
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Unidade</label>
-                    <select id="novoVeiculoUnidade">
-                        <option value="KM">KM (Quilômetros)</option>
-                        <option value="HORAS">Horas</option>
-                    </select>
-                </div>
-                <div class="form-footer">
-                    <button class="btn btn-secondary modal-close">Cancelar</button>
-                    <button class="btn btn-primary" id="salvarNovoVeiculo">Salvar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- MODAL: VISUALIZAR ANEXO -->
-    <div id="modalVisualizarAnexo" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3>Visualizar Anexo</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <iframe id="visualizarAnexoIframe" style="width:100%; height:400px; border:none;"></iframe>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="baixarAnexoBtn">Baixar</button>
-                <button class="btn btn-secondary modal-close">Fechar</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyD4GQv7odzKtxg36f_SSWLbQF-TmYi4xYI",
-            authDomain: "system-mil.firebaseapp.com",
-            projectId: "system-mil",
-            storageBucket: "system-mil.firebasestorage.app",
-            messagingSenderId: "138426359863",
-            appId: "1:138426359863:web:ab731a7ae1b7e03f7a1fb2"
-        };
-        firebase.initializeApp(firebaseConfig);
-        window.firebaseDB = firebase.firestore();
-        console.log('🔥 Firebase conectado!');
-    </script>
-    
-    <script src="/js/manutencao-helper.js"></script>
-    <script src="/js/main.js"></script>
-    <script src="/js/manut.js"></script>
+  
+  <script src="/js/main.js"></script>
+  <script src="/js/manutencao-helper.js"></script>
+  <script src="/js/manut.js"></script>
 </body>
 </html>
