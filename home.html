@@ -3,15 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+  <title>Mil Plásticos - Dashboard</title>
+
+  <!-- CSS Principal -->
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/sidebar.css">
   <link rel="stylesheet" href="/assets/css/topbar.css">
   
-  <title>Mil Plásticos - Dashboard</title>
-  
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Sync System -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
   
   <style>
     /* ========== DASHBOARD HOME ========== */
@@ -79,23 +88,16 @@
       display: block;
     }
     
-    .shortcut-card h3 {
-      font-size: 16px;
-      margin-bottom: 5px;
-    }
+    .shortcut-card h3 { font-size: 16px; margin-bottom: 5px; }
+    .shortcut-card p { font-size: 12px; color: #95a5a6; }
     
-    .shortcut-card p {
-      font-size: 12px;
-      color: #95a5a6;
-    }
-    
-    /* Cores dos cards */
     .shortcut-card.abastecimento .shortcut-icon { color: #3498db; }
     .shortcut-card.documentos .shortcut-icon { color: #9b59b6; }
     .shortcut-card.manutencao .shortcut-icon { color: #e67e22; }
     .shortcut-card.motoristas .shortcut-icon { color: #2ecc71; }
     .shortcut-card.financeiro .shortcut-icon { color: #e74c3c; }
     .shortcut-card.estoque .shortcut-icon { color: #1abc9c; }
+    .shortcut-card.custos .shortcut-icon { color: #0d904f; }
     
     /* ========== SEÇÃO INSTAGRAM ========== */
     .instagram-section {
@@ -112,27 +114,12 @@
       margin-bottom: 25px;
     }
     
-    .instagram-header i {
-      font-size: 28px;
-      color: #E1306C;
-    }
-    
-    .instagram-header h2 {
-      font-size: 22px;
-      color: #2c3e50;
-    }
-    
+    .instagram-header i { font-size: 28px; color: #E1306C; }
+    .instagram-header h2 { font-size: 22px; color: #2c3e50; }
     .instagram-header a {
-      color: #E1306C;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: opacity 0.3s;
+      color: #E1306C; text-decoration: none; font-size: 14px; font-weight: 500; transition: opacity 0.3s;
     }
-    
-    .instagram-header a:hover {
-      opacity: 0.7;
-    }
+    .instagram-header a:hover { opacity: 0.7; }
     
     .instagram-grid {
       display: grid;
@@ -141,142 +128,55 @@
     }
     
     .instagram-video-card {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      transition: transform 0.3s, box-shadow 0.3s;
+      background: white; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: transform 0.3s, box-shadow 0.3s;
     }
-    
-    .instagram-video-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
+    .instagram-video-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
     
     .video-wrapper {
-      position: relative;
-      width: 100%;
-      padding-top: 100%; /* Quadrado 1:1 */
-      background: #000;
-      overflow: hidden;
+      position: relative; width: 100%; padding-top: 100%; background: #000; overflow: hidden;
     }
-    
     .video-wrapper video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
     }
-    
     .video-wrapper .play-overlay {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 50px;
-      color: white;
-      opacity: 0.8;
-      transition: opacity 0.3s;
-      pointer-events: none;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 50px; color: white; opacity: 0.8; transition: opacity 0.3s;
+      pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
+    .video-wrapper:hover .play-overlay { opacity: 1; }
     
-    .video-wrapper:hover .play-overlay {
-      opacity: 1;
-    }
-    
-    .video-info {
-      padding: 12px 15px;
-    }
-    
-    .video-info .video-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 5px;
-    }
-    
-    .video-info .video-date {
-      font-size: 11px;
-      color: #95a5a6;
-    }
-    
+    .video-info { padding: 12px 15px; }
+    .video-info .video-title { font-size: 13px; font-weight: 600; color: #2c3e50; margin-bottom: 5px; }
+    .video-info .video-date { font-size: 11px; color: #95a5a6; }
     .video-info .video-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-top: 8px;
-      font-size: 12px;
-      color: #E1306C;
-      text-decoration: none;
-      font-weight: 500;
+      display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+      font-size: 12px; color: #E1306C; text-decoration: none; font-weight: 500;
     }
+    .video-info .video-link:hover { text-decoration: underline; }
     
-    .video-info .video-link:hover {
-      text-decoration: underline;
-    }
-    
-    .instagram-footer {
-      text-align: center;
-      margin-top: 25px;
-    }
+    .instagram-footer { text-align: center; margin-top: 25px; }
     
     .btn-instagram {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
+      display: inline-flex; align-items: center; gap: 10px;
       background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
-      color: white;
-      padding: 14px 30px;
-      border-radius: 50px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 15px;
-      transition: all 0.3s;
+      color: white; padding: 14px 30px; border-radius: 50px; text-decoration: none;
+      font-weight: 600; font-size: 15px; transition: all 0.3s;
       box-shadow: 0 4px 15px rgba(225,48,108,0.3);
     }
+    .btn-instagram:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(225,48,108,0.5); }
     
-    .btn-instagram:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(225,48,108,0.5);
-    }
-    
-    /* ========== ANIMAÇÕES ========== */
     @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
-    /* ========== RESPONSIVIDADE ========== */
     @media (max-width: 768px) {
-      .dashboard-logo {
-        width: 140px;
-      }
-      
-      .dashboard h1 {
-        font-size: 22px;
-      }
-      
-      .shortcuts-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-      }
-      
-      .instagram-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .instagram-header h2 {
-        font-size: 18px;
-      }
+      .dashboard-logo { width: 140px; }
+      .dashboard h1 { font-size: 22px; }
+      .shortcuts-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .instagram-grid { grid-template-columns: 1fr; }
+      .instagram-header h2 { font-size: 18px; }
     }
   </style>
 </head>
@@ -326,6 +226,12 @@
             <h3>Motoristas</h3>
             <p>Gestão de condutores</p>
           </a>
+          
+          <a href="/custos" class="shortcut-card custos">
+            <span class="shortcut-icon">💰</span>
+            <h3>Central de Custos</h3>
+            <p>Gestão financeira</p>
+          </a>
         </div>
         
         <!-- Seção Instagram -->
@@ -339,7 +245,6 @@
           </div>
           
           <div class="instagram-grid" id="instagramGrid">
-            <!-- Os vídeos serão carregados aqui -->
             <div class="instagram-video-card">
               <div class="video-wrapper">
                 <div class="play-overlay">▶</div>
@@ -404,7 +309,6 @@
   <script src="/js/main.js"></script>
   
   <script>
-    // Tornar os vídeos clicáveis
     document.addEventListener('DOMContentLoaded', function() {
       const videoCards = document.querySelectorAll('.video-wrapper');
       
@@ -422,7 +326,6 @@
           }
         });
         
-        // Mostrar overlay novamente quando o vídeo terminar
         const video = wrapper.querySelector('video');
         if (video) {
           video.addEventListener('ended', function() {
