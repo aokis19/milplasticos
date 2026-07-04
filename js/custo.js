@@ -1,4 +1,4 @@
-// custo.js - Central de Custos (completo)
+// custo.js - Central de Custos (COMPLETO)
 (function() {
     'use strict';
 
@@ -66,10 +66,6 @@
         const totalKg = prods.reduce((s, p) => s + p.kg, 0);
         const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
         return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
-    }
-    function getCustoPorKgSetor(setorld) {
-        const { totalCusto, totalKg } = calcularCustosSetor(setorld);
-        return totalKg > 0 ? totalCusto / totalKg : 0;
     }
     function calcularResumoPeriodo(periodoidParam, excluirSetores = null) {
         const pid = periodoidParam || (periodoAtual ? periodoAtual.id : null);
@@ -387,7 +383,7 @@
         }
     }
 
-    // ========== RENDERIZAR ANÁLISE (detalhe do setor) ==========
+    // ========== RENDERIZAR ANÁLISE ==========
     function renderizarAnalise() {
         const container = document.getElementById('conteudoDinamico');
         if (!setorAtual) {
@@ -770,7 +766,6 @@
             custoFixoSelecionadoId = null;
             window.mudarTipoItem('normal');
         }
-        // Atualizar lista de custos fixos
         atualizarListaCustosFixos();
     };
 
@@ -937,6 +932,7 @@
     };
 
     window.editarMaterial = (id) => window.abrirModalMaterial(id);
+
     window.excluirMaterial = function(id) {
         if (!confirm('Excluir material?')) return;
         materiais = materiais.filter(m => m.id !== id);
@@ -945,9 +941,7 @@
     };
 
     window.verHistoricoMaterial = function(id) {
-        // Placeholder
         alert('Histórico do material em desenvolvimento.');
-        // Pode implementar a lógica de histórico
     };
 
     // ========== GERAR CUSTO MATERIAL ==========
@@ -1235,7 +1229,6 @@
         alert('Exportar gráfico consolidado (em desenvolvimento)');
     };
     window.ajustarGrafico = function(tipo, tamanho) {
-        // Placeholder – ajusta altura do gráfico
         const container = document.getElementById(tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer');
         const info = document.getElementById(tipo === 'mensal' ? 'graficoMensalTamanho' : 'graficoConsolidadoTamanho');
         const alturas = { pequeno: 300, medio: 500, grande: 700 };
@@ -1299,7 +1292,7 @@
         renderizarTela();
     };
 
-    // ========== COPIA PERÍODO ==========
+    // ========== COPIAR PERÍODO ==========
     window.abrirCopiarPeriodo = function(id) {
         const p = periodos.find(x => x.id === id);
         if (!p) return;
