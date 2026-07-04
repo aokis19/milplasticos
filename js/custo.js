@@ -428,7 +428,8 @@
                     '<div class="acoes">' +
                     '<button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal(\'' + per.id + '\')"><i class="fas fa-chart-bar"></i></button>' +
                     '<button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo(\'' + per.id + '\')"><i class="fas fa-copy"></i></button>' +
-                    '<button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarPeriodo(\'' + per.id + '\')"><i class="fas fa-edit"></i></button>' +
+                    // Botão de editar com data-id e classe para listener global
+                    '<button class="btn btn-outline btn-xs btn-editar-periodo" data-id="' + per.id + '"><i class="fas fa-edit"></i></button>' +
                     '<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo(\'' + per.id + '\')"><i class="fas fa-trash"></i></button>' +
                     '</div>' +
                     '<div class="periodo-titulo" onclick="window.selecionarPeriodo(\'' + per.id + '\')"><i class="fas fa-calendar-check"></i> ' + getNomeMes(per.mes) + '/' + per.ano + '</div>' +
@@ -638,7 +639,13 @@
     // ======== CRUD PERÍODOS ========
     window.abrirModalPeriodo = function(id) {
         id = id || null;
-        document.getElementById('modalPeriodo').classList.add('active');
+        console.log('📂 Abrir modal período com ID:', id);
+        var modal = document.getElementById('modalPeriodo');
+        if (!modal) {
+            console.error('❌ Modal período não encontrado no DOM');
+            return;
+        }
+        modal.classList.add('active');
         if (id) {
             var p = periodos.find(function(x) { return x.id === id; });
             if (p) {
@@ -647,6 +654,8 @@
                 document.getElementById('periodoMes').value = p.mes;
                 document.getElementById('periodoAno').value = p.ano;
                 document.getElementById('periodoObs').value = p.obs || '';
+            } else {
+                console.warn('⚠️ Período não encontrado para ID:', id);
             }
         } else {
             document.getElementById('modalPeriodoTitulo').innerText = 'Novo Período';
@@ -680,6 +689,17 @@
     };
 
     window.editarPeriodo = function(id) {
+        console.log('🖊️ Editar período chamado com ID:', id);
+        if (!id) {
+            console.error('❌ ID do período não fornecido');
+            return;
+        }
+        var periodo = periodos.find(function(p) { return p.id === id; });
+        if (!periodo) {
+            console.error('❌ Período não encontrado:', id);
+            alert('Período não encontrado.');
+            return;
+        }
         window.abrirModalPeriodo(id);
     };
 
@@ -1598,7 +1618,7 @@
         }
     }
 
-    // ======== FECHAR MODAL (CORRIGIDO) ========
+    // ======== FECHAR MODAL ========
     window.fecharModal = function(id) {
         var modal = document.getElementById(id);
         if (modal) modal.classList.remove('active');
@@ -1612,22 +1632,18 @@
         }
     };
 
-    // Fechar modal APENAS ao clicar no overlay (fundo escuro) - NÃO ao passar o mouse
+    // Fechar modal APENAS ao clicar no overlay (fundo escuro)
     document.addEventListener('click', function(e) {
-        // Verifica se o clique foi diretamente no overlay (e não em um filho)
-        if (e.target.classList.contains('modal-overlay')) {
-            // Fecha apenas se o overlay estiver visível (active)
-            if (e.target.classList.contains('active')) {
-                e.target.classList.remove('active');
-                // Limpa gráficos se houver
-                if (e.target.id === 'modalGraficoMensal' && graficoMensalChart) {
-                    graficoMensalChart.destroy();
-                    graficoMensalChart = null;
-                }
-                if (e.target.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
-                    graficoConsolidadoChart.destroy();
-                    graficoConsolidadoChart = null;
-                }
+        if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
+            e.target.classList.remove('active');
+            // Limpa gráficos se houver
+            if (e.target.id === 'modalGraficoMensal' && graficoMensalChart) {
+                graficoMensalChart.destroy();
+                graficoMensalChart = null;
+            }
+            if (e.target.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+                graficoConsolidadoChart.destroy();
+                graficoConsolidadoChart = null;
             }
         }
     });
@@ -1638,7 +1654,6 @@
             var modals = document.querySelectorAll('.modal-overlay.active');
             modals.forEach(function(modal) {
                 modal.classList.remove('active');
-                // Limpa gráficos se houver
                 if (modal.id === 'modalGraficoMensal' && graficoMensalChart) {
                     graficoMensalChart.destroy();
                     graficoMensalChart = null;
@@ -1648,6 +1663,20 @@
                     graficoConsolidadoChart = null;
                 }
             });
+        }
+    });
+
+    // ======== LISTENER GLOBAL PARA BOTÃO DE EDITAR PERÍODO ========
+    document.addEventListener('click', function(e) {
+        var target = e.target.closest('.btn-editar-periodo');
+        if (target) {
+            var id = target.getAttribute('data-id');
+            if (id) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖊️ Clique no botão editar, ID:', id);
+                window.editarPeriodo(id);
+            }
         }
     });
 
@@ -1662,14 +1691,11 @@
     if (window.firebaseDB) {
         db = window.firebaseDB;
         usandoFirebase = true;
-        // Carregar dados (via SyncSystem ou Firebase)
         loadLocalData();
-        // Iniciar após carregar
         setTimeout(function() {
             init();
         }, 500);
     } else {
-        // Tentar novamente
         var tentativas = 0;
         var check = setInterval(function() {
             tentativas++;
