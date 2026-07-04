@@ -1,5 +1,5 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Corrigido)
+// CUSTO.JS - Central de Custos (Corrigido - Prioriza LocalStorage)
 // Usa Firebase centralizado + SyncSystem
 // ====================================================
 
@@ -133,7 +133,27 @@
 
     // ======== FUNÇÕES DE ARMAZENAMENTO ========
     function loadLocalData() {
-        // Tentar Firebase primeiro via SyncSystem
+        // --- PRIORIDADE: LOCALSTORAGE ---
+        var localData = localStorage.getItem(STORAGE_KEY);
+        if (localData) {
+            try {
+                var parsed = JSON.parse(localData);
+                if (parsed.periodos && parsed.periodos.length > 0) {
+                    console.log('📂 Usando dados do localStorage (prioridade):', parsed.periodos.length, 'períodos');
+                    aplicarDados(parsed);
+                    // Salvar no Firebase para garantir que esteja atualizado
+                    saveLocalData();
+                    renderizarTela();
+                    atualizarStatusFirebase();
+                    document.getElementById('loadingOverlay').classList.remove('active');
+                    return;
+                }
+            } catch (e) {
+                console.warn('Erro ao ler localStorage, carregando do Firebase...', e);
+            }
+        }
+
+        // --- FALLBACK: FIREBASE via SyncSystem ---
         if (usandoFirebase && db) {
             carregarDadosFirebase().then(function() {
                 document.getElementById('loadingOverlay').classList.remove('active');
@@ -163,6 +183,7 @@
                 materiais = p.materiais || [];
                 custosMateriais = p.custosMateriais || [];
                 custosFixos = p.custosFixos || [];
+                console.log('📂 Dados carregados do localStorage (fallback)');
             } else {
                 inicializarDadosPadrao();
             }
@@ -203,7 +224,9 @@
 
             // Salvar no SyncSystem (que salva no Firebase)
             if (window.SyncSystem && window.SyncSystem.salvarModulo) {
-                window.SyncSystem.salvarModulo('centralCustos', dados).catch(function() {});
+                window.SyncSystem.salvarModulo('centralCustos', dados).catch(function() {
+                    console.warn('⚠️ Erro ao salvar no SyncSystem');
+                });
             }
 
             // Backup local
@@ -216,6 +239,7 @@
             } else {
                 localStorage.setItem(STORAGE_KEY, json);
             }
+            console.log('✅ Dados salvos no localStorage');
         } catch (e) {
             console.error('Erro ao salvar:', e);
         }
@@ -311,6 +335,26 @@
         } catch (e) {
             console.error('Erro ao carregar Firebase:', e);
             renderizarTela();
+        }
+    }
+
+    function aplicarDados(dados) {
+        periodos = dados.periodos || [];
+        setores = dados.setores || [];
+        categorias = dados.categorias || [];
+        itensCusto = dados.itensCusto || [];
+        producoes = dados.producoes || [];
+        materiais = dados.materiais || [];
+        custosMateriais = dados.custosMateriais || [];
+        custosFixos = dados.custosFixos || [];
+        if (categorias.length === 0) {
+            categorias = [
+                { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
+                { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
+                { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
+                { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
+                { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
+            ];
         }
     }
 
@@ -1730,5 +1774,8 @@
         renderizarTela(); };
     window.limparSetoresExcluidos = function() { setoresExcluidosResumo.clear();
         renderizarTela(); };
+
+    // ======== EXPOR FUNÇÃO RENDERIZAR TELA GLOBALMENTE ========
+    window.renderizarTela = renderizarTela;
 
 })();
