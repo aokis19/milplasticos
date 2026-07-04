@@ -26,7 +26,7 @@
     let setoresSelecionadosGerar = new Map();
     let filtroAnoAtual = 'todos';
     let periodoOrigemCopia = null;
-    let custoFixoSelecionadoId = null; // corrigido: sem "ld" no final
+    let custoFixoSelecionadoId = null;
     let periodosSelecionadosResumo = new Set();
     let setoresExcluidosResumo = new Set();
     let graficoMensalChart = null;
@@ -1598,7 +1598,7 @@
         }
     }
 
-    // ======== FECHAR MODAL ========
+    // ======== FECHAR MODAL (CORRIGIDO) ========
     window.fecharModal = function(id) {
         var modal = document.getElementById(id);
         if (modal) modal.classList.remove('active');
@@ -1612,10 +1612,42 @@
         }
     };
 
-    // Fechar modal ao clicar no overlay
+    // Fechar modal APENAS ao clicar no overlay (fundo escuro) - NÃO ao passar o mouse
     document.addEventListener('click', function(e) {
+        // Verifica se o clique foi diretamente no overlay (e não em um filho)
         if (e.target.classList.contains('modal-overlay')) {
-            e.target.classList.remove('active');
+            // Fecha apenas se o overlay estiver visível (active)
+            if (e.target.classList.contains('active')) {
+                e.target.classList.remove('active');
+                // Limpa gráficos se houver
+                if (e.target.id === 'modalGraficoMensal' && graficoMensalChart) {
+                    graficoMensalChart.destroy();
+                    graficoMensalChart = null;
+                }
+                if (e.target.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+                    graficoConsolidadoChart.destroy();
+                    graficoConsolidadoChart = null;
+                }
+            }
+        }
+    });
+
+    // Fechar com tecla ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var modals = document.querySelectorAll('.modal-overlay.active');
+            modals.forEach(function(modal) {
+                modal.classList.remove('active');
+                // Limpa gráficos se houver
+                if (modal.id === 'modalGraficoMensal' && graficoMensalChart) {
+                    graficoMensalChart.destroy();
+                    graficoMensalChart = null;
+                }
+                if (modal.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+                    graficoConsolidadoChart.destroy();
+                    graficoConsolidadoChart = null;
+                }
+            });
         }
     });
 
