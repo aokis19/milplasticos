@@ -567,4 +567,131 @@
   window.toggleSetorResumo = function (sid, checked) { if (checked) setoresExcluidosResumo.add(sid); else setoresExcluidosResumo.delete(sid); renderizarTela(); };
   window.limparSetoresExcluidos = function () { setoresExcluidosResumo.clear(); renderizarTela(); };
 
+
+  // =============================================
+  // SINCRONIZAÇÃO COM FIREBASE CENTRALIZADO (NOVO)
+  // Garante que dados sejam compartilhados entre navegadores
+  // =============================================
+  
+  // Sobrescrever saveLocalData para também salvar no Firebase centralizado
+  const originalSaveLocalData = saveLocalData;
+  saveLocalData = function() {
+    // Chama a função original primeiro
+    originalSaveLocalData();
+    
+    // Depois salva no Firebase centralizado
+    try {
+      const dados = {
+        periodos, setores, categorias, itensCusto, producoes,
+        materiais, custosMateriais, custosFixos
+      };
+      
+      // Tentar via SyncSystem (se disponível)
+      if (window.SyncSystem && window.SyncSystem.salvarModulo) {
+        window.SyncSystem.salvarModulo('centralCustos', dados).catch(() => {});
+      }
+      
+      // Backup direto no Firebase também
+      if (db && usandoFirebase) {
+        db.collection('centralCustos').doc('dados_completos').set(dados).catch(() => {});
+      }
+    } catch(e) {
+      // Silencioso - não atrapalha o funcionamento normal
+    }
+  };
+
+  // Função para carregar dados do Firebase ao iniciar
+  async function sincronizarDoFirebase() {
+    console.log('🔄 Verificando dados no Firebase...');
+    
+    // Opção 1: Via SyncSystem
+    if (window.SyncSystem && window.SyncSystem.carregarModulo) {
+      try {
+        const dadosRemotos = await window.SyncSystem.carregarModulo('centralCustos');
+        if (dadosRemotos && dadosRemotos.periodos && dadosRemotos.periodos.length > 0) {
+          const dadosLocais = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          const qtdLocal = dadosLocais.periodos?.length || 0;
+          const qtdRemoto = dadosRemotos.periodos?.length || 0;
+          
+          console.log(`📊 Local: ${qtdLocal} períodos | Firebase: ${qtdRemoto} períodos`);
+          
+          // Usar a fonte com mais dados
+          if (qtdRemoto > qtdLocal) {
+            periodos = dadosRemotos.periodos || [];
+            setores = dadosRemotos.setores || [];
+            categorias = dadosRemotos.categorias || [];
+            itensCusto = dadosRemotos.itensCusto || [];
+            producoes = dadosRemotos.producoes || [];
+            materiais = dadosRemotos.materiais || [];
+            custosMateriais = dadosRemotos.custosMateriais || [];
+            custosFixos = dadosRemotos.custosFixos || [];
+            originalSaveLocalData();
+            console.log('✅ Dados atualizados do Firebase (SyncSystem)');
+            return true;
+          } else if (qtdLocal > qtdRemoto) {
+            // Local tem mais - enviar para Firebase
+            const dados = { periodos, setores, categorias, itensCusto, producoes, materiais, custosMateriais, custosFixos };
+            await window.SyncSystem.salvarModulo('centralCustos', dados);
+            console.log('✅ Dados locais enviados para Firebase');
+          }
+        }
+      } catch(e) {
+        console.log('⚠️ SyncSystem indisponível, tentando Firebase direto...');
+      }
+    }
+    
+    // Opção 2: Via Firebase direto
+    if (db && usandoFirebase) {
+      try {
+        const doc = await db.collection('centralCustos').doc('dados_completos').get();
+        if (doc.exists) {
+          const fbData = doc.data();
+          const dadosLocais = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          const qtdLocal = dadosLocais.periodos?.length || 0;
+          const qtdRemoto = fbData.periodos?.length || 0;
+          
+          console.log(`📊 Local: ${qtdLocal} períodos | Firebase direto: ${qtdRemoto} períodos`);
+          
+          if (qtdRemoto > qtdLocal) {
+            periodos = fbData.periodos || [];
+            setores = fbData.setores || [];
+            categorias = fbData.categorias || [];
+            itensCusto = fbData.itensCusto || [];
+            producoes = fbData.producoes || [];
+            materiais = fbData.materiais || [];
+            custosMateriais = fbData.custosMateriais || [];
+            custosFixos = fbData.custosFixos || [];
+            originalSaveLocalData();
+            console.log('✅ Dados atualizados do Firebase direto');
+            return true;
+          } else if (qtdLocal > qtdRemoto) {
+            const dados = { periodos, setores, categorias, itensCusto, producoes, materiais, custosMateriais, custosFixos };
+            await db.collection('centralCustos').doc('dados_completos').set(dados);
+            console.log('✅ Dados locais enviados para Firebase direto');
+          }
+        } else {
+          // Firebase vazio - enviar dados locais
+          const dados = { periodos, setores, categorias, itensCusto, producoes, materiais, custosMateriais, custosFixos };
+          if (dados.periodos && dados.periodos.length > 0) {
+            await db.collection('centralCustos').doc('dados_completos').set(dados);
+            console.log('✅ Dados iniciais enviados para Firebase');
+          }
+        }
+      } catch(e) {
+        console.log('⚠️ Firebase direto indisponível:', e.message);
+      }
+    }
+    
+    return false;
+  }
+
+  // Executar sincronização 2 segundos após carregar a página
+  setTimeout(async () => {
+    const sincronizou = await sincronizarDoFirebase();
+    if (sincronizou) {
+      renderizarTela();
+    }
+    document.getElementById('loadingOverlay')?.classList.remove('active');
+  }, 2000);
+
 })();
