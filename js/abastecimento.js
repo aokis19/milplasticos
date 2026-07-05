@@ -1,5 +1,5 @@
 // ==========================================================================
-// abastecimento.js - Versão Completa 100% Firebase
+// abastecimento.js - Versão COMPLETA 100% Firebase
 // Todas as funcionalidades mantidas - Sem localStorage
 // ==========================================================================
 
@@ -93,56 +93,8 @@ class GerenciadorAbastecimento {
                 else if (tabId === 'estatisticas') this.carregarEstatisticasGerais();
             });
         });
-        // Adicione isto DENTRO da classe GerenciadorAbastecimento
-// (antes do último fecha-chaves da classe)
-
-inicializarEventos() {
-    const form = document.getElementById('formAbastecimento');
-    if (form) form.addEventListener('submit', (e) => this.salvarAbastecimento(e));
-    
-    const qtd = document.getElementById('quantidadeLitros');
-    const preco = document.getElementById('precoLitro');
-    if (qtd && preco) {
-        qtd.addEventListener('input', () => this.calcularValorTotal());
-        preco.addEventListener('input', () => this.calcularValorTotal());
-    }
-    
-    const veiculoSelect = document.getElementById('veiculoAbastecimento');
-    if (veiculoSelect) veiculoSelect.addEventListener('change', () => this.atualizarInfoVeiculo());
-    
-    document.getElementById('btnNovoAbastecimento')?.addEventListener('click', () => { 
-        this.limparFormulario(); 
-        this.mostrarFormulario(); 
-    });
-    
-    document.getElementById('btnCancelarAbastecimento')?.addEventListener('click', () => this.esconderFormulario());
-    document.getElementById('btnFecharForm')?.addEventListener('click', () => this.esconderFormulario());
-    document.getElementById('btnAplicarFiltros')?.addEventListener('click', () => this.aplicarFiltros());
-    document.getElementById('btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
-    
-    document.getElementById('filtroPeriodo')?.addEventListener('change', (e) => {
-        const grupo = document.getElementById('dataPersonalizadaGroup');
-        if (grupo) grupo.style.display = e.target.value === 'personalizado' ? 'flex' : 'none';
-    });
-    
-    document.getElementById('filterAbastecimentos')?.addEventListener('input', (e) => {
-        this.filtrosAtivos.busca = e.target.value;
-        this.filtrarTabela();
-    });
-    
-    document.getElementById('btnExportAbastecimento')?.addEventListener('click', () => this.exportarDados());
-    document.getElementById('btnRelatorioConsumo')?.addEventListener('click', () => this.gerarRelatorioConsumo());
-    
-    const dataInput = document.getElementById('dataAbastecimento');
-    if (dataInput) {
-        const agora = new Date();
-        agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
-        dataInput.value = agora.toISOString().slice(0, 16);
-    }
-}
     }
 
-    // ========== CARREGAR VEÍCULOS (APENAS FIREBASE) ==========
     async carregarVeiculos() {
         if (!this.db) {
             this.veiculos = [];
@@ -191,7 +143,6 @@ inicializarEventos() {
         }
     }
 
-    // ========== CARREGAR ABASTECIMENTOS (APENAS FIREBASE) ==========
     async carregarAbastecimentos() {
         if (!this.db) {
             this.abastecimentos = [];
@@ -214,7 +165,6 @@ inicializarEventos() {
         }
     }
 
-    // ========== SALVAR NO FIREBASE ==========
     async salvarNoFirebase(abastecimento) {
         if (!this.db) {
             console.error('❌ Firebase não disponível');
@@ -241,7 +191,6 @@ inicializarEventos() {
         }
     }
 
-    // ========== EXCLUIR DO FIREBASE ==========
     async excluirDoFirebase(firebaseId) {
         if (!this.db || !firebaseId) return false;
         
@@ -255,7 +204,6 @@ inicializarEventos() {
         }
     }
 
-    // ========== CÁLCULOS (MANTIDOS IGUAIS) ==========
     calcularValorTotal() {
         const quantidade = parseFloat(document.getElementById('quantidadeLitros')?.value) || 0;
         const preco = parseFloat(document.getElementById('precoLitro')?.value) || 0;
@@ -300,7 +248,6 @@ inicializarEventos() {
         return filtrados[0] || null;
     }
 
-    // ========== SALVAR ABASTECIMENTO ==========
     async salvarAbastecimento(event) {
         event.preventDefault();
         
@@ -347,7 +294,6 @@ inicializarEventos() {
             observacoes: document.getElementById('observacoes')?.value || ''
         };
         
-        // Manter firebaseId se estiver editando
         if (this.editandoId) {
             const existente = this.abastecimentos.find(a => (a.firebaseId === this.editandoId) || (a.id === this.editandoId));
             if (existente?.firebaseId) {
@@ -355,7 +301,6 @@ inicializarEventos() {
             }
         }
         
-        // Calcular média
         const anterior = this.buscarAbastecimentoAnterior(veiculoId, data);
         const media = this.calcularMediaConsumo(novoAbastecimento, anterior);
         if (media && media.valor > 0) {
@@ -363,11 +308,9 @@ inicializarEventos() {
             this.mostrarNotificacao('Média: ' + media.valor + ' ' + media.unidade, 'success');
         }
         
-        // ✅ Salvar no Firebase
         const firebaseId = await this.salvarNoFirebase(novoAbastecimento);
         
         if (firebaseId) {
-            // ✅ Recarregar do Firebase para ter dados atualizados
             await this.carregarAbastecimentos();
             
             this.atualizarTabela();
@@ -384,7 +327,6 @@ inicializarEventos() {
         this.editandoId = null;
     }
 
-    // ========== EDITAR ==========
     editarAbastecimento(id) {
         const abast = this.abastecimentos.find(a => (a.firebaseId === id) || (a.id == id));
         if (!abast) return;
@@ -410,19 +352,16 @@ inicializarEventos() {
         this.atualizarInfoVeiculo();
     }
 
-    // ========== EXCLUIR ==========
     async excluirAbastecimento(id) {
         if (!confirm('Excluir este abastecimento?')) return;
         
         const abast = this.abastecimentos.find(a => (a.firebaseId === id) || (a.id == id));
         if (!abast) return;
         
-        // ✅ Excluir do Firebase
         if (abast.firebaseId) {
             await this.excluirDoFirebase(abast.firebaseId);
         }
         
-        // ✅ Recarregar do Firebase
         await this.carregarAbastecimentos();
         
         this.atualizarTabela();
@@ -432,7 +371,6 @@ inicializarEventos() {
         this.mostrarNotificacao('✅ Abastecimento excluído!', 'success');
     }
 
-    // ========== MÉTODOS DE INTERFACE (MANTIDOS IGUAIS) ==========
     atualizarInfoVeiculo() {
         const veiculoId = document.getElementById('veiculoAbastecimento')?.value;
         const info = document.getElementById('vehicleInfo');
@@ -537,15 +475,380 @@ inicializarEventos() {
         window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
     }
 
-    // ========== TODAS AS OUTRAS FUNÇÕES MANTIDAS IGUAIS ==========
-    // calcularConsumoPorVeiculo(), carregarConsumoVeiculos(), getClassMedia(),
-    // carregarEstatisticasGerais(), aplicarFiltrosDados(), atualizarEstatisticas(),
-    // mostrarNotificacao(), mostrarFormulario(), esconderFormulario(),
-    // limparFormulario(), aplicarFiltros(), limparFiltros(), filtrarTabela(),
-    // exportarDados(), gerarRelatorioConsumo(), inicializarEventos()
-    
-    // Todas essas funções permanecem EXATAMENTE como estavam, sem alterações!
-    // Elas apenas manipulam this.abastecimentos e this.veiculos em memória.
+    calcularConsumoPorVeiculo() {
+        const consumoVeiculos = {};
+        this.abastecimentos.forEach(abast => {
+            const veiculo = this.veiculos.find(v => (v.id == abast.veiculoId) || (v.firebaseId == abast.veiculoId));
+            if (!veiculo) return;
+            const placa = veiculo.placa;
+            if (!consumoVeiculos[placa]) {
+                consumoVeiculos[placa] = {
+                    veiculo: veiculo,
+                    totalLitros: 0,
+                    totalDistancia: 0,
+                    medias: [],
+                    ultimaMedia: null,
+                    melhorMedia: 0,
+                    piorMedia: Infinity,
+                    abastecimentos: []
+                };
+            }
+            consumoVeiculos[placa].abastecimentos.push({
+                data: abast.data,
+                odometro: abast.odometro,
+                horimetro: abast.horimetro,
+                quantidade: abast.quantidade,
+                mediaConsumo: abast.mediaConsumo
+            });
+        });
+        for (const placa in consumoVeiculos) {
+            const dados = consumoVeiculos[placa];
+            const veiculo = dados.veiculo;
+            const tipo = veiculo.tipoMedidor || veiculo.medidor || 'km';
+            dados.abastecimentos.sort((a, b) => new Date(a.data) - new Date(b.data));
+            let ultimo = null;
+            dados.abastecimentos.forEach((abast) => {
+                const kmAtual = tipo === 'km' ? abast.odometro : abast.horimetro;
+                const consumo = abast.quantidade;
+                if (ultimo !== null && kmAtual > ultimo) {
+                    const distancia = kmAtual - ultimo;
+                    const media = distancia / consumo;
+                    if (media > 0 && isFinite(media)) {
+                        dados.medias.push(media);
+                        dados.totalDistancia += distancia;
+                    }
+                }
+                dados.totalLitros += consumo;
+                ultimo = kmAtual;
+                if (abast.mediaConsumo && abast.mediaConsumo.valor > 0) {
+                    dados.ultimaMedia = abast.mediaConsumo.valor;
+                }
+            });
+            if (dados.medias.length > 0) {
+                dados.melhorMedia = Math.max(...dados.medias);
+                dados.piorMedia = Math.min(...dados.medias);
+            } else {
+                dados.piorMedia = 0;
+            }
+        }
+        return consumoVeiculos;
+    }
+
+    carregarConsumoVeiculos() {
+        const tbody = document.getElementById('tabelaConsumoVeiculosBody');
+        if (!tbody) return;
+        const consumoVeiculos = this.calcularConsumoPorVeiculo();
+        const veiculosArray = Object.values(consumoVeiculos);
+        if (veiculosArray.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum dado de consumo disponível</td></tr>';
+            document.getElementById('totalVeiculosConsumo').textContent = '0 veículos';
+            return;
+        }
+        veiculosArray.sort((a, b) => {
+            const mediaA = a.medias.length > 0 ? a.medias.reduce((s, m) => s + m, 0) / a.medias.length : 0;
+            const mediaB = b.medias.length > 0 ? b.medias.reduce((s, m) => s + m, 0) / b.medias.length : 0;
+            return mediaB - mediaA;
+        });
+        let html = '';
+        veiculosArray.forEach(dados => {
+            const veiculo = dados.veiculo;
+            const tipo = veiculo.tipoMedidor || veiculo.medidor || 'km';
+            const unidade = tipo === 'km' ? 'km' : 'horas';
+            const mediaGeral = dados.medias.length > 0 ? (dados.medias.reduce((s, m) => s + m, 0) / dados.medias.length).toFixed(2) : 'N/D';
+            const mediaClass = this.getClassMedia(parseFloat(mediaGeral), tipo);
+            html += '<tr>' +
+                '<td><strong>' + (veiculo.nome || veiculo.modelo || '-') + '</strong></td>' +
+                '<td>' + (veiculo.placa || '-') + '</td>' +
+                '<td>' + tipo.toUpperCase() + '</td>' +
+                '<td>' + (veiculo.combustivel || '-') + '</td>' +
+                '<td>' + dados.totalLitros.toFixed(2) + ' L</td>' +
+                '<td>' + dados.totalDistancia.toFixed(0) + ' ' + unidade + '</td>' +
+                '<td><span class="' + mediaClass + '">' + mediaGeral + ' ' + (tipo === 'km' ? 'km/l' : 'horas/l') + '</span></td>' +
+                '<td><span class="' + this.getClassMedia(dados.ultimaMedia, tipo) + '">' + (dados.ultimaMedia ? dados.ultimaMedia.toFixed(2) + ' ' + (tipo === 'km' ? 'km/l' : 'horas/l') : '-') + '</span></td>' +
+                '<td><span class="' + this.getClassMedia(dados.melhorMedia, tipo) + '">' + (dados.melhorMedia > 0 ? dados.melhorMedia.toFixed(2) + ' ' + (tipo === 'km' ? 'km/l' : 'horas/l') : '-') + '</span></td>' +
+                '<td><span class="' + this.getClassMedia(dados.piorMedia, tipo) + '">' + (dados.piorMedia > 0 && dados.piorMedia !== Infinity ? dados.piorMedia.toFixed(2) + ' ' + (tipo === 'km' ? 'km/l' : 'horas/l') : '-') + '</span></td>' +
+                '</tr>';
+        });
+        tbody.innerHTML = html;
+        document.getElementById('totalVeiculosConsumo').textContent = veiculosArray.length + ' veículos';
+        const filterConsumo = document.getElementById('filterConsumo');
+        if (filterConsumo) {
+            filterConsumo.oninput = () => {
+                const busca = filterConsumo.value.toLowerCase();
+                const linhas = tbody.querySelectorAll('tr');
+                linhas.forEach(linha => {
+                    const texto = linha.textContent.toLowerCase();
+                    linha.style.display = texto.includes(busca) ? '' : 'none';
+                });
+            };
+        }
+    }
+
+    getClassMedia(media, tipo) {
+        if (!media || media === 0) return '';
+        if (tipo === 'km') {
+            if (media >= 4) return 'media-boa';
+            if (media >= 2.5) return 'media-media';
+            return 'media-ruim';
+        } else {
+            if (media >= 2.5) return 'media-boa';
+            if (media >= 1.5) return 'media-media';
+            return 'media-ruim';
+        }
+    }
+
+    carregarEstatisticasGerais() {
+        const container = document.getElementById('estatisticasContainer');
+        if (!container) return;
+        const consumoVeiculos = this.calcularConsumoPorVeiculo();
+        const veiculosArray = Object.values(consumoVeiculos);
+        let totalLitros = 0, totalDistancia = 0, totalGasto = 0, todasMedias = [];
+        veiculosArray.forEach(dados => {
+            totalLitros += dados.totalLitros;
+            totalDistancia += dados.totalDistancia;
+            todasMedias = [...todasMedias, ...dados.medias];
+        });
+        totalGasto = this.abastecimentos.reduce((acc, a) => acc + a.valorTotal, 0);
+        const melhorVeiculo = veiculosArray.length > 0 ? veiculosArray.reduce((best, curr) => {
+            const bestMedia = best.medias.length > 0 ? best.medias.reduce((s, m) => s + m, 0) / best.medias.length : 0;
+            const currMedia = curr.medias.length > 0 ? curr.medias.reduce((s, m) => s + m, 0) / curr.medias.length : 0;
+            return currMedia > bestMedia ? curr : best;
+        }, veiculosArray[0]) : null;
+        const piorVeiculo = veiculosArray.length > 0 ? veiculosArray.reduce((worst, curr) => {
+            const worstMedia = worst.medias.length > 0 ? worst.medias.reduce((s, m) => s + m, 0) / worst.medias.length : Infinity;
+            const currMedia = curr.medias.length > 0 ? curr.medias.reduce((s, m) => s + m, 0) / curr.medias.length : Infinity;
+            return currMedia < worstMedia ? curr : worst;
+        }, veiculosArray[0]) : null;
+        const consumoMedio = totalLitros > 0 ? (totalDistancia / totalLitros).toFixed(2) : 'N/D';
+        container.innerHTML = '<div class="stat-card-consumo">' +
+            '<h3><i class="fas fa-chart-line"></i> Resumo Geral</h3>' +
+            '<div class="stat-item"><span class="stat-label">Total de Abastecimentos:</span><span class="stat-value">' + this.abastecimentos.length + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">Total de Litros:</span><span class="stat-value">' + totalLitros.toFixed(2) + ' L</span></div>' +
+            '<div class="stat-item"><span class="stat-label">Total de KM/Horas:</span><span class="stat-value">' + totalDistancia.toFixed(0) + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">Total Gasto:</span><span class="stat-value">R$ ' + totalGasto.toFixed(2) + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">Consumo Médio da Frota:</span><span class="stat-value ' + this.getClassMedia(parseFloat(consumoMedio), 'km') + '">' + consumoMedio + ' ' + (totalDistancia > 0 ? 'km/l' : '-') + '</span></div>' +
+            '</div>' +
+            '<div class="stat-card-consumo">' +
+            '<h3><i class="fas fa-trophy"></i> Melhor e Pior</h3>' +
+            '<div class="stat-item"><span class="stat-label">🏆 Melhor Veículo:</span><span class="stat-value">' + (melhorVeiculo ? melhorVeiculo.veiculo.placa + ' - ' + (melhorVeiculo.veiculo.nome || melhorVeiculo.veiculo.modelo) : '-') + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">📈 Média do Melhor:</span><span class="stat-value media-boa">' + (melhorVeiculo && melhorVeiculo.medias.length > 0 ? (melhorVeiculo.medias.reduce((s, m) => s + m, 0) / melhorVeiculo.medias.length).toFixed(2) + ' ' + (melhorVeiculo.veiculo.tipoMedidor === 'km' ? 'km/l' : 'horas/l') : '-') + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">⚠️ Pior Veículo:</span><span class="stat-value">' + (piorVeiculo ? piorVeiculo.veiculo.placa + ' - ' + (piorVeiculo.veiculo.nome || piorVeiculo.veiculo.modelo) : '-') + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">📉 Média do Pior:</span><span class="stat-value media-ruim">' + (piorVeiculo && piorVeiculo.medias.length > 0 ? (piorVeiculo.medias.reduce((s, m) => s + m, 0) / piorVeiculo.medias.length).toFixed(2) + ' ' + (piorVeiculo.veiculo.tipoMedidor === 'km' ? 'km/l' : 'horas/l') : '-') + '</span></div>' +
+            '</div>' +
+            '<div class="stat-card-consumo">' +
+            '<h3><i class="fas fa-chart-bar"></i> Estatísticas por Tipo</h3>' +
+            '<div class="stat-item"><span class="stat-label">Veículos com Medidor KM:</span><span class="stat-value">' + this.veiculos.filter(v => (v.tipoMedidor || v.medidor) === 'km').length + '</span></div>' +
+            '<div class="stat-item"><span class="stat-label">Veículos com Medidor Horas:</span><span class="stat-value">' + this.veiculos.filter(v => (v.tipoMedidor || v.medidor) === 'horas').length + '</span></div>' +
+            '</div>';
+    }
+
+    aplicarFiltrosDados() {
+        let dados = [...this.abastecimentos];
+        if (this.filtrosAtivos.veiculo) {
+            dados = dados.filter(a => a.veiculoId == this.filtrosAtivos.veiculo);
+        }
+        if (this.filtrosAtivos.periodo && this.filtrosAtivos.periodo !== 'personalizado') {
+            const hoje = new Date();
+            let limite = new Date();
+            switch(this.filtrosAtivos.periodo) {
+                case '7': limite.setDate(hoje.getDate() - 7); break;
+                case '30': limite.setDate(hoje.getDate() - 30); break;
+                case 'hoje': limite.setHours(0,0,0,0); break;
+            }
+            dados = dados.filter(a => new Date(a.data) >= limite);
+        }
+        if (this.filtrosAtivos.combustivel) {
+            dados = dados.filter(a => a.tipoCombustivel === this.filtrosAtivos.combustivel);
+        }
+        if (this.filtrosAtivos.busca) {
+            const busca = this.filtrosAtivos.busca.toLowerCase();
+            dados = dados.filter(a => {
+                const v = this.veiculos.find(v => (v.id == a.veiculoId) || (v.firebaseId == a.veiculoId));
+                return v?.nome?.toLowerCase().includes(busca) || v?.modelo?.toLowerCase().includes(busca) || v?.placa?.toLowerCase().includes(busca) || (a.posto && a.posto.toLowerCase().includes(busca));
+            });
+        }
+        if (this.filtrosAtivos.periodo === 'personalizado') {
+            const inicio = document.getElementById('filtroDataInicio')?.value;
+            const fim = document.getElementById('filtroDataFim')?.value;
+            if (inicio && fim) {
+                dados = dados.filter(a => new Date(a.data) >= new Date(inicio) && new Date(a.data) <= new Date(fim + 'T23:59:59'));
+            }
+        }
+        return dados;
+    }
+
+    atualizarEstatisticas() {
+        const dados = this.aplicarFiltrosDados();
+        const total = dados.length;
+        const valor = dados.reduce((s, a) => s + a.valorTotal, 0);
+        const litros = dados.reduce((s, a) => s + a.quantidade, 0);
+        const precoMedio = litros > 0 ? valor / litros : 0;
+        document.getElementById('totalAbastecimentos').textContent = total;
+        document.getElementById('totalValor').textContent = 'R$ ' + valor.toFixed(2);
+        document.getElementById('totalLitros').textContent = litros.toFixed(2) + ' L';
+        document.getElementById('mediaPreco').textContent = 'R$ ' + precoMedio.toFixed(3) + '/L';
+    }
+
+    mostrarNotificacao(msg, tipo = 'info') {
+        let n = document.getElementById('notificacao');
+        if (!n) {
+            n = document.createElement('div');
+            n.id = 'notificacao';
+            n.style.cssText = 'position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:8px;z-index:10000;display:none;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;';
+            document.body.appendChild(n);
+        }
+        const cores = { success: '#d4edda', error: '#f8d7da', info: '#d1ecf1', warning: '#fff3cd' };
+        n.style.backgroundColor = cores[tipo] || cores.info;
+        n.style.color = tipo === 'success' ? '#155724' : tipo === 'error' ? '#721c24' : '#0c5460';
+        n.textContent = msg;
+        n.style.display = 'block';
+        n.style.opacity = '1';
+        setTimeout(() => { n.style.opacity = '0'; setTimeout(() => { n.style.display = 'none'; }, 300); }, 3000);
+    }
+
+    mostrarFormulario() {
+        const card = document.getElementById('formCard');
+        if (card) { card.style.display = 'block'; card.scrollIntoView({ behavior: 'smooth' }); }
+    }
+
+    esconderFormulario() {
+        const card = document.getElementById('formCard');
+        if (card) { card.style.display = 'none'; this.limparFormulario(); }
+    }
+
+    limparFormulario() {
+        document.getElementById('formAbastecimento')?.reset();
+        const vi = document.getElementById('vehicleInfo');
+        if (vi) vi.style.display = 'none';
+        this.editandoId = null;
+        document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Novo Abastecimento';
+        document.getElementById('btnCancelarAbastecimento').textContent = 'Cancelar';
+        const dataInput = document.getElementById('dataAbastecimento');
+        if (dataInput) {
+            const agora = new Date();
+            agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+            dataInput.value = agora.toISOString().slice(0, 16);
+        }
+    }
+
+    aplicarFiltros() {
+        this.filtrosAtivos.veiculo = document.getElementById('filtroVeiculo')?.value || '';
+        this.filtrosAtivos.periodo = document.getElementById('filtroPeriodo')?.value || '';
+        this.filtrosAtivos.combustivel = document.getElementById('filtroCombustivel')?.value || '';
+        this.atualizarTabela();
+        this.atualizarEstatisticas();
+        this.mostrarNotificacao('Filtros aplicados!', 'success');
+    }
+
+    limparFiltros() {
+        document.getElementById('filtroVeiculo').value = '';
+        document.getElementById('filtroPeriodo').value = '30';
+        document.getElementById('filtroCombustivel').value = '';
+        document.getElementById('dataPersonalizadaGroup').style.display = 'none';
+        document.getElementById('filtroDataInicio').value = '';
+        document.getElementById('filtroDataFim').value = '';
+        this.filtrosAtivos = { veiculo: '', periodo: '30', combustivel: '', busca: '' };
+        document.getElementById('filterAbastecimentos').value = '';
+        this.atualizarTabela();
+        this.atualizarEstatisticas();
+        this.mostrarNotificacao('Filtros removidos!', 'info');
+    }
+
+    filtrarTabela() {
+        this.atualizarTabela();
+    }
+
+    exportarDados() {
+        const dados = this.aplicarFiltrosDados();
+        if (dados.length === 0) { this.mostrarNotificacao('Não há dados para exportar!', 'warning'); return; }
+        const exportData = dados.map(a => {
+            const v = this.veiculos.find(v => (v.id == a.veiculoId) || (v.firebaseId == a.veiculoId));
+            return {
+                Data: new Date(a.data).toLocaleString('pt-BR'),
+                Veículo: v?.nome || v?.modelo || 'Desconhecido',
+                Placa: v?.placa || '-',
+                Medição: a.odometro || a.horimetro || '-',
+                Combustível: a.tipoCombustivel,
+                Litros: a.quantidade.toFixed(2),
+                'Preço/L': a.precoLitro.toFixed(3),
+                Total: a.valorTotal.toFixed(2),
+                Posto: a.posto || '-',
+                'Média': a.mediaConsumo ? a.mediaConsumo.valor + ' ' + a.mediaConsumo.unidade : '-'
+            };
+        });
+        const headers = Object.keys(exportData[0]);
+        const csv = [headers.join(';'), ...exportData.map(row => headers.map(h => row[h]).join(';'))].join('\n');
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'abastecimentos_' + new Date().toISOString().slice(0,10) + '.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+        this.mostrarNotificacao(dados.length + ' registros exportados!', 'success');
+    }
+
+    gerarRelatorioConsumo() {
+        const dados = this.aplicarFiltrosDados();
+        if (dados.length === 0) { this.mostrarNotificacao('Não há dados para gerar relatório!', 'warning'); return; }
+        const relatorio = {};
+        dados.forEach(a => {
+            if (!relatorio[a.veiculoId]) {
+                const v = this.veiculos.find(v => (v.id == a.veiculoId) || (v.firebaseId == a.veiculoId));
+                relatorio[a.veiculoId] = { veiculo: v, total: 0, litros: 0, gasto: 0, medias: [] };
+            }
+            relatorio[a.veiculoId].total++;
+            relatorio[a.veiculoId].litros += a.quantidade;
+            relatorio[a.veiculoId].gasto += a.valorTotal;
+            if (a.mediaConsumo) relatorio[a.veiculoId].medias.push(a.mediaConsumo.valor);
+        });
+        let texto = '📊 RELATÓRIO DE CONSUMO\n========================\n\n';
+        Object.values(relatorio).forEach(r => {
+            if (!r.veiculo) return;
+            const media = r.medias.length > 0 ? (r.medias.reduce((a,b)=>a+b,0)/r.medias.length).toFixed(2) : 'N/D';
+            texto += '🚗 ' + (r.veiculo.nome || r.veiculo.modelo) + ' (' + r.veiculo.placa + ')\n';
+            texto += '   Medidor: ' + (r.veiculo.tipoMedidor || r.veiculo.medidor || 'km').toUpperCase() + '\n';
+            texto += '   Abastecimentos: ' + r.total + '\n';
+            texto += '   Litros: ' + r.litros.toFixed(2) + ' L\n';
+            texto += '   Gasto: R$ ' + r.gasto.toFixed(2) + '\n';
+            texto += '   Média: ' + media + ' ' + (r.veiculo.tipoMedidor === 'km' ? 'km/l' : 'horas/l') + '\n';
+            texto += '   ----------------------\n\n';
+        });
+        alert(texto);
+    }
+
+    inicializarEventos() {
+        const form = document.getElementById('formAbastecimento');
+        if (form) form.addEventListener('submit', (e) => this.salvarAbastecimento(e));
+        const qtd = document.getElementById('quantidadeLitros');
+        const preco = document.getElementById('precoLitro');
+        if (qtd && preco) {
+            qtd.addEventListener('input', () => this.calcularValorTotal());
+            preco.addEventListener('input', () => this.calcularValorTotal());
+        }
+        const veiculoSelect = document.getElementById('veiculoAbastecimento');
+        if (veiculoSelect) veiculoSelect.addEventListener('change', () => this.atualizarInfoVeiculo());
+        document.getElementById('btnNovoAbastecimento')?.addEventListener('click', () => { this.limparFormulario(); this.mostrarFormulario(); });
+        document.getElementById('btnCancelarAbastecimento')?.addEventListener('click', () => this.esconderFormulario());
+        document.getElementById('btnFecharForm')?.addEventListener('click', () => this.esconderFormulario());
+        document.getElementById('btnAplicarFiltros')?.addEventListener('click', () => this.aplicarFiltros());
+        document.getElementById('btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
+        document.getElementById('filtroPeriodo')?.addEventListener('change', (e) => {
+            const grupo = document.getElementById('dataPersonalizadaGroup');
+            if (grupo) grupo.style.display = e.target.value === 'personalizado' ? 'flex' : 'none';
+        });
+        document.getElementById('filterAbastecimentos')?.addEventListener('input', (e) => {
+            this.filtrosAtivos.busca = e.target.value;
+            this.filtrarTabela();
+        });
+        document.getElementById('btnExportAbastecimento')?.addEventListener('click', () => this.exportarDados());
+        document.getElementById('btnRelatorioConsumo')?.addEventListener('click', () => this.gerarRelatorioConsumo());
+        const dataInput = document.getElementById('dataAbastecimento');
+        if (dataInput) {
+            const agora = new Date();
+            agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+            dataInput.value = agora.toISOString().slice(0, 16);
+        }
+    }
 }
 
 // ========== INICIALIZAR ==========
