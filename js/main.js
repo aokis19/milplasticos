@@ -1,51 +1,123 @@
-// assets/js/main.js - Sistema Principal
+// ==========================================================================
+// /js/main.js - Sistema Principal (Versão Unificada 3.0)
+// Compatível com Firebase - Sem localStorage
+// ==========================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-  
+(function() {
+  'use strict';
+
+  console.log('🚀 Inicializando sistema principal...');
+
   // ============================================
-  // 1. CARREGAR COMPONENTES DINAMICAMENTE
+  // 1. CONFIGURAÇÃO DE CAMINHOS
   // ============================================
-  
-  function loadComponents() {
-    // Carregar topbar
-    fetch('components/topbar.html')
-      .then(response => response.text())
-      .then(html => {
-        document.body.insertAdjacentHTML('afterbegin', html);
-        initializeSidebar();
-        initializeTopbar();
-      })
-      .catch(error => console.error('Erro ao carregar topbar:', error));
-    
-    // Carregar sidebar
-    fetch('components/sidebar.html')
-      .then(response => response.text())
-      .then(html => {
-        const container = document.querySelector('.container');
-        if (container) {
-          container.insertAdjacentHTML('afterbegin', html);
+  const BASE_PATH = window.location.pathname.includes('/pages/') ? '../' : '';
+  const COMPONENTS_PATH = BASE_PATH + 'components/';
+
+  // ============================================
+  // 2. CARREGAR COMPONENTES DINAMICAMENTE
+  // ============================================
+  async function loadComponent(componentName, targetId, insertMethod = 'afterbegin') {
+    try {
+      const url = COMPONENTS_PATH + componentName + '.html';
+      console.log(`🔄 Carregando: ${url}`);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      const target = document.getElementById(targetId);
+      
+      if (!target) {
+        // Se não encontrar pelo ID, tenta inserir no body
+        if (insertMethod === 'afterbegin') {
+          document.body.insertAdjacentHTML('afterbegin', html);
         }
-        highlightActivePage();
-      })
-      .catch(error => console.error('Erro ao carregar sidebar:', error));
+        console.warn(`⚠️ Target #${targetId} não encontrado, inserido no body`);
+        return;
+      }
+      
+      target.insertAdjacentHTML(insertMethod, html);
+      console.log(`✅ Componente "${componentName}" carregado`);
+      
+    } catch (error) {
+      console.error(`❌ Erro ao carregar ${componentName}:`, error.message);
+      
+      // Fallback: criar estrutura básica se falhar
+      if (componentName === 'sidebar') {
+        criarSidebarFallback();
+      }
+    }
   }
-  
+
+  function criarSidebarFallback() {
+    console.warn('⚠️ Criando sidebar fallback...');
+    const sidebarHTML = `
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h3>Mil Plásticos</h3>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a href="home.html" data-page="home"><i class="fas fa-home"></i> Home</a></li>
+          <li><a href="abastecimento.html" data-page="abastecimento"><i class="fas fa-gas-pump"></i> Abastecimento</a></li>
+          <li><a href="veiculos.html" data-page="veiculos"><i class="fas fa-truck"></i> Veículos</a></li>
+          <li><a href="documentos.html" data-page="documentos"><i class="fas fa-file-alt"></i> Documentos</a></li>
+        </ul>
+      </aside>
+    `;
+    
+    const container = document.querySelector('.container');
+    if (container) {
+      container.insertAdjacentHTML('afterbegin', sidebarHTML);
+    }
+  }
+
+  async function loadComponents() {
+    console.log('📦 Carregando componentes...');
+    
+    // Carregar sidebar primeiro
+    await loadComponent('sidebar', 'sidebar-container', 'afterbegin');
+    
+    // Depois topbar
+    await loadComponent('topbar', 'topbar-container', 'afterbegin');
+    
+    // Inicializar funcionalidades
+    initializeSidebar();
+    initializeTopbar();
+    highlightActivePage();
+  }
+
   // ============================================
-  // 2. INICIALIZAR SIDEBAR
+  // 3. INICIALIZAR SIDEBAR
   // ============================================
-  
   function initializeSidebar() {
-    const toggleBtn = document.getElementById('sidebar-toggle');
-    const sidebar = document.getElementById('sidebar');
+    // Aguardar sidebar ser carregada
+    const checkSidebar = setInterval(() => {
+      const toggleBtn = document.getElementById('sidebar-toggle');
+      const sidebar = document.getElementById('sidebar');
+      
+      if (toggleBtn && sidebar) {
+        clearInterval(checkSidebar);
+        setupSidebarEvents(toggleBtn, sidebar);
+      }
+    }, 100);
+    
+    // Timeout de segurança
+    setTimeout(() => clearInterval(checkSidebar), 5000);
+  }
+
+  function setupSidebarEvents(toggleBtn, sidebar) {
     const overlay = document.getElementById('overlay');
     const mainContent = document.querySelector('.main-content');
-    
-    if (!toggleBtn || !sidebar) return;
-    
+
     function isDesktop() {
       return window.innerWidth >= 992;
     }
-    
+
+    // Estado inicial
     if (isDesktop()) {
       sidebar.classList.add('active');
       if (mainContent) {
@@ -53,177 +125,200 @@ document.addEventListener('DOMContentLoaded', function() {
         mainContent.style.width = 'calc(100% - 250px)';
       }
     }
-    
-    toggleBtn.addEventListener('click', function() {
+
+    // Toggle sidebar
+    toggleBtn.addEventListener('click', () => {
       sidebar.classList.toggle('active');
-      if (overlay) overlay.classList.toggle('active');
       
+      if (overlay) {
+        overlay.classList.toggle('active');
+      }
+
       if (!isDesktop()) {
         document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
       }
-      
-      if (mainContent) {
-        if (sidebar.classList.contains('active')) {
-          mainContent.style.marginLeft = '250px';
-          mainContent.style.width = 'calc(100% - 250px)';
-        } else {
-          mainContent.style.marginLeft = '0';
-          mainContent.style.width = '100%';
-        }
-      }
+
+      updateMainContent(mainContent, sidebar.classList.contains('active'));
     });
-    
+
+    // Fechar sidebar ao clicar no overlay
     if (overlay) {
-      overlay.addEventListener('click', function() {
+      overlay.addEventListener('click', () => {
         sidebar.classList.remove('active');
-        this.classList.remove('active');
+        overlay.classList.remove('active');
         document.body.style.overflow = '';
-        if (mainContent) {
-          mainContent.style.marginLeft = '0';
-          mainContent.style.width = '100%';
-        }
+        updateMainContent(mainContent, false);
       });
     }
-    
-    document.addEventListener('click', function(e) {
+
+    // Fechar sidebar ao clicar em link (mobile)
+    document.addEventListener('click', (e) => {
       if (e.target.closest('.sidebar-menu a') && !isDesktop()) {
         sidebar.classList.remove('active');
         if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
-        if (mainContent) {
-          mainContent.style.marginLeft = '0';
-          mainContent.style.width = '100%';
-        }
+        updateMainContent(mainContent, false);
       }
     });
-    
-    window.addEventListener('resize', function() {
+
+    // Responsividade
+    window.addEventListener('resize', () => {
       if (isDesktop()) {
         sidebar.classList.add('active');
         if (overlay) overlay.classList.remove('active');
         document.body.style.overflow = '';
-        if (mainContent) {
-          mainContent.style.marginLeft = '250px';
-          mainContent.style.width = 'calc(100% - 250px)';
-        }
+        updateMainContent(mainContent, true);
       } else {
         sidebar.classList.remove('active');
         if (overlay) overlay.classList.remove('active');
-        if (mainContent) {
-          mainContent.style.marginLeft = '0';
-          mainContent.style.width = '100%';
-        }
+        updateMainContent(mainContent, false);
       }
     });
   }
-  
-  // ============================================
-  // 3. INICIALIZAR TOPBAR
-  // ============================================
-  
-  function initializeTopbar() {
-    const searchInput = document.querySelector('.search-input');
-    if (searchInput) {
-      searchInput.addEventListener('input', function(e) {
-        console.log('Buscar:', e.target.value);
-      });
-    }
+
+  function updateMainContent(mainContent, sidebarActive) {
+    if (!mainContent) return;
     
-    document.querySelectorAll('.action-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        console.log('Botão clicado:', this.title || this.textContent);
-      });
-    });
+    if (sidebarActive) {
+      mainContent.style.marginLeft = '250px';
+      mainContent.style.width = 'calc(100% - 250px)';
+    } else {
+      mainContent.style.marginLeft = '0';
+      mainContent.style.width = '100%';
+    }
   }
-  
+
   // ============================================
-  // 4. MARCAR PÁGINA ATIVA
+  // 4. INICIALIZAR TOPBAR
   // ============================================
-  
+  function initializeTopbar() {
+    // Aguardar topbar ser carregada
+    const checkTopbar = setInterval(() => {
+      const searchInput = document.querySelector('.search-input');
+      const actionBtns = document.querySelectorAll('.action-btn');
+      
+      if (searchInput || actionBtns.length > 0) {
+        clearInterval(checkTopbar);
+        
+        // Search
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            console.log('🔍 Buscar:', e.target.value);
+          });
+        }
+
+        // Action buttons
+        actionBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            console.log('🖱️ Botão clicado:', btn.title || btn.textContent);
+          });
+        });
+      }
+    }, 100);
+
+    setTimeout(() => clearInterval(checkTopbar), 5000);
+  }
+
+  // ============================================
+  // 5. MARCAR PÁGINA ATIVA
+  // ============================================
   function highlightActivePage() {
     const currentPage = getCurrentPageName();
-    const menuItems = document.querySelectorAll('.sidebar-menu a');
     
-    menuItems.forEach(item => {
-      item.classList.remove('active');
-      const page = item.getAttribute('data-page');
-      if (page === currentPage) {
-        item.classList.add('active');
+    // Aguardar menu ser carregado
+    const checkMenu = setInterval(() => {
+      const menuItems = document.querySelectorAll('.sidebar-menu a');
+      
+      if (menuItems.length > 0) {
+        clearInterval(checkMenu);
+        
+        menuItems.forEach(item => {
+          item.classList.remove('active');
+          const page = item.getAttribute('data-page');
+          
+          if (page === currentPage) {
+            item.classList.add('active');
+            console.log('📍 Página ativa:', currentPage);
+          }
+        });
       }
-    });
+    }, 100);
+
+    setTimeout(() => clearInterval(checkMenu), 5000);
   }
-  
+
   function getCurrentPageName() {
     const path = window.location.pathname;
     const page = path.split('/').pop().replace('.html', '');
-    return page || 'dashboard';
+    return page || 'home';
   }
-  
+
   // ============================================
-  // 5. CARREGAR CSS/JS DA PÁGINA ATUAL (CORRIGIDO)
+  // 6. NAVEGAÇÃO
   // ============================================
-  
-  function loadPageAssets() {
-    // ❌ REMOVIDO: Não carregar de /pages/ pois os arquivos estão em /assets/css/ e /js/
-    // Cada HTML já carrega seus próprios CSS e JS via tags <link> e <script>
+  function navigateTo(page) {
+    console.log('🧭 Navegando para:', page);
     
-    // Apenas log para debug
-    const currentPage = getCurrentPageName();
-    console.log('📄 Página atual:', currentPage);
-    console.log('   CSS e JS carregados diretamente no HTML - sem /pages/');
+    // Verificar se a página existe antes de navegar
+    const url = page.includes('.html') ? page : `${page}.html`;
+    
+    // Adicionar efeito de transição
+    document.body.style.opacity = '0.5';
+    document.body.style.transition = 'opacity 0.2s';
+    
+    setTimeout(() => {
+      window.location.href = url;
+    }, 200);
   }
-  
+
   // ============================================
-  // INICIALIZAR SISTEMA
+  // 7. INICIALIZAÇÃO
   // ============================================
-  
-  const hasContainer = document.querySelector('.container');
-  const hasMainContent = document.querySelector('.main-content');
-  
-  if (!hasContainer || !hasMainContent) {
-    document.body.innerHTML = `
-      <div class="container">
-        <main class="main-content">
-          ${document.body.innerHTML}
-        </main>
-      </div>
-    `;
+  function init() {
+    console.log('📄 Página atual:', getCurrentPageName());
+    console.log('   CSS e JS carregados diretamente no HTML');
+
+    // Verificar estrutura da página
+    const hasContainer = document.querySelector('.container');
+    const hasMainContent = document.querySelector('.main-content');
+
+    if (!hasContainer || !hasMainContent) {
+      console.warn('⚠️ Estrutura HTML incompleta, ajustando...');
+      document.body.innerHTML = `
+        <div class="container">
+          <main class="main-content">
+            ${document.body.innerHTML}
+          </main>
+        </div>
+      `;
+    }
+
+    // Carregar componentes
+    loadComponents();
+
+    // Marcar como carregado
+    setTimeout(() => {
+      document.body.classList.add('loaded');
+      document.body.style.opacity = '1';
+      console.log('✅ Sistema principal carregado!');
+    }, 300);
   }
-  
-  loadComponents();
-  loadPageAssets();
-  
-  setTimeout(() => {
-    document.body.classList.add('loaded');
-  }, 100);
-});
 
-function navigateTo(page) {
-  window.location.href = `${page}.html`;
-}
-// /js/main.js
+  // ============================================
+  // 8. EXPOR FUNÇÕES GLOBALMENTE
+  // ============================================
+  window.navigateTo = navigateTo;
+  window.getCurrentPageName = getCurrentPageName;
 
-// Carregar sidebar com tratamento de erro
-async function carregarSidebar() {
-    try {
-        const response = await fetch('/components/sidebar.html');
-        if (!response.ok) throw new Error('Sidebar não encontrada');
-        const html = await response.text();
-        document.getElementById('sidebar-container').innerHTML = html;
-    } catch (error) {
-        console.warn('⚠️ Sidebar não carregada:', error.message);
-        // Carregar fallback ou ignorar
-    }
-}
+  // ============================================
+  // 9. INICIAR QUANDO DOM PRONTO
+  // ============================================
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
-// Carregar topbar com tratamento de erro
-async function carregarTopbar() {
-    try {
-        const response = await fetch('/components/topbar.html');
-        if (!response.ok) throw new Error('Topbar não encontrada');
-        const html = await response.text();
-        document.getElementById('topbar-container').innerHTML = html;
-    } catch (error) {
-        console.warn('⚠️ Topbar não carregada:', error.message);
-    }
-}
+  console.log('📋 Main.js carregado - aguardando DOM...');
+
+})();
