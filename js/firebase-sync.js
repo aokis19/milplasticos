@@ -1,311 +1,208 @@
 // ==========================================================================
-// FIREBASE-SYNC.JS - Versão 3.3 (Módulo Central de Custos Totalmente Corrigido)
-// Sincronização Inteligente LocalStorage (Cache) <-> Firebase Firestore
+// FIREBASE-SYNC.JS - Versão 4.0 (APENAS FIREBASE - SEM LOCALSTORAGE)
+// Sistema Multi-Usuário - Dados sempre atualizados do Firebase
 // ==========================================================================
 
 (function() {
   'use strict';
 
-  // ============ CONFIGURAÇÃO DO SISTEMA ============
-  const CONFIG = {
-    STORAGE_KEY: 'controleMotoristas_systemmil_v2',
-    BACKUP_KEY: 'controleMotoristas_backup_',
-    SYNC_QUEUE_KEY: 'controleMotoristas_sync_queue',
-    MAX_BACKUPS: 5,
-    SYNC_INTERVAL: 30000,         // Tenta sincronizar a cada 30 segundos
-    MAX_LOCAL_STORAGE_MB: 2,       // Limite máximo recomendado por módulo
-  };
+  console.log('🔥 Firebase Sync 4.0 - Modo Cloud (sem localStorage)');
 
-  // Mapeamento de chaves do localStorage para Coleções do Firebase
-  const MODULE_MAPPINGS = {
-    'abastecimentos': 'abastecimentos',
-    'documentos': 'documentos',
-    'empresas': 'empresas',
-    'empresas_docs': 'empresas',
-    'produtos': 'produtos',
-    'produtos_cotacao': 'produtos',
-    'cotacoes': 'cotacoes',
-    'historico': 'historico',
-    'historico_cotacao': 'historico',
-    'fornecedores': 'fornecedores',
-    'manutencoes': 'manutencoes',
-    'manutencoesCorretivas': 'manutencoes',
-    'veiculos': 'veiculos',
-    'tiposManutencao': 'tiposManutencao',
-    'alertasGlobalConfig': 'configuracoes',
-    
-    // CORRIGIDO: Mapeando a chave exata utilizada no custo.js para puxar o cache antigo
-    'centralCustos_v14_milplastics': 'centralCustos' 
-  };
-
-  // Campos pesados (ex: imagens em Base64) que devem ser removidos do localStorage se estourarem o limite
-  const CAMPOS_PESADOS = ['foto', 'comprovante', 'anexo', 'pdf', 'imagem'];
-
-  // Estados do Sistema de Sincronização
+  // Estados do Sistema
   let isOnline = navigator.onLine;
-  let db = window.firebaseDB || null;
-  let syncIntervalId = null;
+  let db = window.db || window.firebaseDB || null;
   let isSyncing = false;
 
-  // Ouvir alterações na conexão de rede do usuário
+  // Reconectar db se necessário
+  if (!db && window.firebase) {
+    try {
+      db = window.firebase.firestore();
+      window.db = db;
+    } catch(e) {
+      console.warn("⚠️ Falha ao recuperar Firestore:", e.message);
+    }
+  }
+
+  // Monitorar conexão
   window.addEventListener('online', () => {
     isOnline = true;
-    console.log('📶 Conexão restabelecida! Tentando processar fila de sincronização...');
-    processSyncQueue();
+    console.log('📶 Online - Dados serão carregados do Firebase');
   });
 
   window.addEventListener('offline', () => {
     isOnline = false;
-    console.log('📴 Modo offline ativado. O sistema continuará salvando localmente.');
+    console.log('📴 Offline - Sistema requer conexão');
   });
 
-  // Tentar redefinir o banco se o inicializador demorar um pouco
-  if (!db && window.firebase) {
-    try {
-      db = window.firebase.firestore();
-    } catch(e) {
-      console.warn("Aviso: Falha ao recuperar firestore em tempo de execução imediato:", e.message);
+  // ============ FUNÇÕES CORE (APENAS FIREBASE) ============
+
+  /**
+   * Salvar dados DIRETAMENTE no Firebase
+   */
+  async function saveToFirebase(collectionName, data) {
+    if (!db || !isOnline) {
+      console.error('❌ Sem conexão para salvar');
+      return false;
     }
-  }
-
-  // ============ FUNÇÕES AUXILIARES DE ARMAZENAMENTO LOCAL ============
-  
-  function getStorageSizeMB() {
-    let total = 0;
-    for (let x in localStorage) {
-      if (localStorage.hasOwnProperty(x)) {
-        total += ((localStorage[x].length * 2) / 1024 / 1024);
-      }
-    }
-    return total;
-  }
-
-  function otimizarDadosPesados(dados) {
-    if (!Array.isArray(dados)) return dados;
-    return dados.map(item => {
-      const novoItem = { ...item };
-      CAMPOS_PESADOS.forEach(campo => {
-        if (novoItem[campo] && novoItem[campo].length > 1000) {
-          novoItem[campo] = "[Removido localmente por tamanho - salvo no Firebase]";
-        }
-      });
-      return novoItem;
-    });
-  }
-
-  function safeSetItem(chave, dados) {
+    
     try {
-      const stringData = JSON.stringify(dados);
-      localStorage.setItem(chave, stringData);
-      return true;
-    } catch (e) {
-      console.warn(`⚠️ Limite de localStorage atingido para a chave: ${chave}. Otimizando...`);
-      try {
-        const dadosOtimizados = otimizarDadosPesados(dados);
-        localStorage.setItem(chave, JSON.stringify(dadosOtimizados));
-        return true;
-      } catch (err) {
-        console.error(`❌ Erro fatal ao salvar localmente mesmo após otimização:`, err);
-        return false;
-      }
-    }
-  }
+      let qtd = Array.isArray(data) ? data.length : 
+                (data && typeof data === 'object' ? Object.keys(data).length : 0);
 
-  // ============ FUNÇÕES CORE DE INTEGRAÇÃO COM FIREBASE ============
-
-  async function saveModuleData(collectionName, data) {
-    if (!db) return false;
-    try {
-      // CORREÇÃO: Garante que o campo quantidadeItens nunca seja 'undefined'
-      let qtd = 0;
-      if (data) {
-        if (Array.isArray(data)) {
-          qtd = data.length;
-        } else if (typeof data === 'object') {
-          // Se for o objeto estruturado da Central de Custos, prioriza a contagem de períodos cadastrados
-          qtd = data.periodos ? data.periodos.length : Object.keys(data).length;
-        }
-      }
-
-      // Cria um documento agregador ou salva em lote dependendo da estrutura
       await db.collection(collectionName).doc('dados_completos').set({
         dados: data,
         ultimaAtualizacao: new Date().toISOString(),
-        quantidadeItens: qtd
+        quantidadeItens: qtd,
+        usuario: 'sistema' // Pode adicionar usuário logado aqui
       }, { merge: true });
+      
+      console.log(`✅ Dados salvos no Firebase [${collectionName}]`);
       return true;
     } catch (e) {
-      console.error(`❌ Erro ao enviar dados para coleção Firebase [${collectionName}]:`, e);
-      addToSyncQueue(collectionName, data);
+      console.error(`❌ Erro ao salvar [${collectionName}]:`, e);
       return false;
     }
   }
 
-  async function loadModuleData(collectionName) {
-    if (!db) return null;
+  /**
+   * Carregar dados DIRETAMENTE do Firebase
+   */
+  async function loadFromFirebase(collectionName) {
+    if (!db || !isOnline) {
+      console.warn('⚠️ Sem conexão com Firebase');
+      return null;
+    }
+    
     try {
       const doc = await db.collection(collectionName).doc('dados_completos').get();
+      
       if (doc.exists && doc.data().dados) {
-        return doc.data().dados;
+        const data = doc.data();
+        console.log(`✅ Dados carregados do Firebase [${collectionName}]:`, 
+                    data.quantidadeItens || 0, 'itens');
+        return data.dados;
       }
+      
+      console.log(`ℹ️ Nenhum dado encontrado em [${collectionName}]`);
       return null;
     } catch (e) {
-      console.error(`❌ Erro ao puxar dados da coleção Firebase [${collectionName}]:`, e);
+      console.error(`❌ Erro ao carregar [${collectionName}]:`, e);
       return null;
     }
   }
 
-  // Fila Offline para itens modificados sem internet
-  function addToSyncQueue(modulo, dados) {
+  /**
+   * Salvar documento individual (para CRUD)
+   */
+  async function saveDocument(collection, docId, data) {
+    if (!db || !isOnline) return false;
+    
     try {
-      let queue = localStorage.getItem(CONFIG.SYNC_QUEUE_KEY);
-      queue = queue ? JSON.parse(queue) : {};
-      queue[modulo] = {
-        dados: dados,
-        timestamp: Date.now()
-      };
-      localStorage.setItem(CONFIG.SYNC_QUEUE_KEY, JSON.stringify(queue));
-    } catch (e) {
-      console.error("Erro ao gerenciar fila de sincronização offline:", e);
-    }
-  }
-
-  async function processSyncQueue() {
-    if (!isOnline || !db || isSyncing) return;
-    isSyncing = true;
-
-    try {
-      let queueStr = localStorage.getItem(CONFIG.SYNC_QUEUE_KEY);
-      if (!queueStr) { isSyncing = false; return; }
-
-      let queue = JSON.parse(queueStr);
-      const modulosNaFila = Object.keys(queue);
-
-      if (modulosNaFila.length === 0) { isSyncing = false; return; }
-
-      console.log(`⏳ Processando fila de sincronização para ${modulosNaFila.length} módulos...`);
-
-      for (const modulo of modulosNaFila) {
-        const collection = MODULE_MAPPINGS[modulo] || modulo;
-        const sucesso = await saveModuleData(collection, queue[modulo].dados);
-        
-        if (sucesso) {
-          delete queue[modulo];
-          console.log(`✅ Sincronização pendente concluída com sucesso para o módulo: ${modulo}`);
-        }
+      if (docId) {
+        await db.collection(collection).doc(docId).set(data, { merge: true });
+      } else {
+        await db.collection(collection).add(data);
       }
-
-      localStorage.setItem(CONFIG.SYNC_QUEUE_KEY, JSON.stringify(queue));
+      console.log(`✅ Documento salvo em [${collection}]`);
+      return true;
     } catch (e) {
-      console.error("Erro no processamento da fila de sync:", e);
-    } finally {
-      isSyncing = false;
-    }
-  }
-
-  // Sincronizar todos os módulos cadastrados ativos
-  async function sincronizarTodosModulos() {
-    if (!isOnline || !db) {
-      console.warn("⚠️ Não é possível sincronizar todos os módulos: Dispositivo está em modo Offline.");
+      console.error(`❌ Erro ao salvar documento:`, e);
       return false;
     }
+  }
 
-    console.log("🔄 Iniciando varredura geral e sincronização completa com Firebase...");
-    let logsSucesso = [];
-
-    for (const modulo in MODULE_MAPPINGS) {
-      const localData = localStorage.getItem(modulo);
-      if (localData) {
-        try {
-          const dadosParsed = JSON.parse(localData);
-          const col = MODULE_MAPPINGS[modulo];
-          const ok = await saveModuleData(col, dadosParsed);
-          if (ok) logsSucesso.push(modulo);
-        } catch(e) {
-          console.error(`Falha ao sincronizar o módulo [${modulo}]:`, e.message);
-        }
-      }
+  /**
+   * Buscar todos os documentos de uma coleção
+   */
+  async function getCollection(collectionName) {
+    if (!db || !isOnline) return [];
+    
+    try {
+      const snapshot = await db.collection(collectionName).get();
+      const items = [];
+      snapshot.forEach(doc => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      console.log(`✅ ${items.length} itens carregados de [${collectionName}]`);
+      return items;
+    } catch (e) {
+      console.error(`❌ Erro ao carregar coleção [${collectionName}]:`, e);
+      return [];
     }
-    console.log(` Sincronização em lote finalizada. Módulos atualizados na nuvem:`, logsSucesso);
-    return true;
   }
 
-  // ============ INICIALIZAÇÃO AUTOMÁTICA E LOOP DE TIMER ============
-  function init() {
-    // Processamento imediato inicial se estiver conectado
-    setTimeout(() => {
-      processSyncQueue();
-    }, 2000);
-
-    // Configura o intervalo cíclico em background
-    if (syncIntervalId) clearInterval(syncIntervalId);
-    syncIntervalId = setInterval(() => {
-      processSyncQueue();
-    }, CONFIG.SYNC_INTERVAL);
+  /**
+   * Deletar documento
+   */
+  async function deleteDocument(collection, docId) {
+    if (!db || !isOnline) return false;
+    
+    try {
+      await db.collection(collection).doc(docId).delete();
+      console.log(`✅ Documento deletado de [${collection}]`);
+      return true;
+    } catch (e) {
+      console.error(`❌ Erro ao deletar:`, e);
+      return false;
+    }
   }
 
-  init();
-
-  // ============ INTERFACE GLOBAL EXPOSTA (API WINDOW) ============
+  // ============ INTERFACE GLOBAL (API) ============
+  
   window.SyncSystem = {
+    // Status do sistema
     getStatus: () => ({
       online: isOnline,
       firebaseConnected: !!db,
-      totalStorageMB: getStorageSizeMB().toFixed(2),
-      limiteMaximoMB: CONFIG.MAX_LOCAL_STORAGE_MB
+      modo: 'CLOUD (sem localStorage)',
+      multiUsuario: true
     }),
 
-    // Salvar Módulo inteligente (Local + Nuvem)
-    salvarModulo: async (nomeModulo, dados) => {
-      const collection = MODULE_MAPPINGS[nomeModulo] || nomeModulo;
-      
-      // Salva localmente primeiro por segurança
-      const localOk = safeSetItem(nomeModulo, dados);
-      
-      // Se estiver online e Firebase configurado, joga na nuvem
-      if (isOnline && db) {
-        return await saveModuleData(collection, dados);
-      } else {
-        // Se estiver offline, adiciona na fila de pendências
-        addToSyncQueue(nomeModulo, dados);
-        return localOk;
-      }
-    },
+    // CRUD Básico
+    save: saveDocument,
+    get: getCollection,
+    delete: deleteDocument,
+    update: saveDocument,
 
-    // Carregar Módulo inteligente (Nuvem com Fallback Local)
-    carregarModulo: async (nomeModulo) => {
-      const collection = MODULE_MAPPINGS[nomeModulo] || nomeModulo;
-      
-      if (isOnline && db) {
-        try {
-          const remoteData = await loadModuleData(collection);
-          if (remoteData) {
-            safeSetItem(nomeModulo, remoteData); // atualiza cache local
-            return remoteData;
-          }
-        } catch(e) {
-          console.warn(`Aviso ao ler nuvem do módulo ${nomeModulo}, usando cache local.`, e.message);
-        }
-      }
-      
-      // Fallback: Retorna o cache se estiver offline ou se a nuvem falhar/estiver vazia
-      const localData = localStorage.getItem(nomeModulo);
-      return localData ? JSON.parse(localData) : [];
-    },
-
-    // Migrar dados locais antigos brutos para o padrão Firebase
-    migrateAllToFirebase: async () => {
-      return await sincronizarTodosModulos();
+    // Compatibilidade com versão anterior
+    salvarModulo: saveToFirebase,
+    carregarModulo: loadFromFirebase,
+    
+    // Sincronização (agora é direta)
+    syncNow: async () => {
+      console.log('🔄 Sistema em modo cloud - dados sempre atualizados');
+      return true;
     }
   };
 
-  // Funções legadas ou chamadas diretas por botões no HTML global
-  window.migrarTudoParaFirebase = () => window.SyncSystem.migrateAllToFirebase();
-  window.syncAllModules = () => window.SyncSystem.migrateAllToFirebase();
-  window.verStatusSync = () => {
-    const s = window.SyncSystem.getStatus();
-    console.log(`📊 Status Sistema: ${s.online ? '🟢 Online' : '🔴 Offline'} | Firebase: ${s.firebaseConnected ? '⚙️ Ativo' : '❌ Desconectado'} | Cache: ${s.totalStorageMB}MB / ${s.limiteMaximoMB}MB`);
-    return s;
+  // Funções globais para compatibilidade
+  window.salvarNoFirebase = saveToFirebase;
+  window.carregarDoFirebase = loadFromFirebase;
+  window.getCollection = getCollection;
+  window.saveDocument = saveDocument;
+  window.deleteDocument = deleteDocument;
+
+  // Limpar localStorage antigo (opcional, execute uma vez)
+  window.limparCacheLocal = function() {
+    const keysParaRemover = [
+      'documentos', 'documentos_meta', 'veiculos', 'empresas',
+      'abastecimentos', 'manutencoes', 'produtos', 'fornecedores',
+      'centralCustos_v14_milplastics', 'controleMotoristas_systemmil_v2',
+      'controleMotoristas_sync_queue', 'historico', 'historico_cotacao'
+    ];
+    
+    keysParaRemover.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Cache removido: ${key}`);
+      } catch(e) {}
+    });
+    
+    console.log('✅ Cache local completamente limpo!');
+    console.log('🔄 Recarregue a página para usar apenas Firebase.');
   };
+
+  console.log('✅ SyncSystem 4.0 pronto (Cloud Mode)');
+  console.log('💡 Dica: Execute window.limparCacheLocal() para limpar cache antigo');
 
 })();
