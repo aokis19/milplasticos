@@ -1,5 +1,5 @@
 // ==========================================================================
-// FIREBASE-SYNC.JS - Versão 3.2 (Módulo Central de Custos Integrado)
+// FIREBASE-SYNC.JS - Versão 3.3 (Módulo Central de Custos Totalmente Corrigido)
 // Sincronização Inteligente LocalStorage (Cache) <-> Firebase Firestore
 // ==========================================================================
 
@@ -34,8 +34,8 @@
     'tiposManutencao': 'tiposManutencao',
     'alertasGlobalConfig': 'configuracoes',
     
-    // INTEGRADO: Mapeamento para que a Central de Custos sincronize com a nuvem
-    'centralCustos': 'centralCustos' 
+    // CORRIGIDO: Mapeando a chave exata utilizada no custo.js para puxar o cache antigo
+    'centralCustos_v14_milplastics': 'centralCustos' 
   };
 
   // Campos pesados (ex: imagens em Base64) que devem ser removidos do localStorage se estourarem o limite
@@ -84,11 +84,9 @@
     if (!Array.isArray(dados)) return dados;
     return dados.map(item => {
       const novoItem = { ...item };
-      let alterado = false;
       CAMPOS_PESADOS.forEach(campo => {
         if (novoItem[campo] && novoItem[campo].length > 1000) {
           novoItem[campo] = "[Removido localmente por tamanho - salvo no Firebase]";
-          alterado = true;
         }
       });
       return novoItem;
@@ -118,12 +116,22 @@
   async function saveModuleData(collectionName, data) {
     if (!db) return false;
     try {
+      // CORREÇÃO: Garante que o campo quantidadeItens nunca seja 'undefined'
+      let qtd = 0;
+      if (data) {
+        if (Array.isArray(data)) {
+          qtd = data.length;
+        } else if (typeof data === 'object') {
+          // Se for o objeto estruturado da Central de Custos, prioriza a contagem de períodos cadastrados
+          qtd = data.periodos ? data.periodos.length : Object.keys(data).length;
+        }
+      }
+
       // Cria um documento agregador ou salva em lote dependendo da estrutura
-      // Para manter compatibilidade com sua estrutura unificada:
       await db.collection(collectionName).doc('dados_completos').set({
         dados: data,
         ultimaAtualizacao: new Date().toISOString(),
-        quantidadeItens: data ? data.length : 0
+        quantidadeItens: qtd
       }, { merge: true });
       return true;
     } catch (e) {
@@ -214,7 +222,7 @@
           const ok = await saveModuleData(col, dadosParsed);
           if (ok) logsSucesso.push(modulo);
         } catch(e) {
-          console.error(`Falha ao sincronizar o módulo estático [${modulo}]:`, e.message);
+          console.error(`Falha ao sincronizar o módulo [${modulo}]:`, e.message);
         }
       }
     }
@@ -271,7 +279,7 @@
       if (isOnline && db) {
         try {
           const remoteData = await loadModuleData(collection);
-          if (remoteData && remoteData.length > 0) {
+          if (remoteData) {
             safeSetItem(nomeModulo, remoteData); // atualiza cache local
             return remoteData;
           }
