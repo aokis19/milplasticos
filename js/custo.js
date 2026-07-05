@@ -202,7 +202,7 @@ async function init() {
     }
   }
 
-  async function carregarDadosFirebase() {
+ async function carregarDadosFirebase() {
     console.log('🔄 Carregando dados do Firestore...');
     try {
       const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
@@ -217,14 +217,110 @@ async function init() {
         colecoes.custosFixos.get()
       ]);
 
-      periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // ========== PERÍODOS ==========
+      if (snapPeriodos.empty) {
+        console.log('ℹ️ Tentando formato antigo para períodos...');
+        const docAntigo = await colecoes.periodos.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          periodos = Array.isArray(dados) ? dados : (dados.periodos || []);
+        } else {
+          periodos = [];
+        }
+      } else {
+        periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== SETORES ==========
+      if (snapSetores.empty) {
+        const docAntigo = await colecoes.setores.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          setores = Array.isArray(dados) ? dados : (dados.setores || []);
+        } else {
+          setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+      } else {
+        setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== CATEGORIAS ==========
+      if (snapCategorias.empty) {
+        const docAntigo = await colecoes.categorias.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          categorias = Array.isArray(dados) ? dados : (dados.categorias || []);
+        } else {
+          categorias = [];
+        }
+      } else {
+        categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== ITENS DE CUSTO ==========
+      if (snapItens.empty) {
+        const docAntigo = await colecoes.itensCusto.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          itensCusto = Array.isArray(dados) ? dados : (dados.itens || []);
+        } else {
+          itensCusto = [];
+        }
+      } else {
+        itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== PRODUÇÕES ==========
+      if (snapProducoes.empty) {
+        const docAntigo = await colecoes.producoes.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          producoes = Array.isArray(dados) ? dados : (dados.producoes || []);
+        } else {
+          producoes = [];
+        }
+      } else {
+        producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== MATERIAIS ==========
+      if (snapMateriais.empty) {
+        const docAntigo = await colecoes.materiais.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          materiais = Array.isArray(dados) ? dados : (dados.materiais || []);
+        } else {
+          materiais = [];
+        }
+      } else {
+        materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== CUSTOS MATERIAIS ==========
+      if (snapCustosMat.empty) {
+        const docAntigo = await colecoes.custosMateriais.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          custosMateriais = Array.isArray(dados) ? dados : (dados.custosMateriais || []);
+        } else {
+          custosMateriais = [];
+        }
+      } else {
+        custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // ========== CUSTOS FIXOS ==========
+      if (snapCustosFixos.empty) {
+        const docAntigo = await colecoes.custosFixos.doc('dados_completos').get();
+        if (docAntigo.exists && docAntigo.data().dados) {
+          const dados = docAntigo.data().dados;
+          custosFixos = Array.isArray(dados) ? dados : (dados.custosFixos || []);
+        } else {
+          custosFixos = [];
+        }
+      } else {
+        custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
 
       // Inicializar categorias padrão se necessário
       if (categorias.length === 0) {
