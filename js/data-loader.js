@@ -1,94 +1,321 @@
 // =============================================
-// DATA-LOADER.JS - Carregamento Centralizado
-// Todos os módulos usam este script para dados
+// DATA-LOADER.JS - Versão 2.0 (100% Firebase)
+// Carregamento Centralizado - Cloud Only
 // =============================================
 
 (function() {
     'use strict';
 
-    // Aguardar SyncSystem estar pronto
-    function aguardarSyncSystem() {
+    console.log('🔄 Inicializando DataLoader 2.0 (Cloud Mode)...');
+
+    // Mapeamento de módulos para coleções do Firebase
+    const COLLECTION_MAP = {
+        'veiculos': 'veiculos',
+        'abastecimentos': 'abastecimentos',
+        'documentos': 'documentos',
+        'empresas': 'empresas',
+        'empresas_docs': 'empresas',
+        'produtos': 'produtos',
+        'produtos_cotacao': 'produtos',
+        'cotacoes': 'cotacoes',
+        'fornecedores': 'fornecedores',
+        'manutencoes': 'manutencoes',
+        'manutencoesCorretivas': 'manutencoes',
+        'tiposManutencao': 'tiposManutencao',
+        'historico': 'historico',
+        'historico_cotacao': 'historico',
+        'alertasGlobalConfig': 'configuracoes'
+    };
+
+    /**
+     * Obter referência do Firestore
+     */
+    function getDB() {
+        return window.db || window.firebaseDB || null;
+    }
+
+    /**
+     * Aguardar Firebase estar pronto
+     */
+    function aguardarFirebase() {
         return new Promise((resolve) => {
-            if (window.SyncSystem) {
-                resolve();
+            const db = getDB();
+            
+            if (db) {
+                resolve(db);
                 return;
             }
             
             let tentativas = 0;
+            const maxTentativas = 50;
+            
             const check = setInterval(() => {
                 tentativas++;
-                if (window.SyncSystem) {
+                const db = getDB();
+                
+                if (db) {
                     clearInterval(check);
-                    resolve();
+                    console.log('✅ Firebase pronto para DataLoader');
+                    resolve(db);
+                    return;
                 }
-                if (tentativas > 100) {
+                
+                if (tentativas >= maxTentativas) {
                     clearInterval(check);
-                    console.error('❌ SyncSystem não carregou');
-                    resolve();
+                    console.error('❌ Firebase não disponível para DataLoader');
+                    resolve(null);
                 }
             }, 100);
         });
     }
 
-    // ========== API PÚBLICA ==========
+    /**
+     * Obter nome da coleção no Firebase
+     */
+    function getCollectionName(moduleName) {
+        return COLLECTION_MAP[moduleName] || moduleName;
+    }
+
+    // ========== API PÚBLICA (100% FIREBASE) ==========
     window.DataLoader = {
-        // Carregar dados de qualquer módulo
+        
+        /**
+         * Carregar TODOS os documentos de uma coleção
+         * @param {string} moduleName - Nome do módulo/coleção
+         * @returns {Array} - Array com todos os documentos
+         */
         load: async function(moduleName) {
-            await aguardarSyncSystem();
-            return await window.SyncSystem.carregarModulo(moduleName);
+            const db = await aguardarFirebase();
+            
+            if (!db) {
+                console.error('❌ Firebase não disponível para carregar:', moduleName);
+                return [];
+            }
+            
+            try {
+                const collectionName = getCollectionName(moduleName);
+                console.log(`🔄 DataLoader: Carregando [${collectionName}]...`);
+                
+                const snapshot = await db.collection(collectionName)
+                    .orderBy('dataCadastro', 'desc')
+                    .get();
+                
+                const items = [];
+                snapshot.forEach(doc => {
+                    items.push({
+                        id: doc.id,
+                        firebaseId: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                console.log(`✅ DataLoader: ${items.length} itens em [${collectionName}]`);
+                return items;
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro ao carregar [${moduleName}]:`, error);
+                return [];
+            }
         },
 
-        // Salvar dados de qualquer módulo
+        /**
+         * Salvar/Substituir TODOS os dados de uma coleção
+         * (Usar com cuidado - substitui o documento 'dados_completos')
+         * @param {string} moduleName - Nome do módulo
+         * @param {any} data - Dados a serem salvos
+         */
         save: async function(moduleName, data) {
-            await aguardarSyncSystem();
-            return await window.SyncSystem.salvarModulo(moduleName, data);
-        },
-
-        // Adicionar item
-        add: async function(moduleName, item) {
-            await aguardarSyncSystem();
-            const data = await this.load(moduleName);
-            data.push(item);
-            await this.save(moduleName, data);
-            return item;
-        },
-
-        // Atualizar item
-        update: async function(moduleName, id, newData) {
-            await aguardarSyncSystem();
-            const data = await this.load(moduleName);
-            const index = data.findIndex(item => String(item.id) === String(id));
-            if (index !== -1) {
-                data[index] = { ...data[index], ...newData };
-                await this.save(moduleName, data);
+            const db = await aguardarFirebase();
+            
+            if (!db) {
+                console.error('❌ Firebase não disponível para salvar:', moduleName);
+                return false;
+            }
+            
+            try {
+                const collectionName = getCollectionName(moduleName);
+                
+                const qtd = Array.isArray(data) ? data.length : 
+                           (data && typeof data === 'object' ? Object.keys(data).length : 0);
+                
+                await db.collection(collectionName).doc('dados_completos').set({
+                    dados: data,
+                    ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp(),
+                    quantidadeItens: qtd
+                }, { merge: true });
+                
+                console.log(`✅ DataLoader: Dados salvos em [${collectionName}] (${qtd} itens)`);
                 return true;
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro ao salvar [${moduleName}]:`, error);
+                return false;
             }
-            return false;
         },
 
-        // Excluir item
+        /**
+         * Adicionar UM item à coleção
+         * @param {string} moduleName - Nome da coleção
+         * @param {object} item - Item a ser adicionado
+         * @returns {object} - Item com ID gerado
+         */
+        add: async function(moduleName, item) {
+            const db = await aguardarFirebase();
+            
+            if (!db) {
+                console.error('❌ Firebase não disponível para adicionar');
+                return null;
+            }
+            
+            try {
+                const collectionName = getCollectionName(moduleName);
+                
+                // Adicionar timestamp
+                const newItem = {
+                    ...item,
+                    dataCadastro: firebase.firestore.FieldValue.serverTimestamp(),
+                    ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                const docRef = await db.collection(collectionName).add(newItem);
+                
+                console.log(`✅ DataLoader: Item adicionado em [${collectionName}] - ID: ${docRef.id}`);
+                
+                return {
+                    id: docRef.id,
+                    firebaseId: docRef.id,
+                    ...item
+                };
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro ao adicionar em [${moduleName}]:`, error);
+                return null;
+            }
+        },
+
+        /**
+         * Atualizar UM item específico
+         * @param {string} moduleName - Nome da coleção
+         * @param {string} id - ID do documento (firebaseId ou id)
+         * @param {object} newData - Novos dados
+         */
+        update: async function(moduleName, id, newData) {
+            const db = await aguardarFirebase();
+            
+            if (!db) {
+                console.error('❌ Firebase não disponível para atualizar');
+                return false;
+            }
+            
+            try {
+                const collectionName = getCollectionName(moduleName);
+                
+                // Procurar documento pelo ID
+                const docRef = db.collection(collectionName).doc(id);
+                const doc = await docRef.get();
+                
+                if (doc.exists) {
+                    await docRef.update({
+                        ...newData,
+                        ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    console.log(`✅ DataLoader: Item atualizado em [${collectionName}] - ID: ${id}`);
+                    return true;
+                } else {
+                    console.warn(`⚠️ DataLoader: Documento não encontrado [${id}] em [${collectionName}]`);
+                    return false;
+                }
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro ao atualizar [${moduleName}]:`, error);
+                return false;
+            }
+        },
+
+        /**
+         * Excluir UM item específico
+         * @param {string} moduleName - Nome da coleção
+         * @param {string} id - ID do documento
+         */
         delete: async function(moduleName, id) {
-            await aguardarSyncSystem();
-            const data = await this.load(moduleName);
-            const filtered = data.filter(item => String(item.id) !== String(id));
-            await this.save(moduleName, filtered);
+            const db = await aguardarFirebase();
             
-            // Também excluir do Firebase diretamente
-            if (window.SyncSystem.deleteModuleItem) {
-                await window.SyncSystem.deleteModuleItem(moduleName, id);
+            if (!db) {
+                console.error('❌ Firebase não disponível para excluir');
+                return false;
             }
             
-            return filtered;
+            try {
+                const collectionName = getCollectionName(moduleName);
+                
+                await db.collection(collectionName).doc(id).delete();
+                
+                console.log(`✅ DataLoader: Item excluído de [${collectionName}] - ID: ${id}`);
+                return true;
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro ao excluir [${moduleName}]:`, error);
+                return false;
+            }
         },
 
-        // Sincronizar tudo
-        syncAll: async function() {
-            await aguardarSyncSystem();
-            if (window.SyncSystem.forceSync) {
-                await window.SyncSystem.forceSync();
+        /**
+         * Buscar itens com filtro
+         * @param {string} moduleName - Nome da coleção
+         * @param {string} field - Campo para filtrar
+         * @param {string} operator - Operador (==, >, <, etc)
+         * @param {any} value - Valor do filtro
+         */
+        query: async function(moduleName, field, operator, value) {
+            const db = await aguardarFirebase();
+            
+            if (!db) {
+                console.error('❌ Firebase não disponível para query');
+                return [];
             }
+            
+            try {
+                const collectionName = getCollectionName(moduleName);
+                
+                const snapshot = await db.collection(collectionName)
+                    .where(field, operator, value)
+                    .get();
+                
+                const items = [];
+                snapshot.forEach(doc => {
+                    items.push({
+                        id: doc.id,
+                        firebaseId: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                console.log(`✅ DataLoader: ${items.length} itens encontrados com filtro em [${collectionName}]`);
+                return items;
+                
+            } catch (error) {
+                console.error(`❌ DataLoader: Erro na query [${moduleName}]:`, error);
+                return [];
+            }
+        },
+
+        /**
+         * Verificar status da conexão
+         */
+        getStatus: function() {
+            const db = getDB();
+            return {
+                firebaseAvailable: !!db,
+                online: navigator.onLine,
+                mode: 'CLOUD (Firebase Direto)',
+                collections: Object.keys(COLLECTION_MAP)
+            };
         }
     };
 
-    console.log('✅ DataLoader centralizado pronto');
+    console.log('✅ DataLoader 2.0 pronto (Cloud Mode - Firebase Direto)');
+    console.log('   📚 Coleções mapeadas:', Object.keys(COLLECTION_MAP).length);
+    console.log('   🌐 Modo: Multi-usuário (sem localStorage)');
+
 })();
