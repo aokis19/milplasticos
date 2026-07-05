@@ -201,3 +201,29 @@ document.addEventListener('DOMContentLoaded', function() {
 function navigateTo(page) {
   window.location.href = `${page}.html`;
 }
+// /js/main.js
+
+// Carregar sidebar com tratamento de erro
+async function carregarSidebar() {
+    try {
+        const response = await fetch('/components/sidebar.html');
+        if (!response.ok) throw new Error('Sidebar não encontrada');
+        const html = await response.text();
+        document.getElementById('sidebar-container').innerHTML = html;
+    } catch (error) {
+        console.warn('⚠️ Sidebar não carregada:', error.message);
+        // Carregar fallback ou ignorar
+    }
+}
+
+// Carregar topbar com tratamento de erro
+async function carregarTopbar() {
+    try {
+        const response = await fetch('/components/topbar.html');
+        if (!response.ok) throw new Error('Topbar não encontrada');
+        const html = await response.text();
+        document.getElementById('topbar-container').innerHTML = html;
+    } catch (error) {
+        console.warn('⚠️ Topbar não carregada:', error.message);
+    }
+}
