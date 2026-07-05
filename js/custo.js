@@ -185,7 +185,7 @@
         // Converter itensCusto: maquinaId -> setorld, categoriaId -> categoriald
         itensCusto = itensCusto.map(i => ({
           ...i,
-          setorld: i.setorld || i.maquinaId,
+          setorld: i.setorld || i.maquinaId || i.setorId,  // ← ADICIONAR setorId
           categoriald: i.categoriald || i.categoriaId
         }));
         
