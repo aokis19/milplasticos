@@ -7,14 +7,53 @@
   'use strict';
 
   // ======== INICIALIZAÇÃO DO FIREBASE ========
-  const db = window.firebaseDB || window.db;
-  if (!db) {
-    alert('Firebase não foi inicializado. O sistema não pode funcionar.');
-    throw new Error('Firestore indisponível');
-  }
-
-  // Ativar persistência offline do Firestore
-  db.enablePersistence().catch(err => console.warn('Persistência offline não ativada:', err));
+// ======== INICIALIZAÇÃO (CORRIGIDA) ========
+async function init() {
+    const loadingEl = document.getElementById('loadingOverlay');
+    if (loadingEl) loadingEl.classList.add('active');
+    
+    try {
+        const db = window.firebaseDB || window.db;
+        if (!db) {
+            throw new Error('Firebase não disponível');
+        }
+        
+        // Carregar configurações do Firebase
+        await carregarConfigCampos();
+        
+        // Adicionar event listeners
+        adicionarListeners();
+        
+        // Carregar dados do Firebase
+        await carregarDadosFirebase();
+        atualizarStatusFirebase();
+        renderizarTela();
+        console.log('✅ Sistema inicializado com sucesso (100% Firebase)');
+        console.log('📊 Chart.js disponível:', typeof Chart !== 'undefined');
+    } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+        // Mostrar mensagem amigável no container
+        const container = document.getElementById('conteudoDinamico');
+        if (container) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:3rem;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#e74c3c;"></i>
+                    <h3>Erro ao carregar dados</h3>
+                    <p>${error.message}</p>
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="fas fa-sync"></i> Tentar Novamente
+                    </button>
+                </div>
+            `;
+        }
+    } finally {
+        // ✅ SEMPRE remover o loading
+        if (loadingEl) {
+            loadingEl.classList.remove('active');
+            console.log('✅ Loading removido');
+        }
+    }
+}
 
   // Coleções do Firestore
   const colecoes = {
