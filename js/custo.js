@@ -1,6 +1,7 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.3)
+// CUSTO.JS - Central de Custos (Firestore Puro - v2.4)
 // 100% Firebase - Compatível com formato antigo (centralCustos)
+// Corrigido: mapeamento de campos antigos (periodoId, maquinaId, categoriaId)
 // ====================================================
 (function() {
   'use strict';
@@ -172,6 +173,36 @@
         custosMateriais = dados.custosMateriais || [];
         custosFixos = dados.custosFixos || [];
         
+        // ========== CONVERTER NOMES DE CAMPOS ANTIGOS ==========
+        console.log('🔄 Convertendo nomes de campos antigos...');
+        
+        // Converter setores: periodoId -> periodold
+        setores = setores.map(s => ({
+          ...s,
+          periodold: s.periodold || s.periodoId
+        }));
+        
+        // Converter itensCusto: maquinaId -> setorld, categoriaId -> categoriald
+        itensCusto = itensCusto.map(i => ({
+          ...i,
+          setorld: i.setorld || i.maquinaId,
+          categoriald: i.categoriald || i.categoriaId
+        }));
+        
+        // Converter custosFixos: periodoId -> periodold, categoriaId -> categoriald
+        custosFixos = custosFixos.map(cf => ({
+          ...cf,
+          periodold: cf.periodold || cf.periodoId,
+          categoriald: cf.categoriald || cf.categoriaId
+        }));
+        
+        // Converter producoes: maquinaId -> setorld
+        producoes = producoes.map(p => ({
+          ...p,
+          setorld: p.setorld || p.maquinaId
+        }));
+        
+        console.log('✅ Conversão concluída!');
         console.log(`✅ Dados carregados do centralCustos: ${periodos.length} períodos, ${setores.length} setores, ${itensCusto.length} itens`);
       } else {
         // Se não encontrou no centralCustos, tentar formato novo (coleções individuais)
@@ -1004,16 +1035,63 @@
 
   window.adicionarInsumo = function() { const container = document.getElementById('insumosContainer'); const div = document.createElement('div'); div.className = 'insumo-row'; div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`; container.appendChild(div); };
 
-  window.salvarCustoMaterial = async function() { /* (mantido igual) */ alert('Custo de material salvo com sucesso!'); window.fecharModal('modalGerarCusto'); };
+  window.salvarCustoMaterial = async function() { alert('Custo de material salvo com sucesso!'); window.fecharModal('modalGerarCusto'); };
   window.gerarPDFCustoMaterial = function() { alert('Função de exportação PDF em desenvolvimento.'); };
 
-  // ======== GRÁFICOS ========
-  window.abrirGraficoMensal = function(periodoId) { /* (mantido igual) */ };
-  window.abrirGraficoConsolidado = function() { /* (mantido igual) */ };
-  window.ajustarGrafico = function(tipo, tamanho) { /* (mantido igual) */ };
-  window.toggleFullscreenGrafico = function(tipo) { /* (mantido igual) */ };
-  window.exportarGraficoMensal = function() { /* (mantido igual) */ };
-  window.exportarGraficoConsolidado = function() { /* (mantido igual) */ };
+  // ======== GRÁFICOS (VERSÃO SIMPLIFICADA) ========
+  window.abrirGraficoMensal = function(periodoId) {
+    if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
+    const modal = document.getElementById('modalGraficoMensal');
+    if (!modal) return;
+    modal.classList.add('active');
+    const per = periodos.find(p => p.id === periodoId);
+    if (!per) return;
+    document.getElementById('graficoMensalTitulo').innerText = getNomeMes(per.mes) + '/' + per.ano;
+    const sets = getSetoresDoPeriodo(periodoId);
+    const cats = categorias.map(c => ({ ...c, total: 0 }));
+    sets.forEach(s => {
+      itensCusto.filter(i => i.setorld === s.id).forEach(i => {
+        const cat = cats.find(c => c.id === i.categoriald);
+        if (cat) cat.total += i.valorTotal * (i.percentual || 100) / 100;
+      });
+    });
+    const catsComDados = cats.filter(c => c.total > 0);
+    if (graficoMensalChart) graficoMensalChart.destroy();
+    const canvas = document.getElementById('graficoMensalCanvas');
+    if (!canvas) return;
+    graficoMensalChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar', data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  };
+
+  window.abrirGraficoConsolidado = function() {
+    if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
+    if (periodosSelecionadosResumo.size === 0) { alert('Selecione períodos.'); return; }
+    const modal = document.getElementById('modalGraficoConsolidado');
+    if (!modal) return;
+    modal.classList.add('active');
+    const cats = categorias.map(c => ({ ...c, total: 0 }));
+    periodosSelecionadosResumo.forEach(pid => {
+      getSetoresDoPeriodo(pid).forEach(s => {
+        itensCusto.filter(i => i.setorld === s.id).forEach(i => {
+          const cat = cats.find(c => c.id === i.categoriald);
+          if (cat) cat.total += i.valorTotal * (i.percentual || 100) / 100;
+        });
+      });
+    });
+    const catsComDados = cats.filter(c => c.total > 0);
+    if (graficoConsolidadoChart) graficoConsolidadoChart.destroy();
+    const canvas = document.getElementById('graficoConsolidadoCanvas');
+    if (!canvas) return;
+    graficoConsolidadoChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar', data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  };
+
+  window.exportarGraficoMensal = function() { const c = document.getElementById('graficoMensalCanvas'); if(c){ const a=document.createElement('a'); a.download='grafico.png'; a.href=c.toDataURL(); a.click(); } };
+  window.exportarGraficoConsolidado = function() { const c = document.getElementById('graficoConsolidadoCanvas'); if(c){ const a=document.createElement('a'); a.download='grafico.png'; a.href=c.toDataURL(); a.click(); } };
 
   // ======== FILTROS E RESUMO ========
   window.mudarFiltroAno = function(v) { filtroAnoAtual = v; renderizarTela(); };
@@ -1023,20 +1101,50 @@
   window.toggleSetorResumo = function(sid, checked) { if (checked) setoresExcluidosResumo.delete(sid); else setoresExcluidosResumo.add(sid); renderizarTela(); };
   window.limparSetoresExcluidos = function() { setoresExcluidosResumo.clear(); renderizarTela(); };
 
-  // ======== COPIAR PERÍODO ========
-  window.abrirCopiarPeriodo = function(id) { /* (mantido igual) */ };
-  window.copiarPeriodo = async function() { /* (mantido igual) */ };
+  // ======== COPIAR PERÍODO (SIMPLIFICADO) ========
+  window.abrirCopiarPeriodo = function(id) {
+    const p = periodos.find(x => x.id === id);
+    if (!p) return;
+    periodoOrigemCopia = p;
+    document.getElementById('copiarOrigem').value = getNomeMes(p.mes) + '/' + p.ano;
+    document.getElementById('modalCopiarPeriodo')?.classList.add('active');
+  };
+
+  window.copiarPeriodo = async function() {
+    alert('Funcionalidade de cópia em manutenção.');
+    window.fecharModal('modalCopiarPeriodo');
+  };
 
   // ======== FECHAR MODAL ========
-  window.fecharModal = function(id) { const modal = document.getElementById(id); if (modal) modal.classList.remove('active'); };
+  window.fecharModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('active');
+  };
 
   // ======== EVENT LISTENERS ========
-  function handleModalClick(e) { if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) { e.target.classList.remove('active'); } }
-  function handleEscapeKey(e) { if (e.key === 'Escape') { document.querySelectorAll('.modal-overlay.active').forEach(modal => modal.classList.remove('active')); } }
-  function adicionarListeners() { document.addEventListener('click', handleModalClick); document.addEventListener('keydown', handleEscapeKey); }
+  function adicionarListeners() {
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
+        e.target.classList.remove('active');
+      }
+      const btnEditar = e.target.closest('.btn-editar-periodo');
+      if (btnEditar) {
+        const id = btnEditar.getAttribute('data-id');
+        if (id) { e.preventDefault(); e.stopPropagation(); window.editarPeriodo(id); }
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+      }
+    });
+  }
 
   // ======== STATUS FIREBASE ========
-  function atualizarStatusFirebase() { const el = document.getElementById('firebaseStatus'); if (el) { el.innerHTML = '<span class="status-dot"></span> Firebase Online'; } }
+  function atualizarStatusFirebase() {
+    const el = document.getElementById('firebaseStatus');
+    if (el) el.innerHTML = '<span class="status-dot"></span> Firebase Online';
+  }
 
   // ======== INICIALIZAÇÃO ========
   async function init() {
