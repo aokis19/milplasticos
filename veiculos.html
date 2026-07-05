@@ -24,7 +24,7 @@
   <script src="/js/firebase-init.js"></script>
   <script src="/js/firebase-sync.js"></script>
   
-  <!-- Bibliotecas específicas (carregadas depois para não bloquear) -->
+  <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -39,10 +39,13 @@
     <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
 
-    <!-- Conteúdo principal -->
-    <main class="main-content">
-      
-    <!-- Conteúdo principal -->
+    <!-- LOADING (movido para fora do main) -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <p style="margin-top: 1rem; color: var(--text);">Carregando Central de Custos...</p>
+    </div>
+
+    <!-- Conteúdo principal - APENAS UMA TAG MAIN -->
     <main class="main-content">
       
       <div class="page-container">
@@ -201,5 +204,4 @@
   <!-- Script específico da página -->
   <script src="/js/veiculo.js"></script>
 </body>
-
 </html>
