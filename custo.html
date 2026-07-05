@@ -48,27 +48,25 @@
         <p style="margin-top: 1rem; color: var(--text);">Carregando Central de Custos...</p>
       </div>
 
-      <div class="custos-container">
-        <div class="header-custos">
-          <h1><i class="fas fa-recycle"></i> Central de Custos</h1>
-          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-teal btn-sm" onclick="window.abrirGerarCustoMaterial()">
-              <i class="fas fa-calculator"></i> Gerar Custo Material
-            </button>
-            <button class="btn btn-outline btn-sm" onclick="window.abrirConfigCampos()">
-              <i class="fas fa-sliders-h"></i> Personalizar
-            </button>
-            <span id="firebaseStatus" class="firebase-status status-local">
-              <span class="status-dot"></span> Conectando...
-            </span>
-          </div>
-        </div>
-
-        <div class="breadcrumb" id="breadcrumb"></div>
-        <div id="conteudoDinamico"></div>
+      <!-- CONTEÚDO PRINCIPAL -->
+  <div class="custos-container">
+    <div class="header-custos">
+      <h1><i class="fas fa-recycle"></i> Central de Custos</h1>
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <button class="btn btn-teal btn-sm" onclick="window.abrirGerarCustoMaterial()">
+          <i class="fas fa-calculator"></i> Gerar Custo Material
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="window.abrirConfigCampos()">
+          <i class="fas fa-sliders-h"></i> Personalizar
+        </button>
+        <span id="firebaseStatus" class="firebase-status status-local">
+          <span class="status-dot"></span> Conectando...
+        </span>
       </div>
-      
-    </main>
+    </div>
+
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div id="conteudoDinamico"></div>
   </div>
 
   <!-- ===================== MODAIS ===================== -->
@@ -82,12 +80,18 @@
         <div class="form-group">
           <label>Mês</label>
           <select id="periodoMes">
-            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-            <option value="3">Março</option><option value="4">Abril</option>
-            <option value="5">Maio</option><option value="6">Junho</option>
-            <option value="7">Julho</option><option value="8">Agosto</option>
-            <option value="9">Setembro</option><option value="10">Outubro</option>
-            <option value="11">Novembro</option><option value="12">Dezembro</option>
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
           </select>
         </div>
         <div class="form-group">
@@ -110,7 +114,7 @@
   <div class="modal-overlay" id="modalCopiarPeriodo">
     <div class="modal">
       <h2><i class="fas fa-copy"></i> Copiar Período</h2>
-      <p style="color: var(--text-light); margin-bottom: 1rem;">Copiar TODOS os dados do período selecionado para um novo mês.</p>
+      <p style="color: var(--text-light); margin-bottom: 1rem;">Copiar TODOS os dados (setores, itens, produções e custos fixos) do período selecionado para um novo mês.</p>
       <div class="form-group">
         <label>Período de Origem</label>
         <input type="text" id="copiarOrigem" disabled style="background: #f5f5f5;">
@@ -119,12 +123,18 @@
         <div class="form-group">
           <label>Novo Mês</label>
           <select id="copiarMes">
-            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
-            <option value="3">Março</option><option value="4">Abril</option>
-            <option value="5">Maio</option><option value="6">Junho</option>
-            <option value="7">Julho</option><option value="8">Agosto</option>
-            <option value="9">Setembro</option><option value="10">Outubro</option>
-            <option value="11">Novembro</option><option value="12">Dezembro</option>
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
           </select>
         </div>
         <div class="form-group">
@@ -133,7 +143,7 @@
         </div>
       </div>
       <div class="alert-info">
-        <i class="fas fa-info-circle"></i> <strong>Cópia completa:</strong> Setores, itens de custo, produções e custos fixos.
+        <i class="fas fa-info-circle"></i> <strong>Cópia completa:</strong> Setores, itens de custo, produções e custos fixos serão copiados integralmente.
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalCopiarPeriodo')">Cancelar</button>
@@ -142,7 +152,7 @@
     </div>
   </div>
 
-  <!-- MODAL SETOR -->
+  <!-- MODAL SETOR (COM TIPO CUSTO/DESPESA) -->
   <div class="modal-overlay" id="modalSetor">
     <div class="modal">
       <h2 id="modalSetorTitulo"><i class="fas fa-industry"></i> Novo Setor</h2>
@@ -159,8 +169,11 @@
         <div class="form-group">
           <label>Ordem</label>
           <select id="setorOrdem">
-            <option value="1">1</option><option value="2">2</option>
-            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
           </select>
         </div>
         <div class="form-group">
@@ -209,11 +222,16 @@
       <input type="hidden" id="custoFixoEditId">
       <div class="form-group">
         <label>Período</label>
-        <select id="custoFixoPeriodo"><option value="">Selecione um período...</option></select>
+        <select id="custoFixoPeriodo">
+          <option value="">Selecione um período...</option>
+        </select>
+        <div class="hint">O custo fixo será vinculado a este período</div>
       </div>
       <div class="form-group">
         <label>Categoria</label>
-        <select id="custoFixoCategoria"><option value="">Selecione uma categoria...</option></select>
+        <select id="custoFixoCategoria">
+          <option value="">Selecione uma categoria...</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Nome do Custo Fixo</label>
@@ -244,9 +262,11 @@
           <i class="fas fa-thumbtack"></i> Item Fixo
         </button>
       </div>
+
+      <!-- Área para Itens Fixos -->
       <div id="areaItensFixos" style="display:none; margin-bottom:1rem;">
         <label style="font-weight:500; margin-bottom:0.5rem; display:block; font-size:0.85rem;">
-          <i class="fas fa-list" style="color:var(--warning);"></i> Selecione um custo fixo:
+          <i class="fas fa-list" style="color:var(--warning);"></i> Selecione um custo fixo para usar neste setor:
         </label>
         <div id="custosFixosSelect" style="max-height:250px; overflow-y:auto;"></div>
         <div style="border-top:1px solid var(--border); margin:1rem 0;"></div>
@@ -267,15 +287,33 @@
           </div>
         </div>
       </div>
+
+      <!-- Área para Itens Normais -->
       <div id="areaItemNormal">
         <div class="grid-2">
-          <div class="form-group"><label>Categoria</label><select id="itemCategoria"></select></div>
-          <div class="form-group"><label>Item</label><input type="text" id="itemNome" placeholder="Ex: Conta CEMIG"></div>
-          <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="itemValorTotal" step="0.01" placeholder="0,00"></div>
-          <div class="form-group"><label>Rateio (%)</label><input type="number" id="itemPercentual" step="0.01" value="100"></div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="itemCategoria"></select>
+          </div>
+          <div class="form-group">
+            <label>Item</label>
+            <input type="text" id="itemNome" placeholder="Ex: Conta CEMIG">
+          </div>
+          <div class="form-group">
+            <label>Valor Total (R$)</label>
+            <input type="number" id="itemValorTotal" step="0.01" placeholder="0,00">
+          </div>
+          <div class="form-group">
+            <label>Rateio (%)</label>
+            <input type="number" id="itemPercentual" step="0.01" value="100">
+          </div>
         </div>
-        <div class="form-group"><label>Observação</label><input type="text" id="itemObs" placeholder="Opcional"></div>
+        <div class="form-group">
+          <label>Observação</label>
+          <input type="text" id="itemObs" placeholder="Opcional">
+        </div>
       </div>
+
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button>
         <button class="btn btn-primary" onclick="window.salvarItemCusto()"><i class="fas fa-save"></i> Salvar</button>
@@ -287,10 +325,19 @@
   <div class="modal-overlay" id="modalProducao">
     <div class="modal">
       <h2>Registrar Produção</h2>
-      <div class="form-group"><label>Material / Produto</label><input type="text" id="producaoProduto" placeholder="Ex: PEAD Moído"></div>
+      <div class="form-group">
+        <label>Material / Produto</label>
+        <input type="text" id="producaoProduto" placeholder="Ex: PEAD Moído">
+      </div>
       <div class="grid-2">
-        <div class="form-group"><label>Quantidade (KG)</label><input type="number" id="producaoKg" step="0.01" placeholder="0,00"></div>
-        <div class="form-group"><label>Data</label><input type="date" id="producaoData"></div>
+        <div class="form-group">
+          <label>Quantidade (KG)</label>
+          <input type="number" id="producaoKg" step="0.01" placeholder="0,00">
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="producaoData">
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalProducao')">Cancelar</button>
@@ -304,8 +351,14 @@
     <div class="modal">
       <h2 id="modalMaterialTitulo"><i class="fas fa-box"></i> Novo Material</h2>
       <input type="hidden" id="materialEditId">
-      <div class="form-group"><label>Nome do Material</label><input type="text" id="materialNome" placeholder="Ex: PEAD Natural"></div>
-      <div class="form-group"><label>Descrição</label><input type="text" id="materialDescricao" placeholder="Descrição opcional"></div>
+      <div class="form-group">
+        <label>Nome do Material</label>
+        <input type="text" id="materialNome" placeholder="Ex: PEAD Natural">
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" id="materialDescricao" placeholder="Descrição opcional">
+      </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalMaterial')">Cancelar</button>
         <button class="btn btn-teal" onclick="window.salvarMaterial()"><i class="fas fa-save"></i> Salvar</button>
@@ -317,32 +370,62 @@
   <div class="modal-overlay" id="modalGerarCusto">
     <div class="modal modal-lg">
       <h2><i class="fas fa-calculator"></i> Gerar Custo de Material</h2>
-      <div class="form-group"><label>Período de Referência</label><select id="gerarCustoPeriodo" onchange="window.atualizarSetoresGerarCusto()"><option value="">Selecione um período...</option></select></div>
+      <div class="form-group">
+        <label>Período de Referência</label>
+        <select id="gerarCustoPeriodo" onchange="window.atualizarSetoresGerarCusto()">
+          <option value="">Selecione um período...</option>
+        </select>
+      </div>
       <div class="form-group">
         <label>Material</label>
-        <select id="gerarCustoMaterial"><option value="">Selecione um material...</option></select>
-        <div class="hint"><a href="#" onclick="window.abrirModalMaterial(); window.fecharModal('modalGerarCusto'); return false;"><i class="fas fa-plus"></i> Cadastrar novo material</a></div>
+        <select id="gerarCustoMaterial">
+          <option value="">Selecione um material...</option>
+        </select>
+        <div class="hint">
+          <a href="#" onclick="window.abrirModalMaterial(); window.fecharModal('modalGerarCusto'); return false;">
+            <i class="fas fa-plus"></i> Cadastrar novo material
+          </a>
+        </div>
       </div>
-      <div class="form-group"><label>Setores do Processo</label><div id="setoresGerarCusto" style="max-height:350px;overflow-y:auto;"><p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período primeiro</p></div></div>
+      <div class="form-group">
+        <label>Setores do Processo (selecione e configure cada um)</label>
+        <div id="setoresGerarCusto" style="max-height: 350px; overflow-y: auto;">
+          <p style="color: var(--text-light); text-align: center; padding: 1rem;">Selecione um período primeiro</p>
+        </div>
+      </div>
       <div class="form-group">
         <label>Insumos Adicionais (Nome e Custo/KG)</label>
         <div id="insumosContainer">
           <div class="insumo-row">
             <input type="text" class="insumo-nome" placeholder="Nome do insumo">
             <input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg">
-            <button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>
+            <button class="btn btn-danger btn-xs" onclick="this.parentElement.remove(); window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>
           </div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="window.adicionarInsumo()" style="margin-top:0.5rem;"><i class="fas fa-plus"></i> Adicionar Insumo</button>
+        <button class="btn btn-outline btn-sm" onclick="window.adicionarInsumo()" style="margin-top: 0.5rem;">
+          <i class="fas fa-plus"></i> Adicionar Insumo
+        </button>
       </div>
       <div class="grid-2">
-        <div class="form-group"><label>Imposto (%)</label><input type="number" id="gerarCustoImposto" step="0.01" value="0"></div>
-        <div class="form-group"><label>Margem Desejada (%)</label><input type="number" id="gerarCustoMargem" step="0.01" value="0"></div>
+        <div class="form-group">
+          <label>Imposto (%)</label>
+          <input type="number" id="gerarCustoImposto" step="0.01" value="0">
+        </div>
+        <div class="form-group">
+          <label>Margem Desejada (%)</label>
+          <input type="number" id="gerarCustoMargem" step="0.01" value="0">
+        </div>
       </div>
-      <div class="form-group"><label>Valor Praticado Atualmente (R$/kg)</label><input type="number" id="gerarCustoValorAtual" step="0.01" value="0" placeholder="0,00"></div>
+      <div class="form-group">
+        <label>Valor Praticado Atualmente (R$/kg)</label>
+        <input type="number" id="gerarCustoValorAtual" step="0.01" value="0" placeholder="0,00">
+        <div class="hint">Preço que está sendo praticado hoje, para comparar com o custo calculado</div>
+      </div>
       <div class="custo-material-resumo" id="resumoGerarCusto">
         <h3><i class="fas fa-file-invoice"></i> Resumo do Cálculo</h3>
-        <div id="resumoLinhas"><p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p></div>
+        <div id="resumoLinhas">
+          <p style="opacity: 0.7; text-align: center;">Selecione os setores para calcular</p>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalGerarCusto')">Cancelar</button>
@@ -375,59 +458,96 @@
     </div>
   </div>
 
-  <!-- MODAL GRÁFICO MENSAL -->
+  <!-- ========== MODAIS PARA GRÁFICOS ========== -->
+
+  <!-- MODAL GRÁFICO MENSAL - CORRIGIDO -->
   <div class="modal-overlay" id="modalGraficoMensal">
     <div class="modal modal-lg">
-      <h2><i class="fas fa-chart-bar"></i> Gastos por Categoria
+      <h2>
+        <i class="fas fa-chart-bar"></i> Gastos por Categoria
         <span class="btn-group">
-          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal','pequeno')">P</button>
-          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('mensal','medio')">M</button>
-          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal','grande')">G</button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'pequeno')" title="Pequeno">
+            <i class="fas fa-compress"></i> P
+          </button>
+          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('mensal', 'medio')" title="Médio">
+            <i class="fas fa-expand"></i> M
+          </button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'grande')" title="Grande">
+            <i class="fas fa-arrows-alt-v"></i> G
+          </button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'telaCheia')" title="Tela Cheia">
+            <i class="fas fa-maximize"></i> ⛶
+          </button>
+          <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('mensal')" title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
+            <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
+          </button>
           <span class="grafico-tamanho-info" id="graficoMensalTamanho">500px</span>
         </span>
       </h2>
-      <p id="graficoMensalTitulo" style="font-weight:600;color:var(--primary);margin:0;font-size:0.9rem;"></p>
+      <div style="flex-shrink:0;margin-bottom:0.3rem;">
+        <p id="graficoMensalTitulo" style="font-weight:600;color:var(--primary);margin:0;font-size:0.9rem;"></p>
+      </div>
       <div class="grafico-container" id="graficoMensalContainer" style="height:500px;">
         <canvas id="graficoMensalCanvas"></canvas>
       </div>
       <div id="graficoMensalResumo" class="grafico-resumo"></div>
       <div class="modal-actions">
-        <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoMensal()"><i class="fas fa-download"></i> Exportar</button>
+        <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoMensal()">
+          <i class="fas fa-download"></i> Exportar Imagem
+        </button>
         <button class="btn btn-outline btn-sm" onclick="window.fecharModal('modalGraficoMensal')">Fechar</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL GRÁFICO CONSOLIDADO -->
+  <!-- MODAL GRÁFICO CONSOLIDADO - CORRIGIDO -->
   <div class="modal-overlay" id="modalGraficoConsolidado">
     <div class="modal modal-lg">
-      <h2><i class="fas fa-chart-bar"></i> Gastos por Categoria (Consolidado)
+      <h2>
+        <i class="fas fa-chart-bar"></i> Gastos por Categoria (Consolidado)
         <span class="btn-group">
-          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado','pequeno')">P</button>
-          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('consolidado','medio')">M</button>
-          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado','grande')">G</button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'pequeno')" title="Pequeno">
+            <i class="fas fa-compress"></i> P
+          </button>
+          <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('consolidado', 'medio')" title="Médio">
+            <i class="fas fa-expand"></i> M
+          </button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'grande')" title="Grande">
+            <i class="fas fa-arrows-alt-v"></i> G
+          </button>
+          <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'telaCheia')" title="Tela Cheia">
+            <i class="fas fa-maximize"></i> ⛶
+          </button>
+          <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('consolidado')" title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
+            <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
+          </button>
           <span class="grafico-tamanho-info" id="graficoConsolidadoTamanho">500px</span>
         </span>
       </h2>
-      <div id="graficoConsolidadoTags" class="periodos-selecionados-tags"></div>
-      <div class="grafico-container" id="graficoConsolidadoContainer" style="height:500px;">
+      <div style="flex-shrink:0;margin-bottom:0.3rem;">
+        <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom:0.3rem;"></div>
+      </div>
+      <div class="grafico-container grafico-consolidado" id="graficoConsolidadoContainer" style="height:500px;">
         <canvas id="graficoConsolidadoCanvas"></canvas>
       </div>
       <div id="graficoConsolidadoInfo" class="grafico-resumo" style="text-align:center;color:var(--text-light);">
-        Valores totais por categoria (todos os setores)
+        Valores totais por categoria (todos os setores, com custos fixos distribuídos)
       </div>
       <div class="modal-actions">
-        <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()"><i class="fas fa-download"></i> Exportar</button>
+        <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()">
+          <i class="fas fa-download"></i> Exportar Imagem
+        </button>
         <button class="btn btn-outline btn-sm" onclick="window.fecharModal('modalGraficoConsolidado')">Fechar</button>
       </div>
     </div>
   </div>
 
   <!-- CONTAINER PARA RELATÓRIOS PDF -->
-  <div id="reportContainer" style="position:fixed;left:-9999px;top:0;width:800px;background:white;padding:30px;"></div>
+  <div id="reportContainer" style="position: fixed; left: -9999px; top: 0; width: 800px; background: white; padding: 30px;"></div>
 
-  <!-- ========== SCRIPTS DA PÁGINA ========== -->
-  <script src="/js/main.js"></script>
+  <!-- SCRIPTS -->
   <script src="/js/custo.js"></script>
+  <script src="/js/main.js"></script>
+
 </body>
 </html>
