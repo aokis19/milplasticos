@@ -28,3 +28,8 @@ if (typeof firebase !== 'undefined') {
 } else {
   console.error('X Firebase SDK não carregado!');
 }
+// CORREÇÃO: Criar alias 'db' para compatibilidade
+if (window.firebaseDB) {
+    window.db = window.firebaseDB;
+    console.log('✅ Alias window.db criado para compatibilidade');
+}
