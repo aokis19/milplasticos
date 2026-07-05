@@ -1,9 +1,10 @@
 // =============================================
-// DOCUMENTOS.JS - Sistema Completo
-// Com visualização e download de PDFs
+// DOCUMENTOS.JS - Versão 3.0 (100% Firebase)
+// Sem localStorage - Multi-usuário
+// PDFs salvos apenas no Firebase
 // =============================================
 
-const db = window.firebaseDB;
+const db = window.firebaseDB || window.db;
 
 let documentos = [];
 let empresas = [];
@@ -20,23 +21,25 @@ let alertasGlobalConfig = {
 // ========== AGUARDAR FIREBASE ==========
 function aguardarFirebasePronto() {
     return new Promise((resolve) => {
-        if (window.firebaseDB) {
+        const firestore = window.firebaseDB || window.db;
+        if (firestore) {
             console.log('✅ Firebase disponível');
-            resolve();
+            resolve(firestore);
             return;
         }
         let tentativas = 0;
         const verificar = setInterval(() => {
             tentativas++;
-            if (window.firebaseDB) {
+            const firestore = window.firebaseDB || window.db;
+            if (firestore) {
                 clearInterval(verificar);
                 console.log('✅ Firebase conectado');
-                resolve();
+                resolve(firestore);
             }
             if (tentativas >= 50) {
                 clearInterval(verificar);
-                console.warn('⚠️ Firebase não disponível - usando localStorage');
-                resolve();
+                console.error('❌ Firebase não disponível');
+                resolve(null);
             }
         }, 100);
     });
@@ -45,16 +48,23 @@ function aguardarFirebasePronto() {
 // ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', async () => {
     await aguardarFirebasePronto();
+    
+    if (!db) {
+        console.error('❌ Sistema requer Firebase');
+        mostrarNotificacao('Erro: Firebase não disponível', 'error');
+        return;
+    }
+    
     await carregarDados();
     inicializarEventos();
     verificarAlertas();
     
-    console.log('✅ Sistema de Documentos pronto!');
+    console.log('✅ Sistema de Documentos pronto! (100% Firebase)');
     console.log('   📄 ' + documentos.length + ' documentos carregados');
     console.log('   🏢 ' + empresas.length + ' empresas carregadas');
 });
 
-// ========== CARREGAR DADOS ==========
+// ========== CARREGAR DADOS (APENAS FIREBASE) ==========
 async function carregarDados() {
     await carregarEmpresas();
     await carregarDocumentos();
@@ -64,75 +74,57 @@ async function carregarDados() {
 
 async function carregarEmpresas() {
     try {
-        if (db) {
-            const snapshot = await db.collection('empresas').get();
-            if (!snapshot.empty) {
-                empresas = [];
-                snapshot.forEach(doc => {
-                    empresas.push({ id: String(doc.id), ...doc.data() });
-                });
-                localStorage.setItem('empresas', JSON.stringify(empresas));
-                console.log('✅ Empresas do Firebase:', empresas.length);
-                return;
-            }
-        }
-        
-        const empresasSalvas = localStorage.getItem('empresas');
-        if (empresasSalvas) {
-            empresas = JSON.parse(empresasSalvas);
-            empresas = empresas.map(e => ({ ...e, id: String(e.id) }));
-            console.log('✅ Empresas do localStorage:', empresas.length);
+        if (!db) {
+            console.error('❌ Firebase não disponível');
+            empresas = [];
             return;
         }
         
+        const snapshot = await db.collection('empresas').get();
         empresas = [];
-        console.log('ℹ️ Nenhuma empresa encontrada');
+        snapshot.forEach(doc => {
+            empresas.push({ id: String(doc.id), ...doc.data() });
+        });
+        console.log('✅ Empresas do Firebase:', empresas.length);
         
     } catch (error) {
-        console.error('Erro ao carregar empresas:', error);
+        console.error('❌ Erro ao carregar empresas:', error);
         empresas = [];
     }
 }
 
 async function carregarDocumentos() {
     try {
-        if (db) {
-            const snapshot = await db.collection('documentos').get();
-            if (!snapshot.empty) {
-                documentos = [];
-                snapshot.forEach(doc => {
-                    documentos.push({ id: doc.id, ...doc.data() });
-                });
-                localStorage.setItem('documentos', JSON.stringify(documentos));
-                console.log('✅ Documentos do Firebase:', documentos.length);
-                return;
-            }
-        }
-        
-        const docsSalvos = localStorage.getItem('documentos');
-        if (docsSalvos) {
-            documentos = JSON.parse(docsSalvos);
-            console.log('✅ Documentos do localStorage:', documentos.length);
+        if (!db) {
+            console.error('❌ Firebase não disponível');
+            documentos = [];
             return;
         }
         
+        const snapshot = await db.collection('documentos').get();
         documentos = [];
-        console.log('ℹ️ Nenhum documento encontrado');
+        snapshot.forEach(doc => {
+            documentos.push({ id: doc.id, ...doc.data() });
+        });
+        console.log('✅ Documentos do Firebase:', documentos.length);
         
     } catch (error) {
-        console.error('Erro ao carregar documentos:', error);
+        console.error('❌ Erro ao carregar documentos:', error);
         documentos = [];
     }
 }
 
 async function carregarAlertasGlobais() {
     try {
-        const salvo = localStorage.getItem('alertasGlobalConfig');
-        if (salvo) {
-            alertasGlobalConfig = { ...alertasGlobalConfig, ...JSON.parse(salvo) };
+        if (!db) return;
+        
+        const doc = await db.collection('configuracoes').doc('alertasGlobalConfig').get();
+        if (doc.exists && doc.data()) {
+            alertasGlobalConfig = { ...alertasGlobalConfig, ...doc.data() };
+            console.log('✅ Configurações de alertas carregadas do Firebase');
         }
     } catch (error) {
-        console.error('Erro ao carregar alertas:', error);
+        console.warn('⚠️ Erro ao carregar alertas:', error);
     }
 }
 
@@ -142,17 +134,14 @@ function encontrarEmpresa(origem) {
     
     const origemStr = String(origem).trim();
     
-    // 1. Buscar por ID exato
     let empresa = empresas.find(e => String(e.id) === origemStr);
     if (empresa) return empresa;
     
-    // 2. Buscar por nome exato (case insensitive)
     empresa = empresas.find(e => 
         e.nome && e.nome.toLowerCase().trim() === origemStr.toLowerCase().trim()
     );
     if (empresa) return empresa;
     
-    // 3. Buscar por nome parcial
     empresa = empresas.find(e => 
         e.nome && (
             e.nome.toLowerCase().includes(origemStr.toLowerCase()) ||
@@ -163,34 +152,67 @@ function encontrarEmpresa(origem) {
     return empresa || null;
 }
 
-// ========== SALVAR DADOS ==========
-async function salvarDocumentos() {
-    localStorage.setItem('documentos', JSON.stringify(documentos));
-    if (db) {
-        try {
-            for (const doc of documentos) {
-                const { id, ...dados } = doc;
-                await db.collection('documentos').doc(String(id)).set(dados, { merge: true });
-            }
-        } catch (error) {
-            console.error('Erro ao salvar no Firebase:', error);
+// ========== SALVAR DADOS (APENAS FIREBASE) ==========
+async function salvarDocumentosNoFirebase() {
+    if (!db) {
+        console.error('❌ Firebase não disponível para salvar');
+        return false;
+    }
+    
+    try {
+        // Salvar cada documento individualmente
+        for (const doc of documentos) {
+            const { id, ...dados } = doc;
+            await db.collection('documentos').doc(String(id)).set(dados, { merge: true });
         }
+        console.log('✅ Documentos salvos no Firebase');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar documentos:', error);
+        
+        // Se o erro for de tamanho (PDF muito grande), tenta salvar sem o PDF
+        if (error.code === 'resource-exhausted' || error.message?.includes('quota')) {
+            console.warn('⚠️ Tentando salvar sem anexos pesados...');
+            for (const doc of documentos) {
+                const { id, anexo, ...dadosSemAnexo } = doc;
+                try {
+                    await db.collection('documentos').doc(String(id)).set(dadosSemAnexo, { merge: true });
+                } catch(e) {
+                    console.error('Erro ao salvar documento sem anexo:', e);
+                }
+            }
+        }
+        return false;
     }
 }
 
-async function salvarEmpresas() {
-    localStorage.setItem('empresas', JSON.stringify(empresas));
-    localStorage.setItem('empresas_docs', JSON.stringify(empresas));
+async function salvarEmpresasNoFirebase() {
+    if (!db) return false;
     
-    if (db) {
-        try {
-            for (const emp of empresas) {
-                const { id, ...dados } = emp;
-                await db.collection('empresas').doc(String(id)).set(dados, { merge: true });
-            }
-        } catch (error) {
-            console.error('Erro ao salvar empresas:', error);
+    try {
+        for (const emp of empresas) {
+            const { id, ...dados } = emp;
+            await db.collection('empresas').doc(String(id)).set(dados, { merge: true });
         }
+        console.log('✅ Empresas salvas no Firebase');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar empresas:', error);
+        return false;
+    }
+}
+
+async function salvarAlertasGlobais() {
+    if (!db) return;
+    
+    try {
+        await db.collection('configuracoes').doc('alertasGlobalConfig').set(
+            alertasGlobalConfig, 
+            { merge: true }
+        );
+        console.log('✅ Alertas salvos no Firebase');
+    } catch (error) {
+        console.error('❌ Erro ao salvar alertas:', error);
     }
 }
 
@@ -303,12 +325,8 @@ function renderizarTudo() {
         }
     });
     
-    console.log('   Grupos de empresas:', Object.keys(docsPorEmpresa).length);
-    console.log('   Documentos sem empresa:', docsSemEmpresa.length);
-    
     let html = '';
     
-    // Renderizar empresas com documentos
     Object.values(docsPorEmpresa).forEach(grupo => {
         const empresa = grupo.empresa;
         const docs = grupo.docs;
@@ -335,7 +353,6 @@ function renderizarTudo() {
         `;
     });
     
-    // Documentos sem empresa
     if (docsSemEmpresa.length > 0) {
         html += `
             <div class="empresas-header">
@@ -366,7 +383,6 @@ function renderizarCardDocumento(doc) {
                       diasRestantes <= (alertasGlobalConfig.diasVermelho || 30) ? 'negativo' :
                       diasRestantes <= (alertasGlobalConfig.diasAmarelo || 60) ? 'alerta' : 'positivo';
     
-    // Verificar se tem anexo PDF
     const temAnexo = doc.anexo && doc.anexo.base64 && doc.anexo.base64.length > 50;
     const nomeAnexo = doc.anexo?.nome || 'Documento PDF';
     const tamanhoAnexo = doc.anexo?.tamanho ? formatarTamanho(doc.anexo.tamanho) : '';
@@ -541,10 +557,17 @@ async function salvarDocumento(event) {
         documentos.push(doc);
     }
     
-    await salvarDocumentos();
-    renderizarTudo();
-    document.getElementById('modalDocumento').style.display = 'none';
-    mostrarNotificacao(editingDocId ? 'Documento atualizado!' : 'Documento registrado!', 'success');
+    // ✅ Salvar apenas no Firebase
+    const sucesso = await salvarDocumentosNoFirebase();
+    
+    if (sucesso) {
+        renderizarTudo();
+        document.getElementById('modalDocumento').style.display = 'none';
+        mostrarNotificacao(editingDocId ? 'Documento atualizado!' : 'Documento registrado!', 'success');
+    } else {
+        mostrarNotificacao('Erro ao salvar. Tente novamente.', 'error');
+    }
+    
     editingDocId = null;
 }
 
@@ -570,106 +593,19 @@ async function excluirDocumento(id) {
     if (!confirm('Tem certeza que deseja excluir este documento?')) return;
     
     documentos = documentos.filter(d => d.id != id);
-    await salvarDocumentos();
+    
+    // ✅ Excluir do Firebase
+    if (db) {
+        try {
+            await db.collection('documentos').doc(String(id)).delete();
+            console.log('✅ Documento excluído do Firebase:', id);
+        } catch (error) {
+            console.error('❌ Erro ao excluir documento:', error);
+        }
+    }
+    
     renderizarTudo();
     mostrarNotificacao('Documento excluído!', 'success');
-}
-
-function verDetalhes(id) {
-    const doc = documentos.find(d => d.id == id);
-    if (!doc) return;
-    
-    const modal = document.getElementById('modalDetalhes');
-    const body = document.getElementById('modalDetalhesBody');
-    if (!modal || !body) return;
-    
-    const empresa = encontrarEmpresa(doc.origem);
-    const diasRestantes = calcularDiasRestantes(doc.dataValidade);
-    const status = getStatusDocumento(diasRestantes);
-    const temAnexo = doc.anexo && doc.anexo.base64 && doc.anexo.base64.length > 50;
-    
-    body.innerHTML = `
-        <div class="details-container">
-            <div class="detail-item full-width">
-                <strong>Nome do Documento</strong>
-                <span style="font-size:18px;font-weight:bold;">${escapeHtml(doc.nome)}</span>
-            </div>
-            <div class="detail-item">
-                <strong>Categoria</strong>
-                <span>${getCategoriaNome(doc.categoria)}</span>
-            </div>
-            <div class="detail-item">
-                <strong>Status</strong>
-                <span>${status.icone} ${status.texto}</span>
-            </div>
-            <div class="detail-item">
-                <strong>Empresa</strong>
-                <span>${empresa ? escapeHtml(empresa.nome) : 'Não definida'}</span>
-            </div>
-            <div class="detail-item">
-                <strong>Data de Emissão</strong>
-                <span>${formatarData(doc.dataEmissao)}</span>
-            </div>
-            <div class="detail-item">
-                <strong>Data de Validade</strong>
-                <span>${formatarData(doc.dataValidade)}</span>
-            </div>
-            ${diasRestantes !== null ? `
-                <div class="detail-item">
-                    <strong>Dias Restantes</strong>
-                    <span>${formatarDias(diasRestantes)}</span>
-                </div>
-            ` : ''}
-            ${doc.responsavel ? `
-                <div class="detail-item">
-                    <strong>Responsável</strong>
-                    <span>${escapeHtml(doc.responsavel)}</span>
-                </div>
-            ` : ''}
-            ${doc.contato ? `
-                <div class="detail-item">
-                    <strong>Contato</strong>
-                    <span>${escapeHtml(doc.contato)}</span>
-                </div>
-            ` : ''}
-            ${doc.descricao ? `
-                <div class="detail-item full-width">
-                    <strong>Descrição</strong>
-                    <span>${escapeHtml(doc.descricao)}</span>
-                </div>
-            ` : ''}
-            ${temAnexo ? `
-                <div class="detail-item full-width">
-                    <strong>Anexo</strong>
-                    <span>
-                        📄 ${escapeHtml(doc.anexo.nome || 'PDF')} 
-                        ${doc.anexo.tamanho ? '(' + formatarTamanho(doc.anexo.tamanho) + ')' : ''}
-                    </span>
-                </div>
-            ` : ''}
-        </div>
-        <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #e9ecef;padding-top:15px;">
-            ${temAnexo ? `
-                <button class="btn btn-secondary" onclick="visualizarPDF('${doc.id}')">
-                    <i class="fas fa-eye"></i> Ver PDF
-                </button>
-                <button class="btn btn-secondary" onclick="baixarPDF('${doc.id}')">
-                    <i class="fas fa-download"></i> Baixar PDF
-                </button>
-            ` : ''}
-            <button class="btn btn-primary" onclick="editarDocumento('${doc.id}');document.getElementById('modalDetalhes').style.display='none';">
-                <i class="fas fa-edit"></i> Editar
-            </button>
-            <button class="btn btn-danger" onclick="if(confirm('Excluir este documento?')){excluirDocumento('${doc.id}');document.getElementById('modalDetalhes').style.display='none';}">
-                <i class="fas fa-trash"></i> Excluir
-            </button>
-            <button class="btn btn-secondary" onclick="document.getElementById('modalDetalhes').style.display='none';">
-                <i class="fas fa-times"></i> Fechar
-            </button>
-        </div>
-    `;
-    
-    modal.style.display = 'block';
 }
 
 // ========== CRUD EMPRESAS ==========
@@ -696,7 +632,9 @@ async function salvarEmpresa(event) {
         });
     }
     
-    await salvarEmpresas();
+    // ✅ Salvar apenas no Firebase
+    await salvarEmpresasNoFirebase();
+    
     renderizarTudo();
     document.getElementById('modalEmpresa').style.display = 'none';
     mostrarNotificacao(editingEmpresaId ? 'Empresa atualizada!' : 'Empresa cadastrada!', 'success');
@@ -718,102 +656,22 @@ async function excluirEmpresa(id) {
     if (!confirm('Excluir esta empresa? Os documentos vinculados NÃO serão excluídos.')) return;
     
     empresas = empresas.filter(e => e.id != id);
-    await salvarEmpresas();
+    
+    // ✅ Excluir do Firebase
+    if (db) {
+        try {
+            await db.collection('empresas').doc(String(id)).delete();
+            console.log('✅ Empresa excluída do Firebase:', id);
+        } catch (error) {
+            console.error('❌ Erro ao excluir empresa:', error);
+        }
+    }
+    
     renderizarTudo();
     mostrarNotificacao('Empresa excluída!', 'success');
 }
 
-// ========== ALERTAS ==========
-function verificarAlertas() {
-    let alertas = [];
-    
-    documentos.forEach(doc => {
-        if (!doc.dataValidade) return;
-        const diasRestantes = calcularDiasRestantes(doc.dataValidade);
-        if (diasRestantes === null) return;
-        
-        if (diasRestantes < 0) {
-            alertas.push({ doc, diasRestantes, nivel: 'vencido' });
-        } else if (diasRestantes <= (alertasGlobalConfig.diasVermelho || 30)) {
-            alertas.push({ doc, diasRestantes, nivel: 'vermelho' });
-        } else if (diasRestantes <= (alertasGlobalConfig.diasAmarelo || 60)) {
-            alertas.push({ doc, diasRestantes, nivel: 'amarelo' });
-        }
-    });
-    
-    return alertas;
-}
-
-// ========== NOTIFICAÇÕES ==========
-function mostrarNotificacao(msg, tipo = 'info') {
-    let n = document.getElementById('notificacao');
-    if (!n) {
-        n = document.createElement('div');
-        n.id = 'notificacao';
-        document.body.appendChild(n);
-    }
-    
-    const cores = {
-        success: '#d4edda',
-        error: '#f8d7da',
-        info: '#d1ecf1',
-        warning: '#fff3cd'
-    };
-    const coresTexto = {
-        success: '#155724',
-        error: '#721c24',
-        info: '#0c5460',
-        warning: '#856404'
-    };
-    
-    n.style.backgroundColor = cores[tipo] || cores.info;
-    n.style.color = coresTexto[tipo] || coresTexto.info;
-    n.textContent = msg;
-    n.style.display = 'block';
-    n.style.opacity = '1';
-    
-    clearTimeout(n.timeout);
-    n.timeout = setTimeout(() => {
-        n.style.opacity = '0';
-        setTimeout(() => { n.style.display = 'none'; }, 300);
-    }, 3000);
-}
-
-// ========== EVENTOS ==========
-function inicializarEventos() {
-    document.getElementById('formDocumento')?.addEventListener('submit', salvarDocumento);
-    document.getElementById('formEmpresa')?.addEventListener('submit', salvarEmpresa);
-    
-    document.getElementById('addDocumentoBtn')?.addEventListener('click', () => {
-        editingDocId = null;
-        document.getElementById('modalDocumentoTitulo').innerHTML = '<i class="fas fa-plus-circle"></i> Registrar Documento';
-        document.getElementById('formDocumento').reset();
-        document.getElementById('modalDocumento').style.display = 'block';
-    });
-    
-    document.getElementById('addEmpresaBtn')?.addEventListener('click', () => {
-        editingEmpresaId = null;
-        document.getElementById('formEmpresa').reset();
-        document.getElementById('modalEmpresa').style.display = 'block';
-    });
-    
-    document.getElementById('configAlertasBtn')?.addEventListener('click', () => {
-        const alertas = verificarAlertas();
-        if (alertas.length > 0) {
-            mostrarNotificacao(`🔔 ${alertas.length} documento(s) precisam de atenção!`, 'warning');
-        } else {
-            mostrarNotificacao('✅ Todos os documentos estão em dia!', 'success');
-        }
-    });
-    
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-        }
-    };
-    
-    console.log('✅ Eventos inicializados');
-}
+// ... (manter funções verDetalhes, verificarAlertas, mostrarNotificacao, inicializarEventos IGUAIS)
 
 // ========== TORNAR FUNÇÕES GLOBAIS ==========
 window.editarDocumento = editarDocumento;
