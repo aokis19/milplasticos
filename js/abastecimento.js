@@ -93,6 +93,53 @@ class GerenciadorAbastecimento {
                 else if (tabId === 'estatisticas') this.carregarEstatisticasGerais();
             });
         });
+        // Adicione isto DENTRO da classe GerenciadorAbastecimento
+// (antes do último fecha-chaves da classe)
+
+inicializarEventos() {
+    const form = document.getElementById('formAbastecimento');
+    if (form) form.addEventListener('submit', (e) => this.salvarAbastecimento(e));
+    
+    const qtd = document.getElementById('quantidadeLitros');
+    const preco = document.getElementById('precoLitro');
+    if (qtd && preco) {
+        qtd.addEventListener('input', () => this.calcularValorTotal());
+        preco.addEventListener('input', () => this.calcularValorTotal());
+    }
+    
+    const veiculoSelect = document.getElementById('veiculoAbastecimento');
+    if (veiculoSelect) veiculoSelect.addEventListener('change', () => this.atualizarInfoVeiculo());
+    
+    document.getElementById('btnNovoAbastecimento')?.addEventListener('click', () => { 
+        this.limparFormulario(); 
+        this.mostrarFormulario(); 
+    });
+    
+    document.getElementById('btnCancelarAbastecimento')?.addEventListener('click', () => this.esconderFormulario());
+    document.getElementById('btnFecharForm')?.addEventListener('click', () => this.esconderFormulario());
+    document.getElementById('btnAplicarFiltros')?.addEventListener('click', () => this.aplicarFiltros());
+    document.getElementById('btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
+    
+    document.getElementById('filtroPeriodo')?.addEventListener('change', (e) => {
+        const grupo = document.getElementById('dataPersonalizadaGroup');
+        if (grupo) grupo.style.display = e.target.value === 'personalizado' ? 'flex' : 'none';
+    });
+    
+    document.getElementById('filterAbastecimentos')?.addEventListener('input', (e) => {
+        this.filtrosAtivos.busca = e.target.value;
+        this.filtrarTabela();
+    });
+    
+    document.getElementById('btnExportAbastecimento')?.addEventListener('click', () => this.exportarDados());
+    document.getElementById('btnRelatorioConsumo')?.addEventListener('click', () => this.gerarRelatorioConsumo());
+    
+    const dataInput = document.getElementById('dataAbastecimento');
+    if (dataInput) {
+        const agora = new Date();
+        agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+        dataInput.value = agora.toISOString().slice(0, 16);
+    }
+}
     }
 
     // ========== CARREGAR VEÍCULOS (APENAS FIREBASE) ==========
