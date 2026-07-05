@@ -1,13 +1,13 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.1)
+// CUSTO.JS - Central de Custos (Firestore Puro - v2.2)
 // Persistência exclusiva no Firebase Firestore
-// Correções: gráficos, fullscreen, configurações, listeners
+// 100% Cloud - Sem localStorage
 // ====================================================
 (function() {
   'use strict';
 
   // ======== INICIALIZAÇÃO DO FIREBASE ========
-  const db = window.firebaseDB;
+  const db = window.firebaseDB || window.db;
   if (!db) {
     alert('Firebase não foi inicializado. O sistema não pode funcionar.');
     throw new Error('Firestore indisponível');
@@ -25,7 +25,8 @@
     producoes: db.collection('custos_producoes'),
     materiais: db.collection('custos_materiais'),
     custosMateriais: db.collection('custos_materiais_custos'),
-    custosFixos: db.collection('custos_fixos')
+    custosFixos: db.collection('custos_fixos'),
+    configuracoes: db.collection('configuracoes')
   };
 
   // ======== ESTADO DA APLICAÇÃO (MEMÓRIA) ========
@@ -205,26 +206,36 @@
     }
   }
 
-  // ======== CONFIGURAÇÕES DE CAMPOS ========
-  function carregarConfigCampos() {
+  // ======== CONFIGURAÇÕES DE CAMPOS (100% FIREBASE) ========
+  async function carregarConfigCampos() {
     try {
-      const saved = localStorage.getItem('custos_configCampos');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          configCampos = { ...configCampos, ...parsed };
+      const doc = await colecoes.configuracoes.doc('custos_configCampos').get();
+      
+      if (doc.exists && doc.data().config) {
+        const saved = doc.data().config;
+        if (saved && typeof saved === 'object') {
+          configCampos = { ...configCampos, ...saved };
+          console.log('✅ Configurações de campos carregadas do Firebase');
         }
+      } else {
+        console.log('ℹ️ Nenhuma configuração de campos salva - usando padrão');
       }
     } catch (e) {
-      console.warn('Erro ao carregar configurações:', e);
+      console.warn('⚠️ Erro ao carregar configurações do Firebase:', e);
     }
   }
 
-  function salvarConfigCamposLocal() {
+  async function salvarConfigCamposFB() {
     try {
-      localStorage.setItem('custos_configCampos', JSON.stringify(configCampos));
+      await colecoes.configuracoes.doc('custos_configCampos').set({
+        config: configCampos,
+        ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log('✅ Configurações de campos salvas no Firebase');
+      return true;
     } catch (e) {
-      console.warn('Erro ao salvar configurações:', e);
+      console.warn('⚠️ Erro ao salvar configurações no Firebase:', e);
+      return false;
     }
   }
 
@@ -253,7 +264,7 @@
     `).join('');
   };
 
-  window.salvarConfigCampos = function() {
+  window.salvarConfigCampos = async function() {
     Object.keys(configCampos).forEach(key => {
       const input = document.getElementById('config_' + key);
       if (input && input.value.trim()) {
@@ -261,7 +272,7 @@
       }
     });
     
-    salvarConfigCamposLocal();
+    await salvarConfigCamposFB(); // ✅ Salva no Firebase
     window.fecharModal('modalConfigCampos');
     renderizarTela();
     alert('Configurações salvas com sucesso!');
@@ -704,7 +715,6 @@
     if (!confirm('Excluir período e todos os dados relacionados? Esta ação não pode ser desfeita.')) return;
     
     try {
-      // Excluir setores e seus itens/produções do período
       const setoresDoPeriodo = setores.filter(s => s.periodold === id);
       for (const s of setoresDoPeriodo) {
         const itensDoSetor = itensCusto.filter(i => i.setorld === s.id);
@@ -720,7 +730,6 @@
         producoes = producoes.filter(p => p.setorld !== s.id);
       }
       
-      // Excluir custos fixos do período
       const fixosDoPeriodo = custosFixos.filter(cf => cf.periodold === id);
       await Promise.all(fixosDoPeriodo.map(cf => excluirFB('custosFixos', cf.id)));
       
@@ -822,7 +831,6 @@
     if (!confirm('Excluir setor e todos os itens/produções relacionados?')) return;
     
     try {
-      // Excluir itens e produções do setor
       const itensDoSetor = itensCusto.filter(i => i.setorld === id);
       const prodsDoSetor = producoes.filter(p => p.setorld === id);
       
@@ -913,12 +921,10 @@
     
     modal.classList.add('active');
     
-    // Preencher períodos
     const selPeriodo = document.getElementById('custoFixoPeriodo');
     selPeriodo.innerHTML = '<option value="">Selecione um período...</option>' + 
       periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
     
-    // Preencher categorias
     const selCat = document.getElementById('custoFixoCategoria');
     selCat.innerHTML = '<option value="">Selecione uma categoria...</option>' + 
       categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
@@ -994,7 +1000,6 @@
     
     modal.classList.add('active');
     
-    // Preencher categorias
     const selCat = document.getElementById('itemCategoria');
     if (selCat) {
       selCat.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
@@ -1263,12 +1268,10 @@
     
     modal.classList.add('active');
     
-    // Preencher períodos
     const selPeriodo = document.getElementById('gerarCustoPeriodo');
     selPeriodo.innerHTML = '<option value="">Selecione um período...</option>' + 
       periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
     
-    // Preencher materiais
     const selMat = document.getElementById('gerarCustoMaterial');
     selMat.innerHTML = '<option value="">Selecione um material...</option>' + 
       materiais.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
@@ -1461,7 +1464,6 @@
 
   // ======== GRÁFICOS ========
   window.abrirGraficoMensal = function(periodoId) {
-    // Verificar se Chart.js está disponível
     if (typeof Chart === 'undefined') {
       alert('Biblioteca de gráficos não carregada. Verifique sua conexão com a internet.');
       console.error('Chart.js não está disponível');
@@ -1548,7 +1550,6 @@
   };
 
   window.abrirGraficoConsolidado = function() {
-    // Verificar se Chart.js está disponível
     if (typeof Chart === 'undefined') {
       alert('Biblioteca de gráficos não carregada. Verifique sua conexão com a internet.');
       console.error('Chart.js não está disponível');
@@ -1654,7 +1655,6 @@
     }
     if (info) info.innerText = alturas[tamanho] + 'px';
     
-    // Atualizar gráfico
     const chart = tipo === 'mensal' ? graficoMensalChart : graficoConsolidadoChart;
     if (chart) chart.resize();
   };
@@ -1668,7 +1668,6 @@
       container.classList.add('fullscreen');
       container.style.height = '100vh';
       
-      // Adicionar botão de fechar se não existir
       if (!container.querySelector('.grafico-fullscreen-close')) {
         const closeBtn = document.createElement('button');
         closeBtn.className = 'grafico-fullscreen-close';
@@ -1688,7 +1687,6 @@
       window.ajustarGrafico(tipo, 'medio');
     }
     
-    // Atualizar gráfico
     const chart = tipo === 'mensal' ? graficoMensalChart : graficoConsolidadoChart;
     if (chart) setTimeout(() => chart.resize(), 100);
   };
@@ -1766,7 +1764,6 @@
     
     if (!novoMes || !novoAno) { alert('Selecione mês e ano válidos.'); return; }
     
-    // Verificar se já existe período com mesmo mês/ano
     const existe = periodos.find(p => p.mes === novoMes && p.ano === novoAno);
     if (existe) {
       if (!confirm(`Já existe um período para ${getNomeMes(novoMes)}/${novoAno}. Deseja continuar mesmo assim?`)) {
@@ -1787,7 +1784,6 @@
       await salvarFB('periodos', novoPeriodo);
       
       const setoresOrigem = setores.filter(s => s.periodold === periodoOrigemCopia.id);
-      const mapaSetores = {};
       
       for (const s of setoresOrigem) {
         const novoSetor = { ...s };
@@ -1796,9 +1792,7 @@
         novoSetor.periodold = novoPeriodo.id;
         setores.push(novoSetor);
         await salvarFB('setores', novoSetor);
-        mapaSetores[s.id] = novoSetor.id;
         
-        // Copiar itens
         const itensOrigem = itensCusto.filter(i => i.setorld === s.id);
         for (const i of itensOrigem) {
           const novoItem = { ...i };
@@ -1809,7 +1803,6 @@
           await salvarFB('itensCusto', novoItem);
         }
         
-        // Copiar produções
         const prodsOrigem = producoes.filter(p => p.setorld === s.id);
         for (const p of prodsOrigem) {
           const novoProd = { ...p };
@@ -1821,7 +1814,6 @@
         }
       }
       
-      // Copiar custos fixos
       const fixosOrigem = custosFixos.filter(cf => cf.periodold === periodoOrigemCopia.id);
       for (const cf of fixosOrigem) {
         const novoFixo = { ...cf };
@@ -1858,7 +1850,6 @@
       graficoConsolidadoChart = null;
     }
     
-    // Limpar tela cheia se necessário
     const fullscreenContainer = modal.querySelector('.grafico-container.fullscreen');
     if (fullscreenContainer) {
       fullscreenContainer.classList.remove('fullscreen');
@@ -1869,7 +1860,6 @@
 
   // ======== EVENT LISTENERS ========
   function handleModalClick(e) {
-    // Fechar modal ao clicar no overlay
     if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
       const modalId = e.target.id;
       e.target.classList.remove('active');
@@ -1884,7 +1874,6 @@
       }
     }
     
-    // Listener para botão de editar período
     const target = e.target.closest('.btn-editar-periodo');
     if (target) {
       const id = target.getAttribute('data-id');
@@ -1915,11 +1904,9 @@
   }
 
   function adicionarListeners() {
-    // Remover listeners antigos para evitar duplicação
     document.removeEventListener('click', handleModalClick);
     document.removeEventListener('keydown', handleEscapeKey);
     
-    // Adicionar novos listeners
     document.addEventListener('click', handleModalClick);
     document.addEventListener('keydown', handleEscapeKey);
   }
@@ -1939,8 +1926,8 @@
     if (loadingEl) loadingEl.classList.add('active');
     
     try {
-      // Carregar configurações salvas
-      carregarConfigCampos();
+      // Carregar configurações do Firebase
+      await carregarConfigCampos();
       
       // Adicionar event listeners
       adicionarListeners();
@@ -1949,7 +1936,7 @@
       await carregarDadosFirebase();
       atualizarStatusFirebase();
       renderizarTela();
-      console.log('✅ Sistema inicializado com sucesso');
+      console.log('✅ Sistema inicializado com sucesso (100% Firebase)');
       console.log('📊 Chart.js disponível:', typeof Chart !== 'undefined');
     } catch (error) {
       console.error('❌ Erro na inicialização:', error);
@@ -1959,7 +1946,7 @@
     }
   }
 
-  // Iniciar o sistema quando a página carregar
+  // Iniciar o sistema
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
