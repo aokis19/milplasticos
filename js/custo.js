@@ -1,6 +1,7 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.0)
+// CUSTO.JS - Central de Custos (Firestore Puro - v2.1)
 // Persistência exclusiva no Firebase Firestore
+// Correções: gráficos, fullscreen, configurações, listeners
 // ====================================================
 (function() {
   'use strict';
@@ -204,6 +205,68 @@
     }
   }
 
+  // ======== CONFIGURAÇÕES DE CAMPOS ========
+  function carregarConfigCampos() {
+    try {
+      const saved = localStorage.getItem('custos_configCampos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          configCampos = { ...configCampos, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar configurações:', e);
+    }
+  }
+
+  function salvarConfigCamposLocal() {
+    try {
+      localStorage.setItem('custos_configCampos', JSON.stringify(configCampos));
+    } catch (e) {
+      console.warn('Erro ao salvar configurações:', e);
+    }
+  }
+
+  window.abrirConfigCampos = function() {
+    const modal = document.getElementById('modalConfigCampos');
+    if (!modal) return;
+    
+    modal.classList.add('active');
+    
+    const container = document.getElementById('listaConfigCampos');
+    if (!container) return;
+    
+    const labels = {
+      setorNome: 'Nome do Campo "Nome do Setor"',
+      setorDesc: 'Nome do Campo "Descrição"',
+      custoTotal: 'Nome do Campo "Custo Total"',
+      producaoKg: 'Nome do Campo "Produção (KG)"',
+      custoPorKg: 'Nome do Campo "Custo por KG"'
+    };
+    
+    container.innerHTML = Object.keys(configCampos).map(key => `
+      <div class="form-group">
+        <label>${labels[key] || key}</label>
+        <input type="text" id="config_${key}" value="${configCampos[key]}" class="config-campo-input">
+      </div>
+    `).join('');
+  };
+
+  window.salvarConfigCampos = function() {
+    Object.keys(configCampos).forEach(key => {
+      const input = document.getElementById('config_' + key);
+      if (input && input.value.trim()) {
+        configCampos[key] = input.value.trim();
+      }
+    });
+    
+    salvarConfigCamposLocal();
+    window.fecharModal('modalConfigCampos');
+    renderizarTela();
+    alert('Configurações salvas com sucesso!');
+  };
+
   // ======== RENDERIZAÇÃO PRINCIPAL ========
   function renderizarTela() {
     if (nivelAtual === 'periodos') renderizarPeriodos();
@@ -240,16 +303,16 @@
         <div class="periodos-selecionados-tags">
           ${Array.from(periodosSelecionadosResumo).map(pid => {
             const per = periodos.find(p => p.id === pid);
-            return per ? `<span class="periodo-tag">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">x</span></span>` : '';
+            return per ? `<span class="periodo-tag">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
           }).join('')}
-          <span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar</span>
+          ${periodosSelecionadosResumo.size > 0 ? '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar</span>' : ''}
         </div>
         <div class="stats-grid-resumo">
           <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div><div class="sr-label">Períodos</div></div>
           <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdSetores}</div><div class="sr-label">Setores</div></div>
-          <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div><div class="sr-label">Custo Total</div></div>
-          <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div><div class="sr-label">Produção Total</div></div>
-          <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div><div class="sr-label">Custo Médio/KG</div></div>
+          <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div><div class="sr-label">${configCampos.custoTotal}</div></div>
+          <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div><div class="sr-label">${configCampos.producaoKg}</div></div>
+          <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div><div class="sr-label">${configCampos.custoPorKg}</div></div>
         </div>
       </div>`;
     }
@@ -290,10 +353,10 @@
             <input type="checkbox" ${isSelecionado ? 'checked' : ''} onchange="window.togglePeriodoResumo('${per.id}', this.checked)">
           </div>
           <div class="acoes">
-            <button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal('${per.id}')"><i class="fas fa-chart-bar"></i></button>
-            <button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo('${per.id}')"><i class="fas fa-copy"></i></button>
-            <button class="btn btn-outline btn-xs btn-editar-periodo" data-id="${per.id}"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo('${per.id}')"><i class="fas fa-trash"></i></button>
+            <button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal('${per.id}')" title="Ver Gráfico"><i class="fas fa-chart-bar"></i></button>
+            <button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo('${per.id}')" title="Copiar Período"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-outline btn-xs btn-editar-periodo" data-id="${per.id}" title="Editar"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo('${per.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
           </div>
           <div class="periodo-titulo" onclick="window.selecionarPeriodo('${per.id}')">
             <i class="fas fa-calendar-check"></i> ${getNomeMes(per.mes)}/${per.ano}
@@ -301,9 +364,9 @@
           <div class="periodo-obs">${per.obs || 'Sem descrição'}</div>
           <div class="periodo-stats">
             <div class="periodo-stat"><span class="label">Setores</span><span class="valor">${resumo.qtdSetores}</span></div>
-            <div class="periodo-stat"><span class="label">Custo Total</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
-            <div class="periodo-stat"><span class="label">Produção</span><span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span></div>
-            <div class="periodo-stat"><span class="label">Custo/KG</span><span class="valor money">${formatMoney(resumo.custoPorKgGeral)}/kg</span></div>
+            <div class="periodo-stat"><span class="label">${configCampos.custoTotal}</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
+            <div class="periodo-stat"><span class="label">${configCampos.producaoKg}</span><span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span></div>
+            <div class="periodo-stat"><span class="label">${configCampos.custoPorKg}</span><span class="valor money">${formatMoney(resumo.custoPorKgGeral)}/kg</span></div>
           </div>`;
         grid.appendChild(div);
       });
@@ -326,7 +389,7 @@
     let html = `
     <div class="card">
       <div class="card-header">
-        <span class="card-title"><i class="fas fa-industry"></i> Setores - ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>
+        <span class="card-title"><i class="fas fa-industry"></i> ${configCampos.setorNome} - ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>
         <div style="display:flex;gap:0.5rem;align-items:center;">
           <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo Setor</button>
           <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -334,9 +397,9 @@
       </div>
       <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;background:#f9f9f9;padding:0.75rem;border-radius:8px;">
         <span><strong>Setores:</strong> ${resumo.qtdSetores}</span>
-        <span><strong>Custo Total:</strong> ${formatMoney(resumo.custoTotalGeral)}</span>
-        <span><strong>Produção:</strong> ${formatNumber(resumo.producaoTotalGeral, 0)} kg</span>
-        <span><strong>Custo/KG Médio:</strong> ${formatMoney(resumo.custoPorKgGeral)}/kg</span>
+        <span><strong>${configCampos.custoTotal}:</strong> ${formatMoney(resumo.custoTotalGeral)}</span>
+        <span><strong>${configCampos.producaoKg}:</strong> ${formatNumber(resumo.producaoTotalGeral, 0)} kg</span>
+        <span><strong>${configCampos.custoPorKg} Médio:</strong> ${formatMoney(resumo.custoPorKgGeral)}/kg</span>
       </div>`;
 
     if (sets.length === 0) {
@@ -361,26 +424,30 @@
       sets.forEach(s => {
         const custos = calcularCustosSetor(s.id);
         const isExcluido = setoresExcluidosResumo.has(s.id);
+        const tipoClass = s.tipo === 'despesa' ? 'tipo-despesa' : 'tipo-custo';
         const div = document.createElement('div');
-        div.className = 'setor-card' + (isExcluido ? ' excluido' : '');
+        div.className = `setor-card ${tipoClass} ${isExcluido ? 'excluido-resumo' : ''} ${s.produtoFinal ? 'produto-final' : ''}`;
         div.innerHTML = `
-          <div class="setor-check">
-            <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)">
-          </div>
-          <div class="setor-info" onclick="window.selecionarSetor('${s.id}')">
-            <div class="setor-nome">${s.nome}</div>
-            <div class="setor-desc">${s.descricao || ''}</div>
-            ${s.produtoFinal ? '<span class="badge produto-final">Produto Final</span>' : ''}
-          </div>
-          <div class="setor-stats">
-            <div><span class="label">Custo</span><span class="valor money">${formatMoney(custos.totalCusto)}</span></div>
-            <div><span class="label">Produção</span><span class="valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
-            <div><span class="label">Custo/KG</span><span class="valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
-            <div><span class="label">Itens</span><span class="valor">${custos.qtdItens}</span></div>
+          <div class="setor-toggle">
+            <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)" title="Incluir/Excluir do resumo">
           </div>
           <div class="setor-acoes">
-            <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')"><i class="fas fa-trash"></i></button>
+            <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+          </div>
+          <div onclick="window.selecionarSetor('${s.id}')" style="cursor:pointer;">
+            <div class="setor-nome">
+              ${s.nome}
+              <span class="badge ${s.tipo === 'despesa' ? 'badge-despesa' : 'badge-custo'}">${s.tipo === 'despesa' ? 'Despesa' : 'Custo'}</span>
+              ${s.produtoFinal ? '<span class="badge badge-orange">⭐ Produto Final</span>' : ''}
+            </div>
+            <div class="setor-desc">${s.descricao || 'Sem descrição'}</div>
+            <div class="setor-info">
+              <div><span class="info-label">${configCampos.custoTotal}</span><span class="info-valor money">${formatMoney(custos.totalCusto)}</span></div>
+              <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
+              <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
+              <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
+            </div>
           </div>`;
         grid.appendChild(div);
       });
@@ -409,9 +476,9 @@
         <button class="btn btn-outline btn-sm" onclick="window.navegarPara('setores')"><i class="fas fa-arrow-left"></i> Voltar</button>
       </div>
       <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-        <div><strong>Custo Total:</strong> ${formatMoney(custos.totalCusto)}</div>
-        <div><strong>Produção:</strong> ${formatNumber(custos.totalKg, 0)} kg</div>
-        <div><strong>Custo/KG:</strong> ${formatMoney(custos.custoPorKg)}/kg</div>
+        <div><strong>${configCampos.custoTotal}:</strong> ${formatMoney(custos.totalCusto)}</div>
+        <div><strong>${configCampos.producaoKg}:</strong> ${formatNumber(custos.totalKg, 0)} kg</div>
+        <div><strong>${configCampos.custoPorKg}:</strong> ${formatMoney(custos.custoPorKg)}/kg</div>
         <div><strong>Itens:</strong> ${custos.qtdItens}</div>
       </div>
       <h4>Itens de Custo</h4>`;
@@ -420,6 +487,7 @@
       html += '<p>Nenhum item cadastrado.</p>';
     } else {
       html += `
+      <div class="table-wrap">
       <table class="table">
         <thead><tr><th>Item</th><th>Categoria</th><th>Valor Total</th><th>% Rateio</th><th>Valor Rateado</th><th>Ações</th></tr></thead>
         <tbody>`;
@@ -428,8 +496,8 @@
         const valorRateado = i.valorTotal * (i.percentual || 100) / 100;
         html += `
         <tr>
-          <td>${i.nome}</td>
-          <td>${cat ? cat.nome : ''}</td>
+          <td>${i.nome} ${i.tipo === 'fixo' ? '<span class="badge badge-orange">Fixo</span>' : ''}</td>
+          <td>${cat ? cat.nome : '-'}</td>
           <td>${formatMoney(i.valorTotal)}</td>
           <td>${i.percentual || 100}%</td>
           <td>${formatMoney(valorRateado)}</td>
@@ -439,7 +507,7 @@
           </td>
         </tr>`;
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     }
 
     html += `
@@ -452,6 +520,7 @@
       html += '<p>Nenhuma produção registrada.</p>';
     } else {
       html += `
+      <div class="table-wrap">
       <table class="table">
         <thead><tr><th>Produto</th><th>KG</th><th>Data</th><th>Ações</th></tr></thead>
         <tbody>`;
@@ -460,11 +529,11 @@
         <tr>
           <td>${p.produto}</td>
           <td>${formatNumber(p.kg, 0)}</td>
-          <td>${p.data || ''}</td>
+          <td>${p.data || '-'}</td>
           <td><button class="btn btn-danger btn-xs" onclick="window.excluirProducao('${p.id}')"><i class="fas fa-trash"></i></button></td>
         </tr>`;
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     }
 
     html += `
@@ -485,13 +554,17 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title"><i class="fas fa-box"></i> Materiais</span>
-        <button class="btn btn-primary btn-sm" onclick="window.abrirModalMaterial()"><i class="fas fa-plus"></i> Novo Material</button>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
+          <button class="btn btn-primary btn-sm" onclick="window.abrirModalMaterial()"><i class="fas fa-plus"></i> Novo Material</button>
+        </div>
       </div>`;
 
     if (materiais.length === 0) {
       html += '<p style="text-align:center;padding:1rem;">Nenhum material cadastrado.</p>';
     } else {
       html += `
+      <div class="table-wrap">
       <table class="table">
         <thead><tr><th>Nome</th><th>Descrição</th><th>Ações</th></tr></thead>
         <tbody>`;
@@ -499,7 +572,7 @@
         html += `
         <tr>
           <td>${m.nome}</td>
-          <td>${m.descricao || ''}</td>
+          <td>${m.descricao || '-'}</td>
           <td>
             <button class="btn btn-outline btn-xs" onclick="window.editarMaterial('${m.id}')"><i class="fas fa-edit"></i></button>
             <button class="btn btn-danger btn-xs" onclick="window.excluirMaterial('${m.id}')"><i class="fas fa-trash"></i></button>
@@ -507,7 +580,7 @@
           </td>
         </tr>`;
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     }
     html += '</div>';
     container.innerHTML = html;
@@ -518,8 +591,11 @@
     if (!container) return;
     container.innerHTML = `
     <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-history"></i> Histórico de Custos de Materiais</span>
+        <button class="btn btn-outline btn-sm" onclick="window.navegarPara('materiais')"><i class="fas fa-arrow-left"></i> Voltar</button>
+      </div>
       <p>Histórico de materiais (em desenvolvimento)</p>
-      <button class="btn btn-outline btn-sm" onclick="window.navegarPara('materiais')">Voltar</button>
     </div>`;
   }
 
@@ -608,7 +684,7 @@
     if (editId) {
       periodo.id = editId;
       const idx = periodos.findIndex(p => p.id === editId);
-      if (idx !== -1) periodos[idx] = periodo;
+      if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo };
     } else {
       periodo.id = 'per_' + Date.now();
       periodos.push(periodo);
@@ -625,7 +701,7 @@
   };
 
   window.excluirPeriodo = async function(id) {
-    if (!confirm('Excluir período e todos os dados relacionados?')) return;
+    if (!confirm('Excluir período e todos os dados relacionados? Esta ação não pode ser desfeita.')) return;
     
     try {
       // Excluir setores e seus itens/produções do período
@@ -643,6 +719,10 @@
         itensCusto = itensCusto.filter(i => i.setorld !== s.id);
         producoes = producoes.filter(p => p.setorld !== s.id);
       }
+      
+      // Excluir custos fixos do período
+      const fixosDoPeriodo = custosFixos.filter(cf => cf.periodold === id);
+      await Promise.all(fixosDoPeriodo.map(cf => excluirFB('custosFixos', cf.id)));
       
       setores = setores.filter(s => s.periodold !== id);
       custosFixos = custosFixos.filter(cf => cf.periodold !== id);
@@ -670,7 +750,10 @@
       return;
     }
     
-    document.getElementById('modalSetor').classList.add('active');
+    const modal = document.getElementById('modalSetor');
+    if (!modal) return;
+    
+    modal.classList.add('active');
     
     if (id) {
       const s = setores.find(x => x.id === id);
@@ -817,7 +900,7 @@
   };
 
   window.excluirCategoria = async function(id) {
-    if (!confirm('Excluir categoria?')) return;
+    if (!confirm('Excluir categoria? Itens que usam esta categoria não serão afetados.')) return;
     categorias = categorias.filter(c => c.id !== id);
     await excluirFB('categorias', id);
     renderizarTela();
@@ -832,15 +915,13 @@
     
     // Preencher períodos
     const selPeriodo = document.getElementById('custoFixoPeriodo');
-    selPeriodo.innerHTML = periodos.map(p => 
-      `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`
-    ).join('');
+    selPeriodo.innerHTML = '<option value="">Selecione um período...</option>' + 
+      periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
     
     // Preencher categorias
     const selCat = document.getElementById('custoFixoCategoria');
-    selCat.innerHTML = categorias.map(c => 
-      `<option value="${c.id}">${c.nome}</option>`
-    ).join('');
+    selCat.innerHTML = '<option value="">Selecione uma categoria...</option>' + 
+      categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
     
     if (id) {
       const cf = custosFixos.find(x => x.id === id);
@@ -895,7 +976,7 @@
   };
 
   window.excluirCustoFixo = async function(id) {
-    if (!confirm('Excluir custo fixo?')) return;
+    if (!confirm('Excluir custo fixo? Itens que usam este custo fixo não serão afetados.')) return;
     custosFixos = custosFixos.filter(c => c.id !== id);
     await excluirFB('custosFixos', id);
     renderizarTela();
@@ -903,6 +984,11 @@
 
   // ======== CRUD ITENS DE CUSTO ========
   window.abrirModalItemCusto = function(id) {
+    if (!setorAtual) {
+      alert('Selecione um setor primeiro.');
+      return;
+    }
+    
     const modal = document.getElementById('modalItemCusto');
     if (!modal) return;
     
@@ -910,9 +996,9 @@
     
     // Preencher categorias
     const selCat = document.getElementById('itemCategoria');
-    selCat.innerHTML = categorias.map(c => 
-      `<option value="${c.id}">${c.nome}</option>`
-    ).join('');
+    if (selCat) {
+      selCat.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    }
     
     if (id) {
       const item = itensCusto.find(i => i.id === id);
@@ -920,7 +1006,7 @@
         document.getElementById('modalItemTitulo').innerText = 'Editar Item';
         document.getElementById('itemEditId').value = item.id;
         document.getElementById('itemTipo').value = item.tipo || 'normal';
-        document.getElementById('itemCategoria').value = item.categoriald || '';
+        if (selCat) selCat.value = item.categoriald || '';
         document.getElementById('itemNome').value = item.nome || '';
         document.getElementById('itemValorTotal').value = item.valorTotal || 0;
         document.getElementById('itemPercentual').value = item.percentual || 100;
@@ -936,13 +1022,13 @@
           }
         }
         
-        window.mudarTipoItem(item.tipo || 'normal');
+        mudarTipoItem(item.tipo || 'normal');
       }
     } else {
       document.getElementById('modalItemTitulo').innerText = 'Novo Item';
       document.getElementById('itemEditId').value = '';
       document.getElementById('itemTipo').value = 'normal';
-      document.getElementById('itemCategoria').value = categorias[0] ? categorias[0].id : '';
+      if (selCat) selCat.value = categorias[0] ? categorias[0].id : '';
       document.getElementById('itemNome').value = '';
       document.getElementById('itemValorTotal').value = '';
       document.getElementById('itemPercentual').value = 100;
@@ -951,7 +1037,7 @@
       document.getElementById('itemFixoValorDisplay').value = '';
       document.getElementById('itemFixoPercentual').value = 100;
       custoFixoSelecionadoId = null;
-      window.mudarTipoItem('normal');
+      mudarTipoItem('normal');
     }
     
     atualizarListaCustosFixos();
@@ -966,9 +1052,13 @@
       container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>';
     } else {
       container.innerHTML = fixos.map(cf => `
-        <div class="fixo-item ${custoFixoSelecionadoId === cf.id ? 'selected' : ''}" 
-             onclick="window.selecionarCustoFixo('${cf.id}')">
-          <span><strong>${cf.nome}</strong> - ${formatMoney(cf.valor)}</span>
+        <div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" 
+             onclick="window.selecionarCustoFixo('${cf.id}')" style="cursor:pointer;margin-bottom:0.5rem;">
+          <div>
+            <div class="cf-nome">${cf.nome}</div>
+            <div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div>
+          </div>
+          <div class="cf-valor">${formatMoney(cf.valor)}</div>
         </div>
       `).join('');
     }
@@ -980,21 +1070,24 @@
     if (cf) {
       document.getElementById('itemFixoNomeDisplay').value = cf.nome;
       document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
+      document.getElementById('areaItemFixoDetalhe').style.display = 'block';
     }
     atualizarListaCustosFixos();
   };
 
-  window.mudarTipoItem = function(tipo) {
+  function mudarTipoItem(tipo) {
     document.getElementById('itemTipo').value = tipo;
     document.getElementById('areaItemNormal').style.display = tipo === 'normal' ? 'block' : 'none';
     document.getElementById('areaItensFixos').style.display = tipo === 'fixo' ? 'block' : 'none';
-    document.getElementById('areaItemFixoDetalhe').style.display = tipo === 'fixo' ? 'block' : 'none';
+    document.getElementById('areaItemFixoDetalhe').style.display = tipo === 'fixo' && custoFixoSelecionadoId ? 'block' : 'none';
     
     const tabNormal = document.getElementById('tabNormal');
     const tabFixo = document.getElementById('tabFixo');
     if (tabNormal) tabNormal.classList.toggle('active', tipo === 'normal');
     if (tabFixo) tabFixo.classList.toggle('active', tipo === 'fixo');
-  };
+  }
+
+  window.mudarTipoItem = mudarTipoItem;
 
   window.salvarItemCusto = async function() {
     const tipo = document.getElementById('itemTipo').value;
@@ -1060,7 +1153,10 @@
   window.abrirModalProducao = function() {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     
-    document.getElementById('modalProducao').classList.add('active');
+    const modal = document.getElementById('modalProducao');
+    if (!modal) return;
+    
+    modal.classList.add('active');
     document.getElementById('producaoProduto').value = '';
     document.getElementById('producaoKg').value = '';
     document.getElementById('producaoData').value = new Date().toISOString().split('T')[0];
@@ -1149,7 +1245,7 @@
   };
 
   window.excluirMaterial = async function(id) {
-    if (!confirm('Excluir material?')) return;
+    if (!confirm('Excluir material? Os custos de material associados não serão excluídos.')) return;
     materiais = materiais.filter(m => m.id !== id);
     await excluirFB('materiais', id);
     renderizarTela();
@@ -1169,15 +1265,13 @@
     
     // Preencher períodos
     const selPeriodo = document.getElementById('gerarCustoPeriodo');
-    selPeriodo.innerHTML = periodos.map(p => 
-      `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`
-    ).join('');
+    selPeriodo.innerHTML = '<option value="">Selecione um período...</option>' + 
+      periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
     
     // Preencher materiais
     const selMat = document.getElementById('gerarCustoMaterial');
-    selMat.innerHTML = materiais.map(m => 
-      `<option value="${m.id}">${m.nome}</option>`
-    ).join('');
+    selMat.innerHTML = '<option value="">Selecione um material...</option>' + 
+      materiais.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
     
     document.getElementById('insumosContainer').innerHTML = `
       <div class="insumo-row">
@@ -1209,10 +1303,16 @@
       container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>';
     } else {
       container.innerHTML = sets.map(s => `
-        <label style="display:block;padding:0.25rem 0;">
-          <input type="checkbox" value="${s.id}" onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)">
-          ${s.nome} ${s.produtoFinal ? '🏭' : ''}
-        </label>
+        <div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}">
+          <div class="ss-header">
+            <input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} 
+                   onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)">
+            <div class="ss-info">
+              <div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div>
+              <div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div>
+            </div>
+          </div>
+        </div>
       `).join('');
     }
   };
@@ -1220,11 +1320,14 @@
   window.toggleSetorGerarCusto = function(setorId, checked) {
     if (checked) setoresSelecionadosGerar.set(setorId, true);
     else setoresSelecionadosGerar.delete(setorId);
+    window.atualizarSetoresGerarCusto();
     window.atualizarResumoGerarCusto();
   };
 
   window.atualizarResumoGerarCusto = function() {
     const container = document.getElementById('resumoLinhas');
+    if (!container) return;
+    
     const setorIds = Array.from(setoresSelecionadosGerar.keys());
     
     if (setorIds.length === 0) {
@@ -1242,7 +1345,8 @@
     const custoKg = producaoTotal > 0 ? custoTotal / producaoTotal : 0;
     let custoInsumos = 0;
     document.querySelectorAll('.insumo-row').forEach(row => {
-      custoInsumos += parseFloat(row.querySelector('.insumo-custo').value) || 0;
+      const input = row.querySelector('.insumo-custo');
+      if (input) custoInsumos += parseFloat(input.value) || 0;
     });
     
     const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
@@ -1251,19 +1355,23 @@
     const custoFinal = custoKg + custoInsumos;
     const precoSugerido = custoFinal * (1 + imposto / 100) * (1 + margem / 100);
     
-    container.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.5rem;">
-        <div><strong>Custo dos Setores:</strong> ${formatMoney(custoKg)}/kg</div>
-        <div><strong>Insumos Adicionais:</strong> ${formatMoney(custoInsumos)}/kg</div>
-        <div><strong>Custo Final:</strong> ${formatMoney(custoFinal)}/kg</div>
-        <div><strong>Imposto (${imposto}%):</strong> ${formatMoney(custoFinal * imposto / 100)}/kg</div>
-        <div><strong>Margem (${margem}%):</strong> ${formatMoney(custoFinal * (1 + imposto / 100) * margem / 100)}/kg</div>
-        <div><strong>Preço Sugerido:</strong> ${formatMoney(precoSugerido)}/kg</div>
-        ${valorAtual > 0 ? `
-          <div><strong>Valor Atual:</strong> ${formatMoney(valorAtual)}/kg</div>
-          <div><strong>Diferença:</strong> ${formatMoney(precoSugerido - valorAtual)}/kg</div>
-        ` : ''}
-      </div>`;
+    let html = '<div class="linha"><span>Custo dos Setores</span><span class="l-valor">' + formatMoney(custoKg) + '/kg</span></div>';
+    html += '<div class="linha"><span>Insumos Adicionais</span><span class="l-valor">' + formatMoney(custoInsumos) + '/kg</span></div>';
+    html += '<div class="linha"><span>Custo Final</span><span class="l-valor">' + formatMoney(custoFinal) + '/kg</span></div>';
+    if (imposto > 0) {
+      html += '<div class="linha"><span>Imposto (' + imposto + '%)</span><span class="l-valor">' + formatMoney(custoFinal * imposto / 100) + '/kg</span></div>';
+    }
+    if (margem > 0) {
+      html += '<div class="linha"><span>Margem (' + margem + '%)</span><span class="l-valor">' + formatMoney(custoFinal * (1 + imposto / 100) * margem / 100) + '/kg</span></div>';
+    }
+    html += '<div class="linha total"><span>Preço Sugerido</span><span class="l-valor">' + formatMoney(precoSugerido) + '/kg</span></div>';
+    if (valorAtual > 0) {
+      const diff = precoSugerido - valorAtual;
+      html += '<div class="linha"><span>Valor Atual</span><span class="l-valor">' + formatMoney(valorAtual) + '/kg</span></div>';
+      html += '<div class="linha"><span>Diferença</span><span class="l-valor" style="color:' + (diff >= 0 ? '#4caf50' : '#f44336') + '">' + (diff >= 0 ? '+' : '') + formatMoney(diff) + '/kg</span></div>';
+    }
+    
+    container.innerHTML = html;
   };
 
   window.adicionarInsumo = function() {
@@ -1301,8 +1409,12 @@
     
     const custoKg = producaoTotal > 0 ? custoTotal / producaoTotal : 0;
     let custoInsumos = 0;
+    const insumos = [];
     document.querySelectorAll('.insumo-row').forEach(row => {
-      custoInsumos += parseFloat(row.querySelector('.insumo-custo').value) || 0;
+      const nome = row.querySelector('.insumo-nome')?.value.trim() || '';
+      const custo = parseFloat(row.querySelector('.insumo-custo')?.value) || 0;
+      custoInsumos += custo;
+      if (nome) insumos.push({ nome, custo });
     });
     
     const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
@@ -1312,12 +1424,6 @@
     const precoSugerido = custoFinal * (1 + imposto / 100) * (1 + margem / 100);
     
     const periodo = periodos.find(p => p.id === periodoId);
-    const insumos = [];
-    document.querySelectorAll('.insumo-row').forEach(row => {
-      const nome = row.querySelector('.insumo-nome').value.trim();
-      const custo = parseFloat(row.querySelector('.insumo-custo').value) || 0;
-      if (nome) insumos.push({ nome, custo });
-    });
     
     const registro = {
       id: 'cm_' + Date.now(),
@@ -1338,7 +1444,8 @@
         return { id, nome: s ? s.nome : '', custo: custos.totalCusto, producao: custos.totalKg };
       }),
       insumos,
-      setoresUtilizados: setorIds
+      setoresUtilizados: setorIds,
+      createdAt: new Date().toISOString()
     };
     
     custosMateriais.push(registro);
@@ -1349,11 +1456,18 @@
   };
 
   window.gerarPDFCustoMaterial = function() {
-    alert('Função PDF em desenvolvimento.');
+    alert('Função de exportação PDF em desenvolvimento.');
   };
 
   // ======== GRÁFICOS ========
   window.abrirGraficoMensal = function(periodoId) {
+    // Verificar se Chart.js está disponível
+    if (typeof Chart === 'undefined') {
+      alert('Biblioteca de gráficos não carregada. Verifique sua conexão com a internet.');
+      console.error('Chart.js não está disponível');
+      return;
+    }
+    
     const modal = document.getElementById('modalGraficoMensal');
     if (!modal) return;
     
@@ -1375,12 +1489,20 @@
       });
     });
     
-    const labels = cats.map(c => c.nome);
-    const values = cats.map(c => c.total);
-    const colors = cats.map(c => c.cor);
+    const catsComDados = cats.filter(c => c.total > 0);
+    const labels = catsComDados.map(c => c.nome);
+    const values = catsComDados.map(c => c.total);
+    const colors = catsComDados.map(c => c.cor);
     
-    if (graficoMensalChart) graficoMensalChart.destroy();
-    const ctx = document.getElementById('graficoMensalCanvas').getContext('2d');
+    if (graficoMensalChart) {
+      graficoMensalChart.destroy();
+      graficoMensalChart = null;
+    }
+    
+    const canvas = document.getElementById('graficoMensalCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
     graficoMensalChart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -1398,24 +1520,41 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => formatMoney(ctx.raw) } }
+          tooltip: { 
+            callbacks: { 
+              label: function(ctx) { return formatMoney(ctx.raw); } 
+            } 
+          }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: value => formatMoney(value) } }
+          y: { 
+            beginAtZero: true, 
+            ticks: { 
+              callback: function(value) { return formatMoney(value); } 
+            } 
+          }
         }
       }
     });
     
     const total = values.reduce((a, b) => a + b, 0);
     let resumoHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:1rem;">';
-    cats.forEach(c => {
-      resumoHtml += `<span style="background:${c.cor};color:white;padding:0.2rem 0.6rem;border-radius:12px;">${c.nome}: ${formatMoney(c.total)}</span>`;
+    catsComDados.forEach(c => {
+      const pct = total > 0 ? (c.total / total * 100).toFixed(1) : 0;
+      resumoHtml += `<span style="background:${c.cor};color:white;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;">${c.nome}: ${formatMoney(c.total)} (${pct}%)</span>`;
     });
-    resumoHtml += `<span><strong>Total: ${formatMoney(total)}</strong></span></div>`;
+    resumoHtml += `<span style="font-weight:600;">Total: ${formatMoney(total)}</span></div>`;
     document.getElementById('graficoMensalResumo').innerHTML = resumoHtml;
   };
 
   window.abrirGraficoConsolidado = function() {
+    // Verificar se Chart.js está disponível
+    if (typeof Chart === 'undefined') {
+      alert('Biblioteca de gráficos não carregada. Verifique sua conexão com a internet.');
+      console.error('Chart.js não está disponível');
+      return;
+    }
+    
     if (periodosSelecionadosResumo.size === 0) {
       alert('Selecione pelo menos um período para consolidar.');
       return;
@@ -1444,12 +1583,20 @@
       });
     });
     
-    const labels = cats.map(c => c.nome);
-    const values = cats.map(c => c.total);
-    const colors = cats.map(c => c.cor);
+    const catsComDados = cats.filter(c => c.total > 0);
+    const labels = catsComDados.map(c => c.nome);
+    const values = catsComDados.map(c => c.total);
+    const colors = catsComDados.map(c => c.cor);
     
-    if (graficoConsolidadoChart) graficoConsolidadoChart.destroy();
-    const ctx = document.getElementById('graficoConsolidadoCanvas').getContext('2d');
+    if (graficoConsolidadoChart) {
+      graficoConsolidadoChart.destroy();
+      graficoConsolidadoChart = null;
+    }
+    
+    const canvas = document.getElementById('graficoConsolidadoCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
     graficoConsolidadoChart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -1467,29 +1614,103 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => formatMoney(ctx.raw) } }
+          tooltip: { 
+            callbacks: { 
+              label: function(ctx) { return formatMoney(ctx.raw); } 
+            } 
+          }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: value => formatMoney(value) } }
+          y: { 
+            beginAtZero: true, 
+            ticks: { 
+              callback: function(value) { return formatMoney(value); } 
+            } 
+          }
         }
       }
     });
-  };
-
-  window.exportarGraficoMensal = function() {
-    alert('Exportar gráfico mensal (em desenvolvimento)');
-  };
-
-  window.exportarGraficoConsolidado = function() {
-    alert('Exportar gráfico consolidado (em desenvolvimento)');
+    
+    const total = values.reduce((a, b) => a + b, 0);
+    let infoHtml = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">';
+    catsComDados.forEach(c => {
+      infoHtml += `<span style="background:${c.cor};color:white;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;">${c.nome}: ${formatMoney(c.total)}</span>`;
+    });
+    infoHtml += `<span style="font-weight:600;">Total: ${formatMoney(total)}</span></div>`;
+    document.getElementById('graficoConsolidadoInfo').innerHTML = infoHtml;
   };
 
   window.ajustarGrafico = function(tipo, tamanho) {
-    const container = document.getElementById(tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer');
-    const info = document.getElementById(tipo === 'mensal' ? 'graficoMensalTamanho' : 'graficoConsolidadoTamanho');
-    const alturas = { pequeno: 300, medio: 500, grande: 700 };
-    if (container) container.style.height = alturas[tamanho] + 'px';
+    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
+    const infoId = tipo === 'mensal' ? 'graficoMensalTamanho' : 'graficoConsolidadoTamanho';
+    const container = document.getElementById(containerId);
+    const info = document.getElementById(infoId);
+    
+    const alturas = { pequeno: 300, medio: 500, grande: 700, telaCheia: window.innerHeight - 200 };
+    
+    if (container) {
+      container.style.height = alturas[tamanho] + 'px';
+      container.classList.remove('fullscreen');
+    }
     if (info) info.innerText = alturas[tamanho] + 'px';
+    
+    // Atualizar gráfico
+    const chart = tipo === 'mensal' ? graficoMensalChart : graficoConsolidadoChart;
+    if (chart) chart.resize();
+  };
+
+  window.toggleFullscreenGrafico = function(tipo) {
+    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (!container.classList.contains('fullscreen')) {
+      container.classList.add('fullscreen');
+      container.style.height = '100vh';
+      
+      // Adicionar botão de fechar se não existir
+      if (!container.querySelector('.grafico-fullscreen-close')) {
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'grafico-fullscreen-close';
+        closeBtn.innerHTML = '<i class="fas fa-times"></i> Sair da Tela Cheia';
+        closeBtn.onclick = function(e) {
+          e.stopPropagation();
+          container.classList.remove('fullscreen');
+          closeBtn.remove();
+          window.ajustarGrafico(tipo, 'medio');
+        };
+        container.appendChild(closeBtn);
+      }
+    } else {
+      container.classList.remove('fullscreen');
+      const closeBtn = container.querySelector('.grafico-fullscreen-close');
+      if (closeBtn) closeBtn.remove();
+      window.ajustarGrafico(tipo, 'medio');
+    }
+    
+    // Atualizar gráfico
+    const chart = tipo === 'mensal' ? graficoMensalChart : graficoConsolidadoChart;
+    if (chart) setTimeout(() => chart.resize(), 100);
+  };
+
+  window.exportarGraficoMensal = function() {
+    const canvas = document.getElementById('graficoMensalCanvas');
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = 'grafico-mensal.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  window.exportarGraficoConsolidado = function() {
+    const canvas = document.getElementById('graficoConsolidadoCanvas');
+    if (!canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = 'grafico-consolidado.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   };
 
   // ======== FILTROS E RESUMO ========
@@ -1532,7 +1753,9 @@
     
     periodoOrigemCopia = p;
     document.getElementById('copiarOrigem').value = getNomeMes(p.mes) + '/' + p.ano;
-    document.getElementById('modalCopiarPeriodo').classList.add('active');
+    
+    const modal = document.getElementById('modalCopiarPeriodo');
+    if (modal) modal.classList.add('active');
   };
 
   window.copiarPeriodo = async function() {
@@ -1542,6 +1765,14 @@
     const novoAno = parseInt(document.getElementById('copiarAno').value);
     
     if (!novoMes || !novoAno) { alert('Selecione mês e ano válidos.'); return; }
+    
+    // Verificar se já existe período com mesmo mês/ano
+    const existe = periodos.find(p => p.mes === novoMes && p.ano === novoAno);
+    if (existe) {
+      if (!confirm(`Já existe um período para ${getNomeMes(novoMes)}/${novoAno}. Deseja continuar mesmo assim?`)) {
+        return;
+      }
+    }
     
     try {
       const novoPeriodo = {
@@ -1559,21 +1790,21 @@
       const mapaSetores = {};
       
       for (const s of setoresOrigem) {
-        const novo = Object.assign({}, s);
-        novo.id = 'set_' + Date.now() + Math.random().toString(36).substr(2, 4);
-        novo.periodold = novoPeriodo.id;
-        delete novo._id;
-        setores.push(novo);
-        await salvarFB('setores', novo);
-        mapaSetores[s.id] = novo.id;
+        const novoSetor = { ...s };
+        delete novoSetor._id;
+        novoSetor.id = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        novoSetor.periodold = novoPeriodo.id;
+        setores.push(novoSetor);
+        await salvarFB('setores', novoSetor);
+        mapaSetores[s.id] = novoSetor.id;
         
         // Copiar itens
         const itensOrigem = itensCusto.filter(i => i.setorld === s.id);
         for (const i of itensOrigem) {
-          const novoItem = Object.assign({}, i);
-          novoItem.id = 'item_' + Date.now() + Math.random().toString(36).substr(2, 4);
-          novoItem.setorld = mapaSetores[s.id];
+          const novoItem = { ...i };
           delete novoItem._id;
+          novoItem.id = 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          novoItem.setorld = novoSetor.id;
           itensCusto.push(novoItem);
           await salvarFB('itensCusto', novoItem);
         }
@@ -1581,10 +1812,10 @@
         // Copiar produções
         const prodsOrigem = producoes.filter(p => p.setorld === s.id);
         for (const p of prodsOrigem) {
-          const novoProd = Object.assign({}, p);
-          novoProd.id = 'prod_' + Date.now() + Math.random().toString(36).substr(2, 4);
-          novoProd.setorld = mapaSetores[s.id];
+          const novoProd = { ...p };
           delete novoProd._id;
+          novoProd.id = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          novoProd.setorld = novoSetor.id;
           producoes.push(novoProd);
           await salvarFB('producoes', novoProd);
         }
@@ -1593,12 +1824,12 @@
       // Copiar custos fixos
       const fixosOrigem = custosFixos.filter(cf => cf.periodold === periodoOrigemCopia.id);
       for (const cf of fixosOrigem) {
-        const novo = Object.assign({}, cf);
-        novo.id = 'cf_' + Date.now() + Math.random().toString(36).substr(2, 4);
-        novo.periodold = novoPeriodo.id;
-        delete novo._id;
-        custosFixos.push(novo);
-        await salvarFB('custosFixos', novo);
+        const novoFixo = { ...cf };
+        delete novoFixo._id;
+        novoFixo.id = 'cf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        novoFixo.periodold = novoPeriodo.id;
+        custosFixos.push(novoFixo);
+        await salvarFB('custosFixos', novoFixo);
       }
       
       window.fecharModal('modalCopiarPeriodo');
@@ -1614,7 +1845,9 @@
   // ======== FECHAR MODAL ========
   window.fecharModal = function(id) {
     const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('active');
+    if (!modal) return;
+    
+    modal.classList.remove('active');
     
     if (id === 'modalGraficoMensal' && graficoMensalChart) {
       graficoMensalChart.destroy();
@@ -1624,18 +1857,28 @@
       graficoConsolidadoChart.destroy();
       graficoConsolidadoChart = null;
     }
+    
+    // Limpar tela cheia se necessário
+    const fullscreenContainer = modal.querySelector('.grafico-container.fullscreen');
+    if (fullscreenContainer) {
+      fullscreenContainer.classList.remove('fullscreen');
+      const closeBtn = fullscreenContainer.querySelector('.grafico-fullscreen-close');
+      if (closeBtn) closeBtn.remove();
+    }
   };
 
   // ======== EVENT LISTENERS ========
-  document.addEventListener('click', function(e) {
+  function handleModalClick(e) {
+    // Fechar modal ao clicar no overlay
     if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
+      const modalId = e.target.id;
       e.target.classList.remove('active');
       
-      if (e.target.id === 'modalGraficoMensal' && graficoMensalChart) {
+      if (modalId === 'modalGraficoMensal' && graficoMensalChart) {
         graficoMensalChart.destroy();
         graficoMensalChart = null;
       }
-      if (e.target.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+      if (modalId === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
         graficoConsolidadoChart.destroy();
         graficoConsolidadoChart = null;
       }
@@ -1651,24 +1894,35 @@
         window.editarPeriodo(id);
       }
     }
-  });
+  }
 
-  document.addEventListener('keydown', function(e) {
+  function handleEscapeKey(e) {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+        const modalId = modal.id;
         modal.classList.remove('active');
         
-        if (modal.id === 'modalGraficoMensal' && graficoMensalChart) {
+        if (modalId === 'modalGraficoMensal' && graficoMensalChart) {
           graficoMensalChart.destroy();
           graficoMensalChart = null;
         }
-        if (modal.id === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
+        if (modalId === 'modalGraficoConsolidado' && graficoConsolidadoChart) {
           graficoConsolidadoChart.destroy();
           graficoConsolidadoChart = null;
         }
       });
     }
-  });
+  }
+
+  function adicionarListeners() {
+    // Remover listeners antigos para evitar duplicação
+    document.removeEventListener('click', handleModalClick);
+    document.removeEventListener('keydown', handleEscapeKey);
+    
+    // Adicionar novos listeners
+    document.addEventListener('click', handleModalClick);
+    document.addEventListener('keydown', handleEscapeKey);
+  }
 
   // ======== STATUS FIREBASE ========
   function atualizarStatusFirebase() {
@@ -1685,10 +1939,18 @@
     if (loadingEl) loadingEl.classList.add('active');
     
     try {
+      // Carregar configurações salvas
+      carregarConfigCampos();
+      
+      // Adicionar event listeners
+      adicionarListeners();
+      
+      // Carregar dados do Firebase
       await carregarDadosFirebase();
       atualizarStatusFirebase();
       renderizarTela();
       console.log('✅ Sistema inicializado com sucesso');
+      console.log('📊 Chart.js disponível:', typeof Chart !== 'undefined');
     } catch (error) {
       console.error('❌ Erro na inicialização:', error);
       alert('Erro ao carregar dados do Firebase. Verifique sua conexão.');
@@ -1697,12 +1959,11 @@
     }
   }
 
-  // Expor funções essenciais globalmente
-  window.renderizarTela = renderizarTela;
-  window.atualizarResumoGerarCusto = window.atualizarResumoGerarCusto || (() => {});
-  window.mudarTipoItem = window.mudarTipoItem || (() => {});
-
-  // Iniciar o sistema
-  window.addEventListener('load', init);
+  // Iniciar o sistema quando a página carregar
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();
