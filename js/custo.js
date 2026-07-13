@@ -1,6 +1,6 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.8)
-// Gráficos: Home (categorias - vertical) | Análise (categorias - vertical)
+// CUSTO.JS - Central de Custos (Firestore Puro - v2.9)
+// Gráficos melhorados com Tela Cheia
 // Seletores: Marcar/Desmarcar todos Custos e Despesas
 // Cópia de Período completa
 // ====================================================
@@ -103,24 +103,6 @@
       qtdProdutosFinais: setsFinais.length
     };
   }
-  
-  function calcularResumoConsolidado() {
-    if (periodosSelecionadosResumo.size === 0) return null;
-    let custoTotal = 0, producaoTotal = 0, qtdSetores = 0;
-    periodosSelecionadosResumo.forEach(pid => {
-      const resumo = calcularResumoPeriodo(pid, new Set());
-      custoTotal += resumo.custoTotalGeral;
-      producaoTotal += resumo.producaoTotalGeral;
-      qtdSetores += resumo.qtdSetores;
-    });
-    return {
-      custoTotal,
-      producaoTotal,
-      custoPorKg: producaoTotal > 0 ? custoTotal / producaoTotal : 0,
-      qtdSetores,
-      qtdPeriodos: periodosSelecionadosResumo.size
-    };
-  }
 
   async function salvarFB(colecaoNome, dados) {
     try {
@@ -203,15 +185,6 @@
     }
   }
 
-  async function carregarConfigCampos() {
-    try {
-      const doc = await colecoes.configuracoes.doc('custos_configCampos').get();
-      if (doc.exists && doc.data().config) {
-        configCampos = { ...configCampos, ...doc.data().config };
-      }
-    } catch (e) {}
-  }
-
   window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
     if (!modal) return;
@@ -269,7 +242,6 @@
     
     let html = '';
     
-    // Cards de resumo
     const periodosParaCalculo = periodosSelecionadosResumo.size > 0 
       ? periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id))
       : periodosFiltrados;
@@ -323,7 +295,6 @@
       </div>`;
     html += '</div>';
     
-    // Gráfico de categorias
     html += `
       <div class="categorias-section">
         <div class="card">
@@ -346,7 +317,7 @@
           </div>
           <div class="categorias-content">
             <div class="grafico-categorias-wrapper">
-              <div style="height: 350px; position: relative;">
+              <div style="height: 450px; position: relative;">
                 <canvas id="graficoCategoriasHome"></canvas>
               </div>
             </div>
@@ -360,7 +331,6 @@
         </div>
       </div>`;
 
-    // Lista de Períodos
     html += `
     <div class="card">
       <div class="card-header">
@@ -459,7 +429,19 @@
     
     dadosGrafico.sort((a, b) => b.total - a.total);
     
-    // GRÁFICO VERTICAL (📊)
+    // Botão de tela cheia
+    const wrapper = canvas.parentElement;
+    const btnFullOld = document.getElementById('btnFullscreenHome');
+    if (btnFullOld) btnFullOld.remove();
+    
+    const btnFull = document.createElement('button');
+    btnFull.id = 'btnFullscreenHome';
+    btnFull.className = 'btn-fullscreen-grafico';
+    btnFull.innerHTML = '<i class="fas fa-expand"></i> Tela Cheia';
+    btnFull.onclick = () => abrirGraficoFullscreen('home');
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(btnFull);
+    
     window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
@@ -467,19 +449,28 @@
         datasets: [{
           label: 'Valor Total',
           data: dadosGrafico.map(c => c.total),
-          backgroundColor: dadosGrafico.map(c => c.cor),
+          backgroundColor: dadosGrafico.map(c => c.cor + 'CC'),
           borderColor: dadosGrafico.map(c => c.cor),
-          borderWidth: 1,
-          borderRadius: 8,
+          borderWidth: 2,
+          borderRadius: 10,
           borderSkipped: false,
+          hoverBackgroundColor: dadosGrafico.map(c => c.cor),
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index',
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 12,
+            titleFont: { size: 14 },
+            bodyFont: { size: 13 },
             callbacks: {
               label: function(context) {
                 const value = context.parsed.y;
@@ -495,13 +486,13 @@
             beginAtZero: true,
             ticks: {
               callback: function(value) { return formatMoney(value); },
-              font: { size: 11 }
+              font: { size: 12, weight: '600' }
             },
-            grid: { color: '#f0f0f0' }
+            grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
             ticks: {
-              font: { size: 11 },
+              font: { size: 12, weight: '500' },
               maxRotation: 45,
               minRotation: 0
             },
@@ -567,7 +558,6 @@
     const sets = getSetoresDoPeriodo(periodoAtual.id);
     const resumo = calcularResumoPeriodo(periodoAtual.id);
     
-    // Separar setores por tipo
     const setoresCusto = sets.filter(s => s.tipo !== 'despesa');
     const setoresDespesa = sets.filter(s => s.tipo === 'despesa');
     
@@ -590,7 +580,6 @@
     if (sets.length === 0) {
       html += '<p style="text-align:center;padding:1rem;">Nenhum setor cadastrado.</p>';
     } else {
-      // Seção CUSTOS com seletor
       if (setoresCusto.length > 0) {
         const todosCustoExcluidos = setoresCusto.every(s => setoresExcluidosResumo.has(s.id));
         html += `
@@ -606,7 +595,6 @@
           </div>`;
       }
       
-      // Seção DESPESAS com seletor
       if (setoresDespesa.length > 0) {
         const todosDespesaExcluidos = setoresDespesa.every(s => setoresExcluidosResumo.has(s.id));
         html += `
@@ -632,20 +620,14 @@
 
     container.innerHTML = html;
 
-    // Renderizar cards de CUSTO
     if (setoresCusto.length > 0) {
       const gridCusto = document.getElementById('setoresCustoGrid');
-      if (gridCusto) {
-        setoresCusto.forEach(s => renderizarCardSetor(s, gridCusto));
-      }
+      if (gridCusto) setoresCusto.forEach(s => renderizarCardSetor(s, gridCusto));
     }
     
-    // Renderizar cards de DESPESA
     if (setoresDespesa.length > 0) {
       const gridDespesa = document.getElementById('setoresDespesaGrid');
-      if (gridDespesa) {
-        setoresDespesa.forEach(s => renderizarCardSetor(s, gridDespesa));
-      }
+      if (gridDespesa) setoresDespesa.forEach(s => renderizarCardSetor(s, gridDespesa));
     }
   }
 
@@ -680,7 +662,6 @@
     grid.appendChild(div);
   }
 
-  // ======== FUNÇÃO MARCAR/DESMARCAR TODOS POR TIPO ========
   window.toggleTodosSetores = function(tipo) {
     const sets = getSetoresDoPeriodo(periodoAtual.id);
     const setsDoTipo = sets.filter(s => 
@@ -690,10 +671,8 @@
     const todosExcluidos = setsDoTipo.every(s => setoresExcluidosResumo.has(s.id));
     
     if (todosExcluidos) {
-      // Marcar todos (remover da exclusão)
       setsDoTipo.forEach(s => setoresExcluidosResumo.delete(s.id));
     } else {
-      // Desmarcar todos (adicionar na exclusão)
       setsDoTipo.forEach(s => setoresExcluidosResumo.add(s.id));
     }
     
@@ -728,12 +707,11 @@
         <div><strong>Itens:</strong> ${custos.qtdItens}</div>
       </div>`;
 
-    // Gráfico por CATEGORIA (agrupa itens da mesma categoria)
     if (itens.length > 0) {
       html += `
         <div style="margin-bottom: 1.5rem;">
           <h4 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Custos por Categoria</h4>
-          <div style="height: 300px; position: relative;">
+          <div style="height: 400px; position: relative;">
             <canvas id="graficoAnaliseSetor"></canvas>
           </div>
         </div>`;
@@ -798,7 +776,6 @@
     
     if (itens.length === 0) return;
     
-    // Agrupar por categoria
     const totaisPorCategoria = {};
     itens.forEach(i => {
       const catId = i.categoriald || 'sem_categoria';
@@ -816,7 +793,18 @@
     const dadosGrafico = Object.values(totaisPorCategoria).filter(c => c.total > 0);
     dadosGrafico.sort((a, b) => b.total - a.total);
     
-    // GRÁFICO VERTICAL (📊)
+    const wrapper = canvas.parentElement;
+    const btnFullOld = document.getElementById('btnFullscreenAnalise');
+    if (btnFullOld) btnFullOld.remove();
+    
+    const btnFull = document.createElement('button');
+    btnFull.id = 'btnFullscreenAnalise';
+    btnFull.className = 'btn-fullscreen-grafico';
+    btnFull.innerHTML = '<i class="fas fa-expand"></i> Tela Cheia';
+    btnFull.onclick = () => abrirGraficoFullscreen('analise');
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(btnFull);
+    
     window.graficoAnaliseSetorChart = new Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
@@ -824,19 +812,28 @@
         datasets: [{
           label: 'Valor Total',
           data: dadosGrafico.map(c => c.total),
-          backgroundColor: dadosGrafico.map(c => c.cor),
+          backgroundColor: dadosGrafico.map(c => c.cor + 'CC'),
           borderColor: dadosGrafico.map(c => c.cor),
-          borderWidth: 1,
-          borderRadius: 8,
+          borderWidth: 2,
+          borderRadius: 10,
           borderSkipped: false,
+          hoverBackgroundColor: dadosGrafico.map(c => c.cor),
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index',
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 12,
+            titleFont: { size: 14 },
+            bodyFont: { size: 13 },
             callbacks: {
               label: function(context) {
                 const value = context.parsed.y;
@@ -852,13 +849,13 @@
             beginAtZero: true,
             ticks: {
               callback: function(value) { return formatMoney(value); },
-              font: { size: 11 }
+              font: { size: 12, weight: '600' }
             },
-            grid: { color: '#f0f0f0' }
+            grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
             ticks: {
-              font: { size: 11 },
+              font: { size: 12, weight: '500' },
               maxRotation: 45,
               minRotation: 0
             },
@@ -868,6 +865,104 @@
       }
     });
   }
+
+  // ======== FUNÇÃO DE TELA CHEIA PARA GRÁFICOS ========
+  function abrirGraficoFullscreen(tipo) {
+    let modal = document.getElementById('modalGraficoFullscreen');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalGraficoFullscreen';
+      modal.className = 'modal-grafico-fullscreen';
+      modal.innerHTML = `
+        <div class="header-fullscreen">
+          <h3 id="fullscreenTitulo"><i class="fas fa-chart-bar"></i> Gráfico</h3>
+          <button class="btn-fechar-fullscreen" onclick="fecharGraficoFullscreen()">
+            <i class="fas fa-times"></i> Fechar
+          </button>
+        </div>
+        <div class="canvas-container-fullscreen">
+          <canvas id="graficoFullscreenCanvas"></canvas>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('modalGraficoFullscreen')?.classList.contains('active')) {
+          fecharGraficoFullscreen();
+        }
+      });
+    }
+    
+    modal.classList.add('active');
+    
+    let chartInstance, titulo;
+    if (tipo === 'home') {
+      chartInstance = window.graficoCategoriasHomeChart;
+      titulo = 'Custos por Categoria';
+      if (periodosSelecionadosResumo.size > 0) {
+        titulo += ' (Períodos Selecionados)';
+      }
+    } else {
+      chartInstance = window.graficoAnaliseSetorChart;
+      titulo = `Análise - ${setorAtual ? setorAtual.nome : 'Setor'}`;
+    }
+    
+    document.getElementById('fullscreenTitulo').innerHTML = `<i class="fas fa-chart-bar"></i> ${titulo}`;
+    
+    setTimeout(() => {
+      const canvas = document.getElementById('graficoFullscreenCanvas');
+      if (canvas && chartInstance) {
+        new Chart(canvas.getContext('2d'), {
+          type: chartInstance.config.type,
+          data: JSON.parse(JSON.stringify(chartInstance.config.data)),
+          options: {
+            ...chartInstance.config.options,
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+              y: {
+                ...chartInstance.config.options.scales.y,
+                ticks: {
+                  ...chartInstance.config.options.scales.y.ticks,
+                  font: { size: 14, weight: '600' }
+                }
+              },
+              x: {
+                ...chartInstance.config.options.scales.x,
+                ticks: {
+                  ...chartInstance.config.options.scales.x.ticks,
+                  font: { size: 14, weight: '500' }
+                }
+              }
+            },
+            plugins: {
+              ...chartInstance.config.options.plugins,
+              tooltip: {
+                ...chartInstance.config.options.plugins.tooltip,
+                titleFont: { size: 16 },
+                bodyFont: { size: 15 }
+              }
+            }
+          }
+        });
+      }
+    }, 100);
+  }
+
+  function fecharGraficoFullscreen() {
+    const modal = document.getElementById('modalGraficoFullscreen');
+    if (modal) {
+      modal.classList.remove('active');
+      const canvas = document.getElementById('graficoFullscreenCanvas');
+      if (canvas) {
+        const chart = Chart.getChart(canvas);
+        if (chart) chart.destroy();
+      }
+    }
+  }
+
+  window.abrirGraficoFullscreen = abrirGraficoFullscreen;
+  window.fecharGraficoFullscreen = fecharGraficoFullscreen;
 
   // ======== DEMAIS FUNÇÕES ========
   
