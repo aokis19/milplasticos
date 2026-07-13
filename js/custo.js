@@ -316,99 +316,331 @@
     atualizarBreadcrumb();
   }
 
-  // ======== RENDERIZAR PERÍODOS ========
-  function renderizarPeriodos() {
-    const container = document.getElementById('conteudoDinamico');
-    if (!container) return;
+ // ======== RENDERIZAR PERÍODOS (ATUALIZADO COM GRÁFICO DE CATEGORIAS) ========
+function renderizarPeriodos() {
+  const container = document.getElementById('conteudoDinamico');
+  if (!container) return;
 
-    const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
-    const periodosFiltrados = filtroAnoAtual === 'todos' 
-      ? [...periodos] 
-      : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
-    
-    periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-    const resumoConsolidado = calcularResumoConsolidado();
-    
-    let html = '';
-    
-    if (resumoConsolidado) {
-      html += `
-      <div class="resumo-consolidado">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-          <h3 style="margin:0;"><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
-          <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoConsolidado()"><i class="fas fa-chart-bar"></i> Ver Gráfico</button>
+  const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
+  const periodosFiltrados = filtroAnoAtual === 'todos' 
+    ? [...periodos] 
+    : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+  
+  periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
+  const resumoConsolidado = calcularResumoConsolidado();
+  
+  let html = '';
+  
+  // ====== CARDS DE RESUMO (TOP 4) ======
+  html += '<div class="stats-grid-home">';
+  
+  // Card 1: Total de Períodos
+  html += `
+    <div class="stat-card-home">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+        <i class="fas fa-calendar-alt"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">${periodosFiltrados.length}</div>
+        <div class="stat-label">Períodos${filtroAnoAtual !== 'todos' ? ' em ' + filtroAnoAtual : ''}</div>
+      </div>
+    </div>`;
+  
+  // Card 2: Total de Setores
+  const totalSetores = periodosFiltrados.reduce((acc, per) => acc + getSetoresDoPeriodo(per.id).length, 0);
+  html += `
+    <div class="stat-card-home">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+        <i class="fas fa-industry"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">${totalSetores}</div>
+        <div class="stat-label">Total de Setores</div>
+      </div>
+    </div>`;
+  
+  // Card 3: Custo Total
+  let custoTotalGeral = 0;
+  periodosFiltrados.forEach(per => {
+    const sets = getSetoresDoPeriodo(per.id);
+    sets.forEach(s => {
+      custoTotalGeral += calcularCustosSetor(s.id).totalCusto;
+    });
+  });
+  html += `
+    <div class="stat-card-home">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+        <i class="fas fa-dollar-sign"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">${formatMoney(custoTotalGeral)}</div>
+        <div class="stat-label">${configCampos.custoTotal}</div>
+      </div>
+    </div>`;
+  
+  // Card 4: Categorias
+  html += `
+    <div class="stat-card-home">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+        <i class="fas fa-tags"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">${categorias.length}</div>
+        <div class="stat-label">Categorias</div>
+      </div>
+    </div>`;
+  
+  html += '</div>'; // Fim stats-grid-home
+  
+  // ====== SEÇÃO DE GRÁFICO DE CATEGORIAS + LISTA ======
+  html += `
+    <div class="categorias-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="fas fa-chart-pie"></i> Custos por Categoria</span>
+          <button class="btn btn-outline btn-sm" onclick="window.abrirModalCategoria()">
+            <i class="fas fa-plus"></i> Nova Categoria
+          </button>
         </div>
-        <div class="periodos-selecionados-tags">
-          ${Array.from(periodosSelecionadosResumo).map(pid => {
-            const per = periodos.find(p => p.id === pid);
-            return per ? `<span class="periodo-tag">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
-          }).join('')}
-          ${periodosSelecionadosResumo.size > 0 ? '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar</span>' : ''}
+        <div class="categorias-content">
+          <div class="grafico-categorias-wrapper">
+            <div style="height: 300px; position: relative;">
+              <canvas id="graficoCategoriasHome"></canvas>
+            </div>
+          </div>
+          <div class="lista-categorias-wrapper">
+            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-light);">
+              <i class="fas fa-list"></i> Categorias Cadastradas
+            </h4>
+            <div id="listaCategoriasHome"></div>
+          </div>
         </div>
-        <div class="stats-grid-resumo">
-          <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div><div class="sr-label">Períodos</div></div>
-          <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdSetores}</div><div class="sr-label">Setores</div></div>
-          <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div><div class="sr-label">${configCampos.custoTotal}</div></div>
-          <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div><div class="sr-label">${configCampos.producaoKg}</div></div>
-          <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div><div class="sr-label">${configCampos.custoPorKg}</div></div>
-        </div>
-      </div>`;
-    }
-
+      </div>
+    </div>`;
+  
+  // ====== RESUMO CONSOLIDADO (se houver períodos selecionados) ======
+  if (resumoConsolidado) {
     html += `
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title"><i class="fas fa-calendar-alt"></i> Períodos</span>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-          <select id="filtroAno" onchange="window.mudarFiltroAno(this.value)" style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid #ddd;font-size:0.8rem;">
-            <option value="todos" ${filtroAnoAtual === 'todos' ? 'selected' : ''}>Todos</option>
-            ${anosDisponiveis.map(a => `<option value="${a}" ${filtroAnoAtual == a ? 'selected' : ''}>${a}</option>`).join('')}
-          </select>
-          <button class="btn btn-primary btn-sm" onclick="window.abrirModalPeriodo()"><i class="fas fa-plus"></i> Novo</button>
-        </div>
-      </div>`;
-
-    if (periodosFiltrados.length === 0) {
-      html += '<div style="text-align:center;padding:2rem;"><p>Nenhum período cadastrado.</p></div>';
-    } else {
-      html += '<div class="periodos-grid" id="periodosGrid"></div>';
-    }
-    html += '</div>';
-    container.innerHTML = html;
-
-    if (periodosFiltrados.length > 0) {
-      const grid = document.getElementById('periodosGrid');
-      if (!grid) return;
-
-      periodosFiltrados.forEach(per => {
-        const resumo = calcularResumoPeriodo(per.id, new Set());
-        const isSelecionado = periodosSelecionadosResumo.has(per.id);
-        const div = document.createElement('div');
-        div.className = 'periodo-card' + (isSelecionado ? ' selecionado-resumo' : '');
-        div.innerHTML = `
-          <div class="periodo-check">
-            <input type="checkbox" ${isSelecionado ? 'checked' : ''} onchange="window.togglePeriodoResumo('${per.id}', this.checked)">
-          </div>
-          <div class="acoes">
-            <button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal('${per.id}')" title="Ver Gráfico"><i class="fas fa-chart-bar"></i></button>
-            <button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo('${per.id}')" title="Copiar Período"><i class="fas fa-copy"></i></button>
-            <button class="btn btn-outline btn-xs btn-editar-periodo" data-id="${per.id}" title="Editar"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo('${per.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
-          </div>
-          <div class="periodo-titulo" onclick="window.selecionarPeriodo('${per.id}')">
-            <i class="fas fa-calendar-check"></i> ${getNomeMes(per.mes)}/${per.ano}
-          </div>
-          <div class="periodo-obs">${per.obs || 'Sem descrição'}</div>
-          <div class="periodo-stats">
-            <div class="periodo-stat"><span class="label">Setores</span><span class="valor">${resumo.qtdSetores}</span></div>
-            <div class="periodo-stat"><span class="label">${configCampos.custoTotal}</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
-            <div class="periodo-stat"><span class="label">${configCampos.producaoKg}</span><span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span></div>
-            <div class="periodo-stat"><span class="label">${configCampos.custoPorKg}</span><span class="valor money">${formatMoney(resumo.custoPorKgGeral)}/kg</span></div>
-          </div>`;
-        grid.appendChild(div);
-      });
-    }
+    <div class="resumo-consolidado">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+        <h3 style="margin:0;"><i class="fas fa-layer-group"></i> Resumo Consolidado</h3>
+        <button class="btn btn-purple btn-sm" onclick="window.abrirGraficoConsolidado()"><i class="fas fa-chart-bar"></i> Ver Gráfico</button>
+      </div>
+      <div class="periodos-selecionados-tags">
+        ${Array.from(periodosSelecionadosResumo).map(pid => {
+          const per = periodos.find(p => p.id === pid);
+          return per ? `<span class="periodo-tag">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
+        }).join('')}
+        ${periodosSelecionadosResumo.size > 0 ? '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()">Limpar</span>' : ''}
+      </div>
+      <div class="stats-grid-resumo">
+        <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdPeriodos}</div><div class="sr-label">Períodos</div></div>
+        <div class="stat-resumo"><div class="sr-valor">${resumoConsolidado.qtdSetores}</div><div class="sr-label">Setores</div></div>
+        <div class="stat-resumo"><div class="sr-valor">${formatMoney(resumoConsolidado.custoTotal)}</div><div class="sr-label">${configCampos.custoTotal}</div></div>
+        <div class="stat-resumo"><div class="sr-valor">${formatNumber(resumoConsolidado.producaoTotal, 0)} kg</div><div class="sr-label">${configCampos.producaoKg}</div></div>
+        <div class="stat-resumo destaque"><div class="sr-valor">${formatMoney(resumoConsolidado.custoPorKg)}/kg</div><div class="sr-label">${configCampos.custoPorKg}</div></div>
+      </div>
+    </div>`;
   }
+
+  // ====== LISTA DE PERÍODOS ======
+  html += `
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-calendar-alt"></i> Períodos</span>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <select id="filtroAno" onchange="window.mudarFiltroAno(this.value)" style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid #ddd;font-size:0.8rem;">
+          <option value="todos" ${filtroAnoAtual === 'todos' ? 'selected' : ''}>Todos</option>
+          ${anosDisponiveis.map(a => `<option value="${a}" ${filtroAnoAtual == a ? 'selected' : ''}>${a}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="window.abrirModalPeriodo()"><i class="fas fa-plus"></i> Novo</button>
+      </div>
+    </div>`;
+
+  if (periodosFiltrados.length === 0) {
+    html += '<div style="text-align:center;padding:2rem;"><p>Nenhum período cadastrado.</p></div>';
+  } else {
+    html += '<div class="periodos-grid" id="periodosGrid"></div>';
+  }
+  html += '</div>';
+  
+  container.innerHTML = html;
+
+  // Renderizar grid de períodos
+  if (periodosFiltrados.length > 0) {
+    const grid = document.getElementById('periodosGrid');
+    if (!grid) return;
+
+    periodosFiltrados.forEach(per => {
+      const resumo = calcularResumoPeriodo(per.id, new Set());
+      const isSelecionado = periodosSelecionadosResumo.has(per.id);
+      const div = document.createElement('div');
+      div.className = 'periodo-card' + (isSelecionado ? ' selecionado-resumo' : '');
+      div.innerHTML = `
+        <div class="periodo-check">
+          <input type="checkbox" ${isSelecionado ? 'checked' : ''} onchange="window.togglePeriodoResumo('${per.id}', this.checked)">
+        </div>
+        <div class="acoes">
+          <button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal('${per.id}')" title="Ver Gráfico"><i class="fas fa-chart-bar"></i></button>
+          <button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo('${per.id}')" title="Copiar Período"><i class="fas fa-copy"></i></button>
+          <button class="btn btn-outline btn-xs btn-editar-periodo" data-id="${per.id}" title="Editar"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo('${per.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+        </div>
+        <div class="periodo-titulo" onclick="window.selecionarPeriodo('${per.id}')">
+          <i class="fas fa-calendar-check"></i> ${getNomeMes(per.mes)}/${per.ano}
+        </div>
+        <div class="periodo-obs">${per.obs || 'Sem descrição'}</div>
+        <div class="periodo-stats">
+          <div class="periodo-stat"><span class="label">Setores</span><span class="valor">${resumo.qtdSetores}</span></div>
+          <div class="periodo-stat"><span class="label">${configCampos.custoTotal}</span><span class="valor money">${formatMoney(resumo.custoTotalGeral)}</span></div>
+          <div class="periodo-stat"><span class="label">${configCampos.producaoKg}</span><span class="valor">${formatNumber(resumo.producaoTotalGeral, 0)} kg</span></div>
+          <div class="periodo-stat"><span class="label">${configCampos.custoPorKg}</span><span class="valor money">${formatMoney(resumo.custoPorKgGeral)}/kg</span></div>
+        </div>`;
+      grid.appendChild(div);
+    });
+  }
+  
+  // Inicializar gráfico de categorias
+  setTimeout(() => {
+    inicializarGraficoCategorias();
+    renderizarListaCategorias();
+  }, 100);
+}
+
+  // ======== GRÁFICO DE CATEGORIAS NA HOME ========
+function inicializarGraficoCategorias() {
+  const canvas = document.getElementById('graficoCategoriasHome');
+  if (!canvas) return;
+  
+  // Destruir gráfico anterior se existir
+  if (window.graficoCategoriasHomeChart) {
+    window.graficoCategoriasHomeChart.destroy();
+  }
+  
+  // Calcular totais por categoria
+  const totaisCategorias = {};
+  categorias.forEach(cat => {
+    totaisCategorias[cat.id] = {
+      nome: cat.nome,
+      cor: cat.cor,
+      total: 0
+    };
+  });
+  
+  // Somar todos os itens de custo de todos os períodos (ou apenas dos períodos filtrados)
+  const periodosFiltrados = filtroAnoAtual === 'todos' 
+    ? periodos 
+    : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+  
+  periodosFiltrados.forEach(per => {
+    const sets = getSetoresDoPeriodo(per.id);
+    sets.forEach(s => {
+      const itens = itensCusto.filter(i => i.setorld === s.id);
+      itens.forEach(i => {
+        if (totaisCategorias[i.categoriald]) {
+          totaisCategorias[i.categoriald].total += i.valorTotal * (i.percentual || 100) / 100;
+        }
+      });
+    });
+  });
+  
+  // Filtrar apenas categorias com valor > 0
+  const dadosGrafico = Object.values(totaisCategorias).filter(cat => cat.total > 0);
+  
+  if (dadosGrafico.length === 0) {
+    canvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum custo registrado nas categorias.</p>';
+    return;
+  }
+  
+  // Criar gráfico
+  window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: dadosGrafico.map(c => c.nome),
+      datasets: [{
+        data: dadosGrafico.map(c => c.total),
+        backgroundColor: dadosGrafico.map(c => c.cor),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverBorderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 20,
+            usePointStyle: true,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
+              return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ======== RENDERIZAR LISTA DE CATEGORIAS ========
+function renderizarListaCategorias() {
+  const container = document.getElementById('listaCategoriasHome');
+  if (!container) return;
+  
+  if (categorias.length === 0) {
+    container.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma categoria cadastrada.</p>';
+    return;
+  }
+  
+  // Calcular totais por categoria
+  const totais = {};
+  categorias.forEach(cat => {
+    totais[cat.id] = {
+      ...cat,
+      total: 0
+    };
+  });
+  
+  const periodosFiltrados = filtroAnoAtual === 'todos' 
+    ? periodos 
+    : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+  
+  periodosFiltrados.forEach(per => {
+    const sets = getSetoresDoPeriodo(per.id);
+    sets.forEach(s => {
+      itensCusto.filter(i => i.setorld === s.id).forEach(i => {
+        if (totais[i.categoriald]) {
+          totais[i.categoriald].total += i.valorTotal * (i.percentual || 100) / 100;
+        }
+      });
+    });
+  });
+  
+  container.innerHTML = Object.values(totais).map(cat => `
+    <div class="categoria-item-home">
+      <div class="categoria-cor" style="background-color: ${cat.cor};" title="${cat.nome}"></div>
+      <div class="categoria-info">
+        <div class="categoria-nome">${cat.nome}</div>
+        <div class="categoria-total">${formatMoney(cat.total)}</div>
+      </div>
+      <button class="btn btn-xs btn-outline" onclick="window.editarCategoria('${cat.id}')" title="Editar categoria">
+        <i class="fas fa-edit"></i>
+      </button>
+    </div>
+  `).join('');
+}
 
   // ======== RENDERIZAR SETORES ========
   function renderizarSetores() {
@@ -763,26 +995,33 @@
   };
 
   window.salvarCategoria = async function() {
-    const nome = document.getElementById('categoriaNome').value.trim();
-    if (!nome) { alert('Digite o nome da categoria.'); return; }
-    const cor = document.getElementById('categoriaCor').value;
-    const editId = document.getElementById('categoriaEditId').value;
-    let categoria;
-    if (editId) { const idx = categorias.findIndex(c => c.id === editId); if (idx !== -1) { categoria = Object.assign({}, categorias[idx], { nome, cor }); categorias[idx] = categoria; } }
-    else { categoria = { id: 'cat_' + Date.now(), nome, cor }; categorias.push(categoria); }
-    await salvarFB('categorias', categoria);
-    window.fecharModal('modalCategoria');
-    renderizarTela();
-  };
+  const nome = document.getElementById('categoriaNome').value.trim();
+  if (!nome) { alert('Digite o nome da categoria.'); return; }
+  const cor = document.getElementById('categoriaCor').value;
+  const editId = document.getElementById('categoriaEditId').value;
+  let categoria;
+  if (editId) { 
+    const idx = categorias.findIndex(c => c.id === editId); 
+    if (idx !== -1) { 
+      categoria = Object.assign({}, categorias[idx], { nome, cor }); 
+      categorias[idx] = categoria; 
+    } 
+  }
+  else { 
+    categoria = { id: 'cat_' + Date.now(), nome, cor }; 
+    categorias.push(categoria); 
+  }
+  await salvarFB('categorias', categoria);
+  window.fecharModal('modalCategoria');
+  renderizarTela();
+};
 
-  window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
-
-  window.excluirCategoria = async function(id) {
-    if (!confirm('Excluir categoria?')) return;
-    categorias = categorias.filter(c => c.id !== id);
-    await excluirFB('categorias', id);
-    renderizarTela();
-  };
+window.excluirCategoria = async function(id) {
+  if (!confirm('Excluir categoria? Itens vinculados permanecerão, mas sem categoria associada.')) return;
+  categorias = categorias.filter(c => c.id !== id);
+  await excluirFB('categorias', id);
+  renderizarTela();
+};
 
   // ======== CRUD CUSTO FIXO ========
   window.abrirModalCustoFixo = function(id) {
