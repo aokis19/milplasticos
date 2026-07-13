@@ -1542,3 +1542,17 @@
 .grafico-actions .btn {
   font-size: 0.75rem;
 }
+/* Aumentar altura mínima dos gráficos */
+.grafico-categorias-wrapper {
+  min-height: 450px;
+}
+
+#graficoCategoriasHome {
+  max-width: 100%;
+  max-height: 450px;
+}
+
+#graficoAnaliseSetor {
+  max-width: 100%;
+  max-height: 400px;
+}
