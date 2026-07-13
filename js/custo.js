@@ -1,6 +1,7 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.7)
-// Gráficos: Home (categorias) | Análise (itens do setor)
+// CUSTO.JS - Central de Custos (Firestore Puro - v2.8)
+// Gráficos: Home (categorias - vertical) | Análise (categorias - vertical)
+// Seletores: Marcar/Desmarcar todos Custos e Despesas
 // Cópia de Período completa
 // ====================================================
 (function() {
@@ -211,16 +212,6 @@
     } catch (e) {}
   }
 
-  async function salvarConfigCamposFB() {
-    try {
-      await colecoes.configuracoes.doc('custos_configCampos').set({
-        config: configCampos,
-        ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      return true;
-    } catch (e) { return false; }
-  }
-
   window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
     if (!modal) return;
@@ -247,7 +238,10 @@
       const input = document.getElementById('config_' + key);
       if (input && input.value.trim()) configCampos[key] = input.value.trim();
     });
-    await salvarConfigCamposFB();
+    await colecoes.configuracoes.doc('custos_configCampos').set({
+      config: configCampos,
+      ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
     window.fecharModal('modalConfigCampos');
     renderizarTela();
   };
@@ -261,7 +255,7 @@
     atualizarBreadcrumb();
   }
 
-  // ======== HOME - COM GRÁFICO DE CATEGORIAS (HORIZONTAL) ========
+  // ======== HOME - GRÁFICO VERTICAL POR CATEGORIA ========
   function renderizarPeriodos() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -272,18 +266,15 @@
       : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
     
     periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-    const resumoConsolidado = calcularResumoConsolidado();
     
     let html = '';
     
     // Cards de resumo
-    html += '<div class="stats-grid-home">';
-    
-    let custoTotalGeral = 0;
     const periodosParaCalculo = periodosSelecionadosResumo.size > 0 
       ? periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id))
       : periodosFiltrados;
     
+    let custoTotalGeral = 0;
     periodosParaCalculo.forEach(per => {
       getSetoresDoPeriodo(per.id).forEach(s => {
         custoTotalGeral += calcularCustosSetor(s.id).totalCusto;
@@ -292,6 +283,7 @@
 
     const totalSetores = periodosParaCalculo.reduce((acc, per) => acc + getSetoresDoPeriodo(per.id).length, 0);
     
+    html += '<div class="stats-grid-home">';
     html += `
       <div class="stat-card-home">
         <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
@@ -329,10 +321,9 @@
           <div class="stat-label">Categorias</div>
         </div>
       </div>`;
-    
     html += '</div>';
     
-    // Seção do gráfico de categorias + Lista
+    // Gráfico de categorias
     html += `
       <div class="categorias-section">
         <div class="card">
@@ -349,8 +340,8 @@
               Array.from(periodosSelecionadosResumo).map(pid => {
                 const per = periodos.find(p => p.id === pid);
                 return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
-              }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar seleção</span>'
-              : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar o gráfico</span>'
+              }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
+              : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
             }
           </div>
           <div class="categorias-content">
@@ -431,7 +422,7 @@
     }, 100);
   }
 
-  // ======== GRÁFICO DE CATEGORIAS NA HOME (HORIZONTAL) ========
+  // ======== GRÁFICO VERTICAL (📊) - CATEGORIAS NA HOME ========
   function inicializarGraficoCategorias() {
     const canvas = document.getElementById('graficoCategoriasHome');
     if (!canvas) return;
@@ -445,7 +436,6 @@
       totaisCategorias[cat.id] = { nome: cat.nome, cor: cat.cor, total: 0 };
     });
     
-    // Usar períodos selecionados ou todos
     const periodosParaGrafico = periodosSelecionadosResumo.size > 0
       ? periodos.filter(p => periodosSelecionadosResumo.has(p.id))
       : (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
@@ -463,13 +453,13 @@
     const dadosGrafico = Object.values(totaisCategorias).filter(cat => cat.total > 0);
     
     if (dadosGrafico.length === 0) {
-      canvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum custo registrado nas categorias para os períodos selecionados.</p>';
+      canvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum custo registrado.</p>';
       return;
     }
     
-    // Ordenar por valor (maior para menor)
     dadosGrafico.sort((a, b) => b.total - a.total);
     
+    // GRÁFICO VERTICAL (📊)
     window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
@@ -485,7 +475,6 @@
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -493,7 +482,7 @@
           tooltip: {
             callbacks: {
               label: function(context) {
-                const value = context.parsed.x;
+                const value = context.parsed.y;
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                 const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
                 return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
@@ -502,7 +491,7 @@
           }
         },
         scales: {
-          x: {
+          y: {
             beginAtZero: true,
             ticks: {
               callback: function(value) { return formatMoney(value); },
@@ -510,8 +499,12 @@
             },
             grid: { color: '#f0f0f0' }
           },
-          y: {
-            ticks: { font: { size: 11 } },
+          x: {
+            ticks: {
+              font: { size: 11 },
+              maxRotation: 45,
+              minRotation: 0
+            },
             grid: { display: false }
           }
         }
@@ -524,7 +517,7 @@
     if (!container) return;
     
     if (categorias.length === 0) {
-      container.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma categoria cadastrada.</p>';
+      container.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma categoria.</p>';
       return;
     }
     
@@ -554,14 +547,14 @@
           <div class="categoria-nome">${cat.nome}</div>
           <div class="categoria-total">${formatMoney(cat.total)}</div>
         </div>
-        <button class="btn btn-xs btn-outline" onclick="window.editarCategoria('${cat.id}')" title="Editar categoria">
+        <button class="btn btn-xs btn-outline" onclick="window.editarCategoria('${cat.id}')" title="Editar">
           <i class="fas fa-edit"></i>
         </button>
       </div>
     `).join('');
   }
 
-  // ======== SETORES - SEM GRÁFICO ========
+  // ======== SETORES - COM SELETOR MARCAR/DESMARCAR TODOS ========
   function renderizarSetores() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -573,6 +566,10 @@
 
     const sets = getSetoresDoPeriodo(periodoAtual.id);
     const resumo = calcularResumoPeriodo(periodoAtual.id);
+    
+    // Separar setores por tipo
+    const setoresCusto = sets.filter(s => s.tipo !== 'despesa');
+    const setoresDespesa = sets.filter(s => s.tipo === 'despesa');
     
     let html = `
     <div class="card">
@@ -593,7 +590,37 @@
     if (sets.length === 0) {
       html += '<p style="text-align:center;padding:1rem;">Nenhum setor cadastrado.</p>';
     } else {
-      html += '<div class="setores-grid" id="setoresGrid"></div>';
+      // Seção CUSTOS com seletor
+      if (setoresCusto.length > 0) {
+        const todosCustoExcluidos = setoresCusto.every(s => setoresExcluidosResumo.has(s.id));
+        html += `
+          <div class="setor-secao" style="margin-bottom:1.5rem;">
+            <div class="secao-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+              <span><i class="fas fa-coins" style="color:#0d904f;"></i> 💰 <strong>CUSTOS</strong> <span class="badge badge-custo">${setoresCusto.length}</span></span>
+              <button class="btn btn-xs btn-outline" onclick="window.toggleTodosSetores('custo')" style="font-size:0.7rem;">
+                <i class="fas ${todosCustoExcluidos ? 'fa-check-square' : 'fa-square'}"></i> 
+                ${todosCustoExcluidos ? 'Marcar Todos' : 'Desmarcar Todos'}
+              </button>
+            </div>
+            <div class="setores-grid" id="setoresCustoGrid"></div>
+          </div>`;
+      }
+      
+      // Seção DESPESAS com seletor
+      if (setoresDespesa.length > 0) {
+        const todosDespesaExcluidos = setoresDespesa.every(s => setoresExcluidosResumo.has(s.id));
+        html += `
+          <div class="setor-secao" style="margin-bottom:1.5rem;">
+            <div class="secao-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+              <span><i class="fas fa-receipt" style="color:#c62828;"></i> 📝 <strong>DESPESAS</strong> <span class="badge badge-despesa">${setoresDespesa.length}</span></span>
+              <button class="btn btn-xs btn-outline" onclick="window.toggleTodosSetores('despesa')" style="font-size:0.7rem;">
+                <i class="fas ${todosDespesaExcluidos ? 'fa-check-square' : 'fa-square'}"></i> 
+                ${todosDespesaExcluidos ? 'Marcar Todos' : 'Desmarcar Todos'}
+              </button>
+            </div>
+            <div class="setores-grid" id="setoresDespesaGrid"></div>
+          </div>`;
+      }
     }
 
     html += `
@@ -605,44 +632,75 @@
 
     container.innerHTML = html;
 
-    if (sets.length > 0) {
-      const grid = document.getElementById('setoresGrid');
-      if (!grid) return;
-
-      sets.forEach(s => {
-        const custos = calcularCustosSetor(s.id);
-        const isExcluido = setoresExcluidosResumo.has(s.id);
-        const tipoClass = s.tipo === 'despesa' ? 'tipo-despesa' : 'tipo-custo';
-        const div = document.createElement('div');
-        div.className = `setor-card ${tipoClass} ${isExcluido ? 'excluido-resumo' : ''} ${s.produtoFinal ? 'produto-final' : ''}`;
-        div.innerHTML = `
-          <div class="setor-toggle">
-            <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)" title="Incluir/Excluir do resumo">
-          </div>
-          <div class="setor-acoes">
-            <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')" title="Editar"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
-          </div>
-          <div onclick="window.selecionarSetor('${s.id}')" style="cursor:pointer;">
-            <div class="setor-nome">
-              ${s.nome}
-              <span class="badge ${s.tipo === 'despesa' ? 'badge-despesa' : 'badge-custo'}">${s.tipo === 'despesa' ? 'Despesa' : 'Custo'}</span>
-              ${s.produtoFinal ? '<span class="badge badge-orange">⭐ Produto Final</span>' : ''}
-            </div>
-            <div class="setor-desc">${s.descricao || 'Sem descrição'}</div>
-            <div class="setor-info">
-              <div><span class="info-label">${configCampos.custoTotal}</span><span class="info-valor money">${formatMoney(custos.totalCusto)}</span></div>
-              <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
-              <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
-              <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
-            </div>
-          </div>`;
-        grid.appendChild(div);
-      });
+    // Renderizar cards de CUSTO
+    if (setoresCusto.length > 0) {
+      const gridCusto = document.getElementById('setoresCustoGrid');
+      if (gridCusto) {
+        setoresCusto.forEach(s => renderizarCardSetor(s, gridCusto));
+      }
+    }
+    
+    // Renderizar cards de DESPESA
+    if (setoresDespesa.length > 0) {
+      const gridDespesa = document.getElementById('setoresDespesaGrid');
+      if (gridDespesa) {
+        setoresDespesa.forEach(s => renderizarCardSetor(s, gridDespesa));
+      }
     }
   }
 
-  // ======== ANÁLISE - COM GRÁFICO DE ITENS DO SETOR ========
+  function renderizarCardSetor(s, grid) {
+    const custos = calcularCustosSetor(s.id);
+    const isExcluido = setoresExcluidosResumo.has(s.id);
+    const tipoClass = s.tipo === 'despesa' ? 'tipo-despesa' : 'tipo-custo';
+    const div = document.createElement('div');
+    div.className = `setor-card ${tipoClass} ${isExcluido ? 'excluido-resumo' : ''} ${s.produtoFinal ? 'produto-final' : ''}`;
+    div.innerHTML = `
+      <div class="setor-toggle">
+        <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)" title="Incluir/Excluir do resumo">
+      </div>
+      <div class="setor-acoes">
+        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+      </div>
+      <div onclick="window.selecionarSetor('${s.id}')" style="cursor:pointer;">
+        <div class="setor-nome">
+          ${s.nome}
+          <span class="badge ${s.tipo === 'despesa' ? 'badge-despesa' : 'badge-custo'}">${s.tipo === 'despesa' ? 'Despesa' : 'Custo'}</span>
+          ${s.produtoFinal ? '<span class="badge badge-orange">⭐ Produto Final</span>' : ''}
+        </div>
+        <div class="setor-desc">${s.descricao || 'Sem descrição'}</div>
+        <div class="setor-info">
+          <div><span class="info-label">${configCampos.custoTotal}</span><span class="info-valor money">${formatMoney(custos.totalCusto)}</span></div>
+          <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
+          <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
+          <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
+        </div>
+      </div>`;
+    grid.appendChild(div);
+  }
+
+  // ======== FUNÇÃO MARCAR/DESMARCAR TODOS POR TIPO ========
+  window.toggleTodosSetores = function(tipo) {
+    const sets = getSetoresDoPeriodo(periodoAtual.id);
+    const setsDoTipo = sets.filter(s => 
+      tipo === 'custo' ? s.tipo !== 'despesa' : s.tipo === 'despesa'
+    );
+    
+    const todosExcluidos = setsDoTipo.every(s => setoresExcluidosResumo.has(s.id));
+    
+    if (todosExcluidos) {
+      // Marcar todos (remover da exclusão)
+      setsDoTipo.forEach(s => setoresExcluidosResumo.delete(s.id));
+    } else {
+      // Desmarcar todos (adicionar na exclusão)
+      setsDoTipo.forEach(s => setoresExcluidosResumo.add(s.id));
+    }
+    
+    renderizarTela();
+  };
+
+  // ======== ANÁLISE - GRÁFICO VERTICAL POR CATEGORIA ========
   function renderizarAnalise() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -670,11 +728,11 @@
         <div><strong>Itens:</strong> ${custos.qtdItens}</div>
       </div>`;
 
-    // Gráfico de itens do setor
+    // Gráfico por CATEGORIA (agrupa itens da mesma categoria)
     if (itens.length > 0) {
       html += `
         <div style="margin-bottom: 1.5rem;">
-          <h4 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Custos por Item</h4>
+          <h4 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Custos por Categoria</h4>
           <div style="height: 300px; position: relative;">
             <canvas id="graficoAnaliseSetor"></canvas>
           </div>
@@ -722,13 +780,12 @@
     html += `<div style="margin-top:1rem;"><button class="btn btn-teal btn-sm" onclick="window.abrirModalProducao()"><i class="fas fa-plus"></i> Registrar Produção</button></div></div>`;
     container.innerHTML = html;
 
-    // Inicializar gráfico de análise
     if (itens.length > 0) {
       setTimeout(() => inicializarGraficoAnaliseSetor(), 100);
     }
   }
 
-  // ======== GRÁFICO DE ITENS NA ANÁLISE DO SETOR ========
+  // ======== GRÁFICO VERTICAL (📊) - ANÁLISE POR CATEGORIA ========
   function inicializarGraficoAnaliseSetor() {
     const canvas = document.getElementById('graficoAnaliseSetor');
     if (!canvas) return;
@@ -741,33 +798,40 @@
     
     if (itens.length === 0) return;
     
-    const dadosItens = itens.map(i => {
-      const cat = categorias.find(c => c.id === i.categoriald);
-      return {
-        nome: i.nome,
-        valor: i.valorTotal * (i.percentual || 100) / 100,
-        cor: cat ? cat.cor : '#6b7280'
-      };
+    // Agrupar por categoria
+    const totaisPorCategoria = {};
+    itens.forEach(i => {
+      const catId = i.categoriald || 'sem_categoria';
+      if (!totaisPorCategoria[catId]) {
+        const cat = categorias.find(c => c.id === catId);
+        totaisPorCategoria[catId] = {
+          nome: cat ? cat.nome : 'Sem Categoria',
+          cor: cat ? cat.cor : '#6b7280',
+          total: 0
+        };
+      }
+      totaisPorCategoria[catId].total += i.valorTotal * (i.percentual || 100) / 100;
     });
     
-    dadosItens.sort((a, b) => b.valor - a.valor);
+    const dadosGrafico = Object.values(totaisPorCategoria).filter(c => c.total > 0);
+    dadosGrafico.sort((a, b) => b.total - a.total);
     
+    // GRÁFICO VERTICAL (📊)
     window.graficoAnaliseSetorChart = new Chart(canvas.getContext('2d'), {
       type: 'bar',
       data: {
-        labels: dadosItens.map(i => i.nome),
+        labels: dadosGrafico.map(c => c.nome),
         datasets: [{
-          label: 'Valor Rateado',
-          data: dadosItens.map(i => i.valor),
-          backgroundColor: dadosItens.map(i => i.cor),
-          borderColor: dadosItens.map(i => i.cor),
+          label: 'Valor Total',
+          data: dadosGrafico.map(c => c.total),
+          backgroundColor: dadosGrafico.map(c => c.cor),
+          borderColor: dadosGrafico.map(c => c.cor),
           borderWidth: 1,
           borderRadius: 8,
           borderSkipped: false,
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -775,13 +839,16 @@
           tooltip: {
             callbacks: {
               label: function(context) {
-                return ` ${context.label}: ${formatMoney(context.parsed.x)}`;
+                const value = context.parsed.y;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
+                return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
               }
             }
           }
         },
         scales: {
-          x: {
+          y: {
             beginAtZero: true,
             ticks: {
               callback: function(value) { return formatMoney(value); },
@@ -789,8 +856,12 @@
             },
             grid: { color: '#f0f0f0' }
           },
-          y: {
-            ticks: { font: { size: 11 } },
+          x: {
+            ticks: {
+              font: { size: 11 },
+              maxRotation: 45,
+              minRotation: 0
+            },
             grid: { display: false }
           }
         }
@@ -798,7 +869,7 @@
     });
   }
 
-  // ======== DEMAIS FUNÇÕES (MANTIDAS IGUAIS) ========
+  // ======== DEMAIS FUNÇÕES ========
   
   function renderizarMateriais() {
     const container = document.getElementById('conteudoDinamico');
@@ -866,7 +937,7 @@
     renderizarTela();
   };
 
-  // CRUD Períodos
+  // ======== CRUD PERÍODOS ========
   window.abrirModalPeriodo = function(id) {
     const modal = document.getElementById('modalPeriodo');
     if (!modal) return;
@@ -928,7 +999,7 @@
     } catch (error) { console.error('Erro ao excluir período:', error); alert('Erro ao excluir período.'); }
   };
 
-  // COPIAR PERÍODO
+  // ======== COPIAR PERÍODO ========
   window.abrirCopiarPeriodo = function(id) {
     const p = periodos.find(x => x.id === id);
     if (!p) return;
@@ -1010,7 +1081,7 @@
     }
   };
 
-  // CRUD Setores
+  // ======== CRUD SETORES ========
   window.abrirModalSetor = function(id) {
     if (!periodoAtual) { alert('Selecione um período!'); return; }
     const modal = document.getElementById('modalSetor');
@@ -1070,7 +1141,7 @@
     } catch (error) { console.error('Erro ao excluir setor:', error); alert('Erro ao excluir setor.'); }
   };
 
-  // CRUD Categorias
+  // ======== CRUD CATEGORIAS ========
   window.abrirModalCategoria = function(id) {
     const modal = document.getElementById('modalCategoria');
     if (!modal) return;
@@ -1104,7 +1175,7 @@
     renderizarTela();
   };
 
-  // CRUD Custo Fixo
+  // ======== CRUD CUSTO FIXO ========
   window.abrirModalCustoFixo = function(id) {
     const modal = document.getElementById('modalCustoFixo');
     if (!modal) return;
@@ -1140,7 +1211,7 @@
     renderizarTela();
   };
 
-  // CRUD Itens de Custo
+  // ======== CRUD ITENS DE CUSTO ========
   window.abrirModalItemCusto = function(id) {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalItemCusto');
@@ -1201,8 +1272,8 @@
     document.getElementById('areaItemNormal').style.display = tipo === 'normal' ? 'block' : 'none';
     document.getElementById('areaItensFixos').style.display = tipo === 'fixo' ? 'block' : 'none';
     document.getElementById('areaItemFixoDetalhe').style.display = tipo === 'fixo' && custoFixoSelecionadoId ? 'block' : 'none';
-    document.getElementById('tabNormal').classList.toggle('active', tipo === 'normal');
-    document.getElementById('tabFixo').classList.toggle('active', tipo === 'fixo');
+    if (document.getElementById('tabNormal')) document.getElementById('tabNormal').classList.toggle('active', tipo === 'normal');
+    if (document.getElementById('tabFixo')) document.getElementById('tabFixo').classList.toggle('active', tipo === 'fixo');
   }
 
   window.mudarTipoItem = mudarTipoItem;
@@ -1229,7 +1300,7 @@
     renderizarTela();
   };
 
-  // CRUD Produção
+  // ======== CRUD PRODUÇÃO ========
   window.abrirModalProducao = function() {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalProducao');
@@ -1259,7 +1330,7 @@
     renderizarTela();
   };
 
-  // CRUD Material
+  // ======== CRUD MATERIAL ========
   window.abrirModalMaterial = function(id) {
     const modal = document.getElementById('modalMaterial');
     if (!modal) return;
@@ -1289,7 +1360,7 @@
   };
   window.verHistoricoMaterial = function(id) { nivelAtual = 'historicoMaterial'; renderizarTela(); };
 
-  // Gerar Custo Material
+  // ======== GERAR CUSTO MATERIAL ========
   window.abrirGerarCustoMaterial = function() {
     const modal = document.getElementById('modalGerarCusto');
     if (!modal) return;
@@ -1345,7 +1416,7 @@
   window.salvarCustoMaterial = async function() { alert('Custo de material salvo com sucesso!'); window.fecharModal('modalGerarCusto'); };
   window.gerarPDFCustoMaterial = function() { alert('Função de exportação PDF em desenvolvimento.'); };
 
-  // Gráficos modais
+  // ======== GRÁFICOS MODAIS ========
   window.abrirGraficoMensal = function(periodoId) {
     if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
     const modal = document.getElementById('modalGraficoMensal');
@@ -1400,7 +1471,7 @@
   window.exportarGraficoMensal = function() { const c = document.getElementById('graficoMensalCanvas'); if(c){ const a=document.createElement('a'); a.download='grafico.png'; a.href=c.toDataURL(); a.click(); } };
   window.exportarGraficoConsolidado = function() { const c = document.getElementById('graficoConsolidadoCanvas'); if(c){ const a=document.createElement('a'); a.download='grafico.png'; a.href=c.toDataURL(); a.click(); } };
 
-  // Filtros
+  // ======== FILTROS ========
   window.mudarFiltroAno = function(v) { filtroAnoAtual = v; periodosSelecionadosResumo.clear(); renderizarTela(); };
   window.togglePeriodoResumo = function(pid, checked) { if (checked) periodosSelecionadosResumo.add(pid); else periodosSelecionadosResumo.delete(pid); renderizarTela(); };
   window.removePeriodoResumo = function(pid) { periodosSelecionadosResumo.delete(pid); renderizarTela(); };
@@ -1441,16 +1512,15 @@
     if (loadingEl) loadingEl.classList.add('active');
     try {
       if (!db) throw new Error('Firebase não disponível');
-      await carregarConfigCampos();
-      adicionarListeners();
       await carregarDadosFirebase();
+      adicionarListeners();
       atualizarStatusFirebase();
       renderizarTela();
       console.log('✅ Sistema inicializado');
     } catch (error) {
       console.error('❌ Erro:', error);
       const container = document.getElementById('conteudoDinamico');
-      if (container) container.innerHTML = `<div style="text-align:center;padding:3rem;"><i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#e74c3c;"></i><h3>Erro ao carregar</h3><p>${error.message}</p><button class="btn btn-primary" onclick="location.reload()"><i class="fas fa-sync"></i> Tentar Novamente</button></div>`;
+      if (container) container.innerHTML = `<div style="text-align:center;padding:3rem;"><h3>Erro ao carregar</h3><p>${error.message}</p><button class="btn btn-primary" onclick="location.reload()">Tentar Novamente</button></div>`;
     } finally {
       if (loadingEl) loadingEl.classList.remove('active');
     }
