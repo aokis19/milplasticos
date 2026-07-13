@@ -552,47 +552,69 @@ function inicializarGraficoCategorias() {
     return;
   }
   
-  // Criar gráfico
-  window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: dadosGrafico.map(c => c.nome),
-      datasets: [{
-        data: dadosGrafico.map(c => c.total),
-        backgroundColor: dadosGrafico.map(c => c.cor),
-        borderColor: '#ffffff',
-        borderWidth: 2,
-        hoverBorderWidth: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            padding: 20,
-            usePointStyle: true,
-            font: {
-              size: 12
-            }
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const value = context.parsed;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
-              return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
-            }
+  // Criar gráfico de BARRAS (TORRE)
+window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
+  type: 'bar',  // ← TIPO BARRA (TORRE)
+  data: {
+    labels: dadosGrafico.map(c => c.nome),
+    datasets: [{
+      label: 'Valor Total',
+      data: dadosGrafico.map(c => c.total),
+      backgroundColor: dadosGrafico.map(c => c.cor),
+      borderColor: dadosGrafico.map(c => c.cor),
+      borderWidth: 1,
+      borderRadius: 8,  // Bordas arredondadas nas barras
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false  // Remove a legenda (as cores já estão nas barras)
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const value = context.parsed.y;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
+            return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
           }
         }
       }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return formatMoney(value);
+          },
+          font: {
+            size: 11
+          }
+        },
+        grid: {
+          color: '#f0f0f0'
+        }
+      },
+      x: {
+        ticks: {
+          font: {
+            size: 11
+          },
+          maxRotation: 45,
+          minRotation: 0
+        },
+        grid: {
+          display: false
+        }
+      }
     }
-  });
-}
+  }
+});
 
 // ======== RENDERIZAR LISTA DE CATEGORIAS ========
 function renderizarListaCategorias() {
