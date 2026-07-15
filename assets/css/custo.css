@@ -1532,3 +1532,127 @@
 .grafico-actions .btn {
   font-size: 0.75rem;
 }
+/* ====== CARDS DE RESUMO MELHORADOS ====== */
+.stats-grid-home {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card-home {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  cursor: default;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efeito de brilho no topo */
+.stat-card-home::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 16px 16px 0 0;
+}
+
+.stat-card-home:nth-child(1)::before {
+  background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.stat-card-home:nth-child(2)::before {
+  background: linear-gradient(90deg, #4facfe, #00f2fe);
+}
+
+.stat-card-home:nth-child(3)::before {
+  background: linear-gradient(90deg, #43e97b, #38f9d7);
+}
+
+.stat-card-home:nth-child(4)::before {
+  background: linear-gradient(90deg, #f093fb, #f5576c);
+}
+
+.stat-card-home:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-card-home .stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.stat-card-home .stat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-card-home .stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+}
+
+.stat-card-home .stat-label {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
+/* Destaque para o custo por KG */
+.stat-card-home.destaque-kg {
+  border: 2px solid #43e97b;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);
+}
+
+.stat-card-home.destaque-kg .stat-value {
+  color: #0d904f;
+  font-size: 1.8rem;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .stats-grid-home {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.8rem;
+  }
+  
+  .stat-card-home {
+    padding: 1rem;
+    gap: 0.8rem;
+  }
+  
+  .stat-card-home .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+  
+  .stat-card-home .stat-value {
+    font-size: 1.3rem;
+  }
+}
