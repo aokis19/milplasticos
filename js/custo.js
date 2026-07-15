@@ -229,70 +229,77 @@
   }
 
   // ======== HOME - GRÁFICO VERTICAL POR CATEGORIA ========
-  function renderizarPeriodos() {
-    const container = document.getElementById('conteudoDinamico');
-    if (!container) return;
-
-    const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
-    const periodosFiltrados = filtroAnoAtual === 'todos' 
-      ? [...periodos] 
-      : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+    // ====== CARDS DE RESUMO - TOTAL PRODUZIDO, TOTAL GASTO, CUSTO KG ======
+    let totalProduzidoGeral = 0;
+    let totalGastoGeral = 0;
+    let totalSetoresCount = 0;
     
-    periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-    
-    let html = '';
-    
-    const periodosParaCalculo = periodosSelecionadosResumo.size > 0 
-      ? periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id))
-      : periodosFiltrados;
-    
-    let custoTotalGeral = 0;
     periodosParaCalculo.forEach(per => {
-      getSetoresDoPeriodo(per.id).forEach(s => {
-        custoTotalGeral += calcularCustosSetor(s.id).totalCusto;
+      const sets = getSetoresDoPeriodo(per.id);
+      totalSetoresCount += sets.length;
+      sets.forEach(s => {
+        const custosSetor = calcularCustosSetor(s.id);
+        totalGastoGeral += custosSetor.totalCusto;
+        totalProduzidoGeral += custosSetor.totalKg;
       });
     });
-
-    const totalSetores = periodosParaCalculo.reduce((acc, per) => acc + getSetoresDoPeriodo(per.id).length, 0);
+    
+    const custoPorKgCalculado = totalProduzidoGeral > 0 ? totalGastoGeral / totalProduzidoGeral : 0;
     
     html += '<div class="stats-grid-home">';
+    
+    // Card 1: Períodos Selecionados
     html += `
       <div class="stat-card-home">
         <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-          <i class="fas fa-calendar-alt"></i>
+          <i class="fas fa-calendar-check"></i>
         </div>
         <div class="stat-info">
+          <div class="stat-label">Períodos</div>
           <div class="stat-value">${periodosParaCalculo.length}</div>
-          <div class="stat-label">Períodos Selecionados</div>
-        </div>
-      </div>
-      <div class="stat-card-home">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
-          <i class="fas fa-industry"></i>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">${totalSetores}</div>
-          <div class="stat-label">Total de Setores</div>
-        </div>
-      </div>
-      <div class="stat-card-home">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
-          <i class="fas fa-dollar-sign"></i>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">${formatMoney(custoTotalGeral)}</div>
-          <div class="stat-label">${configCampos.custoTotal}</div>
-        </div>
-      </div>
-      <div class="stat-card-home">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
-          <i class="fas fa-tags"></i>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">${categorias.length}</div>
-          <div class="stat-label">Categorias</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">${totalSetoresCount} setores</div>
         </div>
       </div>`;
+    
+    // Card 2: Total Produzido (KG)
+    html += `
+      <div class="stat-card-home">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+          <i class="fas fa-weight-hanging"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Total Produzido</div>
+          <div class="stat-value">${formatNumber(totalProduzidoGeral, 0)} kg</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">Produção acumulada</div>
+        </div>
+      </div>`;
+    
+    // Card 3: Total Gasto (R$)
+    html += `
+      <div class="stat-card-home">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+          <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Total Gasto</div>
+          <div class="stat-value">${formatMoney(totalGastoGeral)}</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">${configCampos.custoTotal}</div>
+        </div>
+      </div>`;
+    
+    // Card 4: Custo por KG (DESTAQUE)
+    html += `
+      <div class="stat-card-home" style="border: 2px solid #43e97b; background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+          <i class="fas fa-calculator"></i>
+        </div>
+        <div class="stat-info">
+          <div class="stat-label">Custo por KG</div>
+          <div class="stat-value" style="color:#0d904f;">${formatMoney(custoPorKgCalculado)}/kg</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">Gasto ÷ Produzido</div>
+        </div>
+      </div>`;
+    
     html += '</div>';
     
     html += `
