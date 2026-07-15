@@ -582,11 +582,47 @@
           <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
         </div>
       </div>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;background:#f9f9f9;padding:0.75rem;border-radius:8px;">
-        <span><strong>Setores:</strong> ${resumo.qtdSetores}</span>
-        <span><strong>${configCampos.custoTotal}:</strong> ${formatMoney(resumo.custoTotalGeral)}</span>
-        <span><strong>${configCampos.producaoKg}:</strong> ${formatNumber(resumo.producaoTotalGeral, 0)} kg</span>
-        <span><strong>${configCampos.custoPorKg} Médio:</strong> ${formatMoney(resumo.custoPorKgGeral)}/kg</span>
+            <div class="stats-grid-home" style="margin-bottom:1.5rem;">
+        <div class="stat-card-home">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <i class="fas fa-industry"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">Setores</div>
+            <div class="stat-value">${resumo.qtdSetores}</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Cadastrados</div>
+          </div>
+        </div>
+        <div class="stat-card-home">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+            <i class="fas fa-weight-hanging"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">${configCampos.producaoKg}</div>
+            <div class="stat-value">${formatNumber(resumo.producaoTotalGeral, 0)} kg</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Total produzido</div>
+          </div>
+        </div>
+        <div class="stat-card-home">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">${configCampos.custoTotal}</div>
+            <div class="stat-value">${formatMoney(resumo.custoTotalGeral)}</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Total gasto</div>
+          </div>
+        </div>
+        <div class="stat-card-home" style="border: 2px solid #43e97b; background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);">
+          <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+            <i class="fas fa-calculator"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-label">${configCampos.custoPorKg} Médio</div>
+            <div class="stat-value" style="color:#0d904f;">${formatMoney(resumo.custoPorKgGeral)}/kg</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Gasto ÷ Produzido</div>
+          </div>
+        </div>
       </div>`;
 
     if (sets.length === 0) {
