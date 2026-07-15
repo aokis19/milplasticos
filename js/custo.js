@@ -3,6 +3,7 @@
 // Gráficos melhorados com Tela Cheia
 // Seletores: Marcar/Desmarcar todos Custos e Despesas
 // Cópia de Período completa
+// Cards: Períodos, Total Produzido, Total Gasto, Custo por KG
 // ====================================================
 (function() {
   'use strict';
@@ -228,8 +229,25 @@
     atualizarBreadcrumb();
   }
 
-  // ======== HOME - GRÁFICO VERTICAL POR CATEGORIA ========
-    // ====== CARDS DE RESUMO - TOTAL PRODUZIDO, TOTAL GASTO, CUSTO KG ======
+  // ======== HOME - COM CARDS E GRÁFICO ========
+  function renderizarPeriodos() {
+    const container = document.getElementById('conteudoDinamico');
+    if (!container) return;
+
+    const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
+    const periodosFiltrados = filtroAnoAtual === 'todos' 
+      ? [...periodos] 
+      : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+    
+    periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
+    
+    const periodosParaCalculo = periodosSelecionadosResumo.size > 0 
+      ? periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id))
+      : periodosFiltrados;
+    
+    let html = '';
+    
+    // ====== CARDS DE RESUMO ======
     let totalProduzidoGeral = 0;
     let totalGastoGeral = 0;
     let totalSetoresCount = 0;
@@ -248,7 +266,6 @@
     
     html += '<div class="stats-grid-home">';
     
-    // Card 1: Períodos Selecionados
     html += `
       <div class="stat-card-home">
         <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
@@ -261,7 +278,6 @@
         </div>
       </div>`;
     
-    // Card 2: Total Produzido (KG)
     html += `
       <div class="stat-card-home">
         <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
@@ -274,7 +290,6 @@
         </div>
       </div>`;
     
-    // Card 3: Total Gasto (R$)
     html += `
       <div class="stat-card-home">
         <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
@@ -287,7 +302,6 @@
         </div>
       </div>`;
     
-    // Card 4: Custo por KG (DESTAQUE)
     html += `
       <div class="stat-card-home" style="border: 2px solid #43e97b; background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);">
         <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
@@ -302,6 +316,7 @@
     
     html += '</div>';
     
+    // ====== GRÁFICO DE CATEGORIAS ======
     html += `
       <div class="categorias-section">
         <div class="card">
@@ -338,6 +353,7 @@
         </div>
       </div>`;
 
+    // ====== LISTA DE PERÍODOS ======
     html += `
     <div class="card">
       <div class="card-header">
@@ -399,7 +415,7 @@
     }, 100);
   }
 
-  // ======== GRÁFICO VERTICAL (📊) - CATEGORIAS NA HOME ========
+  // ======== GRÁFICO VERTICAL - CATEGORIAS NA HOME ========
   function inicializarGraficoCategorias() {
     const canvas = document.getElementById('graficoCategoriasHome');
     if (!canvas) return;
@@ -436,7 +452,6 @@
     
     dadosGrafico.sort((a, b) => b.total - a.total);
     
-    // Botão de tela cheia
     const wrapper = canvas.parentElement;
     const btnFullOld = document.getElementById('btnFullscreenHome');
     if (btnFullOld) btnFullOld.remove();
@@ -467,10 +482,7 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-          mode: 'index',
-        },
+        interaction: { intersect: false, mode: 'index' },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -491,18 +503,11 @@
         scales: {
           y: {
             beginAtZero: true,
-            ticks: {
-              callback: function(value) { return formatMoney(value); },
-              font: { size: 12, weight: '600' }
-            },
+            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
             grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
-            ticks: {
-              font: { size: 12, weight: '500' },
-              maxRotation: 45,
-              minRotation: 0
-            },
+            ticks: { font: { size: 12, weight: '500' }, maxRotation: 45, minRotation: 0 },
             grid: { display: false }
           }
         }
@@ -552,7 +557,7 @@
     `).join('');
   }
 
-  // ======== SETORES - COM SELETOR MARCAR/DESMARCAR TODOS ========
+  // ======== SETORES ========
   function renderizarSetores() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -686,7 +691,7 @@
     renderizarTela();
   };
 
-  // ======== ANÁLISE - GRÁFICO VERTICAL POR CATEGORIA ========
+  // ======== ANÁLISE ========
   function renderizarAnalise() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -770,7 +775,6 @@
     }
   }
 
-  // ======== GRÁFICO VERTICAL (📊) - ANÁLISE POR CATEGORIA ========
   function inicializarGraficoAnaliseSetor() {
     const canvas = document.getElementById('graficoAnaliseSetor');
     if (!canvas) return;
@@ -780,7 +784,6 @@
     }
     
     const itens = itensCusto.filter(i => i.setorld === setorAtual.id);
-    
     if (itens.length === 0) return;
     
     const totaisPorCategoria = {};
@@ -830,10 +833,7 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-          mode: 'index',
-        },
+        interaction: { intersect: false, mode: 'index' },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -854,18 +854,11 @@
         scales: {
           y: {
             beginAtZero: true,
-            ticks: {
-              callback: function(value) { return formatMoney(value); },
-              font: { size: 12, weight: '600' }
-            },
+            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
             grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
-            ticks: {
-              font: { size: 12, weight: '500' },
-              maxRotation: 45,
-              minRotation: 0
-            },
+            ticks: { font: { size: 12, weight: '500' }, maxRotation: 45, minRotation: 0 },
             grid: { display: false }
           }
         }
@@ -873,7 +866,7 @@
     });
   }
 
-  // ======== FUNÇÃO DE TELA CHEIA PARA GRÁFICOS ========
+  // ======== TELA CHEIA ========
   function abrirGraficoFullscreen(tipo) {
     let modal = document.getElementById('modalGraficoFullscreen');
     if (!modal) {
@@ -906,9 +899,7 @@
     if (tipo === 'home') {
       chartInstance = window.graficoCategoriasHomeChart;
       titulo = 'Custos por Categoria';
-      if (periodosSelecionadosResumo.size > 0) {
-        titulo += ' (Períodos Selecionados)';
-      }
+      if (periodosSelecionadosResumo.size > 0) titulo += ' (Períodos Selecionados)';
     } else {
       chartInstance = window.graficoAnaliseSetorChart;
       titulo = `Análise - ${setorAtual ? setorAtual.nome : 'Setor'}`;
@@ -927,28 +918,12 @@
             responsive: true,
             maintainAspectRatio: true,
             scales: {
-              y: {
-                ...chartInstance.config.options.scales.y,
-                ticks: {
-                  ...chartInstance.config.options.scales.y.ticks,
-                  font: { size: 14, weight: '600' }
-                }
-              },
-              x: {
-                ...chartInstance.config.options.scales.x,
-                ticks: {
-                  ...chartInstance.config.options.scales.x.ticks,
-                  font: { size: 14, weight: '500' }
-                }
-              }
+              y: { ...chartInstance.config.options.scales.y, ticks: { ...chartInstance.config.options.scales.y.ticks, font: { size: 14, weight: '600' } } },
+              x: { ...chartInstance.config.options.scales.x, ticks: { ...chartInstance.config.options.scales.x.ticks, font: { size: 14, weight: '500' } } }
             },
             plugins: {
               ...chartInstance.config.options.plugins,
-              tooltip: {
-                ...chartInstance.config.options.plugins.tooltip,
-                titleFont: { size: 16 },
-                bodyFont: { size: 15 }
-              }
+              tooltip: { ...chartInstance.config.options.plugins.tooltip, titleFont: { size: 16 }, bodyFont: { size: 15 } }
             }
           }
         });
@@ -971,8 +946,7 @@
   window.abrirGraficoFullscreen = abrirGraficoFullscreen;
   window.fecharGraficoFullscreen = fecharGraficoFullscreen;
 
-  // ======== DEMAIS FUNÇÕES ========
-  
+  // ======== MATERIAIS ========
   function renderizarMateriais() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
