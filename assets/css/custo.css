@@ -1656,3 +1656,13 @@
     font-size: 1.3rem;
   }
 }
+/* Destaque para card de Custo por KG */
+.stat-card-home.destaque-kg {
+  border: 2px solid #43e97b !important;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%) !important;
+}
+
+.stat-card-home.destaque-kg .stat-value {
+  color: #0d904f !important;
+  font-size: 1.8rem;
+}
