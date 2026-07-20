@@ -1,9 +1,8 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v2.9)
-// Gráficos melhorados com Tela Cheia
-// Seletores: Marcar/Desmarcar todos Custos e Despesas
-// Cópia de Período completa
-// Cards: Períodos, Total Produzido, Total Gasto, Custo por KG
+// CUSTO.JS - Central de Custos (Firestore Puro - v3.1 FINAL)
+// ✅ CORRIGIDO: Carregamento otimizado, sem travamentos
+// ✅ Recupera dados do documento centralizado se coleções vazias
+// ✅ Salva sempre nas coleções separadas
 // ====================================================
 (function() {
   'use strict';
@@ -11,6 +10,9 @@
   const db = window.firebaseDB || window.db;
   if (!db) {
     console.error('❌ Firebase não disponível');
+    document.getElementById('conteudoDinamico').innerHTML = 
+      '<div class="card"><h3>⚠️ Firebase não configurado</h3></div>';
+    return;
   }
 
   const colecoes = {
@@ -105,14 +107,16 @@
     };
   }
 
+  // ======== PERSISTÊNCIA NO FIRESTORE ========
   async function salvarFB(colecaoNome, dados) {
     try {
       if (!dados.id) {
         dados.id = colecaoNome + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       }
       const ref = colecoes[colecaoNome].doc(dados.id);
-      const { id, ...dadosSemId } = dados;
-      await ref.set({ ...dadosSemId, id }, { merge: true });
+      const dadosParaSalvar = { ...dados };
+      await ref.set(dadosParaSalvar, { merge: true });
+      console.log(`✅ Salvo em ${colecaoNome}:`, dados.id);
       return true;
     } catch (error) {
       console.error(`❌ Erro ao salvar em ${colecaoNome}:`, error);
@@ -123,6 +127,7 @@
   async function excluirFB(colecaoNome, id) {
     try {
       await colecoes[colecaoNome].doc(id).delete();
+      console.log(`✅ Excluído de ${colecaoNome}:`, id);
       return true;
     } catch (error) {
       console.error(`❌ Erro ao excluir ${id}:`, error);
@@ -130,44 +135,13 @@
     }
   }
 
+  // ✅ FUNÇÃO DE CARREGAMENTO CORRIGIDA
   async function carregarDadosFirebase() {
-  console.log('🔄 Carregando dados do Firestore...');
-  try {
-    // 1️⃣ PRIMEIRO: Tenta carregar do documento centralizado (dados antigos)
-    const docCentral = await db.collection('centralCustos').doc('dados_completos').get();
+    console.log('🔄 Iniciando carregamento...');
     
-    if (docCentral.exists && docCentral.data().dados) {
-      console.log('📦 Dados encontrados no documento centralizado!');
-      const dados = docCentral.data().dados;
-      periodos = dados.periodos || [];
-      setores = dados.setores || [];
-      categorias = dados.categorias || [];
-      itensCusto = dados.itensCusto || dados.itens || [];
-      producoes = dados.producoes || [];
-      materiais = dados.materiais || [];
-      custosMateriais = dados.custosMateriais || [];
-      custosFixos = dados.custosFixos || [];
-      
-      // 2️⃣ SINCRONIZA: Migra os dados para as coleções separadas
-      console.log('🔄 Sincronizando dados para as coleções...');
-      
-      // Salva cada item na sua respectiva coleção
-      await Promise.all([
-        ...periodos.map(p => salvarFB('periodos', p)),
-        ...setores.map(s => salvarFB('setores', s)),
-        ...categorias.map(c => salvarFB('categorias', c)),
-        ...itensCusto.map(i => salvarFB('itensCusto', i)),
-        ...producoes.map(p => salvarFB('producoes', p)),
-        ...materiais.map(m => salvarFB('materiais', m)),
-        ...custosMateriais.map(cm => salvarFB('custosMateriais', cm)),
-        ...custosFixos.map(cf => salvarFB('custosFixos', cf))
-      ]);
-      
-      console.log('✅ Dados sincronizados com sucesso!');
-      
-    } else {
-      // 3️⃣ Se não tem documento centralizado, carrega das coleções
-      console.log('📂 Carregando das coleções separadas...');
+    try {
+      // 1. PRIMEIRO: Carrega das coleções separadas (forma principal)
+      console.log('📂 Carregando das coleções...');
       const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
              snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
         colecoes.periodos.get(), 
@@ -190,44 +164,68 @@
       custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // Carrega configurações
+      // 2. Se não encontrou nada, tenta documento centralizado (dados antigos)
+      if (periodos.length === 0) {
+        console.log('📦 Coleções vazias. Verificando documento centralizado...');
+        try {
+          const docCentral = await db.collection('centralCustos').doc('dados_completos').get();
+          
+          if (docCentral.exists && docCentral.data().dados) {
+            console.log('✅ Dados antigos encontrados! Recuperando...');
+            const dados = docCentral.data().dados;
+            periodos = dados.periodos || [];
+            setores = dados.setores || [];
+            categorias = dados.categorias || [];
+            itensCusto = dados.itensCusto || dados.itens || [];
+            producoes = dados.producoes || [];
+            materiais = dados.materiais || [];
+            custosMateriais = dados.custosMateriais || [];
+            custosFixos = dados.custosFixos || [];
+            
+            console.log(`📊 Recuperado: ${periodos.length} períodos, ${setores.length} setores`);
+          }
+        } catch (err) {
+          console.log('ℹ️ Nenhum dado antigo encontrado:', err.message);
+        }
+      }
+
+      // 3. Normaliza campos
+      setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
+      itensCusto = itensCusto.map(i => ({ 
+        ...i, 
+        setorld: i.setorld || i.maquinaId || i.setorId, 
+        categoriald: i.categoriald || i.categoriaId 
+      }));
+      custosFixos = custosFixos.map(cf => ({ 
+        ...cf, 
+        periodold: cf.periodold || cf.periodoId, 
+        categoriald: cf.categoriald || cf.categoriaId 
+      }));
+      producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
+
+      // 4. Configurações
       if (snapConfig.exists && snapConfig.data().config) {
         configCampos = { ...configCampos, ...snapConfig.data().config };
       }
+
+      // 5. Categorias padrão
+      if (categorias.length === 0) {
+        categorias = [
+          { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
+          { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
+          { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
+          { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
+          { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
+        ];
+      }
+
+      console.log(`✅ PRONTO: ${periodos.length} períodos, ${setores.length} setores, ${categorias.length} categorias`);
+      
+    } catch (error) {
+      console.error('❌ ERRO:', error);
+      throw error;
     }
-
-    // Normaliza campos para compatibilidade
-    setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
-    itensCusto = itensCusto.map(i => ({ 
-      ...i, 
-      setorld: i.setorld || i.maquinaId || i.setorId, 
-      categoriald: i.categoriald || i.categoriaId 
-    }));
-    custosFixos = custosFixos.map(cf => ({ 
-      ...cf, 
-      periodold: cf.periodold || cf.periodoId, 
-      categoriald: cf.categoriald || cf.categoriaId 
-    }));
-    producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
-
-    // Cria categorias padrão se necessário
-    if (categorias.length === 0) {
-      categorias = [
-        { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
-        { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
-        { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
-        { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
-        { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
-      ];
-      await Promise.all(categorias.map(c => salvarFB('categorias', c)));
-    }
-
-    console.log(`✅ Dados carregados: ${periodos.length} períodos, ${setores.length} setores`);
-  } catch (error) {
-    console.error('❌ Erro ao carregar dados:', error);
-    throw error;
   }
-}
 
   window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
@@ -625,7 +623,7 @@
           <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
         </div>
       </div>
-            <div class="stats-grid-home" style="margin-bottom:1.5rem;">
+      <div class="stats-grid-home" style="margin-bottom:1.5rem;">
         <div class="stat-card-home">
           <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
             <i class="fas fa-industry"></i>
@@ -791,7 +789,7 @@
         <span class="card-title"><i class="fas fa-chart-pie"></i> Análise - ${setor.nome}</span>
         <button class="btn btn-outline btn-sm" onclick="window.navegarPara('setores')"><i class="fas fa-arrow-left"></i> Voltar</button>
       </div>
-            <div class="stats-grid-home" style="margin-bottom:1.5rem;">
+      <div class="stats-grid-home" style="margin-bottom:1.5rem;">
         <div class="stat-card-home">
           <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
             <i class="fas fa-cubes"></i>
@@ -833,6 +831,7 @@
           </div>
         </div>
       </div>`;
+    
     if (itens.length > 0) {
       html += `
         <div style="margin-bottom: 1.5rem;">
@@ -1697,26 +1696,46 @@
     if (el) el.innerHTML = '<span class="status-dot"></span> Firebase Online';
   }
 
+  // ✅ FUNÇÃO INIT CORRIGIDA
   async function init() {
     const loadingEl = document.getElementById('loadingOverlay');
     if (loadingEl) loadingEl.classList.add('active');
+    
     try {
       if (!db) throw new Error('Firebase não disponível');
+      
       await carregarDadosFirebase();
       adicionarListeners();
       atualizarStatusFirebase();
       renderizarTela();
-      console.log('✅ Sistema inicializado');
+      console.log('✅ Sistema inicializado com sucesso!');
+      
     } catch (error) {
-      console.error('❌ Erro:', error);
-      const container = document.getElementById('conteudoDinamico');
-      if (container) container.innerHTML = `<div style="text-align:center;padding:3rem;"><h3>Erro ao carregar</h3><p>${error.message}</p><button class="btn btn-primary" onclick="location.reload()">Tentar Novamente</button></div>`;
-    } finally {
+      console.error('❌ Erro na inicialização:', error);
       if (loadingEl) loadingEl.classList.remove('active');
+      
+      const container = document.getElementById('conteudoDinamico');
+      if (container) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:3rem;">
+            <h3>❌ Erro ao carregar</h3>
+            <p>${error.message}</p>
+            <button class="btn btn-primary" onclick="location.reload()">
+              <i class="fas fa-redo"></i> Tentar Novamente
+            </button>
+          </div>`;
+      }
+      return;
     }
+    
+    if (loadingEl) loadingEl.classList.remove('active');
   }
 
-  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
-  else { init(); }
+  // Inicializa o sistema
+  if (document.readyState === 'loading') { 
+    document.addEventListener('DOMContentLoaded', init); 
+  } else { 
+    init(); 
+  }
 
 })();
