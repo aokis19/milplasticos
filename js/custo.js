@@ -133,28 +133,68 @@
   async function carregarDadosFirebase() {
   console.log('🔄 Carregando dados do Firestore...');
   try {
-    // ✅ CORRIGIDO: Carrega SEMPRE das coleções separadas
-    const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
-           snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
-      colecoes.periodos.get(), 
-      colecoes.setores.get(), 
-      colecoes.categorias.get(),
-      colecoes.itensCusto.get(), 
-      colecoes.producoes.get(), 
-      colecoes.materiais.get(),
-      colecoes.custosMateriais.get(), 
-      colecoes.custosFixos.get(),
-      colecoes.configuracoes.doc('custos_configCampos').get()
-    ]);
+    // 1️⃣ PRIMEIRO: Tenta carregar do documento centralizado (dados antigos)
+    const docCentral = await db.collection('centralCustos').doc('dados_completos').get();
+    
+    if (docCentral.exists && docCentral.data().dados) {
+      console.log('📦 Dados encontrados no documento centralizado!');
+      const dados = docCentral.data().dados;
+      periodos = dados.periodos || [];
+      setores = dados.setores || [];
+      categorias = dados.categorias || [];
+      itensCusto = dados.itensCusto || dados.itens || [];
+      producoes = dados.producoes || [];
+      materiais = dados.materiais || [];
+      custosMateriais = dados.custosMateriais || [];
+      custosFixos = dados.custosFixos || [];
+      
+      // 2️⃣ SINCRONIZA: Migra os dados para as coleções separadas
+      console.log('🔄 Sincronizando dados para as coleções...');
+      
+      // Salva cada item na sua respectiva coleção
+      await Promise.all([
+        ...periodos.map(p => salvarFB('periodos', p)),
+        ...setores.map(s => salvarFB('setores', s)),
+        ...categorias.map(c => salvarFB('categorias', c)),
+        ...itensCusto.map(i => salvarFB('itensCusto', i)),
+        ...producoes.map(p => salvarFB('producoes', p)),
+        ...materiais.map(m => salvarFB('materiais', m)),
+        ...custosMateriais.map(cm => salvarFB('custosMateriais', cm)),
+        ...custosFixos.map(cf => salvarFB('custosFixos', cf))
+      ]);
+      
+      console.log('✅ Dados sincronizados com sucesso!');
+      
+    } else {
+      // 3️⃣ Se não tem documento centralizado, carrega das coleções
+      console.log('📂 Carregando das coleções separadas...');
+      const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
+             snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
+        colecoes.periodos.get(), 
+        colecoes.setores.get(), 
+        colecoes.categorias.get(),
+        colecoes.itensCusto.get(), 
+        colecoes.producoes.get(), 
+        colecoes.materiais.get(),
+        colecoes.custosMateriais.get(), 
+        colecoes.custosFixos.get(),
+        colecoes.configuracoes.doc('custos_configCampos').get()
+      ]);
 
-    periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Carrega configurações
+      if (snapConfig.exists && snapConfig.data().config) {
+        configCampos = { ...configCampos, ...snapConfig.data().config };
+      }
+    }
 
     // Normaliza campos para compatibilidade
     setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
@@ -170,12 +210,7 @@
     }));
     producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
 
-    // Carrega configurações de campos
-    if (snapConfig.exists && snapConfig.data().config) {
-      configCampos = { ...configCampos, ...snapConfig.data().config };
-    }
-
-    // Cria categorias padrão se não existir nenhuma
+    // Cria categorias padrão se necessário
     if (categorias.length === 0) {
       categorias = [
         { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
