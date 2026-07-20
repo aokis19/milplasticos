@@ -131,60 +131,68 @@
   }
 
   async function carregarDadosFirebase() {
-    console.log('🔄 Carregando dados...');
-    try {
-      const docCentral = await db.collection('centralCustos').doc('dados_completos').get();
-      
-      if (docCentral.exists && docCentral.data().dados) {
-        const dados = docCentral.data().dados;
-        periodos = dados.periodos || [];
-        setores = dados.setores || [];
-        categorias = dados.categorias || [];
-        itensCusto = dados.itensCusto || dados.itens || [];
-        producoes = dados.producoes || [];
-        materiais = dados.materiais || [];
-        custosMateriais = dados.custosMateriais || [];
-        custosFixos = dados.custosFixos || [];
-        
-        setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
-        itensCusto = itensCusto.map(i => ({ ...i, setorld: i.setorld || i.maquinaId || i.setorId, categoriald: i.categoriald || i.categoriaId }));
-        custosFixos = custosFixos.map(cf => ({ ...cf, periodold: cf.periodold || cf.periodoId, categoriald: cf.categoriald || cf.categoriaId }));
-        producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
-      } else {
-        const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
-               snapMateriais, snapCustosMat, snapCustosFixos] = await Promise.all([
-          colecoes.periodos.get(), colecoes.setores.get(), colecoes.categorias.get(),
-          colecoes.itensCusto.get(), colecoes.producoes.get(), colecoes.materiais.get(),
-          colecoes.custosMateriais.get(), colecoes.custosFixos.get()
-        ]);
+  console.log('🔄 Carregando dados do Firestore...');
+  try {
+    // ✅ CORRIGIDO: Carrega SEMPRE das coleções separadas
+    const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
+           snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
+      colecoes.periodos.get(), 
+      colecoes.setores.get(), 
+      colecoes.categorias.get(),
+      colecoes.itensCusto.get(), 
+      colecoes.producoes.get(), 
+      colecoes.materiais.get(),
+      colecoes.custosMateriais.get(), 
+      colecoes.custosFixos.get(),
+      colecoes.configuracoes.doc('custos_configCampos').get()
+    ]);
 
-        periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      }
+    periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    categorias = snapCategorias.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    itensCusto = snapItens.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    producoes = snapProducoes.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    materiais = snapMateriais.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      if (categorias.length === 0) {
-        categorias = [
-          { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
-          { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
-          { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
-          { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
-          { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
-        ];
-        await Promise.all(categorias.map(c => salvarFB('categorias', c)));
-      }
+    // Normaliza campos para compatibilidade
+    setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
+    itensCusto = itensCusto.map(i => ({ 
+      ...i, 
+      setorld: i.setorld || i.maquinaId || i.setorId, 
+      categoriald: i.categoriald || i.categoriaId 
+    }));
+    custosFixos = custosFixos.map(cf => ({ 
+      ...cf, 
+      periodold: cf.periodold || cf.periodoId, 
+      categoriald: cf.categoriald || cf.categoriaId 
+    }));
+    producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
 
-      console.log(`✅ Dados carregados: ${periodos.length} períodos, ${setores.length} setores`);
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error);
-      throw error;
+    // Carrega configurações de campos
+    if (snapConfig.exists && snapConfig.data().config) {
+      configCampos = { ...configCampos, ...snapConfig.data().config };
     }
+
+    // Cria categorias padrão se não existir nenhuma
+    if (categorias.length === 0) {
+      categorias = [
+        { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
+        { id: 'cat2', nome: 'Matéria-Prima', cor: '#0d904f' },
+        { id: 'cat3', nome: 'Mão de Obra', cor: '#0277bd' },
+        { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
+        { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
+      ];
+      await Promise.all(categorias.map(c => salvarFB('categorias', c)));
+    }
+
+    console.log(`✅ Dados carregados: ${periodos.length} períodos, ${setores.length} setores`);
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados:', error);
+    throw error;
   }
+}
 
   window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
