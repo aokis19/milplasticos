@@ -98,8 +98,12 @@
             if (intervalo.entrada && intervalo.saida) {
                 const entrada = timeToHours(intervalo.entrada);
                 const saida = timeToHours(intervalo.saida);
-                if (saida > entrada) total += (saida - entrada);
-                else if (saida < entrada) total += (24 - entrada) + saida;
+                if (saida > entrada) {
+                    total += (saida - entrada);
+                } else if (saida < entrada) {
+                    // Turno que vira a madrugada
+                    total += (24 - entrada) + saida;
+                }
             }
         }
         return total;
@@ -112,15 +116,28 @@
             for (const intervalo of intervalos) {
                 if (intervalo.saida) {
                     const saidaHoras = timeToHours(intervalo.saida);
-                    if (saidaHoras >= 13 || (saidaHoras < 5 && saidaHoras >= 0)) valorAlmoco = VALOR_ALMOCO;
-                    if (saidaHoras >= 19.5 || (saidaHoras < 5 && saidaHoras >= 0)) valorJanta = VALOR_JANTA;
+                    // Se saiu depois das 13h ou virou a madrugada
+                    if (saidaHoras >= 13 || (saidaHoras < 5 && saidaHoras >= 0)) {
+                        valorAlmoco = VALOR_ALMOCO;
+                    }
+                    // Se saiu depois das 19:30h ou virou a madrugada
+                    if (saidaHoras >= 19.5 || (saidaHoras < 5 && saidaHoras >= 0)) {
+                        valorJanta = VALOR_JANTA;
+                    }
                 }
             }
         }
 
-        if (pernoite) valorCafe = VALOR_CAFE;
+        if (pernoite) {
+            valorCafe = VALOR_CAFE;
+        }
 
-        return { almoco: valorAlmoco, janta: valorJanta, cafe: valorCafe, total: valorAlmoco + valorJanta + valorCafe };
+        return { 
+            almoco: valorAlmoco, 
+            janta: valorJanta, 
+            cafe: valorCafe, 
+            total: valorAlmoco + valorJanta + valorCafe 
+        };
     }
 
     // ============ CARREGAR DADOS (APENAS FIREBASE) ============
@@ -146,7 +163,9 @@
                     jornadaBase: data.jornadaBase || 8,
                     tolerancia: data.tolerancia || 10,
                     adNoturno: data.adNoturno || false,
-                    ativo: data.ativo !== false
+                    ativo: data.ativo !== false,
+                    horarioEntrada: data.horarioEntrada || '08:00',
+                    horarioSaida: data.horarioSaida || '17:00'
                 });
             });
 
@@ -199,6 +218,7 @@
                 ...dados,
                 ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
+            console.log('✅ Motorista salvo:', docId);
             return true;
         } catch (error) {
             console.error('❌ Erro ao salvar motorista:', error);
@@ -214,6 +234,7 @@
                 dados: dados,
                 ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
+            console.log('✅ Ponto salvo:', key);
             return true;
         } catch (error) {
             console.error('❌ Erro ao salvar ponto:', error);
@@ -230,6 +251,7 @@
                 ...dados,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
+            console.log('✅ Pagamento salvo:', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('❌ Erro ao salvar pagamento:', error);
@@ -246,6 +268,7 @@
                 ...dados,
                 dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
             });
+            console.log('✅ KM salvo:', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('❌ Erro ao salvar KM:', error);
@@ -261,7 +284,7 @@
             console.log(`✅ Excluído de ${colecao}: ${docId}`);
             return true;
         } catch (error) {
-            console.error(`❌ Erro ao excluir:`, error);
+            console.error(`❌ Erro ao excluir de ${colecao}:`, error);
             return false;
         }
     }
@@ -275,8 +298,12 @@
             const select = document.getElementById(id);
             if (!select) return;
             let options = '';
-            if (id === 'kmFiltroMotorista' || id === 'bancoMotorista') options = '<option value="todos">Todos</option>';
-            options += motoristasAtivos.map(m => `<option value="${m.cod || m.firebaseId}">${m.nome}</option>`).join('');
+            if (id === 'kmFiltroMotorista' || id === 'bancoMotorista') {
+                options = '<option value="todos">Todos</option>';
+            }
+            options += motoristasAtivos.map(m => 
+                `<option value="${m.cod || m.firebaseId}">${m.nome}</option>`
+            ).join('');
             select.innerHTML = options;
         });
     }
@@ -284,17 +311,22 @@
     function carregarTabelaMotoristas() {
         const tbody = document.getElementById('tabelaMotoristas');
         if (!tbody) return;
-        tbody.innerHTML = (appData.motoristas || []).filter(m => m.ativo !== false).map(m => `
+        
+        const motoristas = (appData.motoristas || []).filter(m => m.ativo !== false);
+        
+        tbody.innerHTML = motoristas.map(m => `
             <tr>
                 <td>${m.cod || m.firebaseId}</td>
                 <td><strong>${m.nome}</strong></td>
                 <td>${m.funcao || '-'}</td>
-                <td>${m.jornadaBase || 8}h</td>
+                <td>${m.horarioEntrada || '08:00'} - ${m.horarioSaida || '17:00'}</td>
+                <td>${formatHoras(m.jornadaBase || 8)}</td>
                 <td>${m.tolerancia || 10}min</td>
                 <td>${m.adNoturno ? '✅' : '❌'}</td>
                 <td>
-                    <button class="btn btn-outline btn-sm" onclick="window.editarMotorista('${m.cod || m.firebaseId}')">✏️</button>
-                    <button class="btn btn-danger btn-sm" onclick="window.excluirMotorista('${m.cod || m.firebaseId}')">🗑️</button>
+                    <button class="btn btn-sm btn-primary" onclick="window.editarMotorista('${m.cod || m.firebaseId}')">✏️</button>
+                    <button class="btn btn-sm btn-info" onclick="window.configurarHorarioMotorista('${m.cod || m.firebaseId}')">🕐</button>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirMotorista('${m.cod || m.firebaseId}')">🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -303,6 +335,7 @@
     window.abrirModalMotorista = function(cod = null) {
         const modal = document.getElementById('modalMotorista');
         if (!modal) return;
+        
         modal.classList.add('active');
         
         if (cod) {
@@ -315,13 +348,27 @@
                 document.getElementById('jornadaBase').value = m.jornadaBase || 8;
                 document.getElementById('motoristaTolerancia').value = m.tolerancia || 10;
                 document.getElementById('motoristaAdNoturno').checked = m.adNoturno || false;
+                
+                // Preencher horários se existirem os campos
+                const horarioEntradaEl = document.getElementById('horarioEntrada');
+                const horarioSaidaEl = document.getElementById('horarioSaida');
+                if (horarioEntradaEl) horarioEntradaEl.value = m.horarioEntrada || '08:00';
+                if (horarioSaidaEl) horarioSaidaEl.value = m.horarioSaida || '17:00';
             }
         } else {
             document.getElementById('modalMotoristaTitulo').innerText = 'Novo Motorista';
-            ['motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => document.getElementById(id).value = '');
+            ['motoristaCod', 'motoristaNome', 'motoristaFuncao'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
             document.getElementById('jornadaBase').value = 8;
             document.getElementById('motoristaTolerancia').value = 10;
             document.getElementById('motoristaAdNoturno').checked = false;
+            
+            const horarioEntradaEl = document.getElementById('horarioEntrada');
+            const horarioSaidaEl = document.getElementById('horarioSaida');
+            if (horarioEntradaEl) horarioEntradaEl.value = '08:00';
+            if (horarioSaidaEl) horarioSaidaEl.value = '17:00';
         }
     };
 
@@ -329,133 +376,250 @@
         window.abrirModalMotorista(cod);
     };
 
-    window.excluirMotorista = async function(cod) {
-        if (!confirm('Excluir motorista?')) return;
-        const m = appData.motoristas.find(m => (m.cod == cod) || (m.firebaseId == cod));
-        appData.motoristas = appData.motoristas.filter(m => (m.cod != cod) && (m.firebaseId != cod));
-        if (m?.firebaseId) await excluirDoFB('motoristas', m.firebaseId);
-        carregarSelectsMotoristas();
-        carregarTabelaMotoristas();
-        window.atualizarPainel();
-    };
-
-    window.salvarMotorista = async function() {
-        const motorista = {
-            cod: document.getElementById('motoristaCod').value,
-            nome: document.getElementById('motoristaNome').value.toUpperCase(),
-            funcao: document.getElementById('motoristaFuncao').value.toUpperCase(),
-            jornadaBase: parseFloat(document.getElementById('jornadaBase').value),
-            tolerancia: parseInt(document.getElementById('motoristaTolerancia').value),
-            adNoturno: document.getElementById('motoristaAdNoturno').checked,
-            ativo: true
-        };
-        
-        if (!motorista.cod || !motorista.nome) {
-            alert('Preencha código e nome!');
+    window.configurarHorarioMotorista = async function(cod) {
+        const motorista = appData.motoristas.find(m => (m.cod == cod) || (m.firebaseId == cod));
+        if (!motorista) {
+            alert('Motorista não encontrado!');
             return;
         }
         
-        // Remover duplicado e adicionar
-        appData.motoristas = appData.motoristas.filter(m => m.cod != motorista.cod && m.firebaseId != motorista.cod);
-        appData.motoristas.push(motorista);
+        const horarioEntrada = prompt('Horário padrão de entrada (HH:MM):', motorista.horarioEntrada || '08:00');
+        if (horarioEntrada === null) return; // Cancelou
         
-        await salvarMotoristaFB(motorista);
+        const horarioSaida = prompt('Horário padrão de saída (HH:MM):', motorista.horarioSaida || '17:00');
+        if (horarioSaida === null) return; // Cancelou
         
-        window.fecharModal('modalMotorista');
-        carregarSelectsMotoristas();
-        carregarTabelaMotoristas();
-        window.atualizarPainel();
-    };
-
-    // ============ PONTO ============
-    function renderizarIntervalos(key, intervalos) {
-        if (!intervalos) intervalos = [{ entrada: '', saida: '' }];
-        let html = `<div class="intervalos-container" data-key="${key}">`;
-        intervalos.forEach((intervalo, idx) => {
-            html += `<div class="intervalo-row" data-idx="${idx}">
-                <span class="intervalo-label">${idx === 0 ? '📥' : '⏱️'}</span>
-                <input type="time" class="intervalo-entrada" value="${intervalo.entrada || ''}">
-                <span>→</span>
-                <input type="time" class="intervalo-saida" value="${intervalo.saida || ''}">
-                ${idx > 0 ? `<button class="btn-remove-intervalo" onclick="window.removerIntervalo('${key}', ${idx})">✖</button>` : ''}
-            </div>`;
-        });
-        html += `<button class="btn-add-intervalo" onclick="window.adicionarIntervalo('${key}')">+ Adicionar Intervalo</button></div>`;
-        return html;
-    }
-
-    window.handleIntervaloChange = async function(e) {
-        const container = e.target.closest('.intervalos-container');
-        const row = e.target.closest('.intervalo-row');
-        if (!container || !row) return;
-        const key = container.dataset.key;
-        const idx = parseInt(row.dataset.idx);
-        if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], tipo: 'interno', pernoite: false };
-        if (!appData.ponto[key].intervalos) appData.ponto[key].intervalos = [];
-        if (!appData.ponto[key].intervalos[idx]) appData.ponto[key].intervalos[idx] = {};
-        appData.ponto[key].intervalos[idx].entrada = row.querySelector('.intervalo-entrada').value;
-        appData.ponto[key].intervalos[idx].saida = row.querySelector('.intervalo-saida').value;
-        await salvarPontoFB(key, appData.ponto[key]);
-        window.carregarPonto();
-    };
-
-    window.adicionarIntervalo = async function(key) {
-        if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [{ entrada: '', saida: '' }], tipo: 'interno', pernoite: false };
-        if (!appData.ponto[key].intervalos) appData.ponto[key].intervalos = [{ entrada: '', saida: '' }];
-        appData.ponto[key].intervalos.push({ entrada: '', saida: '' });
-        await salvarPontoFB(key, appData.ponto[key]);
-        window.carregarPonto();
-    };
-
-    window.removerIntervalo = async function(key, idx) {
-        if (appData.ponto[key]?.intervalos?.length > 1) {
-            appData.ponto[key].intervalos.splice(idx, 1);
-            await salvarPontoFB(key, appData.ponto[key]);
-            window.carregarPonto();
+        if (horarioEntrada && horarioSaida) {
+            motorista.horarioEntrada = horarioEntrada;
+            motorista.horarioSaida = horarioSaida;
+            motorista.jornadaBase = timeToHours(horarioSaida) - timeToHours(horarioEntrada);
+            
+            if (motorista.jornadaBase <= 0) {
+                alert('Horário inválido! A saída deve ser depois da entrada.');
+                return;
+            }
+            
+            await salvarMotoristaFB(motorista);
+            alert(`Horário configurado com sucesso!\nEntrada: ${horarioEntrada}\nSaída: ${horarioSaida}\nJornada: ${formatHoras(motorista.jornadaBase)}`);
+            carregarTabelaMotoristas();
+            window.atualizarPainel();
         }
     };
 
+    window.excluirMotorista = async function(cod) {
+        if (!confirm('Tem certeza que deseja excluir este motorista?')) return;
+        
+        const m = appData.motoristas.find(m => (m.cod == cod) || (m.firebaseId == cod));
+        if (!m) return;
+        
+        appData.motoristas = appData.motoristas.filter(m => (m.cod != cod) && (m.firebaseId != cod));
+        
+        if (m?.firebaseId) {
+            await excluirDoFB('motoristas', m.firebaseId);
+        }
+        
+        carregarSelectsMotoristas();
+        carregarTabelaMotoristas();
+        window.atualizarPainel();
+        alert('Motorista excluído com sucesso!');
+    };
+
+    window.salvarMotorista = async function() {
+        const cod = document.getElementById('motoristaCod').value.trim();
+        const nome = document.getElementById('motoristaNome').value.trim();
+        
+        if (!cod || !nome) {
+            alert('Preencha código e nome do motorista!');
+            return;
+        }
+        
+        const horarioEntrada = document.getElementById('horarioEntrada')?.value || '08:00';
+        const horarioSaida = document.getElementById('horarioSaida')?.value || '17:00';
+        const jornadaBase = timeToHours(horarioSaida) - timeToHours(horarioEntrada);
+        
+        const motorista = {
+            cod: cod,
+            nome: nome.toUpperCase(),
+            funcao: (document.getElementById('motoristaFuncao')?.value || '').toUpperCase(),
+            jornadaBase: jornadaBase > 0 ? jornadaBase : parseFloat(document.getElementById('jornadaBase')?.value || 8),
+            tolerancia: parseInt(document.getElementById('motoristaTolerancia')?.value || 10),
+            adNoturno: document.getElementById('motoristaAdNoturno')?.checked || false,
+            ativo: true,
+            horarioEntrada: horarioEntrada,
+            horarioSaida: horarioSaida
+        };
+        
+        // Remover duplicado e adicionar
+        appData.motoristas = appData.motoristas.filter(m => 
+            m.cod != motorista.cod && m.firebaseId != motorista.cod
+        );
+        appData.motoristas.push(motorista);
+        
+        const salvou = await salvarMotoristaFB(motorista);
+        
+        if (salvou) {
+            window.fecharModal('modalMotorista');
+            carregarSelectsMotoristas();
+            carregarTabelaMotoristas();
+            window.atualizarPainel();
+            alert('Motorista salvo com sucesso!');
+        } else {
+            alert('Erro ao salvar motorista. Verifique o console.');
+        }
+    };
+
+    // ============ PONTO ============
     window.updateTipo = async function(key, tipo) {
-        if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], pernoite: false };
+        console.log(`Alterando tipo para ${tipo} na key ${key}`);
+        
+        if (!appData.ponto[key]) {
+            appData.ponto[key] = { 
+                intervalos: [{ entrada: '', saida: '' }], 
+                pernoite: false 
+            };
+        }
         appData.ponto[key].tipo = tipo;
-        await salvarPontoFB(key, appData.ponto[key]);
-        window.carregarPonto();
+        
+        try {
+            await salvarPontoFB(key, appData.ponto[key]);
+            console.log('✅ Tipo atualizado com sucesso');
+            window.carregarPonto();
+        } catch (error) {
+            console.error('❌ Erro ao atualizar tipo:', error);
+        }
     };
 
     window.togglePernoite = async function(key, checked) {
-        if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [], tipo: 'interno' };
+        console.log(`Alterando pernoite para ${checked} na key ${key}`);
+        
+        if (!appData.ponto[key]) {
+            appData.ponto[key] = { 
+                intervalos: [{ entrada: '', saida: '' }], 
+                tipo: 'interno' 
+            };
+        }
         appData.ponto[key].pernoite = checked;
-        await salvarPontoFB(key, appData.ponto[key]);
-        window.carregarPonto();
+        
+        try {
+            await salvarPontoFB(key, appData.ponto[key]);
+            console.log('✅ Pernoite atualizado com sucesso');
+            window.carregarPonto();
+        } catch (error) {
+            console.error('❌ Erro ao atualizar pernoite:', error);
+        }
     };
 
     window.toggleFolga = async function(key, cod, mes, ano, dia, isFolga) {
-        if (!appData.ponto[key]) appData.ponto[key] = { intervalos: [{ entrada: '', saida: '' }], tipo: 'interno', pernoite: false };
+        console.log(`Alterando folga para ${isFolga} na key ${key}`);
+        
+        if (!appData.ponto[key]) {
+            appData.ponto[key] = { 
+                intervalos: [{ entrada: '', saida: '' }], 
+                tipo: 'interno', 
+                pernoite: false 
+            };
+        }
+        
         appData.ponto[key].folga = isFolga;
-        await salvarPontoFB(key, appData.ponto[key]);
-        window.carregarPonto();
+        
+        try {
+            await salvarPontoFB(key, appData.ponto[key]);
+            console.log('✅ Folga salva com sucesso');
+            window.carregarPonto();
+        } catch (error) {
+            console.error('❌ Erro ao salvar folga:', error);
+        }
+    };
+
+    window.updateIntervaloTime = async function(inputElement) {
+        const key = inputElement.dataset.key;
+        const field = inputElement.dataset.field;
+        const value = inputElement.value;
+        
+        console.log(`Atualizando ${field} para ${value} na key ${key}`);
+        
+        if (!appData.ponto[key]) {
+            appData.ponto[key] = { 
+                intervalos: [{ entrada: '', saida: '' }], 
+                tipo: 'interno', 
+                pernoite: false 
+            };
+        }
+        
+        if (!appData.ponto[key].intervalos || appData.ponto[key].intervalos.length === 0) {
+            appData.ponto[key].intervalos = [{ entrada: '', saida: '' }];
+        }
+        
+        if (field === 'entrada') {
+            appData.ponto[key].intervalos[0].entrada = value;
+        } else {
+            appData.ponto[key].intervalos[0].saida = value;
+        }
+        
+        try {
+            await salvarPontoFB(key, appData.ponto[key]);
+            console.log('✅ Ponto salvo com sucesso');
+            // Recarregar para mostrar totais atualizados
+            window.carregarPonto();
+        } catch (error) {
+            console.error('❌ Erro ao salvar ponto:', error);
+        }
     };
 
     window.carregarPonto = function() {
         const cod = document.getElementById('pontoMotorista')?.value;
         const mesRef = parseInt(document.getElementById('pontoMes')?.value);
         const anoRef = parseInt(document.getElementById('pontoAno')?.value);
-        if (!cod || !mesRef || !anoRef) return;
+        
+        if (!cod || !mesRef || !anoRef) {
+            console.log('❌ Dados incompletos para carregar ponto');
+            return;
+        }
         
         const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
-        if (!motorista) return;
+        if (!motorista) {
+            console.log('❌ Motorista não encontrado:', cod);
+            return;
+        }
 
         const { diaInicio, diaFim } = getPeriodoConfig();
         const datasPeriodo = getDatasPeriodo(mesRef, anoRef, diaInicio, diaFim);
 
-        let html = `<table><thead><tr><th>Dia</th><th>Data</th><th>Sem.</th><th>Folga</th><th>Tipo</th><th>Intervalos</th><th>Total Horas</th><th>Saldo</th><th>Diárias</th><th>Pernoite</th></tr></thead><tbody>`;
+        let html = `
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Dia</th>
+                        <th>Data</th>
+                        <th>Sem.</th>
+                        <th>Folga</th>
+                        <th>Tipo</th>
+                        <th>Entrada</th>
+                        <th>Saída</th>
+                        <th>Total Horas</th>
+                        <th>Saldo</th>
+                        <th>Diárias</th>
+                        <th>Pernoite</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
         let totalPeriodoHT = 0, totalPeriodoExtras = 0, totalDiariasPeriodo = 0;
 
         for (const data of datasPeriodo) {
             const { dia, mes, ano } = data;
             const key = `${cod}_${ano}_${mes}_${dia}`;
-            const reg = appData.ponto[key] || { intervalos: [{ entrada: '', saida: '' }], folga: false, tipo: 'interno', pernoite: false };
-            if (!reg.intervalos || reg.intervalos.length === 0) reg.intervalos = [{ entrada: '', saida: '' }];
+            const reg = appData.ponto[key] || { 
+                intervalos: [{ entrada: '', saida: '' }], 
+                folga: false, 
+                tipo: 'interno', 
+                pernoite: false 
+            };
+            
+            if (!reg.intervalos || reg.intervalos.length === 0) {
+                reg.intervalos = [{ entrada: '', saida: '' }];
+            }
             if (!reg.tipo) reg.tipo = 'interno';
             if (reg.pernoite === undefined) reg.pernoite = false;
 
@@ -476,39 +640,87 @@
             const diarias = calcularDiarias(reg.intervalos, reg.tipo, reg.pernoite);
             if (diarias.total > 0) totalDiariasPeriodo += diarias.total;
 
-            const intervalosHtml = renderizarIntervalos(key, reg.intervalos);
+            const entradaVal = reg.intervalos[0]?.entrada || '';
+            const saidaVal = reg.intervalos[0]?.saida || '';
+            
             const dataStr = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
 
-            html += `<tr data-key="${key}" style="${isFolga ? 'background:#fff3e0' : ''}">
-                <td><strong>${dia}</strong></td><td>${dataStr}</td><td>${getSemana(dia, mes, ano)}</td>
-                <td><input type="checkbox" ${isFolga ? 'checked' : ''} onchange="window.toggleFolga('${key}',${cod},${mes},${ano},${dia},this.checked)"></td>
-                <td><select onchange="window.updateTipo('${key}', this.value)" style="font-size:0.7rem;padding:0.2rem">
-                    <option value="interno" ${reg.tipo === 'interno' ? 'selected' : ''}>Interno</option>
-                    <option value="externo" ${reg.tipo === 'externo' ? 'selected' : ''}>Externo</option>
-                </select></td>
-                <td>${intervalosHtml}</td>
-                <td class="total-horas" id="total-${key}">${totalHoras > 0 ? formatHoras(totalHoras) : '-'}</td>
-                <td class="${saldo > 0.05 ? 'text-success' : (saldo < -0.05 ? 'text-danger' : '')}">${Math.abs(saldo) > 0.05 ? formatHoras(saldo) : '-'}</td>
-                <td>${diarias.total > 0 ? `<span class="badge badge-info">${formatMoney(diarias.total)}</span>` : '-'}</td>
-                <td><input type="checkbox" ${reg.pernoite ? 'checked' : ''} onchange="window.togglePernoite('${key}', this.checked)"></td>
+            html += `<tr style="${isFolga ? 'background:#fff3e0' : ''}">
+                <td><strong>${dia}</strong></td>
+                <td>${dataStr}</td>
+                <td>${getSemana(dia, mes, ano)}</td>
+                <td>
+                    <input type="checkbox" ${isFolga ? 'checked' : ''} 
+                        onchange="window.toggleFolga('${key}','${cod}',${mes},${ano},${dia},this.checked)">
+                </td>
+                <td>
+                    <select onchange="window.updateTipo('${key}', this.value)" class="form-control-sm">
+                        <option value="interno" ${reg.tipo === 'interno' ? 'selected' : ''}>Interno</option>
+                        <option value="externo" ${reg.tipo === 'externo' ? 'selected' : ''}>Externo</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="time" class="form-control form-control-sm time-input entrada-input" 
+                        value="${entradaVal}" 
+                        data-key="${key}" 
+                        data-field="entrada"
+                        onchange="window.updateIntervaloTime(this)"
+                        ${isFolga ? 'disabled' : ''}>
+                </td>
+                <td>
+                    <input type="time" class="form-control form-control-sm time-input saida-input" 
+                        value="${saidaVal}" 
+                        data-key="${key}" 
+                        data-field="saida"
+                        onchange="window.updateIntervaloTime(this)"
+                        ${isFolga ? 'disabled' : ''}>
+                </td>
+                <td class="${totalHoras > 0 ? 'fw-bold' : ''}">
+                    ${totalHoras > 0 ? formatHoras(totalHoras) : '-'}
+                </td>
+                <td class="${saldo > 0.05 ? 'text-success fw-bold' : (saldo < -0.05 ? 'text-danger fw-bold' : '')}">
+                    ${Math.abs(saldo) > 0.05 ? formatHoras(saldo) : '-'}
+                </td>
+                <td>
+                    ${diarias.total > 0 ? `<span class="badge bg-warning text-dark">${formatMoney(diarias.total)}</span>` : '-'}
+                </td>
+                <td>
+                    <input type="checkbox" ${reg.pernoite ? 'checked' : ''} 
+                        onchange="window.togglePernoite('${key}', this.checked)"
+                        ${isFolga ? 'disabled' : ''}>
+                </td>
             </tr>`;
         }
 
-        html += `</tbody></table>`;
+        html += `</tbody></table></div>`;
+        
         const container = document.getElementById('pontoContainer');
         if (container) container.innerHTML = html;
 
-        document.querySelectorAll('.intervalo-entrada, .intervalo-saida').forEach(input => {
-            input.removeEventListener('change', window.handleIntervaloChange);
-            input.addEventListener('change', window.handleIntervaloChange);
-        });
-
+        // Atualizar totais
         const totaisEl = document.getElementById('totaisPonto');
         if (totaisEl) {
             totaisEl.innerHTML = `
-                <div class="stat-card"><div class="stat-value">${formatHoras(totalPeriodoHT)}</div><div class="stat-label">Total Horas Período</div></div>
-                <div class="stat-card success"><div class="stat-value">${formatHoras(totalPeriodoExtras)}</div><div class="stat-label">Total Extras</div></div>
-                <div class="stat-card warning"><div class="stat-value">${formatMoney(totalDiariasPeriodo)}</div><div class="stat-label">Total Diárias</div></div>
+                <div class="alert alert-info">
+                    <h5>📊 Resumo do Período</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Total Horas Trabalhadas:</strong><br>
+                            <span class="fs-5">${formatHoras(totalPeriodoHT)}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total Horas Extras:</strong><br>
+                            <span class="fs-5 text-success">${formatHoras(totalPeriodoExtras)}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Total Diárias:</strong><br>
+                            <span class="fs-5 text-warning">${formatMoney(totalDiariasPeriodo)}</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <small>🕐 Horário Padrão: ${motorista.horarioEntrada || '08:00'} - ${motorista.horarioSaida || '17:00'} (${formatHoras(motorista.jornadaBase || 8)})</small><br>
+                    <small>⏱️ Tolerância: ${motorista.tolerancia || 10} minutos</small>
+                </div>
             `;
         }
     };
@@ -518,6 +730,7 @@
         const mes = parseInt(document.getElementById('painelMes')?.value);
         const ano = parseInt(document.getElementById('painelAno')?.value);
         const cod = document.getElementById('painelMotorista')?.value;
+        
         if (!cod || !mes || !ano) return;
         
         const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
@@ -532,25 +745,46 @@
             const { dia, mes: m, ano: a } = data;
             const key = `${cod}_${a}_${m}_${dia}`;
             const reg = appData.ponto[key];
+            
             if (!reg || reg.folga) continue;
+            
             const totalHoras = calcularTotalHoras(reg.intervalos);
             if (totalHoras <= 0) continue;
+            
             const jornadaBase = motorista.jornadaBase || 8;
             const tolerancia = (motorista.tolerancia || 10) / 60;
             const saldo = totalHoras - jornadaBase - tolerancia;
             const diarias = calcularDiarias(reg.intervalos, reg.tipo || 'interno', reg.pernoite || false);
+            
             totalHT += totalHoras;
             diasTrab++;
-            if (saldo > 0) totalExtras += saldo;
-            else if (saldo < 0) totalFaltas += Math.abs(saldo);
+            
+            if (saldo > 0) {
+                totalExtras += saldo;
+            } else if (saldo < 0) {
+                totalFaltas += Math.abs(saldo);
+            }
+            
             totalDiarias += diarias.total;
         }
 
         document.getElementById('statsContainer').innerHTML = `
-            <div class="stat-card"><div class="stat-value">${diasTrab}</div><div class="stat-label">Dias Trabalhados</div></div>
-            <div class="stat-card"><div class="stat-value">${formatHoras(totalHT)}</div><div class="stat-label">Horas Trabalhadas</div></div>
-            <div class="stat-card success"><div class="stat-value">${formatHoras(totalExtras)}</div><div class="stat-label">Horas Extras</div></div>
-            <div class="stat-card danger"><div class="stat-value">${formatHoras(totalFaltas)}</div><div class="stat-label">Faltas/Atrasos</div></div>
+            <div class="stat-card">
+                <div class="stat-value">${diasTrab}</div>
+                <div class="stat-label">Dias Trabalhados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatHoras(totalHT)}</div>
+                <div class="stat-label">Horas Trabalhadas</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-value">${formatHoras(totalExtras)}</div>
+                <div class="stat-label">Horas Extras</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="stat-value">${formatHoras(totalFaltas)}</div>
+                <div class="stat-label">Faltas/Atrasos</div>
+            </div>
         `;
 
         let totalKM = 0, valorKMTotal = 0;
@@ -561,13 +795,29 @@
             ultimaData.setHours(23, 59, 59);
             return (r.codMotorista == cod || r.motorista == motorista.nome) && dataReg >= primeiraData && dataReg <= ultimaData;
         });
-        registrosKM.forEach(r => { totalKM += r.totalKM || 0; valorKMTotal += (r.totalKM || 0) * VALOR_KM; });
+        
+        registrosKM.forEach(r => { 
+            totalKM += r.totalKM || 0; 
+            valorKMTotal += (r.totalKM || 0) * VALOR_KM; 
+        });
 
         document.getElementById('resumoFinanceiro').innerHTML = `
-            <div class="stat-card warning"><div class="stat-value">${formatMoney(totalDiarias)}</div><div class="stat-label">Total Diárias</div></div>
-            <div class="stat-card info"><div class="stat-value">${totalKM} km</div><div class="stat-label">Total KM</div></div>
-            <div class="stat-card"><div class="stat-value">${formatMoney(valorKMTotal)}</div><div class="stat-label">Valor KM</div></div>
-            <div class="stat-card success"><div class="stat-value">${formatMoney(totalDiarias + valorKMTotal)}</div><div class="stat-label">💰 Total Geral</div></div>
+            <div class="stat-card warning">
+                <div class="stat-value">${formatMoney(totalDiarias)}</div>
+                <div class="stat-label">Total Diárias</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-value">${totalKM} km</div>
+                <div class="stat-label">Total KM</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${formatMoney(valorKMTotal)}</div>
+                <div class="stat-label">Valor KM</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-value">${formatMoney(totalDiarias + valorKMTotal)}</div>
+                <div class="stat-label">💰 Total Geral</div>
+            </div>
         `;
     };
 
@@ -575,7 +825,63 @@
     window.carregarBancoHoras = function() {
         const tbody = document.getElementById('tabelaBancoHoras');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Funcionalidade em desenvolvimento</td></tr>';
+        
+        const filtro = document.getElementById('bancoMotorista')?.value;
+        let motoristas = appData.motoristas || [];
+        
+        if (filtro && filtro !== 'todos') {
+            motoristas = motoristas.filter(m => (m.cod == filtro) || (m.firebaseId == filtro));
+        }
+        
+        let html = '';
+        
+        motoristas.forEach(motorista => {
+            const mes = new Date().getMonth() + 1;
+            const ano = new Date().getFullYear();
+            const { diaInicio, diaFim } = getPeriodoConfig();
+            const datasPeriodo = getDatasPeriodo(mes, ano, diaInicio, diaFim);
+            
+            let totalExtras = 0, totalFaltas = 0;
+            
+            for (const data of datasPeriodo) {
+                const { dia, mes: m, ano: a } = data;
+                const key = `${motorista.cod || motorista.firebaseId}_${a}_${m}_${dia}`;
+                const reg = appData.ponto[key];
+                
+                if (!reg || reg.folga) continue;
+                
+                const totalHoras = calcularTotalHoras(reg.intervalos);
+                if (totalHoras <= 0) continue;
+                
+                const jornadaBase = motorista.jornadaBase || 8;
+                const tolerancia = (motorista.tolerancia || 10) / 60;
+                const saldo = totalHoras - jornadaBase - tolerancia;
+                
+                if (saldo > 0) totalExtras += saldo;
+                else if (saldo < 0) totalFaltas += Math.abs(saldo);
+            }
+            
+            const saldoFinal = totalExtras - totalFaltas;
+            
+            html += `
+                <tr>
+                    <td><strong>${motorista.nome}</strong></td>
+                    <td class="text-success">${formatHoras(totalExtras)}</td>
+                    <td class="text-danger">${formatHoras(totalFaltas)}</td>
+                    <td class="${saldoFinal >= 0 ? 'text-success' : 'text-danger'} fw-bold">
+                        ${formatHoras(saldoFinal)}
+                    </td>
+                    <td>${motorista.horarioEntrada || '08:00'} - ${motorista.horarioSaida || '17:00'}</td>
+                    <td>${formatHoras(motorista.jornadaBase || 8)}</td>
+                </tr>
+            `;
+        });
+        
+        if (!html) {
+            html = '<tr><td colspan="6" class="text-center">Nenhum dado disponível</td></tr>';
+        }
+        
+        tbody.innerHTML = html;
     };
 
     // ============ KM ============
@@ -598,8 +904,19 @@
     window.salvarKM = async function() {
         const cod = document.getElementById('kmMotoristaSelect')?.value;
         const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
+        
+        if (!cod || !motorista) {
+            alert('Selecione um motorista!');
+            return;
+        }
+        
         const inicial = parseFloat(document.getElementById('kmInicial')?.value) || 0;
         const final = parseFloat(document.getElementById('kmFinal')?.value) || 0;
+        
+        if (final <= inicial) {
+            alert('KM Final deve ser maior que KM Inicial!');
+            return;
+        }
         
         const registro = {
             id: Date.now(),
@@ -614,34 +931,63 @@
         };
         
         appData.registrosKM.push(registro);
-        await salvarKMFB(registro);
-        window.fecharModal('modalKM');
-        window.carregarKM();
+        const firebaseId = await salvarKMFB(registro);
+        
+        if (firebaseId) {
+            registro.firebaseId = firebaseId;
+            window.fecharModal('modalKM');
+            window.carregarKM();
+            alert('Registro de KM salvo com sucesso!');
+        } else {
+            alert('Erro ao salvar registro de KM.');
+        }
     };
 
     window.carregarKM = function() {
         const tbody = document.getElementById('tabelaKM');
         if (!tbody) return;
+        
         const filtro = document.getElementById('kmFiltroMotorista')?.value;
         let registros = appData.registrosKM || [];
-        if (filtro && filtro !== 'todos') registros = registros.filter(r => r.codMotorista == filtro || r.motorista == filtro);
+        
+        if (filtro && filtro !== 'todos') {
+            registros = registros.filter(r => r.codMotorista == filtro || r.motorista == filtro);
+        }
+        
+        // Ordenar por data (mais recente primeiro)
+        registros.sort((a, b) => new Date(b.data) - new Date(a.data));
         
         tbody.innerHTML = registros.map(r => `
             <tr>
-                <td>${r.data}</td><td>${r.motorista}</td><td>${r.veiculo}</td>
-                <td>${r.kmInicial}</td><td>${r.kmFinal}</td><td>${r.totalKM} km</td>
+                <td>${r.data}</td>
+                <td>${r.motorista}</td>
+                <td>${r.veiculo}</td>
+                <td>${r.kmInicial}</td>
+                <td>${r.kmFinal}</td>
+                <td><strong>${r.totalKM} km</strong></td>
+                <td>${formatMoney(r.totalKM * VALOR_KM)}</td>
                 <td>${r.destino || '-'}</td>
-                <td><button class="btn btn-danger btn-sm" onclick="window.excluirKM(${r.id})">🗑️</button></td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirKM(${r.id})">🗑️</button>
+                </td>
             </tr>
         `).join('');
     };
 
     window.excluirKM = async function(id) {
-        if (!confirm('Excluir registro?')) return;
+        if (!confirm('Tem certeza que deseja excluir este registro de KM?')) return;
+        
         const reg = appData.registrosKM.find(r => r.id == id);
+        if (!reg) return;
+        
         appData.registrosKM = appData.registrosKM.filter(r => r.id != id);
-        if (reg?.firebaseId) await excluirDoFB('motoristas_km', reg.firebaseId);
+        
+        if (reg?.firebaseId) {
+            await excluirDoFB('motoristas_km', reg.firebaseId);
+        }
+        
         window.carregarKM();
+        alert('Registro excluído com sucesso!');
     };
 
     // ============ PAGAMENTOS ============
@@ -661,8 +1007,19 @@
     window.salvarPagamento = async function() {
         const cod = document.getElementById('pagMotorista')?.value;
         const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
+        
+        if (!cod || !motorista) {
+            alert('Selecione um motorista!');
+            return;
+        }
+        
         const horas = parseFloat(document.getElementById('pagHoras')?.value) || 0;
         const valorHora = parseFloat(document.getElementById('pagValorHora')?.value) || 0;
+        
+        if (horas <= 0 || valorHora <= 0) {
+            alert('Preencha horas e valor por hora corretamente!');
+            return;
+        }
         
         const pagamento = {
             id: Date.now(),
@@ -675,29 +1032,52 @@
         };
         
         appData.pagamentos.push(pagamento);
-        await salvarPagamentoFB(pagamento);
-        window.fecharModal('modalPagamento');
-        window.carregarPagamentos();
+        const firebaseId = await salvarPagamentoFB(pagamento);
+        
+        if (firebaseId) {
+            pagamento.firebaseId = firebaseId;
+            window.fecharModal('modalPagamento');
+            window.carregarPagamentos();
+            alert('Pagamento salvo com sucesso!');
+        } else {
+            alert('Erro ao salvar pagamento.');
+        }
     };
 
     window.carregarPagamentos = function() {
         const tbody = document.getElementById('tabelaPagamentos');
         if (!tbody) return;
-        tbody.innerHTML = (appData.pagamentos || []).map(p => `
+        
+        const pagamentos = (appData.pagamentos || []).sort((a, b) => new Date(b.data) - new Date(a.data));
+        
+        tbody.innerHTML = pagamentos.map(p => `
             <tr>
-                <td>${p.data}</td><td>${p.motorista}</td><td>${p.horas}h</td>
-                <td>${formatMoney(p.valorHora)}</td><td><strong>${formatMoney(p.valorTotal)}</strong></td>
-                <td><button class="btn btn-danger btn-sm" onclick="window.excluirPagamento(${p.id})">🗑️</button></td>
+                <td>${p.data}</td>
+                <td>${p.motorista}</td>
+                <td>${p.horas}h</td>
+                <td>${formatMoney(p.valorHora)}</td>
+                <td><strong>${formatMoney(p.valorTotal)}</strong></td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirPagamento(${p.id})">🗑️</button>
+                </td>
             </tr>
         `).join('');
     };
 
     window.excluirPagamento = async function(id) {
-        if (!confirm('Excluir pagamento?')) return;
+        if (!confirm('Tem certeza que deseja excluir este pagamento?')) return;
+        
         const pag = appData.pagamentos.find(p => p.id == id);
+        if (!pag) return;
+        
         appData.pagamentos = appData.pagamentos.filter(p => p.id != id);
-        if (pag?.firebaseId) await excluirDoFB('motoristas_pagamentos', pag.firebaseId);
+        
+        if (pag?.firebaseId) {
+            await excluirDoFB('motoristas_pagamentos', pag.firebaseId);
+        }
+        
         window.carregarPagamentos();
+        alert('Pagamento excluído com sucesso!');
     };
 
     // ============ UTILITÁRIOS ============
@@ -712,12 +1092,14 @@
 
     // ============ INICIALIZAÇÃO ============
     async function init() {
+        console.log('🚀 Iniciando aplicação...');
         showLoading();
         
         const db = getDB();
         if (!db) {
             console.error('❌ Firebase não disponível');
             hideLoading();
+            alert('Erro: Firebase não está disponível. Verifique a conexão.');
             return;
         }
         
@@ -746,36 +1128,54 @@
         if (pontoAno) pontoAno.value = hoje.getFullYear();
         if (kmFiltroAno) kmFiltroAno.value = hoje.getFullYear();
 
-        window.atualizarPainel();
-        window.carregarPonto();
-        window.carregarBancoHoras();
-        window.carregarKM();
-        window.carregarPagamentos();
+        // Adicionar event listeners para selects que atualizam o painel/ponto
+        document.getElementById('painelMotorista')?.addEventListener('change', window.atualizarPainel);
+        document.getElementById('painelMes')?.addEventListener('change', window.atualizarPainel);
+        document.getElementById('painelAno')?.addEventListener('change', window.atualizarPainel);
+        
+        document.getElementById('pontoMotorista')?.addEventListener('change', window.carregarPonto);
+        document.getElementById('pontoMes')?.addEventListener('change', window.carregarPonto);
+        document.getElementById('pontoAno')?.addEventListener('change', window.carregarPonto);
+        
+        document.getElementById('bancoMotorista')?.addEventListener('change', window.carregarBancoHoras);
+        document.getElementById('kmFiltroMotorista')?.addEventListener('change', window.carregarKM);
 
+        // Event listeners para cálculos automáticos
         document.getElementById('pagHoras')?.addEventListener('input', window.calcPagamento);
         document.getElementById('pagValorHora')?.addEventListener('input', window.calcPagamento);
         document.getElementById('kmInicial')?.addEventListener('input', window.calcularKM);
         document.getElementById('kmFinal')?.addEventListener('input', window.calcularKM);
 
+        // Inicializar tabs
         document.querySelectorAll('.tab-btn').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
+                const tabContent = document.getElementById('tab-' + tab.dataset.tab);
+                if (tabContent) tabContent.classList.add('active');
             });
         });
 
+        // Fechar modal ao clicar fora
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('modal-overlay')) {
                 e.target.classList.remove('active');
             }
         });
 
+        // Carregar dados iniciais
+        window.atualizarPainel();
+        window.carregarPonto();
+        window.carregarBancoHoras();
+        window.carregarKM();
+        window.carregarPagamentos();
+
         hideLoading();
-        console.log('✅ Sistema de Motoristas inicializado');
+        console.log('✅ Sistema de Motoristas inicializado com sucesso!');
     }
 
+    // Iniciar quando o DOM estiver pronto
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
