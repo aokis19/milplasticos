@@ -19,7 +19,8 @@
         motoristas: [], 
         ponto: {}, 
         pagamentos: [], 
-        registrosKM: [] 
+        registrosKM: [],
+        historicoPonto: [] // Novo: armazena registros de ponto por período
     };
 
     // ============ REFERÊNCIA DO FIREBASE ============
@@ -139,6 +140,12 @@
         };
     }
 
+    function getNomeMes(mes) {
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        return meses[mes - 1] || '';
+    }
+
     // ============ CARREGAR DADOS (APENAS FIREBASE) ============
     async function carregarDados() {
         const db = getDB();
@@ -167,6 +174,18 @@
                 });
             });
 
+            // Carregar histórico de ponto (períodos salvos)
+            const snapHistorico = await db.collection('motoristas_historico_ponto').get();
+            appData.historicoPonto = [];
+            snapHistorico.forEach(doc => {
+                appData.historicoPonto.push({ 
+                    id: doc.id, 
+                    firebaseId: doc.id, 
+                    ...doc.data() 
+                });
+            });
+
+            // Carregar ponto atual (para edição)
             const snapPonto = await db.collection('motoristas_ponto').get();
             appData.ponto = {};
             if (!snapPonto.empty) {
@@ -193,7 +212,7 @@
 
             console.log('✅ Dados carregados do Firebase:');
             console.log('   👨‍✈️ ' + appData.motoristas.length + ' motoristas');
-            console.log('   📅 ' + Object.keys(appData.ponto).length + ' registros de ponto');
+            console.log('   📅 ' + appData.historicoPonto.length + ' períodos de ponto');
             console.log('   💰 ' + appData.pagamentos.length + ' pagamentos');
             console.log('   🚛 ' + appData.registrosKM.length + ' registros KM');
 
@@ -213,10 +232,36 @@
                 ...dados,
                 ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log('✅ Motorista salvo:', docId);
             return true;
         } catch (error) {
             console.error('❌ Erro ao salvar motorista:', error);
+            return false;
+        }
+    }
+
+    async function salvarHistoricoPontoFB(historico) {
+        const db = getDB();
+        if (!db) return false;
+        try {
+            const docData = { ...historico };
+            delete docData.id;
+            delete docData.firebaseId;
+            
+            if (historico.firebaseId) {
+                await db.collection('motoristas_historico_ponto').doc(historico.firebaseId).set({
+                    ...docData,
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                return historico.firebaseId;
+            } else {
+                const docRef = await db.collection('motoristas_historico_ponto').add({
+                    ...docData,
+                    dataCriacao: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return docRef.id;
+            }
+        } catch (error) {
+            console.error('❌ Erro ao salvar histórico:', error);
             return false;
         }
     }
@@ -229,7 +274,6 @@
                 dados: dados,
                 ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log('✅ Ponto salvo:', key);
             return true;
         } catch (error) {
             console.error('❌ Erro ao salvar ponto:', error);
@@ -246,20 +290,16 @@
             delete docData.firebaseId;
             
             if (pagamento.firebaseId) {
-                // Atualizar existente
                 await db.collection('motoristas_pagamentos').doc(pagamento.firebaseId).set({
                     ...docData,
                     dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-                console.log('✅ Pagamento atualizado:', pagamento.firebaseId);
                 return pagamento.firebaseId;
             } else {
-                // Criar novo
                 const docRef = await db.collection('motoristas_pagamentos').add({
                     ...docData,
                     dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log('✅ Pagamento criado:', docRef.id);
                 return docRef.id;
             }
         } catch (error) {
@@ -277,20 +317,16 @@
             delete docData.firebaseId;
             
             if (registro.firebaseId) {
-                // Atualizar existente
                 await db.collection('motoristas_km').doc(registro.firebaseId).set({
                     ...docData,
                     dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-                console.log('✅ KM atualizado:', registro.firebaseId);
                 return registro.firebaseId;
             } else {
-                // Criar novo
                 const docRef = await db.collection('motoristas_km').add({
                     ...docData,
                     dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log('✅ KM criado:', docRef.id);
                 return docRef.id;
             }
         } catch (error) {
@@ -318,10 +354,8 @@
         if (!db || !file) return null;
         
         try {
-            // Converte o arquivo para base64
             const base64 = await fileToBase64(file);
             
-            // Salva a referência do PDF no documento
             await db.collection(colecao).doc(docId).update({
                 pdfRecibo: base64,
                 pdfNome: file.name,
@@ -348,7 +382,8 @@
 
     // ============ MOTORISTAS ============
     function carregarSelectsMotoristas() {
-        const selects = ['painelMotorista', 'pontoMotorista', 'pagMotorista', 'kmMotoristaSelect', 'kmFiltroMotorista', 'bancoMotorista'];
+        const selects = ['painelMotorista', 'pontoHistoricoMotorista', 'pontoNovoMotorista', 
+                        'pagMotorista', 'kmMotoristaSelect', 'kmFiltroMotorista', 'bancoMotorista'];
         const motoristasAtivos = (appData.motoristas || []).filter(m => m.ativo !== false);
 
         selects.forEach(id => {
@@ -525,176 +560,197 @@
         }
     };
 
-    // ============ PONTO ============
-    window.updateTipo = async function(key, tipo) {
-        console.log(`Alterando tipo para ${tipo} na key ${key}`);
+    // ============ SISTEMA DE PONTO (HISTÓRICO + NOVO) ============
+    
+    // Mostrar histórico de registros
+    window.carregarHistoricoPonto = function() {
+        const container = document.getElementById('pontoHistoricoContainer');
+        if (!container) return;
         
-        if (!appData.ponto[key]) {
-            appData.ponto[key] = { 
-                intervalos: [{ entrada: '', saida: '' }], 
-                pernoite: false 
-            };
-        }
-        appData.ponto[key].tipo = tipo;
+        const cod = document.getElementById('pontoHistoricoMotorista')?.value;
+        const ano = parseInt(document.getElementById('pontoHistoricoAno')?.value);
         
-        try {
-            await salvarPontoFB(key, appData.ponto[key]);
-            console.log('✅ Tipo atualizado com sucesso');
-            window.carregarPonto();
-        } catch (error) {
-            console.error('❌ Erro ao atualizar tipo:', error);
-            alert('Erro ao salvar alteração. Tente novamente.');
-        }
-    };
-
-    window.togglePernoite = async function(key, checked) {
-        console.log(`Alterando pernoite para ${checked} na key ${key}`);
-        
-        if (!appData.ponto[key]) {
-            appData.ponto[key] = { 
-                intervalos: [{ entrada: '', saida: '' }], 
-                tipo: 'interno' 
-            };
-        }
-        appData.ponto[key].pernoite = checked;
-        
-        try {
-            await salvarPontoFB(key, appData.ponto[key]);
-            console.log('✅ Pernoite atualizado com sucesso');
-            window.carregarPonto();
-        } catch (error) {
-            console.error('❌ Erro ao atualizar pernoite:', error);
-            alert('Erro ao salvar alteração. Tente novamente.');
-        }
-    };
-
-    window.toggleFolga = async function(key, cod, mes, ano, dia, isFolga) {
-        console.log(`Alterando folga para ${isFolga} na key ${key}`);
-        
-        if (!appData.ponto[key]) {
-            appData.ponto[key] = { 
-                intervalos: [{ entrada: '', saida: '' }], 
-                tipo: 'interno', 
-                pernoite: false 
-            };
-        }
-        
-        appData.ponto[key].folga = isFolga;
-        
-        try {
-            await salvarPontoFB(key, appData.ponto[key]);
-            console.log('✅ Folga salva com sucesso');
-            window.carregarPonto();
-        } catch (error) {
-            console.error('❌ Erro ao salvar folga:', error);
-            alert('Erro ao salvar folga. Tente novamente.');
-        }
-    };
-
-    window.updateIntervaloTime = async function(inputElement) {
-        const key = inputElement.dataset.key;
-        const field = inputElement.dataset.field;
-        const value = inputElement.value;
-        
-        console.log(`Atualizando ${field} para ${value} na key ${key}`);
-        
-        if (!appData.ponto[key]) {
-            appData.ponto[key] = { 
-                intervalos: [{ entrada: '', saida: '' }], 
-                tipo: 'interno', 
-                pernoite: false 
-            };
-        }
-        
-        if (!appData.ponto[key].intervalos || appData.ponto[key].intervalos.length === 0) {
-            appData.ponto[key].intervalos = [{ entrada: '', saida: '' }];
-        }
-        
-        if (field === 'entrada') {
-            appData.ponto[key].intervalos[0].entrada = value;
-        } else {
-            appData.ponto[key].intervalos[0].saida = value;
-        }
-        
-        try {
-            await salvarPontoFB(key, appData.ponto[key]);
-            console.log('✅ Ponto salvo com sucesso');
-            window.carregarPonto();
-        } catch (error) {
-            console.error('❌ Erro ao salvar ponto:', error);
-            alert('Erro ao salvar horário. Tente novamente.');
-        }
-    };
-
-    window.salvarPontoAtual = async function() {
-        try {
-            // Este botão força o recarregamento e salvamento de todos os pontos visíveis
-            const container = document.getElementById('pontoContainer');
-            if (!container) return;
-            
-            const inputs = container.querySelectorAll('input[type="time"], input[type="checkbox"], select');
-            for (const input of inputs) {
-                const event = new Event('change', { bubbles: true });
-                input.dispatchEvent(event);
-            }
-            
-            alert('✅ Todos os registros de ponto foram salvos com sucesso!');
-        } catch (error) {
-            console.error('❌ Erro ao salvar ponto:', error);
-            alert('Erro ao salvar registros. Tente novamente.');
-        }
-    };
-
-    window.carregarPonto = function() {
-        const cod = document.getElementById('pontoMotorista')?.value;
-        const mesRef = parseInt(document.getElementById('pontoMes')?.value);
-        const anoRef = parseInt(document.getElementById('pontoAno')?.value);
-        
-        if (!cod || !mesRef || !anoRef) {
-            console.log('❌ Dados incompletos para carregar ponto');
+        if (!cod || !ano) {
+            container.innerHTML = '<p style="text-align:center; padding:20px;">Selecione um motorista e ano para ver o histórico.</p>';
             return;
         }
         
         const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
         if (!motorista) {
-            console.log('❌ Motorista não encontrado:', cod);
+            container.innerHTML = '<p style="text-align:center; padding:20px;">Motorista não encontrado.</p>';
             return;
         }
-
-        const { diaInicio, diaFim } = getPeriodoConfig();
-        const datasPeriodo = getDatasPeriodo(mesRef, anoRef, diaInicio, diaFim);
-
+        
+        // Filtrar históricos do motorista e ano selecionados
+        const historicos = (appData.historicoPonto || []).filter(h => 
+            (h.codMotorista == cod || h.motorista == motorista.nome) && h.ano == ano
+        ).sort((a, b) => b.mes - a.mes); // Ordenar por mês (mais recente primeiro)
+        
+        if (historicos.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:20px;">
+                    <p>Nenhum registro de ponto encontrado para ${motorista.nome} em ${ano}.</p>
+                    <button class="btn btn-primary" onclick="window.mostrarNovoPonto()">
+                        ➕ Criar Novo Registro de Ponto
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
         let html = `
-        <div style="margin-bottom: 15px;">
-            <button class="btn btn-success" onclick="window.salvarPontoAtual()" style="margin-right: 10px;">
-                💾 SALVAR TODOS OS REGISTROS DE PONTO
-            </button>
-            <small style="color: #666;">Clique para salvar todas as alterações do período</small>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Dia</th>
-                        <th>Data</th>
-                        <th>Sem.</th>
-                        <th>Folga</th>
-                        <th>Tipo</th>
-                        <th>Entrada</th>
-                        <th>Saída</th>
-                        <th>Total Horas</th>
-                        <th>Saldo</th>
-                        <th>Diárias</th>
-                        <th>Pernoite</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-        let totalPeriodoHT = 0, totalPeriodoExtras = 0, totalDiariasPeriodo = 0;
-
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-success" onclick="window.mostrarNovoPonto()">
+                    ➕ Novo Registro de Ponto
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Mês/Ano</th>
+                            <th>Período</th>
+                            <th>Dias Trab.</th>
+                            <th>Total Horas</th>
+                            <th>Horas Extras</th>
+                            <th>Faltas/Atrasos</th>
+                            <th>Saldo</th>
+                            <th>Diárias</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (const hist of historicos) {
+            // Calcular resumo do período
+            const { diaInicio, diaFim } = getPeriodoConfig();
+            const datasPeriodo = getDatasPeriodo(hist.mes, hist.ano, diaInicio, diaFim);
+            
+            let totalHT = 0, totalExtras = 0, totalFaltas = 0, diasTrab = 0, totalDiarias = 0;
+            
+            for (const data of datasPeriodo) {
+                const { dia, mes, ano: a } = data;
+                const key = `${cod}_${a}_${mes}_${dia}`;
+                const reg = appData.ponto[key] || hist.dados?.[key];
+                
+                if (!reg || reg.folga) continue;
+                
+                const totalHoras = calcularTotalHoras(reg.intervalos);
+                if (totalHoras <= 0) continue;
+                
+                const jornadaBase = motorista.jornadaBase || 8;
+                const tolerancia = (motorista.tolerancia || 10) / 60;
+                const saldo = totalHoras - jornadaBase - tolerancia;
+                const diarias = calcularDiarias(reg.intervalos, reg.tipo || 'interno', reg.pernoite || false);
+                
+                totalHT += totalHoras;
+                diasTrab++;
+                
+                if (saldo > 0) totalExtras += saldo;
+                else if (saldo < 0) totalFaltas += Math.abs(saldo);
+                
+                totalDiarias += diarias.total;
+            }
+            
+            const saldoFinal = totalExtras - totalFaltas;
+            const statusClass = saldoFinal >= 0 ? 'text-success' : 'text-danger';
+            const statusIcon = saldoFinal >= 0 ? '✅' : '⚠️';
+            const statusText = saldoFinal >= 0 ? 'Positivo' : 'Negativo';
+            
+            html += `
+                <tr>
+                    <td><strong>${getNomeMes(hist.mes)}/${hist.ano}</strong></td>
+                    <td>Dia ${diaInicio} a Dia ${diaFim}</td>
+                    <td>${diasTrab}</td>
+                    <td>${formatHoras(totalHT)}</td>
+                    <td class="text-success">${formatHoras(totalExtras)}</td>
+                    <td class="text-danger">${formatHoras(totalFaltas)}</td>
+                    <td class="${statusClass} fw-bold">${statusIcon} ${formatHoras(saldoFinal)}</td>
+                    <td>${formatMoney(totalDiarias)}</td>
+                    <td><span class="badge ${saldoFinal >= 0 ? 'bg-success' : 'bg-danger'}">${statusText}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="window.editarPonto('${hist.firebaseId || hist.id}')" title="Editar">✏️</button>
+                        <button class="btn btn-sm btn-info" onclick="window.visualizarPonto('${hist.firebaseId || hist.id}')" title="Visualizar">👁️</button>
+                        <button class="btn btn-sm btn-danger" onclick="window.excluirHistoricoPonto('${hist.firebaseId || hist.id}')" title="Excluir">🗑️</button>
+                    </td>
+                </tr>`;
+        }
+        
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    };
+    
+    // Mostrar formulário para novo registro de ponto
+    window.mostrarNovoPonto = function() {
+        document.getElementById('pontoHistoricoSection').style.display = 'none';
+        document.getElementById('pontoNovoSection').style.display = 'block';
+        
+        const hoje = new Date();
+        document.getElementById('pontoNovoMes').value = hoje.getMonth() + 1;
+        document.getElementById('pontoNovoAno').value = hoje.getFullYear();
+        
+        // Copiar motorista selecionado do histórico
+        const motoristaSelect = document.getElementById('pontoHistoricoMotorista')?.value;
+        if (motoristaSelect) {
+            document.getElementById('pontoNovoMotorista').value = motoristaSelect;
+        }
+        
+        document.getElementById('pontoFormContainer').innerHTML = 
+            '<p style="text-align:center; padding:20px;">Selecione motorista, mês e ano e clique em "Carregar Período".</p>';
+    };
+    
+    // Voltar para o histórico
+    window.voltarHistorico = function() {
+        document.getElementById('pontoHistoricoSection').style.display = 'block';
+        document.getElementById('pontoNovoSection').style.display = 'none';
+        window.carregarHistoricoPonto();
+    };
+    
+    // Carregar formulário do novo período
+    window.carregarNovoPeriodo = function() {
+        const cod = document.getElementById('pontoNovoMotorista')?.value;
+        const mes = parseInt(document.getElementById('pontoNovoMes')?.value);
+        const ano = parseInt(document.getElementById('pontoNovoAno')?.value);
+        
+        if (!cod || !mes || !ano) {
+            alert('Selecione motorista, mês e ano!');
+            return;
+        }
+        
+        const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
+        if (!motorista) {
+            alert('Motorista não encontrado!');
+            return;
+        }
+        
+        const { diaInicio, diaFim } = getPeriodoConfig();
+        const datasPeriodo = getDatasPeriodo(mes, ano, diaInicio, diaFim);
+        
+        let html = `
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4>📅 ${getNomeMes(mes)}/${ano} - Período: Dia ${diaInicio} a Dia ${diaFim}</h4>
+                <p>Motorista: <strong>${motorista.nome}</strong> | Jornada: ${formatHoras(motorista.jornadaBase || 8)} | Tolerância: ${motorista.tolerancia || 10}min</p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Sem.</th>
+                            <th>Folga</th>
+                            <th>Tipo</th>
+                            <th>Entrada</th>
+                            <th>Saída</th>
+                            <th>Pernoite</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
         for (const data of datasPeriodo) {
-            const { dia, mes, ano } = data;
-            const key = `${cod}_${ano}_${mes}_${dia}`;
+            const { dia, mes: m, ano: a } = data;
+            const key = `${cod}_${a}_${m}_${dia}`;
             const reg = appData.ponto[key] || { 
                 intervalos: [{ entrada: '', saida: '' }], 
                 folga: false, 
@@ -707,105 +763,286 @@
             }
             if (!reg.tipo) reg.tipo = 'interno';
             if (reg.pernoite === undefined) reg.pernoite = false;
-
-            const isFolga = reg.folga || getSemana(dia, mes, ano) === 'DOM';
-            let totalHoras = 0, saldo = 0;
-
-            if (!isFolga) {
-                totalHoras = calcularTotalHoras(reg.intervalos);
-                const jornadaBase = motorista.jornadaBase || 8;
-                const toleranciaHoras = (motorista.tolerancia || 10) / 60;
-                saldo = totalHoras - jornadaBase - toleranciaHoras;
-                if (totalHoras > 0) {
-                    totalPeriodoHT += totalHoras;
-                    if (saldo > 0) totalPeriodoExtras += saldo;
-                }
-            }
-
-            const diarias = calcularDiarias(reg.intervalos, reg.tipo, reg.pernoite);
-            if (diarias.total > 0) totalDiariasPeriodo += diarias.total;
-
-            const entradaVal = reg.intervalos[0]?.entrada || '';
-            const saidaVal = reg.intervalos[0]?.saida || '';
             
-            const dataStr = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
-
-            html += `<tr style="${isFolga ? 'background:#fff3e0' : ''}">
+            const isFolga = reg.folga || getSemana(dia, m, ano) === 'DOM';
+            const dataStr = `${String(dia).padStart(2,'0')}/${String(m).padStart(2,'0')}/${a}`;
+            
+            html += `<tr class="ponto-row" data-key="${key}" style="${isFolga ? 'background:#fff3e0' : ''}">
                 <td><strong>${dia}</strong></td>
                 <td>${dataStr}</td>
-                <td>${getSemana(dia, mes, ano)}</td>
+                <td>${getSemana(dia, m, a)}</td>
                 <td>
-                    <input type="checkbox" ${isFolga ? 'checked' : ''} 
-                        onchange="window.toggleFolga('${key}','${cod}',${mes},${ano},${dia},this.checked)">
+                    <input type="checkbox" class="folga-check" ${isFolga ? 'checked' : ''}>
                 </td>
                 <td>
-                    <select onchange="window.updateTipo('${key}', this.value)" class="form-control-sm">
+                    <select class="tipo-select form-control-sm">
                         <option value="interno" ${reg.tipo === 'interno' ? 'selected' : ''}>Interno</option>
                         <option value="externo" ${reg.tipo === 'externo' ? 'selected' : ''}>Externo</option>
                     </select>
                 </td>
                 <td>
-                    <input type="time" class="form-control form-control-sm" 
-                        value="${entradaVal}" 
-                        data-key="${key}" 
-                        data-field="entrada"
-                        onchange="window.updateIntervaloTime(this)"
-                        ${isFolga ? 'disabled' : ''}>
+                    <input type="time" class="entrada-time form-control form-control-sm" 
+                        value="${reg.intervalos[0]?.entrada || ''}" ${isFolga ? 'disabled' : ''}>
                 </td>
                 <td>
-                    <input type="time" class="form-control form-control-sm" 
-                        value="${saidaVal}" 
-                        data-key="${key}" 
-                        data-field="saida"
-                        onchange="window.updateIntervaloTime(this)"
-                        ${isFolga ? 'disabled' : ''}>
-                </td>
-                <td class="${totalHoras > 0 ? 'fw-bold' : ''}">
-                    ${totalHoras > 0 ? formatHoras(totalHoras) : '-'}
-                </td>
-                <td class="${saldo > 0.05 ? 'text-success fw-bold' : (saldo < -0.05 ? 'text-danger fw-bold' : '')}">
-                    ${Math.abs(saldo) > 0.05 ? formatHoras(saldo) : '-'}
+                    <input type="time" class="saida-time form-control form-control-sm" 
+                        value="${reg.intervalos[0]?.saida || ''}" ${isFolga ? 'disabled' : ''}>
                 </td>
                 <td>
-                    ${diarias.total > 0 ? `<span class="badge bg-warning text-dark">${formatMoney(diarias.total)}</span>` : '-'}
-                </td>
-                <td>
-                    <input type="checkbox" ${reg.pernoite ? 'checked' : ''} 
-                        onchange="window.togglePernoite('${key}', this.checked)"
-                        ${isFolga ? 'disabled' : ''}>
+                    <input type="checkbox" class="pernoite-check" ${reg.pernoite ? 'checked' : ''} ${isFolga ? 'disabled' : ''}>
                 </td>
             </tr>`;
         }
-
-        html += `</tbody></table></div>`;
         
-        const container = document.getElementById('pontoContainer');
-        if (container) container.innerHTML = html;
-
-        const totaisEl = document.getElementById('totaisPonto');
-        if (totaisEl) {
-            totaisEl.innerHTML = `
-                <div class="alert alert-info">
-                    <h5>📊 Resumo do Período</h5>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <strong>Total Horas Trabalhadas:</strong><br>
-                            <span class="fs-5">${formatHoras(totalPeriodoHT)}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Total Horas Extras:</strong><br>
-                            <span class="fs-5 text-success">${formatHoras(totalPeriodoExtras)}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Total Diárias:</strong><br>
-                            <span class="fs-5 text-warning">${formatMoney(totalDiariasPeriodo)}</span>
-                        </div>
-                    </div>
-                    <hr>
-                    <small>🕐 Horário Padrão: ${motorista.horarioEntrada || '08:00'} - ${motorista.horarioSaida || '17:00'} (${formatHoras(motorista.jornadaBase || 8)})</small><br>
-                    <small>⏱️ Tolerância: ${motorista.tolerancia || 10} minutos</small>
-                </div>
-            `;
+        html += `</tbody></table></div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-secondary" onclick="window.voltarHistorico()" style="margin-right: 10px;">Cancelar</button>
+                <button class="btn btn-success btn-lg" onclick="window.salvarNovoPonto(${mes}, ${ano})">
+                    💾 SALVAR REGISTRO DE PONTO
+                </button>
+            </div>`;
+        
+        document.getElementById('pontoFormContainer').innerHTML = html;
+        
+        // Adicionar eventos para folga
+        document.querySelectorAll('.folga-check').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const row = this.closest('.ponto-row');
+                const inputs = row.querySelectorAll('.entrada-time, .saida-time, .pernoite-check');
+                inputs.forEach(input => input.disabled = this.checked);
+            });
+        });
+    };
+    
+    // Salvar novo registro de ponto
+    window.salvarNovoPonto = async function(mes, ano) {
+        const cod = document.getElementById('pontoNovoMotorista')?.value;
+        const motorista = (appData.motoristas || []).find(m => (m.cod == cod) || (m.firebaseId == cod));
+        
+        if (!cod || !motorista) {
+            alert('Motorista não encontrado!');
+            return;
+        }
+        
+        const dadosPonto = {};
+        const rows = document.querySelectorAll('.ponto-row');
+        
+        rows.forEach(row => {
+            const key = row.dataset.key;
+            const isFolga = row.querySelector('.folga-check').checked;
+            const tipo = row.querySelector('.tipo-select').value;
+            const entrada = row.querySelector('.entrada-time').value;
+            const saida = row.querySelector('.saida-time').value;
+            const pernoite = row.querySelector('.pernoite-check').checked;
+            
+            dadosPonto[key] = {
+                intervalos: [{ entrada, saida }],
+                folga: isFolga,
+                tipo: tipo,
+                pernoite: pernoite
+            };
+            
+            // Salvar no ponto atual também
+            appData.ponto[key] = dadosPonto[key];
+        });
+        
+        // Salvar cada registro no Firebase
+        for (const [key, dados] of Object.entries(dadosPonto)) {
+            await salvarPontoFB(key, dados);
+        }
+        
+        // Criar registro no histórico
+        const historico = {
+            id: Date.now(),
+            codMotorista: cod,
+            motorista: motorista.nome,
+            mes: mes,
+            ano: ano,
+            dados: dadosPonto,
+            periodo: `${getPeriodoConfig().diaInicio} a ${getPeriodoConfig().diaFim}`
+        };
+        
+        const firebaseId = await salvarHistoricoPontoFB(historico);
+        
+        if (firebaseId) {
+            historico.firebaseId = firebaseId;
+            appData.historicoPonto.push(historico);
+            
+            alert('✅ Registro de ponto salvo com sucesso!');
+            window.voltarHistorico();
+        } else {
+            alert('Erro ao salvar registro de ponto.');
+        }
+    };
+    
+    // Editar registro de ponto existente
+    window.editarPonto = async function(historicoId) {
+        const historico = (appData.historicoPonto || []).find(h => h.firebaseId == historicoId || h.id == historicoId);
+        if (!historico) {
+            alert('Registro não encontrado!');
+            return;
+        }
+        
+        // Carregar dados do ponto
+        if (historico.dados) {
+            for (const [key, dados] of Object.entries(historico.dados)) {
+                appData.ponto[key] = dados;
+            }
+        }
+        
+        // Mostrar formulário de edição
+        document.getElementById('pontoHistoricoSection').style.display = 'none';
+        document.getElementById('pontoNovoSection').style.display = 'block';
+        
+        document.getElementById('pontoNovoMotorista').value = historico.codMotorista;
+        document.getElementById('pontoNovoMes').value = historico.mes;
+        document.getElementById('pontoNovoAno').value = historico.ano;
+        
+        document.getElementById('pontoNovoSection').dataset.editandoId = historico.firebaseId || historico.id;
+        
+        window.carregarNovoPeriodo();
+    };
+    
+    // Visualizar registro de ponto (apenas leitura)
+    window.visualizarPonto = function(historicoId) {
+        const historico = (appData.historicoPonto || []).find(h => h.firebaseId == historicoId || h.id == historicoId);
+        if (!historico) {
+            alert('Registro não encontrado!');
+            return;
+        }
+        
+        const motorista = (appData.motoristas || []).find(m => 
+            (m.cod == historico.codMotorista) || (m.firebaseId == historico.codMotorista)
+        );
+        
+        const { diaInicio, diaFim } = getPeriodoConfig();
+        const datasPeriodo = getDatasPeriodo(historico.mes, historico.ano, diaInicio, diaFim);
+        
+        let html = `
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px;">
+                <h4>📋 Visualização - ${getNomeMes(historico.mes)}/${historico.ano}</h4>
+                <p>Motorista: <strong>${historico.motorista}</strong> | Período: Dia ${diaInicio} a Dia ${diaFim}</p>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Dia</th>
+                                <th>Data</th>
+                                <th>Sem.</th>
+                                <th>Folga</th>
+                                <th>Tipo</th>
+                                <th>Entrada</th>
+                                <th>Saída</th>
+                                <th>Total</th>
+                                <th>Saldo</th>
+                                <th>Diárias</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        let totalHT = 0, totalExtras = 0, totalDiarias = 0;
+        
+        for (const data of datasPeriodo) {
+            const { dia, mes, ano } = data;
+            const key = `${historico.codMotorista}_${ano}_${mes}_${dia}`;
+            const reg = historico.dados?.[key] || appData.ponto[key] || {};
+            
+            const isFolga = reg.folga || getSemana(dia, mes, ano) === 'DOM';
+            let totalHoras = 0, saldo = 0;
+            
+            if (!isFolga && reg.intervalos) {
+                totalHoras = calcularTotalHoras(reg.intervalos);
+                const jornadaBase = motorista?.jornadaBase || 8;
+                const tolerancia = (motorista?.tolerancia || 10) / 60;
+                saldo = totalHoras - jornadaBase - tolerancia;
+                if (totalHoras > 0) {
+                    totalHT += totalHoras;
+                    if (saldo > 0) totalExtras += saldo;
+                }
+            }
+            
+            const diarias = calcularDiarias(reg.intervalos, reg.tipo || 'interno', reg.pernoite || false);
+            totalDiarias += diarias.total;
+            
+            const dataStr = `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
+            
+            html += `<tr style="${isFolga ? 'background:#fff3e0' : ''}">
+                <td>${dia}</td>
+                <td>${dataStr}</td>
+                <td>${getSemana(dia, mes, ano)}</td>
+                <td>${isFolga ? '✅' : '❌'}</td>
+                <td>${reg.tipo || 'interno'}</td>
+                <td>${reg.intervalos?.[0]?.entrada || '-'}</td>
+                <td>${reg.intervalos?.[0]?.saida || '-'}</td>
+                <td>${totalHoras > 0 ? formatHoras(totalHoras) : '-'}</td>
+                <td class="${saldo > 0.05 ? 'text-success' : (saldo < -0.05 ? 'text-danger' : '')}">
+                    ${Math.abs(saldo) > 0.05 ? formatHoras(saldo) : '-'}
+                </td>
+                <td>${formatMoney(diarias.total)}</td>
+            </tr>`;
+        }
+        
+        html += `</tbody></table></div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-primary" onclick="window.fecharVisualizacao()">Fechar</button>
+            </div></div>`;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 90%; max-height: 90vh; overflow-y: auto;">
+                ${html}
+            </div>`;
+        
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+        
+        document.body.appendChild(modal);
+    };
+    
+    window.fecharVisualizacao = function() {
+        const modal = document.querySelector('.modal-overlay');
+        if (modal) {
+            document.body.removeChild(modal);
+        }
+    };
+    
+    // Excluir histórico de ponto
+    window.excluirHistoricoPonto = async function(historicoId) {
+        if (!confirm('Tem certeza que deseja excluir este registro de ponto? Esta ação não pode ser desfeita.')) return;
+        
+        const historico = appData.historicoPonto.find(h => h.firebaseId == historicoId || h.id == historicoId);
+        if (!historico) {
+            alert('Registro não encontrado!');
+            return;
+        }
+        
+        try {
+            // Excluir dados do ponto
+            if (historico.dados) {
+                for (const key of Object.keys(historico.dados)) {
+                    await excluirDoFB('motoristas_ponto', key);
+                    delete appData.ponto[key];
+                }
+            }
+            
+            // Excluir do histórico
+            appData.historicoPonto = appData.historicoPonto.filter(h => 
+                h.firebaseId != historicoId && h.id != historicoId
+            );
+            
+            if (historico.firebaseId) {
+                await excluirDoFB('motoristas_historico_ponto', historico.firebaseId);
+            }
+            
+            window.carregarHistoricoPonto();
+            alert('Registro excluído com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir:', error);
+            alert('Erro ao excluir registro. Tente novamente.');
         }
     };
 
@@ -1051,7 +1288,6 @@
             destino: document.getElementById('kmDestino')?.value || ''
         };
         
-        // Se for edição, remove o registro antigo
         if (id) {
             appData.registrosKM = appData.registrosKM.filter(r => r.id != id && r.firebaseId != firebaseId);
         }
@@ -1140,7 +1376,6 @@
             document.getElementById('pagId').value = pagamento.id || '';
             document.getElementById('pagFirebaseId').value = pagamento.firebaseId || '';
             
-            // Mostrar PDF se existir
             const pdfContainer = document.getElementById('pagPdfContainer');
             if (pdfContainer) {
                 if (pagamento.pdfRecibo) {
@@ -1281,10 +1516,8 @@
             valorTotal: horas * valorHora
         };
         
-        // Upload do PDF se existir
         const pdfFile = document.getElementById('pagPdfFile')?.files[0];
         
-        // Se for edição, remove o pagamento antigo
         if (id) {
             appData.pagamentos = appData.pagamentos.filter(p => p.id != id && p.firebaseId != firebaseId);
         }
@@ -1295,7 +1528,6 @@
         if (novoFirebaseId) {
             pagamento.firebaseId = novoFirebaseId;
             
-            // Upload do PDF
             if (pdfFile) {
                 const pdfUrl = await uploadPDF(pdfFile, 'motoristas_pagamentos', novoFirebaseId);
                 if (pdfUrl) {
@@ -1394,28 +1626,30 @@
         carregarTabelaMotoristas();
 
         const hoje = new Date();
-        const painelMes = document.getElementById('painelMes');
-        const pontoMes = document.getElementById('pontoMes');
-        const kmFiltroMes = document.getElementById('kmFiltroMes');
-        const painelAno = document.getElementById('painelAno');
-        const pontoAno = document.getElementById('pontoAno');
-        const kmFiltroAno = document.getElementById('kmFiltroAno');
         
-        if (painelMes) painelMes.value = hoje.getMonth() + 1;
-        if (pontoMes) pontoMes.value = hoje.getMonth() + 1;
-        if (kmFiltroMes) kmFiltroMes.value = hoje.getMonth() + 1;
-        if (painelAno) painelAno.value = hoje.getFullYear();
-        if (pontoAno) pontoAno.value = hoje.getFullYear();
-        if (kmFiltroAno) kmFiltroAno.value = hoje.getFullYear();
+        // Configurar campos de data
+        const campos = {
+            'painelMes': hoje.getMonth() + 1,
+            'painelAno': hoje.getFullYear(),
+            'pontoHistoricoAno': hoje.getFullYear(),
+            'pontoNovoMes': hoje.getMonth() + 1,
+            'pontoNovoAno': hoje.getFullYear(),
+            'kmFiltroMes': hoje.getMonth() + 1,
+            'kmFiltroAno': hoje.getFullYear()
+        };
+        
+        for (const [id, valor] of Object.entries(campos)) {
+            const el = document.getElementById(id);
+            if (el) el.value = valor;
+        }
 
-        // Adicionar event listeners
+        // Event listeners
         document.getElementById('painelMotorista')?.addEventListener('change', window.atualizarPainel);
         document.getElementById('painelMes')?.addEventListener('change', window.atualizarPainel);
         document.getElementById('painelAno')?.addEventListener('change', window.atualizarPainel);
         
-        document.getElementById('pontoMotorista')?.addEventListener('change', window.carregarPonto);
-        document.getElementById('pontoMes')?.addEventListener('change', window.carregarPonto);
-        document.getElementById('pontoAno')?.addEventListener('change', window.carregarPonto);
+        document.getElementById('pontoHistoricoMotorista')?.addEventListener('change', window.carregarHistoricoPonto);
+        document.getElementById('pontoHistoricoAno')?.addEventListener('change', window.carregarHistoricoPonto);
         
         document.getElementById('bancoMotorista')?.addEventListener('change', window.carregarBancoHoras);
         document.getElementById('kmFiltroMotorista')?.addEventListener('change', window.carregarKM);
@@ -1443,9 +1677,13 @@
             }
         });
 
+        // Configurar seções de ponto
+        document.getElementById('pontoHistoricoSection').style.display = 'block';
+        document.getElementById('pontoNovoSection').style.display = 'none';
+
         // Carregar dados iniciais
         window.atualizarPainel();
-        window.carregarPonto();
+        window.carregarHistoricoPonto();
         window.carregarBancoHoras();
         window.carregarKM();
         window.carregarPagamentos();
