@@ -55,11 +55,13 @@
     }
 
     function showLoading() {
-        document.getElementById('loadingOverlay')?.classList.add('active');
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.add('active');
     }
 
     function hideLoading() {
-        document.getElementById('loadingOverlay')?.classList.remove('active');
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.classList.remove('active');
     }
 
     function getPeriodoConfig() {
@@ -101,7 +103,6 @@
                 if (saida > entrada) {
                     total += (saida - entrada);
                 } else if (saida < entrada) {
-                    // Turno que vira a madrugada
                     total += (24 - entrada) + saida;
                 }
             }
@@ -116,11 +117,9 @@
             for (const intervalo of intervalos) {
                 if (intervalo.saida) {
                     const saidaHoras = timeToHours(intervalo.saida);
-                    // Se saiu depois das 13h ou virou a madrugada
                     if (saidaHoras >= 13 || (saidaHoras < 5 && saidaHoras >= 0)) {
                         valorAlmoco = VALOR_ALMOCO;
                     }
-                    // Se saiu depois das 19:30h ou virou a madrugada
                     if (saidaHoras >= 19.5 || (saidaHoras < 5 && saidaHoras >= 0)) {
                         valorJanta = VALOR_JANTA;
                     }
@@ -149,7 +148,6 @@
         }
 
         try {
-            // Carregar motoristas
             const snapMotoristas = await db.collection('motoristas').get();
             appData.motoristas = [];
             snapMotoristas.forEach(doc => {
@@ -169,7 +167,6 @@
                 });
             });
 
-            // Carregar ponto
             const snapPonto = await db.collection('motoristas_ponto').get();
             appData.ponto = {};
             if (!snapPonto.empty) {
@@ -178,7 +175,6 @@
                 });
             }
 
-            // Carregar pagamentos
             const snapPagamentos = await db.collection('motoristas_pagamentos')
                 .orderBy('data', 'desc')
                 .get();
@@ -187,7 +183,6 @@
                 appData.pagamentos.push({ id: doc.id, firebaseId: doc.id, ...doc.data() });
             });
 
-            // Carregar registros KM
             const snapKM = await db.collection('motoristas_km')
                 .orderBy('data', 'desc')
                 .get();
@@ -246,13 +241,27 @@
         const db = getDB();
         if (!db) return false;
         try {
-            const { id, firebaseId, ...dados } = pagamento;
-            const docRef = await db.collection('motoristas_pagamentos').add({
-                ...dados,
-                dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('✅ Pagamento salvo:', docRef.id);
-            return docRef.id;
+            const docData = { ...pagamento };
+            delete docData.id;
+            delete docData.firebaseId;
+            
+            if (pagamento.firebaseId) {
+                // Atualizar existente
+                await db.collection('motoristas_pagamentos').doc(pagamento.firebaseId).set({
+                    ...docData,
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                console.log('✅ Pagamento atualizado:', pagamento.firebaseId);
+                return pagamento.firebaseId;
+            } else {
+                // Criar novo
+                const docRef = await db.collection('motoristas_pagamentos').add({
+                    ...docData,
+                    dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('✅ Pagamento criado:', docRef.id);
+                return docRef.id;
+            }
         } catch (error) {
             console.error('❌ Erro ao salvar pagamento:', error);
             return false;
@@ -263,13 +272,27 @@
         const db = getDB();
         if (!db) return false;
         try {
-            const { id, firebaseId, ...dados } = registro;
-            const docRef = await db.collection('motoristas_km').add({
-                ...dados,
-                dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('✅ KM salvo:', docRef.id);
-            return docRef.id;
+            const docData = { ...registro };
+            delete docData.id;
+            delete docData.firebaseId;
+            
+            if (registro.firebaseId) {
+                // Atualizar existente
+                await db.collection('motoristas_km').doc(registro.firebaseId).set({
+                    ...docData,
+                    dataAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                console.log('✅ KM atualizado:', registro.firebaseId);
+                return registro.firebaseId;
+            } else {
+                // Criar novo
+                const docRef = await db.collection('motoristas_km').add({
+                    ...docData,
+                    dataRegistro: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('✅ KM criado:', docRef.id);
+                return docRef.id;
+            }
         } catch (error) {
             console.error('❌ Erro ao salvar KM:', error);
             return false;
@@ -289,6 +312,40 @@
         }
     }
 
+    // ============ UPLOAD DE PDF ============
+    async function uploadPDF(file, colecao, docId) {
+        const db = getDB();
+        if (!db || !file) return null;
+        
+        try {
+            // Converte o arquivo para base64
+            const base64 = await fileToBase64(file);
+            
+            // Salva a referência do PDF no documento
+            await db.collection(colecao).doc(docId).update({
+                pdfRecibo: base64,
+                pdfNome: file.name,
+                pdfTamanho: file.size,
+                pdfDataUpload: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('✅ PDF salvo com sucesso');
+            return base64;
+        } catch (error) {
+            console.error('❌ Erro ao fazer upload do PDF:', error);
+            return null;
+        }
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
     // ============ MOTORISTAS ============
     function carregarSelectsMotoristas() {
         const selects = ['painelMotorista', 'pontoMotorista', 'pagMotorista', 'kmMotoristaSelect', 'kmFiltroMotorista', 'bancoMotorista'];
@@ -297,6 +354,7 @@
         selects.forEach(id => {
             const select = document.getElementById(id);
             if (!select) return;
+            const valorAtual = select.value;
             let options = '';
             if (id === 'kmFiltroMotorista' || id === 'bancoMotorista') {
                 options = '<option value="todos">Todos</option>';
@@ -305,6 +363,7 @@
                 `<option value="${m.cod || m.firebaseId}">${m.nome}</option>`
             ).join('');
             select.innerHTML = options;
+            if (valorAtual) select.value = valorAtual;
         });
     }
 
@@ -324,9 +383,9 @@
                 <td>${m.tolerancia || 10}min</td>
                 <td>${m.adNoturno ? '✅' : '❌'}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="window.editarMotorista('${m.cod || m.firebaseId}')">✏️</button>
-                    <button class="btn btn-sm btn-info" onclick="window.configurarHorarioMotorista('${m.cod || m.firebaseId}')">🕐</button>
-                    <button class="btn btn-sm btn-danger" onclick="window.excluirMotorista('${m.cod || m.firebaseId}')">🗑️</button>
+                    <button class="btn btn-sm btn-primary" onclick="window.editarMotorista('${m.cod || m.firebaseId}')" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-info" onclick="window.configurarHorarioMotorista('${m.cod || m.firebaseId}')" title="Configurar Horário">🕐</button>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirMotorista('${m.cod || m.firebaseId}')" title="Excluir">🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -349,7 +408,6 @@
                 document.getElementById('motoristaTolerancia').value = m.tolerancia || 10;
                 document.getElementById('motoristaAdNoturno').checked = m.adNoturno || false;
                 
-                // Preencher horários se existirem os campos
                 const horarioEntradaEl = document.getElementById('horarioEntrada');
                 const horarioSaidaEl = document.getElementById('horarioSaida');
                 if (horarioEntradaEl) horarioEntradaEl.value = m.horarioEntrada || '08:00';
@@ -384,10 +442,10 @@
         }
         
         const horarioEntrada = prompt('Horário padrão de entrada (HH:MM):', motorista.horarioEntrada || '08:00');
-        if (horarioEntrada === null) return; // Cancelou
+        if (horarioEntrada === null) return;
         
         const horarioSaida = prompt('Horário padrão de saída (HH:MM):', motorista.horarioSaida || '17:00');
-        if (horarioSaida === null) return; // Cancelou
+        if (horarioSaida === null) return;
         
         if (horarioEntrada && horarioSaida) {
             motorista.horarioEntrada = horarioEntrada;
@@ -449,7 +507,6 @@
             horarioSaida: horarioSaida
         };
         
-        // Remover duplicado e adicionar
         appData.motoristas = appData.motoristas.filter(m => 
             m.cod != motorista.cod && m.firebaseId != motorista.cod
         );
@@ -486,6 +543,7 @@
             window.carregarPonto();
         } catch (error) {
             console.error('❌ Erro ao atualizar tipo:', error);
+            alert('Erro ao salvar alteração. Tente novamente.');
         }
     };
 
@@ -506,6 +564,7 @@
             window.carregarPonto();
         } catch (error) {
             console.error('❌ Erro ao atualizar pernoite:', error);
+            alert('Erro ao salvar alteração. Tente novamente.');
         }
     };
 
@@ -528,6 +587,7 @@
             window.carregarPonto();
         } catch (error) {
             console.error('❌ Erro ao salvar folga:', error);
+            alert('Erro ao salvar folga. Tente novamente.');
         }
     };
 
@@ -559,10 +619,29 @@
         try {
             await salvarPontoFB(key, appData.ponto[key]);
             console.log('✅ Ponto salvo com sucesso');
-            // Recarregar para mostrar totais atualizados
             window.carregarPonto();
         } catch (error) {
             console.error('❌ Erro ao salvar ponto:', error);
+            alert('Erro ao salvar horário. Tente novamente.');
+        }
+    };
+
+    window.salvarPontoAtual = async function() {
+        try {
+            // Este botão força o recarregamento e salvamento de todos os pontos visíveis
+            const container = document.getElementById('pontoContainer');
+            if (!container) return;
+            
+            const inputs = container.querySelectorAll('input[type="time"], input[type="checkbox"], select');
+            for (const input of inputs) {
+                const event = new Event('change', { bubbles: true });
+                input.dispatchEvent(event);
+            }
+            
+            alert('✅ Todos os registros de ponto foram salvos com sucesso!');
+        } catch (error) {
+            console.error('❌ Erro ao salvar ponto:', error);
+            alert('Erro ao salvar registros. Tente novamente.');
         }
     };
 
@@ -586,6 +665,12 @@
         const datasPeriodo = getDatasPeriodo(mesRef, anoRef, diaInicio, diaFim);
 
         let html = `
+        <div style="margin-bottom: 15px;">
+            <button class="btn btn-success" onclick="window.salvarPontoAtual()" style="margin-right: 10px;">
+                💾 SALVAR TODOS OS REGISTROS DE PONTO
+            </button>
+            <small style="color: #666;">Clique para salvar todas as alterações do período</small>
+        </div>
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
@@ -660,7 +745,7 @@
                     </select>
                 </td>
                 <td>
-                    <input type="time" class="form-control form-control-sm time-input entrada-input" 
+                    <input type="time" class="form-control form-control-sm" 
                         value="${entradaVal}" 
                         data-key="${key}" 
                         data-field="entrada"
@@ -668,7 +753,7 @@
                         ${isFolga ? 'disabled' : ''}>
                 </td>
                 <td>
-                    <input type="time" class="form-control form-control-sm time-input saida-input" 
+                    <input type="time" class="form-control form-control-sm" 
                         value="${saidaVal}" 
                         data-key="${key}" 
                         data-field="saida"
@@ -697,7 +782,6 @@
         const container = document.getElementById('pontoContainer');
         if (container) container.innerHTML = html;
 
-        // Atualizar totais
         const totaisEl = document.getElementById('totaisPonto');
         if (totaisEl) {
             totaisEl.innerHTML = `
@@ -885,10 +969,43 @@
     };
 
     // ============ KM ============
-    window.abrirModalKM = function() {
-        document.getElementById('modalKM')?.classList.add('active');
-        const kmData = document.getElementById('kmData');
-        if (kmData) kmData.value = new Date().toISOString().split('T')[0];
+    window.abrirModalKM = function(registro = null) {
+        const modal = document.getElementById('modalKM');
+        if (!modal) return;
+        
+        modal.classList.add('active');
+        
+        if (registro) {
+            document.getElementById('modalKMTitulo').innerText = 'Editar Registro de KM';
+            document.getElementById('kmData').value = registro.data || '';
+            document.getElementById('kmMotoristaSelect').value = registro.codMotorista || '';
+            document.getElementById('kmVeiculo').value = registro.veiculo || '';
+            document.getElementById('kmInicial').value = registro.kmInicial || '';
+            document.getElementById('kmFinal').value = registro.kmFinal || '';
+            document.getElementById('kmDestino').value = registro.destino || '';
+            document.getElementById('kmId').value = registro.id || '';
+            document.getElementById('kmFirebaseId').value = registro.firebaseId || '';
+        } else {
+            document.getElementById('modalKMTitulo').innerText = 'Novo Registro de KM';
+            document.getElementById('kmData').value = new Date().toISOString().split('T')[0];
+            document.getElementById('kmVeiculo').value = '';
+            document.getElementById('kmInicial').value = '';
+            document.getElementById('kmFinal').value = '';
+            document.getElementById('kmDestino').value = '';
+            document.getElementById('kmId').value = '';
+            document.getElementById('kmFirebaseId').value = '';
+        }
+        
+        window.calcularKM();
+    };
+
+    window.editarKM = function(id) {
+        const registro = (appData.registrosKM || []).find(r => r.id == id || r.firebaseId == id);
+        if (registro) {
+            window.abrirModalKM(registro);
+        } else {
+            alert('Registro não encontrado!');
+        }
     };
 
     window.calcularKM = function() {
@@ -918,8 +1035,12 @@
             return;
         }
         
+        const id = document.getElementById('kmId')?.value;
+        const firebaseId = document.getElementById('kmFirebaseId')?.value;
+        
         const registro = {
-            id: Date.now(),
+            id: id ? parseInt(id) : Date.now(),
+            firebaseId: firebaseId || null,
             data: document.getElementById('kmData')?.value || '',
             codMotorista: cod,
             motorista: motorista?.nome || '',
@@ -930,11 +1051,16 @@
             destino: document.getElementById('kmDestino')?.value || ''
         };
         
-        appData.registrosKM.push(registro);
-        const firebaseId = await salvarKMFB(registro);
+        // Se for edição, remove o registro antigo
+        if (id) {
+            appData.registrosKM = appData.registrosKM.filter(r => r.id != id && r.firebaseId != firebaseId);
+        }
         
-        if (firebaseId) {
-            registro.firebaseId = firebaseId;
+        appData.registrosKM.push(registro);
+        const novoFirebaseId = await salvarKMFB(registro);
+        
+        if (novoFirebaseId) {
+            registro.firebaseId = novoFirebaseId;
             window.fecharModal('modalKM');
             window.carregarKM();
             alert('Registro de KM salvo com sucesso!');
@@ -954,7 +1080,6 @@
             registros = registros.filter(r => r.codMotorista == filtro || r.motorista == filtro);
         }
         
-        // Ordenar por data (mais recente primeiro)
         registros.sort((a, b) => new Date(b.data) - new Date(a.data));
         
         tbody.innerHTML = registros.map(r => `
@@ -968,7 +1093,8 @@
                 <td>${formatMoney(r.totalKM * VALOR_KM)}</td>
                 <td>${r.destino || '-'}</td>
                 <td>
-                    <button class="btn btn-sm btn-danger" onclick="window.excluirKM(${r.id})">🗑️</button>
+                    <button class="btn btn-sm btn-primary" onclick="window.editarKM('${r.id || r.firebaseId}')" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirKM('${r.id || r.firebaseId}')" title="Excluir">🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -977,24 +1103,144 @@
     window.excluirKM = async function(id) {
         if (!confirm('Tem certeza que deseja excluir este registro de KM?')) return;
         
-        const reg = appData.registrosKM.find(r => r.id == id);
-        if (!reg) return;
-        
-        appData.registrosKM = appData.registrosKM.filter(r => r.id != id);
-        
-        if (reg?.firebaseId) {
-            await excluirDoFB('motoristas_km', reg.firebaseId);
+        const reg = appData.registrosKM.find(r => r.id == id || r.firebaseId == id);
+        if (!reg) {
+            alert('Registro não encontrado!');
+            return;
         }
         
-        window.carregarKM();
-        alert('Registro excluído com sucesso!');
+        try {
+            appData.registrosKM = appData.registrosKM.filter(r => r.id != id && r.firebaseId != id);
+            
+            if (reg?.firebaseId) {
+                await excluirDoFB('motoristas_km', reg.firebaseId);
+            }
+            
+            window.carregarKM();
+            alert('Registro excluído com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir:', error);
+            alert('Erro ao excluir registro. Tente novamente.');
+        }
     };
 
     // ============ PAGAMENTOS ============
-    window.abrirModalPagamento = function() {
-        document.getElementById('modalPagamento')?.classList.add('active');
-        const pagData = document.getElementById('pagData');
-        if (pagData) pagData.value = new Date().toISOString().split('T')[0];
+    window.abrirModalPagamento = function(pagamento = null) {
+        const modal = document.getElementById('modalPagamento');
+        if (!modal) return;
+        
+        modal.classList.add('active');
+        
+        if (pagamento) {
+            document.getElementById('modalPagamentoTitulo').innerText = 'Editar Pagamento';
+            document.getElementById('pagData').value = pagamento.data || '';
+            document.getElementById('pagMotorista').value = pagamento.codMotorista || '';
+            document.getElementById('pagHoras').value = pagamento.horas || '';
+            document.getElementById('pagValorHora').value = pagamento.valorHora || '';
+            document.getElementById('pagId').value = pagamento.id || '';
+            document.getElementById('pagFirebaseId').value = pagamento.firebaseId || '';
+            
+            // Mostrar PDF se existir
+            const pdfContainer = document.getElementById('pagPdfContainer');
+            if (pdfContainer) {
+                if (pagamento.pdfRecibo) {
+                    pdfContainer.innerHTML = `
+                        <div style="margin-top: 10px;">
+                            <strong>Recibo atual:</strong> ${pagamento.pdfNome || 'recibo.pdf'}
+                            <button class="btn btn-sm btn-info" onclick="window.verPDF('${pagamento.firebaseId}', 'motoristas_pagamentos')">👁️ Ver</button>
+                            <button class="btn btn-sm btn-danger" onclick="window.removerPDF('${pagamento.firebaseId}', 'motoristas_pagamentos')">🗑️ Remover</button>
+                        </div>
+                    `;
+                } else {
+                    pdfContainer.innerHTML = '<input type="file" id="pagPdfFile" accept=".pdf" onchange="window.previewPDF(this)">';
+                }
+            }
+        } else {
+            document.getElementById('modalPagamentoTitulo').innerText = 'Novo Pagamento';
+            document.getElementById('pagData').value = new Date().toISOString().split('T')[0];
+            document.getElementById('pagHoras').value = '';
+            document.getElementById('pagValorHora').value = '';
+            document.getElementById('pagId').value = '';
+            document.getElementById('pagFirebaseId').value = '';
+            
+            const pdfContainer = document.getElementById('pagPdfContainer');
+            if (pdfContainer) {
+                pdfContainer.innerHTML = '<input type="file" id="pagPdfFile" accept=".pdf" onchange="window.previewPDF(this)">';
+            }
+        }
+        
+        window.calcPagamento();
+    };
+
+    window.editarPagamento = function(id) {
+        const pagamento = (appData.pagamentos || []).find(p => p.id == id || p.firebaseId == id);
+        if (pagamento) {
+            window.abrirModalPagamento(pagamento);
+        } else {
+            alert('Pagamento não encontrado!');
+        }
+    };
+
+    window.previewPDF = function(input) {
+        const file = input.files[0];
+        if (file && file.type === 'application/pdf') {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const embed = document.createElement('embed');
+                embed.src = e.target.result;
+                embed.type = 'application/pdf';
+                embed.width = '100%';
+                embed.height = '300px';
+                
+                const preview = document.getElementById('pdfPreview');
+                if (preview) {
+                    preview.innerHTML = '';
+                    preview.appendChild(embed);
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('Por favor, selecione um arquivo PDF válido.');
+        }
+    };
+
+    window.verPDF = function(docId, colecao) {
+        const db = getDB();
+        if (!db) return;
+        
+        db.collection(colecao).doc(docId).get().then(doc => {
+            if (doc.exists && doc.data().pdfRecibo) {
+                const pdfWindow = window.open('');
+                pdfWindow.document.write(`<iframe src="${doc.data().pdfRecibo}" width="100%" height="100%" style="border:none;"></iframe>`);
+            } else {
+                alert('PDF não encontrado!');
+            }
+        }).catch(error => {
+            console.error('Erro ao carregar PDF:', error);
+            alert('Erro ao carregar PDF.');
+        });
+    };
+
+    window.removerPDF = async function(docId, colecao) {
+        if (!confirm('Remover o recibo em PDF?')) return;
+        
+        const db = getDB();
+        if (!db) return;
+        
+        try {
+            await db.collection(colecao).doc(docId).update({
+                pdfRecibo: firebase.firestore.FieldValue.delete(),
+                pdfNome: firebase.firestore.FieldValue.delete(),
+                pdfTamanho: firebase.firestore.FieldValue.delete(),
+                pdfDataUpload: firebase.firestore.FieldValue.delete()
+            });
+            
+            alert('PDF removido com sucesso!');
+            window.fecharModal('modalPagamento');
+        } catch (error) {
+            console.error('Erro ao remover PDF:', error);
+            alert('Erro ao remover PDF.');
+        }
     };
 
     window.calcPagamento = function() {
@@ -1021,8 +1267,12 @@
             return;
         }
         
+        const id = document.getElementById('pagId')?.value;
+        const firebaseId = document.getElementById('pagFirebaseId')?.value;
+        
         const pagamento = {
-            id: Date.now(),
+            id: id ? parseInt(id) : Date.now(),
+            firebaseId: firebaseId || null,
             data: document.getElementById('pagData')?.value || '',
             codMotorista: cod,
             motorista: motorista?.nome || '',
@@ -1031,11 +1281,29 @@
             valorTotal: horas * valorHora
         };
         
-        appData.pagamentos.push(pagamento);
-        const firebaseId = await salvarPagamentoFB(pagamento);
+        // Upload do PDF se existir
+        const pdfFile = document.getElementById('pagPdfFile')?.files[0];
         
-        if (firebaseId) {
-            pagamento.firebaseId = firebaseId;
+        // Se for edição, remove o pagamento antigo
+        if (id) {
+            appData.pagamentos = appData.pagamentos.filter(p => p.id != id && p.firebaseId != firebaseId);
+        }
+        
+        appData.pagamentos.push(pagamento);
+        const novoFirebaseId = await salvarPagamentoFB(pagamento);
+        
+        if (novoFirebaseId) {
+            pagamento.firebaseId = novoFirebaseId;
+            
+            // Upload do PDF
+            if (pdfFile) {
+                const pdfUrl = await uploadPDF(pdfFile, 'motoristas_pagamentos', novoFirebaseId);
+                if (pdfUrl) {
+                    pagamento.pdfRecibo = pdfUrl;
+                    pagamento.pdfNome = pdfFile.name;
+                }
+            }
+            
             window.fecharModal('modalPagamento');
             window.carregarPagamentos();
             alert('Pagamento salvo com sucesso!');
@@ -1058,7 +1326,11 @@
                 <td>${formatMoney(p.valorHora)}</td>
                 <td><strong>${formatMoney(p.valorTotal)}</strong></td>
                 <td>
-                    <button class="btn btn-sm btn-danger" onclick="window.excluirPagamento(${p.id})">🗑️</button>
+                    ${p.pdfRecibo ? `<button class="btn btn-sm btn-info" onclick="window.verPDF('${p.firebaseId}', 'motoristas_pagamentos')" title="Ver Recibo">📄</button>` : '-'}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="window.editarPagamento('${p.id || p.firebaseId}')" title="Editar">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="window.excluirPagamento('${p.id || p.firebaseId}')" title="Excluir">🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -1067,17 +1339,25 @@
     window.excluirPagamento = async function(id) {
         if (!confirm('Tem certeza que deseja excluir este pagamento?')) return;
         
-        const pag = appData.pagamentos.find(p => p.id == id);
-        if (!pag) return;
-        
-        appData.pagamentos = appData.pagamentos.filter(p => p.id != id);
-        
-        if (pag?.firebaseId) {
-            await excluirDoFB('motoristas_pagamentos', pag.firebaseId);
+        const pag = appData.pagamentos.find(p => p.id == id || p.firebaseId == id);
+        if (!pag) {
+            alert('Pagamento não encontrado!');
+            return;
         }
         
-        window.carregarPagamentos();
-        alert('Pagamento excluído com sucesso!');
+        try {
+            appData.pagamentos = appData.pagamentos.filter(p => p.id != id && p.firebaseId != id);
+            
+            if (pag?.firebaseId) {
+                await excluirDoFB('motoristas_pagamentos', pag.firebaseId);
+            }
+            
+            window.carregarPagamentos();
+            alert('Pagamento excluído com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir:', error);
+            alert('Erro ao excluir pagamento. Tente novamente.');
+        }
     };
 
     // ============ UTILITÁRIOS ============
@@ -1087,7 +1367,7 @@
     };
 
     window.gerarRelatorioPDF = function() {
-        alert('Funcionalidade de PDF em desenvolvimento');
+        alert('Funcionalidade de relatório PDF em desenvolvimento');
     };
 
     // ============ INICIALIZAÇÃO ============
@@ -1128,7 +1408,7 @@
         if (pontoAno) pontoAno.value = hoje.getFullYear();
         if (kmFiltroAno) kmFiltroAno.value = hoje.getFullYear();
 
-        // Adicionar event listeners para selects que atualizam o painel/ponto
+        // Adicionar event listeners
         document.getElementById('painelMotorista')?.addEventListener('change', window.atualizarPainel);
         document.getElementById('painelMes')?.addEventListener('change', window.atualizarPainel);
         document.getElementById('painelAno')?.addEventListener('change', window.atualizarPainel);
@@ -1140,7 +1420,6 @@
         document.getElementById('bancoMotorista')?.addEventListener('change', window.carregarBancoHoras);
         document.getElementById('kmFiltroMotorista')?.addEventListener('change', window.carregarKM);
 
-        // Event listeners para cálculos automáticos
         document.getElementById('pagHoras')?.addEventListener('input', window.calcPagamento);
         document.getElementById('pagValorHora')?.addEventListener('input', window.calcPagamento);
         document.getElementById('kmInicial')?.addEventListener('input', window.calcularKM);
