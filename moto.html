@@ -36,7 +36,7 @@
       --shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
     .page-container { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
-    .firebase-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+    .firebase-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; margin-bottom: 1rem; }
     .firebase-status.online { background: #e6f4ea; color: #1e7e34; }
     .firebase-status.offline { background: #fce8e6; color: #c5221f; }
     .firebase-status .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -49,6 +49,7 @@
     .stat-card.success { border-left-color: var(--success); }
     .stat-card.danger { border-left-color: var(--danger); }
     .stat-card.warning { border-left-color: var(--warning); }
+    .stat-card.info { border-left-color: var(--info); }
     .stat-value { font-size: 1.75rem; font-weight: 700; }
     .stat-label { color: var(--text-light); font-size: 0.7rem; text-transform: uppercase; }
     .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
@@ -68,24 +69,28 @@
     .btn-success { background: var(--success); color: white; }
     .btn-danger { background: var(--danger); color: white; }
     .btn-warning { background: var(--warning); color: #1a1a1a; }
+    .btn-info { background: var(--info); color: white; }
     .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
     .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+    .btn-lg { padding: 0.7rem 1.5rem; font-size: 1rem; }
     .form-group { margin-bottom: 0.75rem; }
     .form-group label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.8rem; color: var(--text-light); }
     .form-group input, .form-group select { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; background: white; }
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1100; justify-content: center; align-items: center; }
     .modal-overlay.active { display: flex; }
-    .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; }
+    .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; }
     .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
     .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 1200; justify-content: center; align-items: center; flex-direction: column; }
     .loading-overlay.active { display: flex; }
     .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .text-success { color: var(--success); }
     .text-danger { color: var(--danger); }
+    .fw-bold { font-weight: 600; }
     .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
     .badge-success { background: #e6f4ea; color: #1e7e34; }
+    .badge-danger { background: #fce8e6; color: #c5221f; }
     .badge-info { background: #e8f0fe; color: #1a73e8; }
     .badge-warning { background: #fef7e0; color: #e37400; }
   </style>
@@ -114,7 +119,7 @@
           <button class="tab-btn" data-tab="pagamentos">💰 Pagamentos</button>
         </div>
 
-        <!-- PAINEL -->
+        <!-- ============ PAINEL ============ -->
         <div class="tab-content active" id="tab-painel">
           <div class="card">
             <div class="card-header">
@@ -140,7 +145,7 @@
           </div>
         </div>
 
-        <!-- CADASTRO -->
+        <!-- ============ CADASTRO DE MOTORISTAS ============ -->
         <div class="tab-content" id="tab-cadastro">
           <div class="card">
             <div class="card-header">
@@ -148,32 +153,100 @@
               <button class="btn btn-success btn-sm" onclick="window.abrirModalMotorista()">+ Novo</button>
             </div>
             <div class="table-container">
-              <table><thead><tr><th>Cód</th><th>Nome</th><th>Função</th><th>Jornada</th><th>Tolerância</th><th>Ad.Noturno</th><th>Ações</th></tr></thead>
+              <table><thead><tr><th>Cód</th><th>Nome</th><th>Função</th><th>Horário</th><th>Jornada</th><th>Tolerância</th><th>Ad.Noturno</th><th>Ações</th></tr></thead>
               <tbody id="tabelaMotoristas"></tbody></table>
             </div>
           </div>
         </div>
 
-        <!-- PONTO MENSAL -->
+        <!-- ============ PONTO MENSAL (HISTÓRICO + NOVO) ============ -->
         <div class="tab-content" id="tab-ponto">
-          <div class="card">
-            <div class="card-header"><span>📅 Registro de Ponto</span></div>
-            <div class="toolbar" style="margin-bottom:1rem">
-              <label>Motorista:</label><select id="pontoMotorista" onchange="window.carregarPonto()"></select>
-              <label>Mês:</label>
-              <select id="pontoMes" onchange="window.carregarPonto()">
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-              <label>Ano:</label><input type="number" id="pontoAno" value="2026" style="width:80px" onchange="window.carregarPonto()">
+          
+          <!-- SEÇÃO HISTÓRICO -->
+          <div id="pontoHistoricoSection">
+            <div class="card">
+              <div class="card-header">
+                <span>📅 Histórico de Registros de Ponto</span>
+                <button class="btn btn-success btn-sm" onclick="window.mostrarNovoPonto()">+ Novo Registro</button>
+              </div>
+              <div class="toolbar" style="margin-bottom:1rem">
+                <label>Motorista:</label>
+                <select id="pontoHistoricoMotorista" onchange="window.carregarHistoricoPonto()"></select>
+                <label>Ano:</label>
+                <select id="pontoHistoricoAno" onchange="window.carregarHistoricoPonto()">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+              </div>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mês/Ano</th>
+                      <th>Período</th>
+                      <th>Dias Trab.</th>
+                      <th>Total Horas</th>
+                      <th>Extras</th>
+                      <th>Faltas</th>
+                      <th>Saldo</th>
+                      <th>Diárias</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pontoHistoricoTabela">
+                    <tr><td colspan="10" style="text-align:center;padding:2rem;">Selecione um motorista e ano para ver o histórico.</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="table-container" id="pontoContainer"></div>
+            <!-- Configuração de Período -->
+            <div class="card">
+              <div class="card-header"><span>⚙️ Configuração do Período</span></div>
+              <div class="toolbar">
+                <label>Dia Início:</label>
+                <input type="number" id="periodoDiaInicio" value="20" min="1" max="31" style="width:70px" onchange="window.carregarHistoricoPonto()">
+                <label>Dia Fim:</label>
+                <input type="number" id="periodoDiaFim" value="21" min="1" max="31" style="width:70px" onchange="window.carregarHistoricoPonto()">
+                <small style="color:#666;">Ex: Dia 20 do mês até Dia 21 do mês seguinte</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEÇÃO NOVO/EDIÇÃO -->
+          <div id="pontoNovoSection" style="display:none;">
+            <div class="card">
+              <div class="card-header">
+                <span id="pontoNovoTitulo">📝 Novo Registro de Ponto</span>
+                <button class="btn btn-outline btn-sm" onclick="window.voltarHistorico()">← Voltar ao Histórico</button>
+              </div>
+              <div class="toolbar" style="margin-bottom:1rem">
+                <label>Motorista:</label>
+                <select id="pontoNovoMotorista"></select>
+                <label>Mês:</label>
+                <select id="pontoNovoMes">
+                  <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                  <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                  <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                  <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+                </select>
+                <label>Ano:</label>
+                <select id="pontoNovoAno">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="window.carregarNovoPeriodo()">📅 Carregar Período</button>
+              </div>
+              <div id="pontoFormContainer">
+                <p style="text-align:center;padding:2rem;color:#666;">Selecione motorista, mês e ano e clique em "Carregar Período".</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- BANCO DE HORAS -->
+        <!-- ============ BANCO DE HORAS ============ -->
         <div class="tab-content" id="tab-banco">
           <div class="card">
             <div class="card-header">
@@ -187,7 +260,7 @@
           </div>
         </div>
 
-        <!-- CONTROLE KM -->
+        <!-- ============ CONTROLE KM ============ -->
         <div class="tab-content" id="tab-km">
           <div class="card">
             <div class="card-header">
@@ -211,7 +284,7 @@
           </div>
         </div>
 
-        <!-- PAGAMENTOS -->
+        <!-- ============ PAGAMENTOS ============ -->
         <div class="tab-content" id="tab-pagamentos">
           <div class="card">
             <div class="card-header">
@@ -229,16 +302,18 @@
     </main>
   </div>
 
-  <!-- MODAIS -->
+  <!-- ============ MODAL MOTORISTA ============ -->
   <div class="modal-overlay" id="modalMotorista">
     <div class="modal">
       <h2 id="modalMotoristaTitulo">Novo Motorista</h2>
       <div class="grid-2">
-        <div class="form-group"><label>Código</label><input type="number" id="motoristaCod"></div>
-        <div class="form-group"><label>Nome</label><input type="text" id="motoristaNome"></div>
+        <div class="form-group"><label>Código *</label><input type="number" id="motoristaCod" required></div>
+        <div class="form-group"><label>Nome *</label><input type="text" id="motoristaNome" required></div>
         <div class="form-group"><label>Função</label><input type="text" id="motoristaFuncao"></div>
         <div class="form-group"><label>Jornada Base (h/dia)</label><input type="number" id="jornadaBase" value="8" step="0.5"></div>
         <div class="form-group"><label>Tolerância (min)</label><input type="number" id="motoristaTolerancia" value="10"></div>
+        <div class="form-group"><label>Horário Entrada</label><input type="time" id="horarioEntrada" value="08:00"></div>
+        <div class="form-group"><label>Horário Saída</label><input type="time" id="horarioSaida" value="17:00"></div>
       </div>
       <div class="form-group"><label><input type="checkbox" id="motoristaAdNoturno"> Adicional Noturno (22h-5h)</label></div>
       <div class="modal-actions">
@@ -248,9 +323,12 @@
     </div>
   </div>
 
+  <!-- ============ MODAL PAGAMENTO ============ -->
   <div class="modal-overlay" id="modalPagamento">
     <div class="modal">
-      <h2>Registrar Pagamento</h2>
+      <h2 id="modalPagamentoTitulo">Registrar Pagamento</h2>
+      <input type="hidden" id="pagId">
+      <input type="hidden" id="pagFirebaseId">
       <div class="grid-2">
         <div class="form-group"><label>Motorista</label><select id="pagMotorista"></select></div>
         <div class="form-group"><label>Data</label><input type="date" id="pagData"></div>
@@ -265,9 +343,12 @@
     </div>
   </div>
 
+  <!-- ============ MODAL KM ============ -->
   <div class="modal-overlay" id="modalKM">
     <div class="modal">
-      <h2>Registro de KM</h2>
+      <h2 id="modalKMTitulo">Novo Registro de KM</h2>
+      <input type="hidden" id="kmId">
+      <input type="hidden" id="kmFirebaseId">
       <div class="grid-2">
         <div class="form-group"><label>Data</label><input type="date" id="kmData"></div>
         <div class="form-group"><label>Motorista</label><select id="kmMotoristaSelect"></select></div>
@@ -276,6 +357,9 @@
         <div class="form-group"><label>KM Final</label><input type="number" id="kmFinal"></div>
         <div class="form-group"><label>Destino</label><input type="text" id="kmDestino"></div>
       </div>
+      <div class="form-group" style="margin-top:1rem;">
+        <label>Total KM: <strong id="kmTotalCalc">0 km</strong> | Valor: <strong id="kmValorCalc">R$ 0,00</strong></label>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalKM')">Cancelar</button>
         <button class="btn btn-success" onclick="window.salvarKM()">Salvar</button>
@@ -283,11 +367,13 @@
     </div>
   </div>
 
+  <!-- ============ LOADING ============ -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <p>Carregando...</p>
   </div>
 
+  <!-- ============ SCRIPTS ============ -->
   <script src="/js/main.js"></script>
   <script src="/js/moto.js"></script>
 </body>
