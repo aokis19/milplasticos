@@ -23,12 +23,25 @@
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
+/* CORREÇÃO: container ocupa 100% da largura, sem max-width limitante */
 .custos-container {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 1.5rem 20px;  /* padding lateral mínimo, não é borda */
+  width: 100%;
+  max-width: 100%;       /* removendo a limitação de 1400px */
+  margin: 0;             /* remove margem automática */
+}
+
+/* CORREÇÃO: body também deve ocupar toda a largura */
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background: var(--bg);
+  font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
 }
 
 .header-custos {
@@ -1233,6 +1246,7 @@
 .btn-selecionar-todos:hover {
   opacity: 1;
 }
+
 /* ====== STATS GRID HOME ====== */
 .stats-grid-home {
   display: grid;
@@ -1532,6 +1546,7 @@
 .grafico-actions .btn {
   font-size: 0.75rem;
 }
+
 /* ====== CARDS DE RESUMO MELHORADOS ====== */
 .stats-grid-home {
   display: grid;
@@ -1656,6 +1671,7 @@
     font-size: 1.3rem;
   }
 }
+
 /* Destaque para card de Custo por KG */
 .stat-card-home.destaque-kg {
   border: 2px solid #43e97b !important;
