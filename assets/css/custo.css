@@ -1637,3 +1637,76 @@ body {
 .grafico-actions .btn {
   font-size: 0.75rem;
 }
+/* Custos Fixos */
+.custos-fixos-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.categoria-grupo {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.custo-fixo-lista {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.custo-fixo-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+}
+
+.custo-fixo-card:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.cf-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.cf-nome {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cf-valor {
+    font-weight: 600;
+    color: #0d904f;
+}
+
+.cf-acoes {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.badge-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+}
