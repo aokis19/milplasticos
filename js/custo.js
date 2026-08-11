@@ -599,13 +599,13 @@
   }
 
   // ======== SETORES ========
-  function renderizarSetores() {
+function renderizarSetores() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
 
     if (!periodoAtual) {
-      container.innerHTML = '<div class="card"><p style="text-align:center;padding:2rem;">Selecione um período primeiro.</p></div>';
-      return;
+        container.innerHTML = '<div class="card"><p style="text-align:center;padding:2rem;">Selecione um período primeiro.</p></div>';
+        return;
     }
 
     const sets = getSetoresDoPeriodo(periodoAtual.id);
@@ -618,8 +618,9 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title"><i class="fas fa-industry"></i> ${configCampos.setorNome} - ${getNomeMes(periodoAtual.mes)}/${periodoAtual.ano}</span>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="window.abrirModalSetor()"><i class="fas fa-plus"></i> Novo Setor</button>
+          <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-thumbtack"></i> Novo Custo Fixo</button>
           <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
         </div>
       </div>
@@ -700,10 +701,16 @@
       }
     }
 
+    // ==== ÁREA DE CUSTOS FIXOS ====
+    html += `
+      <div id="listaCustosFixosContainer" style="margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--border);">
+      </div>
+    `;
+
     html += `
       <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-thumbtack"></i> Novo Custo Fixo</button>
         <button class="btn btn-outline btn-sm" onclick="window.abrirModalCategoria()"><i class="fas fa-tag"></i> Nova Categoria</button>
+        <button class="btn btn-outline btn-sm" onclick="window.listarCustosFixos('${periodoAtual.id}')"><i class="fas fa-sync"></i> Atualizar Custos Fixos</button>
       </div>
     </div>`;
 
@@ -718,55 +725,10 @@
       const gridDespesa = document.getElementById('setoresDespesaGrid');
       if (gridDespesa) setoresDespesa.forEach(s => renderizarCardSetor(s, gridDespesa));
     }
-  }
-
-  function renderizarCardSetor(s, grid) {
-    const custos = calcularCustosSetor(s.id);
-    const isExcluido = setoresExcluidosResumo.has(s.id);
-    const tipoClass = s.tipo === 'despesa' ? 'tipo-despesa' : 'tipo-custo';
-    const div = document.createElement('div');
-    div.className = `setor-card ${tipoClass} ${isExcluido ? 'excluido-resumo' : ''} ${s.produtoFinal ? 'produto-final' : ''}`;
-    div.innerHTML = `
-      <div class="setor-toggle">
-        <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)" title="Incluir/Excluir do resumo">
-      </div>
-      <div class="setor-acoes">
-        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')" title="Editar"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
-      </div>
-      <div onclick="window.selecionarSetor('${s.id}')" style="cursor:pointer;">
-        <div class="setor-nome">
-          ${s.nome}
-          <span class="badge ${s.tipo === 'despesa' ? 'badge-despesa' : 'badge-custo'}">${s.tipo === 'despesa' ? 'Despesa' : 'Custo'}</span>
-          ${s.produtoFinal ? '<span class="badge badge-orange">⭐ Produto Final</span>' : ''}
-        </div>
-        <div class="setor-desc">${s.descricao || 'Sem descrição'}</div>
-        <div class="setor-info">
-          <div><span class="info-label">${configCampos.custoTotal}</span><span class="info-valor money">${formatMoney(custos.totalCusto)}</span></div>
-          <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
-          <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
-          <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
-        </div>
-      </div>`;
-    grid.appendChild(div);
-  }
-
-  window.toggleTodosSetores = function(tipo) {
-    const sets = getSetoresDoPeriodo(periodoAtual.id);
-    const setsDoTipo = sets.filter(s => 
-      tipo === 'custo' ? s.tipo !== 'despesa' : s.tipo === 'despesa'
-    );
     
-    const todosExcluidos = setsDoTipo.every(s => setoresExcluidosResumo.has(s.id));
-    
-    if (todosExcluidos) {
-      setsDoTipo.forEach(s => setoresExcluidosResumo.delete(s.id));
-    } else {
-      setsDoTipo.forEach(s => setoresExcluidosResumo.add(s.id));
-    }
-    
-    renderizarTela();
-  };
+    // Renderiza os custos fixos
+    window.listarCustosFixos(periodoAtual.id);
+}
 
   // ======== ANÁLISE ========
   function renderizarAnalise() {
