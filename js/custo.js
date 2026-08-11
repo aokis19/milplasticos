@@ -1,8 +1,10 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v3.1 FINAL)
+// CUSTO.JS - Central de Custos (Firestore Puro - v3.2 FINAL)
 // ✅ CORRIGIDO: Cards de setores aparecendo
 // ✅ CORRIGIDO: Custos Fixos com toggle
 // ✅ CORRIGIDO: Edição de custos fixos
+// ✅ CORRIGIDO: Distribuição automática de custos fixos
+// ✅ CORRIGIDO: Cálculos incluindo todos os itens
 // ====================================================
 (function() {
   'use strict';
@@ -73,23 +75,57 @@
     return custosFixos.filter(cf => cf.periodold === pid);
   }
   
+  // ======== CALCULAR CUSTOS DO SETOR (COM CUSTOS FIXOS) ========
   function calcularCustosSetor(setorld) {
-    const itens = itensCusto.filter(i => i.setorld === setorld);
-    const totalCusto = itens.reduce((s, i) => s + (i.valorTotal * (i.percentual || 100) / 100), 0);
+    // 1. Itens normais do setor
+    const itens = itensCusto.filter(i => i.setorld === setorld && i.tipo !== 'fixo');
+    let totalCusto = itens.reduce((s, i) => s + (i.valorTotal * (i.percentual || 100) / 100), 0);
+    
+    // 2. Itens fixos vinculados a este setor (via custoFixold)
+    const itensFixos = itensCusto.filter(i => i.setorld === setorld && i.tipo === 'fixo');
+    totalCusto += itensFixos.reduce((s, i) => s + (i.valorTotal * (i.percentual || 100) / 100), 0);
+    
+    // 3. Produção do setor
     const prods = producoes.filter(p => p.setorld === setorld);
     const totalKg = prods.reduce((s, p) => s + p.kg, 0);
     const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
-    return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
+    
+    return { 
+        totalCusto, 
+        totalKg, 
+        custoPorKg, 
+        qtdItens: itens.length + itensFixos.length,
+        qtdItensNormais: itens.length,
+        qtdItensFixos: itensFixos.length
+    };
   }
   
+  // ======== CALCULAR RESUMO DO PERÍODO ========
   function calcularResumoPeriodo(periodoidParam, excluirSetores) {
     const pid = periodoidParam || (periodoAtual ? periodoAtual.id : null);
     const excluir = excluirSetores || setoresExcluidosResumo;
-    if (!pid) return { custoTotalGeral: 0, producaoTotalGeral: 0, custoPorKgGeral: 0, qtdSetores: 0, setoresFinais: [], qtdProdutosFinais: 0 };
+    if (!pid) return { 
+      custoTotalGeral: 0, 
+      producaoTotalGeral: 0, 
+      custoPorKgGeral: 0, 
+      qtdSetores: 0, 
+      setoresFinais: [], 
+      qtdProdutosFinais: 0,
+      custoFixosTotais: 0,
+      custoTotalSemFixos: 0
+    };
     
     const sets = getSetoresDoPeriodo(pid).filter(s => !excluir.has(s.id));
     let custoTotalGeral = 0;
-    sets.forEach(s => { custoTotalGeral += calcularCustosSetor(s.id).totalCusto; });
+    let custoFixosTotais = 0;
+    let custoTotalSemFixos = 0;
+    
+    sets.forEach(s => {
+      const custos = calcularCustosSetor(s.id);
+      custoTotalGeral += custos.totalCusto;
+      custoFixosTotais += custos.qtdItensFixos > 0 ? custos.totalCusto - (itensCusto.filter(i => i.setorld === s.id && i.tipo !== 'fixo').reduce((sum, i) => sum + (i.valorTotal * (i.percentual || 100) / 100), 0)) : 0;
+      custoTotalSemFixos += itensCusto.filter(i => i.setorld === s.id && i.tipo !== 'fixo').reduce((sum, i) => sum + (i.valorTotal * (i.percentual || 100) / 100), 0);
+    });
     
     const setsFinais = sets.filter(s => s.produtoFinal === true);
     let producaoTotalGeral = 0;
@@ -103,7 +139,9 @@
       producaoTotalGeral,
       custoPorKgGeral: producaoTotalGeral > 0 ? custoTotalGeral / producaoTotalGeral : 0,
       qtdSetores: sets.length,
-      qtdProdutosFinais: setsFinais.length
+      qtdProdutosFinais: setsFinais.length,
+      custoFixosTotais,
+      custoTotalSemFixos
     };
   }
 
@@ -134,6 +172,99 @@
       return false;
     }
   }
+
+  // ======== DISTRIBUIR CUSTOS FIXOS AUTOMATICAMENTE ========
+  window.distribuirCustosFixos = async function(periodoId) {
+    const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
+    if (!pid) {
+        alert('Selecione um período primeiro!');
+        return false;
+    }
+    
+    // 1. Pega todos os custos fixos do período
+    const fixos = custosFixos.filter(cf => cf.periodold === pid);
+    if (fixos.length === 0) {
+        alert('Nenhum custo fixo cadastrado neste período.');
+        return false;
+    }
+    
+    // 2. Pega todos os setores com produção > 0
+    const sets = getSetoresDoPeriodo(pid);
+    const setsComProducao = sets.filter(s => {
+        const prods = producoes.filter(p => p.setorld === s.id);
+        const totalKg = prods.reduce((sum, p) => sum + p.kg, 0);
+        return totalKg > 0;
+    });
+    
+    if (setsComProducao.length === 0) {
+        alert('Nenhum setor com produção encontrada.');
+        return false;
+    }
+    
+    // 3. Calcula produção total
+    let producaoTotal = 0;
+    setsComProducao.forEach(s => {
+        const prods = producoes.filter(p => p.setorld === s.id);
+        producaoTotal += prods.reduce((sum, p) => sum + p.kg, 0);
+    });
+    
+    if (producaoTotal === 0) {
+        alert('Produção total é zero.');
+        return false;
+    }
+    
+    // 4. Distribui cada custo fixo pelos setores
+    let itensCriados = 0;
+    let itensAtualizados = 0;
+    
+    for (const cf of fixos) {
+        for (const s of setsComProducao) {
+            const prods = producoes.filter(p => p.setorld === s.id);
+            const producaoSetor = prods.reduce((sum, p) => sum + p.kg, 0);
+            
+            // Percentual de produção deste setor
+            const percentual = (producaoSetor / producaoTotal) * 100;
+            const valorRateado = cf.valor * (percentual / 100);
+            
+            // Verifica se já existe um item fixo para este custo neste setor
+            const itemExistente = itensCusto.find(i => 
+                i.setorld === s.id && 
+                i.custoFixold === cf.id && 
+                i.tipo === 'fixo'
+            );
+            
+            if (itemExistente) {
+                // Atualiza o item existente
+                itemExistente.valorTotal = cf.valor;
+                itemExistente.percentual = percentual;
+                itemExistente.nome = cf.nome + ' (rateado)';
+                await salvarFB('itensCusto', itemExistente);
+                itensAtualizados++;
+            } else {
+                // Cria novo item fixo
+                const novoItem = {
+                    id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    setorld: s.id,
+                    categoriald: cf.categoriald,
+                    nome: cf.nome + ' (rateado)',
+                    valorTotal: cf.valor,
+                    percentual: percentual,
+                    tipo: 'fixo',
+                    custoFixold: cf.id,
+                    obs: `Distribuído automaticamente - ${percentual.toFixed(2)}% da produção`,
+                    createdAt: new Date().toISOString()
+                };
+                itensCusto.push(novoItem);
+                await salvarFB('itensCusto', novoItem);
+                itensCriados++;
+            }
+        }
+    }
+    
+    alert(`✅ Custos fixos distribuídos com sucesso!\n\n📊 ${fixos.length} custos fixos\n🏭 ${setsComProducao.length} setores\n📝 ${itensCriados} itens criados\n🔄 ${itensAtualizados} itens atualizados`);
+    renderizarTela();
+    return true;
+  };
 
   // ✅ FUNÇÃO DE CARREGAMENTO CORRIGIDA
   async function carregarDadosFirebase() {
@@ -287,6 +418,7 @@
     let totalProduzidoGeral = 0;
     let totalGastoGeral = 0;
     let totalSetoresCount = 0;
+    let totalCustosFixos = 0;
     
     periodosParaCalculo.forEach(per => {
       const sets = getSetoresDoPeriodo(per.id);
@@ -295,6 +427,7 @@
         const custosSetor = calcularCustosSetor(s.id);
         totalGastoGeral += custosSetor.totalCusto;
         totalProduzidoGeral += custosSetor.totalKg;
+        totalCustosFixos += custosSetor.qtdItensFixos > 0 ? custosSetor.totalCusto - (itensCusto.filter(i => i.setorld === s.id && i.tipo !== 'fixo').reduce((sum, i) => sum + (i.valorTotal * (i.percentual || 100) / 100), 0)) : 0;
       });
     });
     
@@ -618,6 +751,7 @@
           <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
           <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
           <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
+          ${custos.qtdItensFixos > 0 ? `<div><span class="info-label">Fixos</span><span class="info-valor">${custos.qtdItensFixos}</span></div>` : ''}
         </div>
       </div>
     `;
@@ -727,13 +861,16 @@
       }
     }
 
-    // ==== ÁREA DE CUSTOS FIXOS (ÚNICA VEZ) ====
+    // ==== ÁREA DE CUSTOS FIXOS ====
     html += `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--border);">
         <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos</h4>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-outline btn-sm btn-toggle-custos-fixos" onclick="window.toggleCustosFixos()">
             <i class="fas fa-chevron-up"></i> Ocultar
+          </button>
+          <button class="btn btn-purple btn-sm" onclick="window.distribuirCustosFixos('${periodoAtual.id}')" title="Distribuir custos fixos entre os setores com produção">
+            <i class="fas fa-share-alt"></i> Distribuir
           </button>
           <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()">
             <i class="fas fa-plus"></i> Novo Custo Fixo
@@ -830,11 +967,16 @@
         `;
         
         grupo.itens.forEach(cf => {
+            // Verifica se este custo fixo já foi distribuído
+            const itensFixosRelacionados = itensCusto.filter(i => i.custoFixold === cf.id && i.tipo === 'fixo');
+            const distribuido = itensFixosRelacionados.length > 0;
+            
             html += `
                 <div class="custo-fixo-card" data-id="${cf.id}">
                     <div class="cf-info">
                         <div class="cf-nome"><i class="fas fa-thumbtack" style="color:${grupo.cor};"></i> ${cf.nome}</div>
                         <div class="cf-valor">${formatMoney(cf.valor)}</div>
+                        ${distribuido ? '<span class="badge badge-purple" style="background:#7c3aed;color:#fff;font-size:0.6rem;"><i class="fas fa-check"></i> Distribuído</span>' : ''}
                     </div>
                     <div class="cf-acoes">
                         <button class="btn btn-outline btn-xs btn-editar-custo-fixo" data-id="${cf.id}" title="Editar">
@@ -957,7 +1099,7 @@
           <div class="stat-info">
             <div class="stat-label">Itens de Custo</div>
             <div class="stat-value">${custos.qtdItens}</div>
-            <div style="font-size:0.7rem;color:var(--text-light);">Cadastrados</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">${custos.qtdItensNormais} normais + ${custos.qtdItensFixos} fixos</div>
           </div>
         </div>
         <div class="stat-card-home">
@@ -1008,15 +1150,17 @@
       html += '<p>Nenhum item cadastrado.</p>';
     } else {
       html += `<div class="table-wrap"><table class="table">
-        <thead><tr><th>Item</th><th>Categoria</th><th>Valor Total</th><th>% Rateio</th><th>Valor Rateado</th><th>Ações</th></tr></thead><tbody>`;
+        <thead><tr><th>Item</th><th>Categoria</th><th>Valor Total</th><th>% Rateio</th><th>Valor Rateado</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>`;
       itens.forEach(i => {
         const cat = categorias.find(c => c.id === i.categoriald);
+        const tipoLabel = i.tipo === 'fixo' ? '<span class="badge badge-purple">Fixo</span>' : '<span class="badge badge-green">Normal</span>';
         html += `<tr>
-          <td>${i.nome} ${i.tipo === 'fixo' ? '<span class="badge badge-orange">Fixo</span>' : ''}</td>
+          <td>${i.nome}</td>
           <td>${cat ? cat.nome : '-'}</td>
           <td>${formatMoney(i.valorTotal)}</td>
           <td>${i.percentual || 100}%</td>
           <td>${formatMoney(i.valorTotal * (i.percentual || 100) / 100)}</td>
+          <td>${tipoLabel}</td>
           <td>
             <button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${i.id}')"><i class="fas fa-edit"></i></button>
             <button class="btn btn-danger btn-xs" onclick="window.excluirItemCusto('${i.id}')"><i class="fas fa-trash"></i></button>
