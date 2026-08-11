@@ -1,8 +1,8 @@
 // ====================================================
 // CUSTO.JS - Central de Custos (Firestore Puro - v3.1 FINAL)
-// ✅ CORRIGIDO: Carregamento otimizado, sem travamentos
-// ✅ Recupera dados do documento centralizado se coleções vazias
-// ✅ Salva sempre nas coleções separadas
+// ✅ CORRIGIDO: Cards de setores aparecendo
+// ✅ CORRIGIDO: Custos Fixos com toggle
+// ✅ CORRIGIDO: Edição de custos fixos
 // ====================================================
 (function() {
   'use strict';
@@ -140,7 +140,6 @@
     console.log('🔄 Iniciando carregamento...');
     
     try {
-      // 1. PRIMEIRO: Carrega das coleções separadas (forma principal)
       console.log('📂 Carregando das coleções...');
       const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes, 
              snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
@@ -164,7 +163,6 @@
       custosMateriais = snapCustosMat.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       custosFixos = snapCustosFixos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-      // 2. Se não encontrou nada, tenta documento centralizado (dados antigos)
       if (periodos.length === 0) {
         console.log('📦 Coleções vazias. Verificando documento centralizado...');
         try {
@@ -189,7 +187,6 @@
         }
       }
 
-      // 3. Normaliza campos
       setores = setores.map(s => ({ ...s, periodold: s.periodold || s.periodoId }));
       itensCusto = itensCusto.map(i => ({ 
         ...i, 
@@ -203,12 +200,10 @@
       }));
       producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
 
-      // 4. Configurações
       if (snapConfig.exists && snapConfig.data().config) {
         configCampos = { ...configCampos, ...snapConfig.data().config };
       }
 
-      // 5. Categorias padrão
       if (categorias.length === 0) {
         categorias = [
           { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
@@ -227,6 +222,7 @@
     }
   }
 
+  // ======== FUNÇÕES GLOBAIS ========
   window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
     if (!modal) return;
@@ -288,7 +284,6 @@
     
     let html = '';
     
-    // ====== CARDS DE RESUMO ======
     let totalProduzidoGeral = 0;
     let totalGastoGeral = 0;
     let totalSetoresCount = 0;
@@ -357,7 +352,6 @@
     
     html += '</div>';
     
-    // ====== GRÁFICO DE CATEGORIAS ======
     html += `
       <div class="categorias-section">
         <div class="card">
@@ -394,7 +388,6 @@
         </div>
       </div>`;
 
-    // ====== LISTA DE PERÍODOS ======
     html += `
     <div class="card">
       <div class="card-header">
@@ -598,8 +591,41 @@
     `).join('');
   }
 
+  // ======== RENDERIZAR CARD SETOR ========
+  function renderizarCardSetor(s, grid) {
+    const custos = calcularCustosSetor(s.id);
+    const isExcluido = setoresExcluidosResumo.has(s.id);
+    const tipoClass = s.tipo === 'despesa' ? 'tipo-despesa' : 'tipo-custo';
+    const div = document.createElement('div');
+    div.className = `setor-card ${tipoClass} ${isExcluido ? 'excluido-resumo' : ''} ${s.produtoFinal ? 'produto-final' : ''}`;
+    div.innerHTML = `
+      <div class="setor-toggle">
+        <input type="checkbox" ${!isExcluido ? 'checked' : ''} onchange="window.toggleSetorResumo('${s.id}', this.checked)" title="Incluir/Excluir do resumo">
+      </div>
+      <div class="setor-acoes">
+        <button class="btn btn-outline btn-xs" onclick="event.stopPropagation();window.editarSetor('${s.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+        <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirSetor('${s.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+      </div>
+      <div onclick="window.selecionarSetor('${s.id}')" style="cursor:pointer;">
+        <div class="setor-nome">
+          ${s.nome}
+          <span class="badge ${s.tipo === 'despesa' ? 'badge-despesa' : 'badge-custo'}">${s.tipo === 'despesa' ? 'Despesa' : 'Custo'}</span>
+          ${s.produtoFinal ? '<span class="badge badge-orange">⭐ Produto Final</span>' : ''}
+        </div>
+        <div class="setor-desc">${s.descricao || 'Sem descrição'}</div>
+        <div class="setor-info">
+          <div><span class="info-label">${configCampos.custoTotal}</span><span class="info-valor money">${formatMoney(custos.totalCusto)}</span></div>
+          <div><span class="info-label">${configCampos.producaoKg}</span><span class="info-valor">${formatNumber(custos.totalKg, 0)} kg</span></div>
+          <div><span class="info-label">${configCampos.custoPorKg}</span><span class="info-valor money">${formatMoney(custos.custoPorKg)}/kg</span></div>
+          <div><span class="info-label">Itens</span><span class="info-valor">${custos.qtdItens}</span></div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(div);
+  }
+
   // ======== SETORES ========
-function renderizarSetores() {
+  function renderizarSetores() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
 
@@ -701,13 +727,21 @@ function renderizarSetores() {
       }
     }
 
-    // ==== ÁREA DE CUSTOS FIXOS ====
+    // ==== ÁREA DE CUSTOS FIXOS (ÚNICA VEZ) ====
     html += `
-      <div id="listaCustosFixosContainer" style="margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--border);">
+        <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos</h4>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-outline btn-sm btn-toggle-custos-fixos" onclick="window.toggleCustosFixos()">
+            <i class="fas fa-chevron-up"></i> Ocultar
+          </button>
+          <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()">
+            <i class="fas fa-plus"></i> Novo Custo Fixo
+          </button>
+        </div>
       </div>
-    `;
-
-    html += `
+      <div id="listaCustosFixosContainer" style="margin-top:1rem;"></div>
+      
       <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" onclick="window.abrirModalCategoria()"><i class="fas fa-tag"></i> Nova Categoria</button>
         <button class="btn btn-outline btn-sm" onclick="window.listarCustosFixos('${periodoAtual.id}')"><i class="fas fa-sync"></i> Atualizar Custos Fixos</button>
@@ -716,6 +750,7 @@ function renderizarSetores() {
 
     container.innerHTML = html;
 
+    // Renderiza os cards de setores
     if (setoresCusto.length > 0) {
       const gridCusto = document.getElementById('setoresCustoGrid');
       if (gridCusto) setoresCusto.forEach(s => renderizarCardSetor(s, gridCusto));
@@ -728,7 +763,170 @@ function renderizarSetores() {
     
     // Renderiza os custos fixos
     window.listarCustosFixos(periodoAtual.id);
-}
+  }
+
+  // ======== LISTAR CUSTOS FIXOS ========
+  window.listarCustosFixos = function(periodoId) {
+    const container = document.getElementById('listaCustosFixosContainer');
+    if (!container) return;
+    
+    const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
+    if (!pid) {
+        container.innerHTML = '<p style="color:var(--text-light);padding:1rem;">Selecione um período para ver os custos fixos.</p>';
+        return;
+    }
+    
+    const fixos = custosFixos.filter(cf => cf.periodold === pid);
+    
+    if (fixos.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:2rem;color:var(--text-light);">
+                <i class="fas fa-thumbtack" style="font-size:2rem;display:block;margin-bottom:1rem;opacity:0.5;"></i>
+                Nenhum custo fixo cadastrado neste período.
+                <br>
+                <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()" style="margin-top:1rem;">
+                    <i class="fas fa-plus"></i> Criar Novo Custo Fixo
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    const agrupados = {};
+    fixos.forEach(cf => {
+        const catId = cf.categoriald || 'sem_categoria';
+        if (!agrupados[catId]) {
+            const cat = categorias.find(c => c.id === catId);
+            agrupados[catId] = {
+                nome: cat ? cat.nome : 'Sem Categoria',
+                cor: cat ? cat.cor : '#6b7280',
+                itens: []
+            };
+        }
+        agrupados[catId].itens.push(cf);
+    });
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos <span class="badge badge-warning">${fixos.length}</span></h4>
+            <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()">
+                <i class="fas fa-plus"></i> Novo Custo Fixo
+            </button>
+        </div>
+        <div class="custos-fixos-grid">
+    `;
+    
+    Object.values(agrupados).forEach(grupo => {
+        html += `
+            <div class="categoria-grupo">
+                <div class="categoria-header" style="background:${grupo.cor}15;border-left:4px solid ${grupo.cor};padding:0.5rem 1rem;border-radius:8px;margin-bottom:0.5rem;">
+                    <span style="display:flex;align-items:center;gap:0.5rem;">
+                        <span style="width:12px;height:12px;border-radius:50%;background:${grupo.cor};display:inline-block;"></span>
+                        <strong>${grupo.nome}</strong>
+                        <span class="badge" style="background:${grupo.cor};color:#fff;">${grupo.itens.length}</span>
+                    </span>
+                </div>
+                <div class="custo-fixo-lista">
+        `;
+        
+        grupo.itens.forEach(cf => {
+            html += `
+                <div class="custo-fixo-card" data-id="${cf.id}">
+                    <div class="cf-info">
+                        <div class="cf-nome"><i class="fas fa-thumbtack" style="color:${grupo.cor};"></i> ${cf.nome}</div>
+                        <div class="cf-valor">${formatMoney(cf.valor)}</div>
+                    </div>
+                    <div class="cf-acoes">
+                        <button class="btn btn-outline btn-xs btn-editar-custo-fixo" data-id="${cf.id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    container.querySelectorAll('.btn-editar-custo-fixo').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-id');
+            if (id) window.editarCustoFixo(id);
+        });
+    });
+  };
+
+  // ======== EDITAR CUSTO FIXO ========
+  window.editarCustoFixo = function(id) {
+    const cf = custosFixos.find(x => x.id === id);
+    if (!cf) {
+        alert('Custo fixo não encontrado!');
+        return;
+    }
+    
+    const modal = document.getElementById('modalCustoFixo');
+    if (!modal) return;
+    
+    document.getElementById('custoFixoPeriodo').innerHTML = 
+        '<option value="">Selecione um período...</option>' + 
+        periodos.map(p => `<option value="${p.id}" ${p.id === cf.periodold ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+    
+    document.getElementById('custoFixoCategoria').innerHTML = 
+        '<option value="">Selecione uma categoria...</option>' + 
+        categorias.map(c => `<option value="${c.id}" ${c.id === cf.categoriald ? 'selected' : ''}>${c.nome}</option>`).join('');
+    
+    document.getElementById('custoFixoTituloTexto').innerText = 'Editar Custo Fixo';
+    document.getElementById('custoFixoEditId').value = cf.id;
+    document.getElementById('custoFixoNome').value = cf.nome || '';
+    document.getElementById('custoFixoValor').value = cf.valor || 0;
+    
+    modal.classList.add('active');
+  };
+
+  // ======== TOGGLE TODOS SETORES ========
+  window.toggleTodosSetores = function(tipo) {
+    if (!periodoAtual) return;
+    const sets = getSetoresDoPeriodo(periodoAtual.id);
+    const setsDoTipo = sets.filter(s => 
+        tipo === 'custo' ? s.tipo !== 'despesa' : s.tipo === 'despesa'
+    );
+    
+    const todosExcluidos = setsDoTipo.every(s => setoresExcluidosResumo.has(s.id));
+    
+    if (todosExcluidos) {
+        setsDoTipo.forEach(s => setoresExcluidosResumo.delete(s.id));
+    } else {
+        setsDoTipo.forEach(s => setoresExcluidosResumo.add(s.id));
+    }
+    
+    renderizarTela();
+  };
+
+  // ======== MINIMIZAR/EXPANDIR CUSTOS FIXOS ========
+  window.toggleCustosFixos = function() {
+    const container = document.getElementById('listaCustosFixosContainer');
+    if (!container) return;
+    
+    const isHidden = container.style.display === 'none';
+    container.style.display = isHidden ? 'block' : 'none';
+    
+    const btn = document.querySelector('.btn-toggle-custos-fixos');
+    if (btn) {
+        btn.innerHTML = isHidden ? 
+            '<i class="fas fa-chevron-down"></i> Mostrar Custos Fixos' : 
+            '<i class="fas fa-chevron-up"></i> Ocultar Custos Fixos';
+    }
+  };
 
   // ======== ANÁLISE ========
   function renderizarAnalise() {
@@ -1354,7 +1552,6 @@ function renderizarSetores() {
     renderizarTela();
   };
 
-  window.editarCustoFixo = function(id) { window.abrirModalCustoFixo(id); };
   window.excluirCustoFixo = async function(id) {
     if (!confirm('Excluir custo fixo?')) return;
     custosFixos = custosFixos.filter(c => c.id !== id);
@@ -1699,179 +1896,5 @@ function renderizarSetores() {
   } else { 
     init(); 
   }
-
-  // ======== LISTAR CUSTOS FIXOS ========
-window.listarCustosFixos = function(periodoId) {
-    const container = document.getElementById('listaCustosFixosContainer');
-    if (!container) return;
-    
-    const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
-    if (!pid) {
-        container.innerHTML = '<p style="color:var(--text-light);padding:1rem;">Selecione um período para ver os custos fixos.</p>';
-        return;
-    }
-    
-    const fixos = custosFixos.filter(cf => cf.periodold === pid);
-    
-    if (fixos.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center;padding:2rem;color:var(--text-light);">
-                <i class="fas fa-thumbtack" style="font-size:2rem;display:block;margin-bottom:1rem;opacity:0.5;"></i>
-                Nenhum custo fixo cadastrado neste período.
-                <br>
-                <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()" style="margin-top:1rem;">
-                    <i class="fas fa-plus"></i> Criar Novo Custo Fixo
-                </button>
-            </div>
-        `;
-        return;
-    }
-    
-    // Agrupa por categoria
-    const agrupados = {};
-    fixos.forEach(cf => {
-        const catId = cf.categoriald || 'sem_categoria';
-        if (!agrupados[catId]) {
-            const cat = categorias.find(c => c.id === catId);
-            agrupados[catId] = {
-                nome: cat ? cat.nome : 'Sem Categoria',
-                cor: cat ? cat.cor : '#6b7280',
-                itens: []
-            };
-        }
-        agrupados[catId].itens.push(cf);
-    });
-    
-    let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-            <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos <span class="badge badge-warning">${fixos.length}</span></h4>
-            <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()">
-                <i class="fas fa-plus"></i> Novo Custo Fixo
-            </button>
-        </div>
-        <div class="custos-fixos-grid">
-    `;
-    
-    Object.values(agrupados).forEach(grupo => {
-        html += `
-            <div class="categoria-grupo">
-                <div class="categoria-header" style="background:${grupo.cor}15;border-left:4px solid ${grupo.cor};padding:0.5rem 1rem;border-radius:8px;margin-bottom:0.5rem;">
-                    <span style="display:flex;align-items:center;gap:0.5rem;">
-                        <span style="width:12px;height:12px;border-radius:50%;background:${grupo.cor};display:inline-block;"></span>
-                        <strong>${grupo.nome}</strong>
-                        <span class="badge" style="background:${grupo.cor};color:#fff;">${grupo.itens.length}</span>
-                    </span>
-                </div>
-                <div class="custo-fixo-lista">
-        `;
-        
-        grupo.itens.forEach(cf => {
-            html += `
-                <div class="custo-fixo-card" data-id="${cf.id}">
-                    <div class="cf-info">
-                        <div class="cf-nome"><i class="fas fa-thumbtack" style="color:${grupo.cor};"></i> ${cf.nome}</div>
-                        <div class="cf-valor">${formatMoney(cf.valor)}</div>
-                    </div>
-                    <div class="cf-acoes">
-                        <button class="btn btn-outline btn-xs btn-editar-custo-fixo" data-id="${cf.id}" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')" title="Excluir">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += `
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    container.innerHTML = html;
-    
-    // Adiciona event listeners para os botões de editar
-    container.querySelectorAll('.btn-editar-custo-fixo').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const id = this.getAttribute('data-id');
-            if (id) window.editarCustoFixo(id);
-        });
-    });
-};
-
-// ======== EDITAR CUSTO FIXO (CORRIGIDO) ========
-window.editarCustoFixo = function(id) {
-    const cf = custosFixos.find(x => x.id === id);
-    if (!cf) {
-        alert('Custo fixo não encontrado!');
-        return;
-    }
-    
-    const modal = document.getElementById('modalCustoFixo');
-    if (!modal) return;
-    
-    // Preenche os selects
-    document.getElementById('custoFixoPeriodo').innerHTML = 
-        '<option value="">Selecione um período...</option>' + 
-        periodos.map(p => `<option value="${p.id}" ${p.id === cf.periodold ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
-    
-    document.getElementById('custoFixoCategoria').innerHTML = 
-        '<option value="">Selecione uma categoria...</option>' + 
-        categorias.map(c => `<option value="${c.id}" ${c.id === cf.categoriald ? 'selected' : ''}>${c.nome}</option>`).join('');
-    
-    // Preenche os campos
-    document.getElementById('custoFixoTituloTexto').innerText = 'Editar Custo Fixo';
-    document.getElementById('custoFixoEditId').value = cf.id;
-    document.getElementById('custoFixoNome').value = cf.nome || '';
-    document.getElementById('custoFixoValor').value = cf.valor || 0;
-    
-    modal.classList.add('active');
-};
-
-// ======== ABRIR MODAL CUSTO FIXO (CORRIGIDO) ========
-// Substitua a função existente por esta versão corrigida
-window.abrirModalCustoFixo = function(id) {
-    const modal = document.getElementById('modalCustoFixo');
-    if (!modal) return;
-    
-    // Preenche períodos
-    document.getElementById('custoFixoPeriodo').innerHTML = 
-        '<option value="">Selecione um período...</option>' + 
-        periodos.map(p => `<option value="${p.id}" ${(periodoAtual && p.id === periodoAtual.id) ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
-    
-    // Preenche categorias
-    document.getElementById('custoFixoCategoria').innerHTML = 
-        '<option value="">Selecione uma categoria...</option>' + 
-        categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
-    
-    if (id) {
-        const cf = custosFixos.find(x => x.id === id);
-        if (cf) {
-            document.getElementById('custoFixoTituloTexto').innerText = 'Editar Custo Fixo';
-            document.getElementById('custoFixoEditId').value = cf.id;
-            document.getElementById('custoFixoPeriodo').value = cf.periodold || '';
-            document.getElementById('custoFixoCategoria').value = cf.categoriald || '';
-            document.getElementById('custoFixoNome').value = cf.nome || '';
-            document.getElementById('custoFixoValor').value = cf.valor || 0;
-        }
-    } else {
-        document.getElementById('custoFixoTituloTexto').innerText = 'Novo Custo Fixo';
-        document.getElementById('custoFixoEditId').value = '';
-        document.getElementById('custoFixoNome').value = '';
-        document.getElementById('custoFixoValor').value = '';
-        if (periodoAtual) {
-            document.getElementById('custoFixoPeriodo').value = periodoAtual.id;
-        }
-        if (categorias.length > 0) {
-            document.getElementById('custoFixoCategoria').value = categorias[0].id;
-        }
-    }
-    
-    modal.classList.add('active');
-};
 
 })();
