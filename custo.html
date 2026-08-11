@@ -241,6 +241,14 @@
         <label>Valor Total (R$)</label>
         <input type="number" id="custoFixoValor" step="0.01" placeholder="0,00">
       </div>
+      <!-- Dentro do modalCustoFixo, após o campo valor -->
+<div class="form-group" id="custoFixoSetoresContainer">
+    <label><i class="fas fa-industry"></i> Setores para Distribuir</label>
+    <div id="custoFixoSetores" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem;">
+        <!-- Os setores serão carregados aqui -->
+    </div>
+    <div class="hint">Selecione os setores que receberão este custo fixo e defina a porcentagem de cada um.</div>
+</div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="window.fecharModal('modalCustoFixo')">Cancelar</button>
         <button class="btn btn-warning" onclick="window.salvarCustoFixo()"><i class="fas fa-save"></i> Salvar</button>
