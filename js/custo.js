@@ -1738,4 +1738,178 @@
     init(); 
   }
 
+  // ======== LISTAR CUSTOS FIXOS ========
+window.listarCustosFixos = function(periodoId) {
+    const container = document.getElementById('listaCustosFixosContainer');
+    if (!container) return;
+    
+    const pid = periodoId || (periodoAtual ? periodoAtual.id : null);
+    if (!pid) {
+        container.innerHTML = '<p style="color:var(--text-light);padding:1rem;">Selecione um período para ver os custos fixos.</p>';
+        return;
+    }
+    
+    const fixos = custosFixos.filter(cf => cf.periodold === pid);
+    
+    if (fixos.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:2rem;color:var(--text-light);">
+                <i class="fas fa-thumbtack" style="font-size:2rem;display:block;margin-bottom:1rem;opacity:0.5;"></i>
+                Nenhum custo fixo cadastrado neste período.
+                <br>
+                <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()" style="margin-top:1rem;">
+                    <i class="fas fa-plus"></i> Criar Novo Custo Fixo
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Agrupa por categoria
+    const agrupados = {};
+    fixos.forEach(cf => {
+        const catId = cf.categoriald || 'sem_categoria';
+        if (!agrupados[catId]) {
+            const cat = categorias.find(c => c.id === catId);
+            agrupados[catId] = {
+                nome: cat ? cat.nome : 'Sem Categoria',
+                cor: cat ? cat.cor : '#6b7280',
+                itens: []
+            };
+        }
+        agrupados[catId].itens.push(cf);
+    });
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos <span class="badge badge-warning">${fixos.length}</span></h4>
+            <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()">
+                <i class="fas fa-plus"></i> Novo Custo Fixo
+            </button>
+        </div>
+        <div class="custos-fixos-grid">
+    `;
+    
+    Object.values(agrupados).forEach(grupo => {
+        html += `
+            <div class="categoria-grupo">
+                <div class="categoria-header" style="background:${grupo.cor}15;border-left:4px solid ${grupo.cor};padding:0.5rem 1rem;border-radius:8px;margin-bottom:0.5rem;">
+                    <span style="display:flex;align-items:center;gap:0.5rem;">
+                        <span style="width:12px;height:12px;border-radius:50%;background:${grupo.cor};display:inline-block;"></span>
+                        <strong>${grupo.nome}</strong>
+                        <span class="badge" style="background:${grupo.cor};color:#fff;">${grupo.itens.length}</span>
+                    </span>
+                </div>
+                <div class="custo-fixo-lista">
+        `;
+        
+        grupo.itens.forEach(cf => {
+            html += `
+                <div class="custo-fixo-card" data-id="${cf.id}">
+                    <div class="cf-info">
+                        <div class="cf-nome"><i class="fas fa-thumbtack" style="color:${grupo.cor};"></i> ${cf.nome}</div>
+                        <div class="cf-valor">${formatMoney(cf.valor)}</div>
+                    </div>
+                    <div class="cf-acoes">
+                        <button class="btn btn-outline btn-xs btn-editar-custo-fixo" data-id="${cf.id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-xs" onclick="window.excluirCustoFixo('${cf.id}')" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Adiciona event listeners para os botões de editar
+    container.querySelectorAll('.btn-editar-custo-fixo').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const id = this.getAttribute('data-id');
+            if (id) window.editarCustoFixo(id);
+        });
+    });
+};
+
+// ======== EDITAR CUSTO FIXO (CORRIGIDO) ========
+window.editarCustoFixo = function(id) {
+    const cf = custosFixos.find(x => x.id === id);
+    if (!cf) {
+        alert('Custo fixo não encontrado!');
+        return;
+    }
+    
+    const modal = document.getElementById('modalCustoFixo');
+    if (!modal) return;
+    
+    // Preenche os selects
+    document.getElementById('custoFixoPeriodo').innerHTML = 
+        '<option value="">Selecione um período...</option>' + 
+        periodos.map(p => `<option value="${p.id}" ${p.id === cf.periodold ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+    
+    document.getElementById('custoFixoCategoria').innerHTML = 
+        '<option value="">Selecione uma categoria...</option>' + 
+        categorias.map(c => `<option value="${c.id}" ${c.id === cf.categoriald ? 'selected' : ''}>${c.nome}</option>`).join('');
+    
+    // Preenche os campos
+    document.getElementById('custoFixoTituloTexto').innerText = 'Editar Custo Fixo';
+    document.getElementById('custoFixoEditId').value = cf.id;
+    document.getElementById('custoFixoNome').value = cf.nome || '';
+    document.getElementById('custoFixoValor').value = cf.valor || 0;
+    
+    modal.classList.add('active');
+};
+
+// ======== ABRIR MODAL CUSTO FIXO (CORRIGIDO) ========
+// Substitua a função existente por esta versão corrigida
+window.abrirModalCustoFixo = function(id) {
+    const modal = document.getElementById('modalCustoFixo');
+    if (!modal) return;
+    
+    // Preenche períodos
+    document.getElementById('custoFixoPeriodo').innerHTML = 
+        '<option value="">Selecione um período...</option>' + 
+        periodos.map(p => `<option value="${p.id}" ${(periodoAtual && p.id === periodoAtual.id) ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+    
+    // Preenche categorias
+    document.getElementById('custoFixoCategoria').innerHTML = 
+        '<option value="">Selecione uma categoria...</option>' + 
+        categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+    
+    if (id) {
+        const cf = custosFixos.find(x => x.id === id);
+        if (cf) {
+            document.getElementById('custoFixoTituloTexto').innerText = 'Editar Custo Fixo';
+            document.getElementById('custoFixoEditId').value = cf.id;
+            document.getElementById('custoFixoPeriodo').value = cf.periodold || '';
+            document.getElementById('custoFixoCategoria').value = cf.categoriald || '';
+            document.getElementById('custoFixoNome').value = cf.nome || '';
+            document.getElementById('custoFixoValor').value = cf.valor || 0;
+        }
+    } else {
+        document.getElementById('custoFixoTituloTexto').innerText = 'Novo Custo Fixo';
+        document.getElementById('custoFixoEditId').value = '';
+        document.getElementById('custoFixoNome').value = '';
+        document.getElementById('custoFixoValor').value = '';
+        if (periodoAtual) {
+            document.getElementById('custoFixoPeriodo').value = periodoAtual.id;
+        }
+        if (categorias.length > 0) {
+            document.getElementById('custoFixoCategoria').value = categorias[0].id;
+        }
+    }
+    
+    modal.classList.add('active');
+};
+
 })();
