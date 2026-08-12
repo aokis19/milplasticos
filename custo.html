@@ -68,173 +68,14 @@
         </div>
 
         <div class="breadcrumb" id="breadcrumb"></div>
-        <div id="conteudoDinamico"></div>
-      </div>
-
-      <!-- ===================== PAINEL DE CUSTO DE PROCESSO ===================== -->
-      <div class="card custo-processo-card" style="margin-bottom:1.5rem;">
-        <div class="card-header">
-          <span class="card-title"><i class="fas fa-cogs"></i> Custo de Processo</span>
-          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-            <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
-              <i class="fas fa-eraser"></i> Limpar
-            </button>
-            <button class="btn btn-teal btn-sm" onclick="window.exportarCustoProcessoPDF()">
-              <i class="fas fa-file-pdf"></i> Exportar PDF
-            </button>
-          </div>
+        
+        <!-- ========== CONTEÚDO DINÂMICO (ONDE O JS RENDERIZA) ========== -->
+        <div id="conteudoDinamico">
+          <!-- O JavaScript vai renderizar TODO o conteúdo aqui -->
+          <!-- Incluindo o painel de Custo de Processo -->
         </div>
+        <!-- ========== FIM DO CONTEÚDO DINÂMICO ========== -->
 
-        <!-- Filtros -->
-        <div class="custo-processo-filtros"
-          style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:1rem;background:#f8fafc;border-radius:8px;">
-          <div class="form-group" style="margin:0;flex:1;min-width:150px;">
-            <label style="font-size:0.8rem;">Ano</label>
-            <select id="custoProcessoAno" onchange="window.filtrarCustoProcesso()"
-              style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
-              <option value="">Todos</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;flex:1;min-width:150px;">
-            <label style="font-size:0.8rem;">Mês</label>
-            <select id="custoProcessoMes" onchange="window.filtrarCustoProcesso()"
-              style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
-              <option value="">Todos</option>
-              <option value="1">Janeiro</option>
-              <option value="2">Fevereiro</option>
-              <option value="3">Março</option>
-              <option value="4">Abril</option>
-              <option value="5">Maio</option>
-              <option value="6">Junho</option>
-              <option value="7">Julho</option>
-              <option value="8">Agosto</option>
-              <option value="9">Setembro</option>
-              <option value="10">Outubro</option>
-              <option value="11">Novembro</option>
-              <option value="12">Dezembro</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;flex:1;min-width:150px;">
-            <label style="font-size:0.8rem;">Período</label>
-            <select id="custoProcessoPeriodo" onchange="window.carregarCustosProcesso()"
-              style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
-              <option value="">Selecione um período...</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Resumo -->
-        <div class="custo-processo-resumo" id="custoProcessoResumo"
-          style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
-          <div class="stat-card-home"
-            style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;">
-            <div class="stat-info">
-              <div class="stat-label" style="color:rgba(255,255,255,0.8);">Produção Total</div>
-              <div class="stat-value" id="custoProcessoProducao" style="color:#fff;">0 kg</div>
-            </div>
-          </div>
-          <div class="stat-card-home"
-            style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;">
-            <div class="stat-info">
-              <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custo Total</div>
-              <div class="stat-value" id="custoProcessoCustoTotal" style="color:#fff;">R$ 0,00</div>
-            </div>
-          </div>
-          <div class="stat-card-home"
-            style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:none;">
-            <div class="stat-info">
-              <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custo por KG</div>
-              <div class="stat-value" id="custoProcessoCustoKg" style="color:#fff;">R$ 0,00</div>
-            </div>
-          </div>
-          <div class="stat-card-home"
-            style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;">
-            <div class="stat-info">
-              <div class="stat-label" style="color:rgba(255,255,255,0.8);">Itens Selecionados</div>
-              <div class="stat-value" id="custoProcessoQtdItens" style="color:#fff;">0</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Lista de Custos do Período -->
-        <div style="margin-bottom:1rem;">
-          <label style="font-weight:500;font-size:0.9rem;display:block;margin-bottom:0.5rem;">
-            <i class="fas fa-list"></i> Custos Cadastrados no Período
-          </label>
-          <div id="custoProcessoCustosLista"
-            style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;">
-            <p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os
-              custos.</p>
-          </div>
-        </div>
-
-        <!-- Itens Selecionados (Custos + Extras) -->
-        <div style="margin-bottom:1rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-            <label style="font-weight:500;font-size:0.9rem;margin:0;">
-              <i class="fas fa-calculator"></i> Itens no Cálculo
-            </label>
-            <button class="btn btn-outline btn-sm" onclick="window.adicionarCustoExtra()">
-              <i class="fas fa-plus"></i> Adicionar Custo Extra
-            </button>
-          </div>
-          <div id="custoProcessoItensSelecionados"
-            style="border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;min-height:100px;">
-            <p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">
-              Nenhum item selecionado. Marque os custos abaixo ou adicione custos extras.
-            </p>
-          </div>
-        </div>
-
-        <!-- Botões de Ação -->
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button class="btn btn-warning btn-sm" onclick="window.calcularCustoProcesso()">
-            <i class="fas fa-sync"></i> Calcular
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
-            <i class="fas fa-eraser"></i> Limpar Tudo
-          </button>
-        </div>
-      </div>
-      <!-- ===================== MODAIS ===================== -->
-
-      <!-- MODAL PERÍODO -->
-      <div class="modal-overlay" id="modalPeriodo">
-        <div class="modal">
-          <h2><i class="fas fa-calendar-plus"></i> <span id="modalPeriodoTitulo">Novo Período</span></h2>
-          <input type="hidden" id="periodoEditId">
-          <div class="grid-2">
-            <div class="form-group">
-              <label>Mês</label>
-              <select id="periodoMes">
-                <option value="1">Janeiro</option>
-                <option value="2">Fevereiro</option>
-                <option value="3">Março</option>
-                <option value="4">Abril</option>
-                <option value="5">Maio</option>
-                <option value="6">Junho</option>
-                <option value="7">Julho</option>
-                <option value="8">Agosto</option>
-                <option value="9">Setembro</option>
-                <option value="10">Outubro</option>
-                <option value="11">Novembro</option>
-                <option value="12">Dezembro</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Ano</label>
-              <input type="number" id="periodoAno" value="2026" min="2020" max="2035">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Observação</label>
-            <textarea id="periodoObs" rows="2" placeholder="Ex: Fechamento mensal..."></textarea>
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
-            <button class="btn btn-primary" onclick="window.salvarPeriodo()"><i class="fas fa-save"></i> Salvar</button>
-          </div>
-        </div>
       </div>
 
       <!-- MODAL COPIAR PERÍODO -->
@@ -371,7 +212,6 @@
             <label>Valor Total (R$)</label>
             <input type="number" id="custoFixoValor" step="0.01" placeholder="0,00">
           </div>
-          <!-- Dentro do modalCustoFixo, após o campo valor -->
           <div class="form-group" id="custoFixoSetoresContainer">
             <label><i class="fas fa-industry"></i> Setores para Distribuir</label>
             <div id="custoFixoSetores"
@@ -606,7 +446,7 @@
 
       <!-- ========== MODAIS PARA GRÁFICOS ========== -->
 
-      <!-- MODAL GRÁFICO MENSAL - CORRIGIDO -->
+      <!-- MODAL GRÁFICO MENSAL -->
       <div class="modal-overlay" id="modalGraficoMensal">
         <div class="modal modal-lg">
           <h2>
@@ -649,7 +489,7 @@
         </div>
       </div>
 
-      <!-- MODAL GRÁFICO CONSOLIDADO - CORRIGIDO -->
+      <!-- MODAL GRÁFICO CONSOLIDADO -->
       <div class="modal-overlay" id="modalGraficoConsolidado">
         <div class="modal modal-lg">
           <h2>
@@ -705,6 +545,8 @@
       <script src="/js/custo.js"></script>
       <script src="/js/main.js"></script>
 
+    </main>
+  </div>
 </body>
 
 </html>
