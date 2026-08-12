@@ -3,8 +3,7 @@
 // ✅ CORRIGIDO: Cadastro de custo fixo com seleção de setores
 // ✅ CORRIGIDO: Definição de porcentagem por setor
 // ✅ CORRIGIDO: Criação direta de itens fixos nos setores
-// ✅ CORRIGIDO: Painel de Custo de Processo dentro do IIFE
-// ✅ CORRIGIDO: Acesso a todas as funções utilitárias
+// ✅ CORRIGIDO: Painel de Custo de Processo dentro da função renderizarPeriodos()
 // ====================================================
 (function() {
   'use strict';
@@ -281,7 +280,7 @@
     atualizarBreadcrumb();
   }
 
-  // ======== HOME - COM CARDS E GRÁFICO ========
+  // ======== HOME - COM CARDS, GRÁFICO E PAINEL DE CUSTO DE PROCESSO ========
   function renderizarPeriodos() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -315,6 +314,7 @@
 
     const custoPorKgCalculado = totalProduzidoGeral > 0 ? totalGastoGeral / totalProduzidoGeral : 0;
 
+    // ====== CARDS DE RESUMO ======
     html += '<div class="stats-grid-home">';
 
     html += `
@@ -367,6 +367,124 @@
 
     html += '</div>';
 
+    // ====== PAINEL DE CUSTO DE PROCESSO ======
+    html += `
+<div class="card custo-processo-card" style="margin-bottom:1.5rem;margin-top:1.5rem;">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-cogs"></i> Custo de Processo - Média por Setor</span>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
+        <i class="fas fa-eraser"></i> Limpar
+      </button>
+      <button class="btn btn-teal btn-sm" onclick="window.exportarCustoProcessoPDF()">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="custo-processo-filtros" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:1rem;background:#f8fafc;border-radius:8px;">
+    <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+      <label style="font-size:0.8rem;font-weight:600;">Ano</label>
+      <select id="custoProcessoAno" onchange="window.filtrarCustoProcesso()" style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+      <label style="font-size:0.8rem;font-weight:600;">Meses (selecione múltiplos)</label>
+      <select id="custoProcessoMeses" multiple style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;min-height:80px;">
+        <option value="1">Janeiro</option>
+        <option value="2">Fevereiro</option>
+        <option value="3">Março</option>
+        <option value="4">Abril</option>
+        <option value="5">Maio</option>
+        <option value="6">Junho</option>
+        <option value="7">Julho</option>
+        <option value="8">Agosto</option>
+        <option value="9">Setembro</option>
+        <option value="10">Outubro</option>
+        <option value="11">Novembro</option>
+        <option value="12">Dezembro</option>
+      </select>
+      <div class="hint" style="font-size:0.7rem;color:var(--text-light);">Segure CTRL para selecionar múltiplos meses</div>
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+      <label style="font-size:0.8rem;font-weight:600;">Período</label>
+      <select id="custoProcessoPeriodo" onchange="window.carregarSetoresProcesso()" style="width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
+        <option value="">Selecione um período...</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Resumo Principal -->
+  <div class="custo-processo-resumo" id="custoProcessoResumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;">
+      <div class="stat-info">
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Setores Selecionados</div>
+        <div class="stat-value" id="custoProcessoQtdSetores" style="color:#fff;">0</div>
+      </div>
+    </div>
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;">
+      <div class="stat-info">
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Produção Média</div>
+        <div class="stat-value" id="custoProcessoProducao" style="color:#fff;">0 kg</div>
+      </div>
+    </div>
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;">
+      <div class="stat-info">
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custo Total Médio</div>
+        <div class="stat-value" id="custoProcessoCustoTotal" style="color:#fff;">R$ 0,00</div>
+      </div>
+    </div>
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:none;">
+      <div class="stat-info">
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custo por KG Médio</div>
+        <div class="stat-value" id="custoProcessoCustoKg" style="color:#fff;">R$ 0,00</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Setores do Período -->
+  <div style="margin-bottom:1rem;">
+    <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:0.5rem;">
+      <i class="fas fa-industry"></i> Setores de Custo
+      <span style="font-weight:400;font-size:0.8rem;color:var(--text-light);">(selecione os setores para calcular a média)</span>
+    </label>
+    <div id="custoProcessoSetoresLista" style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;">
+      <p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>
+    </div>
+  </div>
+
+  <!-- Setores Selecionados -->
+  <div style="margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+      <label style="font-weight:600;font-size:0.9rem;margin:0;">
+        <i class="fas fa-check-circle" style="color:#0d904f;"></i> Setores Selecionados
+      </label>
+      <button class="btn btn-outline btn-sm" onclick="window.limparSelecaoSetores()">
+        <i class="fas fa-times"></i> Limpar Seleção
+      </button>
+    </div>
+    <div id="custoProcessoSetoresSelecionados" style="border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;min-height:80px;">
+      <p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">
+        Nenhum setor selecionado. Marque os setores abaixo para calcular a média.
+      </p>
+    </div>
+  </div>
+
+  <!-- Botões de Ação -->
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <button class="btn btn-warning btn-sm" onclick="window.calcularCustoProcesso()">
+      <i class="fas fa-sync"></i> Calcular Média
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
+      <i class="fas fa-eraser"></i> Limpar Tudo
+    </button>
+  </div>
+</div>
+`;
+
+    // ====== GRÁFICO DE CATEGORIAS ======
     html += `
       <div class="categorias-section">
         <div class="card">
@@ -380,12 +498,12 @@
           </div>
           <div class="periodos-selecionados-tags" style="margin-bottom:1rem;">
             ${periodosSelecionadosResumo.size > 0 ?
-              Array.from(periodosSelecionadosResumo).map(pid => {
-                const per = periodos.find(p => p.id === pid);
-                return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
-              }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
-              : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
-            }
+        Array.from(periodosSelecionadosResumo).map(pid => {
+          const per = periodos.find(p => p.id === pid);
+          return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
+        }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
+        : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
+      }
           </div>
           <div class="categorias-content">
             <div class="grafico-categorias-wrapper">
@@ -403,6 +521,7 @@
         </div>
       </div>`;
 
+    // ====== LISTA DE PERÍODOS ======
     html += `
     <div class="card">
       <div class="card-header">
