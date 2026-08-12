@@ -2075,391 +2075,307 @@
     init();
   }
 
-  // ====================================================
-  // PAINEL DE CUSTO DE PROCESSO
-  // ====================================================
+// ====================================================
+// PAINEL DE CUSTO DE PROCESSO - MÉDIA POR SETOR
+// ====================================================
 
-  // Variáveis globais do painel
-  let custoProcessoItens = []; // { id, nome, custoKg, imposto, tipo, origem }
+// Variáveis globais do painel
+let custoProcessoSetoresSelecionados = [];
 
-  // ======== INICIALIZAR PAINEL ========
-  window.inicializarCustoProcesso = function () {
-    // Preenche os filtros de ano e mês
+// ======== INICIALIZAR PAINEL ========
+window.inicializarCustoProcesso = function() {
+    // Preenche os filtros de ano
     const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
     const selectAno = document.getElementById('custoProcessoAno');
     if (selectAno) {
-      selectAno.innerHTML = '<option value="">Todos</option>' +
-        anosDisponiveis.map(a => `<option value="${a}">${a}</option>`).join('');
+        selectAno.innerHTML = '<option value="">Todos</option>' + 
+            anosDisponiveis.map(a => `<option value="${a}">${a}</option>`).join('');
     }
-
+    
     // Preenche períodos
     window.atualizarPeriodosCustoProcesso();
-  };
+};
 
-  // ======== ATUALIZAR PERÍODOS ========
-  window.atualizarPeriodosCustoProcesso = function () {
+// ======== ATUALIZAR PERÍODOS ========
+window.atualizarPeriodosCustoProcesso = function() {
     const selectPeriodo = document.getElementById('custoProcessoPeriodo');
     if (!selectPeriodo) return;
-
+    
     const ano = document.getElementById('custoProcessoAno').value;
-    const mes = document.getElementById('custoProcessoMes').value;
-
+    const mesesSelect = document.getElementById('custoProcessoMeses');
+    const mesesSelecionados = Array.from(mesesSelect.selectedOptions).map(opt => parseInt(opt.value));
+    
     let periodosFiltrados = [...periodos];
     if (ano) periodosFiltrados = periodosFiltrados.filter(p => p.ano === parseInt(ano));
-    if (mes) periodosFiltrados = periodosFiltrados.filter(p => p.mes === parseInt(mes));
-
+    if (mesesSelecionados.length > 0) {
+        periodosFiltrados = periodosFiltrados.filter(p => mesesSelecionados.includes(p.mes));
+    }
+    
     periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-
+    
     selectPeriodo.innerHTML = '<option value="">Selecione um período...</option>' +
-      periodosFiltrados.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
-  };
+        periodosFiltrados.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+};
 
-  // ======== FILTRAR CUSTO PROCESSO ========
-  window.filtrarCustoProcesso = function () {
+// ======== FILTRAR CUSTO PROCESSO ========
+window.filtrarCustoProcesso = function() {
     window.atualizarPeriodosCustoProcesso();
     // Limpa seleção anterior
-    document.getElementById('custoProcessoCustosLista').innerHTML =
-      '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os custos.</p>';
-    document.getElementById('custoProcessoItensSelecionados').innerHTML =
-      '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum item selecionado.</p>';
+    document.getElementById('custoProcessoSetoresLista').innerHTML = 
+        '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
+    document.getElementById('custoProcessoSetoresSelecionados').innerHTML = 
+        '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
+    custoProcessoSetoresSelecionados = [];
     window.limparResumoCustoProcesso();
-  };
+};
 
-  // ======== CARREGAR CUSTOS DO PERÍODO ========
-  window.carregarCustosProcesso = function () {
+// ======== CARREGAR SETORES DO PERÍODO ========
+window.carregarSetoresProcesso = function() {
     const periodoId = document.getElementById('custoProcessoPeriodo').value;
     if (!periodoId) {
-      document.getElementById('custoProcessoCustosLista').innerHTML =
-        '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os custos.</p>';
-      return;
+        document.getElementById('custoProcessoSetoresLista').innerHTML = 
+            '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
+        return;
     }
-
-    // Busca todos os itens de custo do período
-    const sets = getSetoresDoPeriodo(periodoId);
-    let itensDoPeriodo = [];
-    sets.forEach(s => {
-      const itens = itensCusto.filter(i => i.setorld === s.id);
-      itens.forEach(i => {
-        // Calcula o custo por KG baseado na produção do setor
-        const custos = calcularCustosSetor(s.id);
-        const custoKg = custos.totalKg > 0 ? (i.valorTotal * (i.percentual || 100) / 100) / custos.totalKg : 0;
-
-        itensDoPeriodo.push({
-          id: i.id,
-          setorId: s.id,
-          setorNome: s.nome,
-          nome: i.nome,
-          valorTotal: i.valorTotal,
-          percentual: i.percentual || 100,
-          valorRateado: i.valorTotal * (i.percentual || 100) / 100,
-          producaoKg: custos.totalKg,
-          custoKg: custoKg,
-          tipo: i.tipo || 'normal',
-          categoriaId: i.categoriald,
-          obs: i.obs || ''
-        });
-      });
-    });
-
-    // Agrupa por setor para exibição
-    const container = document.getElementById('custoProcessoCustosLista');
+    
+    // Busca todos os setores do período (apenas CUSTOS, não despesas)
+    const sets = getSetoresDoPeriodo(periodoId).filter(s => s.tipo !== 'despesa');
+    
+    const container = document.getElementById('custoProcessoSetoresLista');
     let html = '';
-
-    if (itensDoPeriodo.length === 0) {
-      html = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum custo encontrado neste período.</p>';
+    
+    if (sets.length === 0) {
+        html = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum setor de custo encontrado neste período.</p>';
     } else {
-      // Agrupa por setor
-      const agrupado = {};
-      itensDoPeriodo.forEach(item => {
-        if (!agrupado[item.setorId]) {
-          agrupado[item.setorId] = {
-            setorNome: item.setorNome,
-            itens: []
-          };
-        }
-        agrupado[item.setorId].itens.push(item);
-      });
-
-      Object.values(agrupado).forEach(grupo => {
-        html += `<div style="margin-bottom:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:6px;">`;
-        html += `<div style="font-weight:600;font-size:0.85rem;color:#0d904f;margin-bottom:0.3rem;">
-                <i class="fas fa-industry"></i> ${grupo.setorNome}
-            </div>`;
-        grupo.itens.forEach(item => {
-          const isFixo = item.tipo === 'fixo';
-          html += `
-                    <label style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0.5rem;cursor:pointer;border-radius:4px;transition:background 0.2s;${isFixo ? 'background:#fef3c7;' : ''}" 
-                           onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${isFixo ? '#fef3c7' : 'transparent'}'">
-                        <input type="checkbox" class="custo-processo-checkbox" data-item-id="${item.id}" 
-                               data-nome="${item.nome}" data-custo-kg="${item.custoKg}" 
-                               data-setor="${item.setorNome}" data-tipo="${item.tipo}"
-                               onchange="window.toggleItemCustoProcesso(this)">
-                        <span style="flex:1;">
-                            ${item.nome}
-                            ${isFixo ? '<span class="badge badge-warning" style="font-size:0.6rem;padding:0.1rem 0.4rem;">Fixo</span>' : ''}
-                            <span style="font-size:0.7rem;color:var(--text-light);margin-left:0.5rem;">
-                                ${formatMoney(item.valorRateado)} | ${formatMoney(item.custoKg)}/kg
-                            </span>
-                        </span>
-                    </label>
-                `;
+        // Calcula dados de cada setor
+        sets.forEach(s => {
+            const custos = calcularCustosSetor(s.id);
+            const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
+            
+            html += `
+                <div style="display:flex;align-items:center;padding:0.5rem;border-bottom:1px solid #f0f0f0;${isSelecionado ? 'background:#f0fdf4;' : ''}">
+                    <input type="checkbox" class="setor-processo-checkbox" data-setor-id="${s.id}" 
+                           data-nome="${s.nome}" data-producao="${custos.totalKg}" data-custo="${custos.totalCusto}" data-custo-kg="${custos.custoPorKg}"
+                           ${isSelecionado ? 'checked' : ''}
+                           onchange="window.toggleSetorCustoProcesso(this)">
+                    <div style="flex:1;margin-left:0.5rem;">
+                        <div style="font-weight:500;display:flex;align-items:center;gap:0.5rem;">
+                            ${s.nome}
+                            ${s.produtoFinal ? '<span class="badge badge-orange" style="font-size:0.6rem;padding:0.1rem 0.4rem;">⭐ Final</span>' : ''}
+                        </div>
+                        <div style="font-size:0.75rem;color:var(--text-light);display:flex;gap:1rem;flex-wrap:wrap;">
+                            <span>📊 Produção: ${formatNumber(custos.totalKg, 0)} kg</span>
+                            <span>💰 Custo: ${formatMoney(custos.totalCusto)}</span>
+                            <span>📈 Custo/KG: ${formatMoney(custos.custoPorKg)}/kg</span>
+                            <span>📦 Itens: ${custos.qtdItens}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
-        html += `</div>`;
-      });
     }
-
+    
     container.innerHTML = html;
+    
+    // Atualiza lista de selecionados
+    window.atualizarSetoresSelecionados();
+    window.calcularCustoProcesso();
+};
 
-    // Limpa itens selecionados anteriores
-    document.getElementById('custoProcessoItensSelecionados').innerHTML =
-      '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum item selecionado.</p>';
-    custoProcessoItens = [];
-    window.limparResumoCustoProcesso();
-  };
-
-  // ======== TOGGLE ITEM CUSTO PROCESSO ========
-  window.toggleItemCustoProcesso = function (checkbox) {
-    const itemId = checkbox.dataset.itemId;
+// ======== TOGGLE SETOR CUSTO PROCESSO ========
+window.toggleSetorCustoProcesso = function(checkbox) {
+    const setorId = checkbox.dataset.setorId;
     const nome = checkbox.dataset.nome;
+    const producao = parseFloat(checkbox.dataset.producao) || 0;
+    const custo = parseFloat(checkbox.dataset.custo) || 0;
     const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
-    const setor = checkbox.dataset.setor || '';
-    const tipo = checkbox.dataset.tipo || 'normal';
-
+    
     if (checkbox.checked) {
-      // Adiciona item
-      const existe = custoProcessoItens.some(i => i.id === itemId);
-      if (!existe) {
-        custoProcessoItens.push({
-          id: itemId,
-          nome: nome,
-          custoKg: custoKg,
-          imposto: 0,
-          tipo: 'cadastrado',
-          origem: setor,
-          itemTipo: tipo
-        });
-      }
+        // Adiciona setor
+        const existe = custoProcessoSetoresSelecionados.some(item => item.id === setorId);
+        if (!existe) {
+            custoProcessoSetoresSelecionados.push({
+                id: setorId,
+                nome: nome,
+                producao: producao,
+                custo: custo,
+                custoKg: custoKg
+            });
+        }
     } else {
-      // Remove item
-      custoProcessoItens = custoProcessoItens.filter(i => i.id !== itemId);
+        // Remove setor
+        custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
     }
-
-    window.atualizarListaItensCustoProcesso();
+    
+    window.atualizarSetoresSelecionados();
     window.calcularCustoProcesso();
-  };
+};
 
-  // ======== ADICIONAR CUSTO EXTRA ========
-  window.adicionarCustoExtra = function () {
-    // Cria um modal simples para adicionar custo extra
-    const nome = prompt('Digite o nome do custo extra (ex: Matéria Prima X):');
-    if (!nome) return;
-
-    const custoKg = prompt('Digite o custo por KG (R$):');
-    if (custoKg === null || isNaN(parseFloat(custoKg))) return;
-
-    const imposto = prompt('Digite o imposto (%) (opcional, deixe 0 se não houver):', '0');
-    if (imposto === null || isNaN(parseFloat(imposto))) return;
-
-    const id = 'extra_' + Date.now();
-    custoProcessoItens.push({
-      id: id,
-      nome: nome,
-      custoKg: parseFloat(custoKg),
-      imposto: parseFloat(imposto) || 0,
-      tipo: 'extra',
-      origem: 'Custo Extra',
-      itemTipo: 'extra'
-    });
-
-    window.atualizarListaItensCustoProcesso();
-    window.calcularCustoProcesso();
-  };
-
-  // ======== REMOVER ITEM CUSTO PROCESSO ========
-  window.removerItemCustoProcesso = function (id) {
-    // Se for um item cadastrado, desmarca o checkbox
-    if (!id.startsWith('extra_')) {
-      const checkbox = document.querySelector(`.custo-processo-checkbox[data-item-id="${id}"]`);
-      if (checkbox) checkbox.checked = false;
-    }
-
-    custoProcessoItens = custoProcessoItens.filter(i => i.id !== id);
-    window.atualizarListaItensCustoProcesso();
-    window.calcularCustoProcesso();
-  };
-
-  // ======== ATUALIZAR LISTA DE ITENS SELECIONADOS ========
-  window.atualizarListaItensCustoProcesso = function () {
-    const container = document.getElementById('custoProcessoItensSelecionados');
+// ======== ATUALIZAR SETORES SELECIONADOS ========
+window.atualizarSetoresSelecionados = function() {
+    const container = document.getElementById('custoProcessoSetoresSelecionados');
     if (!container) return;
-
-    if (custoProcessoItens.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum item selecionado.</p>';
-      return;
+    
+    if (custoProcessoSetoresSelecionados.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
+        return;
     }
-
-    let html = `<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-        <thead>
-            <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb;">
-                <th style="text-align:left;padding:0.5rem;">Item</th>
-                <th style="text-align:right;padding:0.5rem;">Custo KG</th>
-                <th style="text-align:right;padding:0.5rem;">Imposto %</th>
-                <th style="text-align:right;padding:0.5rem;">Total KG</th>
-                <th style="text-align:center;padding:0.5rem;width:60px;">Ação</th>
-            </tr>
-        </thead>
-        <tbody>`;
-
-    let custoTotal = 0;
-    custoProcessoItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      custoTotal += valorComImposto;
-
-      const tipoLabel = item.tipo === 'extra' ?
-        '<span class="badge badge-purple" style="font-size:0.6rem;padding:0.1rem 0.4rem;">Extra</span>' :
-        `<span class="badge ${item.itemTipo === 'fixo' ? 'badge-warning' : 'badge-green'}" style="font-size:0.6rem;padding:0.1rem 0.4rem;">${item.itemTipo === 'fixo' ? 'Fixo' : 'Normal'}</span>`;
-
-      html += `
-            <tr style="border-bottom:1px solid #f0f0f0;">
-                <td style="padding:0.4rem 0.5rem;">
-                    ${item.nome}
-                    ${tipoLabel}
-                    ${item.origem ? `<span style="font-size:0.6rem;color:var(--text-light);margin-left:0.3rem;">(${item.origem})</span>` : ''}
-                </td>
-                <td style="text-align:right;padding:0.4rem 0.5rem;font-weight:500;">${formatMoney(item.custoKg)}</td>
-                <td style="text-align:right;padding:0.4rem 0.5rem;">${item.imposto || 0}%</td>
-                <td style="text-align:right;padding:0.4rem 0.5rem;font-weight:600;color:#0d904f;">${formatMoney(valorComImposto)}</td>
-                <td style="text-align:center;padding:0.4rem 0.5rem;">
-                    <button class="btn btn-danger btn-xs" onclick="window.removerItemCustoProcesso('${item.id}')" title="Remover">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </td>
-            </tr>
+    
+    let html = `
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+    `;
+    
+    custoProcessoSetoresSelecionados.forEach(setor => {
+        html += `
+            <div style="display:flex;align-items:center;gap:0.3rem;background:#f0fdf4;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #86efac;">
+                <span style="font-weight:500;font-size:0.85rem;">${setor.nome}</span>
+                <span style="font-size:0.7rem;color:var(--text-light);">
+                    ${formatNumber(setor.producao, 0)}kg | ${formatMoney(setor.custo)} | ${formatMoney(setor.custoKg)}/kg
+                </span>
+                <button class="btn btn-danger btn-xs" onclick="window.removerSetorSelecionado('${setor.id}')" style="padding:0.1rem 0.3rem;font-size:0.6rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         `;
     });
-
-    html += `
-        <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-            <td style="padding:0.5rem;color:#0d904f;">TOTAL</td>
-            <td style="text-align:right;padding:0.5rem;"></td>
-            <td style="text-align:right;padding:0.5rem;"></td>
-            <td style="text-align:right;padding:0.5rem;color:#0d904f;font-size:1.1rem;">${formatMoney(custoTotal)}</td>
-            <td style="text-align:center;padding:0.5rem;"></td>
-        </tr>
-    `;
-
-    html += '</tbody></table>';
+    
+    html += '</div>';
     container.innerHTML = html;
-  };
+};
 
-  // ======== CALCULAR CUSTO PROCESSO ========
-  window.calcularCustoProcesso = function () {
-    const periodoId = document.getElementById('custoProcessoPeriodo').value;
-    if (!periodoId) {
-      window.limparResumoCustoProcesso();
-      return;
+// ======== REMOVER SETOR SELECIONADO ========
+window.removerSetorSelecionado = function(setorId) {
+    // Desmarca o checkbox
+    const checkbox = document.querySelector(`.setor-processo-checkbox[data-setor-id="${setorId}"]`);
+    if (checkbox) checkbox.checked = false;
+    
+    // Remove da lista
+    custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
+    
+    window.atualizarSetoresSelecionados();
+    window.calcularCustoProcesso();
+};
+
+// ======== LIMPAR SELEÇÃO DE SETORES ========
+window.limparSelecaoSetores = function() {
+    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
+    custoProcessoSetoresSelecionados = [];
+    window.atualizarSetoresSelecionados();
+    window.limparResumoCustoProcesso();
+};
+
+// ======== CALCULAR CUSTO PROCESSO (MÉDIA) ========
+window.calcularCustoProcesso = function() {
+    if (custoProcessoSetoresSelecionados.length === 0) {
+        window.limparResumoCustoProcesso();
+        return;
     }
-
-    // Calcula produção total do período
-    const sets = getSetoresDoPeriodo(periodoId);
-    let producaoTotal = 0;
-    sets.forEach(s => {
-      const custos = calcularCustosSetor(s.id);
-      producaoTotal += custos.totalKg;
+    
+    // Calcula médias
+    let totalProducao = 0;
+    let totalCusto = 0;
+    
+    custoProcessoSetoresSelecionados.forEach(setor => {
+        totalProducao += setor.producao;
+        totalCusto += setor.custo;
     });
-
-    // Calcula custo total baseado nos itens selecionados
-    let custoTotalKg = 0;
-    custoProcessoItens.forEach(item => {
-      custoTotalKg += item.custoKg * (1 + (item.imposto || 0) / 100);
-    });
-
-    const custoTotal = custoTotalKg * producaoTotal;
-
+    
+    const qtdSetores = custoProcessoSetoresSelecionados.length;
+    const mediaProducao = totalProducao / qtdSetores;
+    const mediaCusto = totalCusto / qtdSetores;
+    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
+    
     // Atualiza resumo
-    document.getElementById('custoProcessoProducao').textContent = formatNumber(producaoTotal, 0) + ' kg';
-    document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(custoTotal);
-    document.getElementById('custoProcessoCustoKg').textContent = formatMoney(custoTotalKg) + '/kg';
-    document.getElementById('custoProcessoQtdItens').textContent = custoProcessoItens.length;
-  };
+    document.getElementById('custoProcessoQtdSetores').textContent = qtdSetores;
+    document.getElementById('custoProcessoProducao').textContent = formatNumber(mediaProducao, 0) + ' kg';
+    document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(mediaCusto);
+    document.getElementById('custoProcessoCustoKg').textContent = formatMoney(mediaCustoKg) + '/kg';
+};
 
-  // ======== LIMPAR RESUMO ========
-  window.limparResumoCustoProcesso = function () {
+// ======== LIMPAR RESUMO ========
+window.limparResumoCustoProcesso = function() {
+    document.getElementById('custoProcessoQtdSetores').textContent = '0';
     document.getElementById('custoProcessoProducao').textContent = '0 kg';
     document.getElementById('custoProcessoCustoTotal').textContent = 'R$ 0,00';
     document.getElementById('custoProcessoCustoKg').textContent = 'R$ 0,00/kg';
-    document.getElementById('custoProcessoQtdItens').textContent = '0';
-  };
+};
 
-  // ======== LIMPAR TUDO ========
-  window.limparCustoProcesso = function () {
-    // Desmarca todos os checkboxes
-    document.querySelectorAll('.custo-processo-checkbox').forEach(cb => cb.checked = false);
-    custoProcessoItens = [];
-    window.atualizarListaItensCustoProcesso();
+// ======== LIMPAR TUDO ========
+window.limparCustoProcesso = function() {
+    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
+    custoProcessoSetoresSelecionados = [];
+    window.atualizarSetoresSelecionados();
     window.limparResumoCustoProcesso();
-  };
+};
 
-  // ======== EXPORTAR PDF ========
-  window.exportarCustoProcessoPDF = function () {
-    if (custoProcessoItens.length === 0) {
-      alert('Adicione pelo menos um item para exportar.');
-      return;
+// ======== EXPORTAR PDF ========
+window.exportarCustoProcessoPDF = function() {
+    if (custoProcessoSetoresSelecionados.length === 0) {
+        alert('Selecione pelo menos um setor para exportar.');
+        return;
     }
-
+    
     const periodoId = document.getElementById('custoProcessoPeriodo').value;
     const periodo = periodos.find(p => p.id === periodoId);
     const nomePeriodo = periodo ? `${getNomeMes(periodo.mes)}/${periodo.ano}` : 'Período não selecionado';
-
-    const producao = document.getElementById('custoProcessoProducao').textContent;
-    const custoTotal = document.getElementById('custoProcessoCustoTotal').textContent;
-    const custoKg = document.getElementById('custoProcessoCustoKg').textContent;
-
+    
+    // Calcula médias
+    let totalProducao = 0;
+    let totalCusto = 0;
+    
+    custoProcessoSetoresSelecionados.forEach(setor => {
+        totalProducao += setor.producao;
+        totalCusto += setor.custo;
+    });
+    
+    const qtdSetores = custoProcessoSetoresSelecionados.length;
+    const mediaProducao = totalProducao / qtdSetores;
+    const mediaCusto = totalCusto / qtdSetores;
+    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
+    
     let html = `
-        <div style="font-family:Arial,sans-serif;padding:20px;max-width:800px;margin:0 auto;">
+        <div style="font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:0 auto;">
             <h1 style="color:#0d904f;border-bottom:3px solid #0d904f;padding-bottom:10px;">
-                <i class="fas fa-cogs"></i> Custo de Processo
+                <i class="fas fa-cogs"></i> Custo de Processo - Média por Setor
             </h1>
             <p><strong>Período:</strong> ${nomePeriodo}</p>
+            <p><strong>Setores Analisados:</strong> ${qtdSetores}</p>
             
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
-                <div><strong>Produção Total:</strong> ${producao}</div>
-                <div><strong>Custo Total:</strong> ${custoTotal}</div>
-                <div><strong>Custo por KG:</strong> ${custoKg}</div>
+                <div><strong>Produção Média:</strong> ${formatNumber(mediaProducao, 0)} kg</div>
+                <div><strong>Custo Total Médio:</strong> ${formatMoney(mediaCusto)}</div>
+                <div><strong>Custo por KG Médio:</strong> ${formatMoney(mediaCustoKg)}/kg</div>
             </div>
             
-            <h3 style="margin-top:20px;">Itens Considerados</h3>
+            <h3 style="margin-top:20px;">Setores Analisados</h3>
             <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
                 <thead>
                     <tr style="background:#0d904f;color:#fff;">
-                        <th style="padding:8px;text-align:left;">Item</th>
-                        <th style="padding:8px;text-align:right;">Custo KG</th>
-                        <th style="padding:8px;text-align:right;">Imposto %</th>
-                        <th style="padding:8px;text-align:right;">Total KG</th>
+                        <th style="padding:8px;text-align:left;">Setor</th>
+                        <th style="padding:8px;text-align:right;">Produção (KG)</th>
+                        <th style="padding:8px;text-align:right;">Custo Total</th>
+                        <th style="padding:8px;text-align:right;">Custo / KG</th>
                     </tr>
                 </thead>
                 <tbody>`;
-
-    let totalCusto = 0;
-    custoProcessoItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      totalCusto += valorComImposto;
-      html += `
+    
+    custoProcessoSetoresSelecionados.forEach(setor => {
+        html += `
             <tr style="border-bottom:1px solid #e5e7eb;">
-                <td style="padding:6px 8px;">${item.nome} ${item.tipo === 'extra' ? '(Extra)' : ''}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatMoney(item.custoKg)}</td>
-                <td style="padding:6px 8px;text-align:right;">${item.imposto || 0}%</td>
-                <td style="padding:6px 8px;text-align:right;font-weight:600;">${formatMoney(valorComImposto)}</td>
+                <td style="padding:6px 8px;">${setor.nome}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatNumber(setor.producao, 0)}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custo)}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custoKg)}</td>
             </tr>
         `;
     });
-
+    
     html += `
                 <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-                    <td style="padding:8px;color:#0d904f;">TOTAL</td>
-                    <td style="padding:8px;text-align:right;"></td>
-                    <td style="padding:8px;text-align:right;"></td>
-                    <td style="padding:8px;text-align:right;color:#0d904f;font-size:1.1rem;">${formatMoney(totalCusto)}</td>
+                    <td style="padding:8px;color:#0d904f;">MÉDIA</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatNumber(mediaProducao, 0)}</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCusto)}</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCustoKg)}</td>
                 </tr>
             </tbody>
         </table>
@@ -2468,34 +2384,20 @@
             Gerado em ${new Date().toLocaleString()}
         </p>
     </div>`;
-
-    // Abre uma nova janela para impressão/PDF
-    const win = window.open('', '_blank', 'width=800,height=600');
+    
+    const win = window.open('', '_blank', 'width=900,height=600');
     win.document.write(`<html><head><title>Custo de Processo - ${nomePeriodo}</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+            body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
             .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
-            .badge-purple { background: #7c3aed; color: #fff; }
-            .badge-warning { background: #f59e0b; color: #fff; }
-            .badge-green { background: #0d904f; color: #fff; }
+            .badge-orange { background: #f59e0b; color: #fff; }
         </style>
     </head><body>`);
     win.document.write(html);
     win.document.write('</body></html>');
     win.document.close();
     win.print();
-  };
-
-  // ======== INICIALIZAR NA HOME ========
-  // Adicione esta chamada no final do renderizarPeriodos()
-  // para inicializar o painel quando a home for carregada
-
-  // Modifique o final da função renderizarPeriodos() para incluir:
-  // setTimeout(() => {
-  //   inicializarGraficoCategorias();
-  //   renderizarListaCategorias();
-  //   window.inicializarCustoProcesso();  // <-- ADICIONE ESTA LINHA
-  // }, 100);
+};
 
 })();
