@@ -3,9 +3,10 @@
 // ✅ CORRIGIDO: Cadastro de custo fixo com seleção de setores
 // ✅ CORRIGIDO: Definição de porcentagem por setor
 // ✅ CORRIGIDO: Criação direta de itens fixos nos setores
-// ✅ REMOVIDO: Distribuição automática
+// ✅ CORRIGIDO: Painel de Custo de Processo dentro do IIFE
+// ✅ CORRIGIDO: Acesso a todas as funções utilitárias
 // ====================================================
-(function () {
+(function() {
   'use strict';
 
   const db = window.firebaseDB || window.db;
@@ -56,6 +57,9 @@
     producaoKg: 'Produção (KG)',
     custoPorKg: 'Custo por KG'
   };
+
+  // ======== VARIÁVEIS DO PAINEL DE CUSTO DE PROCESSO ========
+  let custoProcessoSetoresSelecionados = [];
 
   // ======== UTILITÁRIOS ========
   function formatMoney(v) { return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
@@ -152,17 +156,18 @@
     try {
       console.log('📂 Carregando das coleções...');
       const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes,
-        snapMateriais, snapCustosMat, snapCustosFixos, snapConfig] = await Promise.all([
-          colecoes.periodos.get(),
-          colecoes.setores.get(),
-          colecoes.categorias.get(),
-          colecoes.itensCusto.get(),
-          colecoes.producoes.get(),
-          colecoes.materiais.get(),
-          colecoes.custosMateriais.get(),
-          colecoes.custosFixos.get(),
-          colecoes.configuracoes.doc('custos_configCampos').get()
-        ]);
+        snapMateriais, snapCustosMat, snapCustosFixos, snapConfig
+      ] = await Promise.all([
+        colecoes.periodos.get(),
+        colecoes.setores.get(),
+        colecoes.categorias.get(),
+        colecoes.itensCusto.get(),
+        colecoes.producoes.get(),
+        colecoes.materiais.get(),
+        colecoes.custosMateriais.get(),
+        colecoes.custosFixos.get(),
+        colecoes.configuracoes.doc('custos_configCampos').get()
+      ]);
 
       periodos = snapPeriodos.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setores = snapSetores.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -233,7 +238,7 @@
   }
 
   // ======== FUNÇÕES GLOBAIS ========
-  window.abrirConfigCampos = function () {
+  window.abrirConfigCampos = function() {
     const modal = document.getElementById('modalConfigCampos');
     if (!modal) return;
     modal.classList.add('active');
@@ -254,7 +259,7 @@
     `).join('');
   };
 
-  window.salvarConfigCampos = async function () {
+  window.salvarConfigCampos = async function() {
     Object.keys(configCampos).forEach(key => {
       const input = document.getElementById('config_' + key);
       if (input && input.value.trim()) configCampos[key] = input.value.trim();
@@ -282,15 +287,15 @@
     if (!container) return;
 
     const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
-    const periodosFiltrados = filtroAnoAtual === 'todos'
-      ? [...periodos]
-      : periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
+    const periodosFiltrados = filtroAnoAtual === 'todos' ?
+      [...periodos] :
+      periodos.filter(p => p.ano === parseInt(filtroAnoAtual));
 
     periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
 
-    const periodosParaCalculo = periodosSelecionadosResumo.size > 0
-      ? periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id))
-      : periodosFiltrados;
+    const periodosParaCalculo = periodosSelecionadosResumo.size > 0 ?
+      periodosFiltrados.filter(p => periodosSelecionadosResumo.has(p.id)) :
+      periodosFiltrados;
 
     let html = '';
 
@@ -375,12 +380,12 @@
           </div>
           <div class="periodos-selecionados-tags" style="margin-bottom:1rem;">
             ${periodosSelecionadosResumo.size > 0 ?
-        Array.from(periodosSelecionadosResumo).map(pid => {
-          const per = periodos.find(p => p.id === pid);
-          return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
-        }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
-        : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
-      }
+              Array.from(periodosSelecionadosResumo).map(pid => {
+                const per = periodos.find(p => p.id === pid);
+                return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
+              }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
+              : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
+            }
           </div>
           <div class="categorias-content">
             <div class="grafico-categorias-wrapper">
@@ -459,7 +464,6 @@
       window.inicializarCustoProcesso();
     }, 100);
   }
-  
 
   // ======== GRÁFICO VERTICAL - CATEGORIAS NA HOME ========
   function inicializarGraficoCategorias() {
@@ -475,9 +479,9 @@
       totaisCategorias[cat.id] = { nome: cat.nome, cor: cat.cor, total: 0 };
     });
 
-    const periodosParaGrafico = periodosSelecionadosResumo.size > 0
-      ? periodos.filter(p => periodosSelecionadosResumo.has(p.id))
-      : (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
+    const periodosParaGrafico = periodosSelecionadosResumo.size > 0 ?
+      periodos.filter(p => periodosSelecionadosResumo.has(p.id)) :
+      (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
 
     periodosParaGrafico.forEach(per => {
       getSetoresDoPeriodo(per.id).forEach(s => {
@@ -537,7 +541,7 @@
             titleFont: { size: 14 },
             bodyFont: { size: 13 },
             callbacks: {
-              label: function (context) {
+              label: function(context) {
                 const value = context.parsed.y;
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                 const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
@@ -549,7 +553,7 @@
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: function (value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
+            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
             grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
@@ -573,9 +577,9 @@
     const totais = {};
     categorias.forEach(cat => { totais[cat.id] = { ...cat, total: 0 }; });
 
-    const periodosParaGrafico = periodosSelecionadosResumo.size > 0
-      ? periodos.filter(p => periodosSelecionadosResumo.has(p.id))
-      : (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
+    const periodosParaGrafico = periodosSelecionadosResumo.size > 0 ?
+      periodos.filter(p => periodosSelecionadosResumo.has(p.id)) :
+      (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
 
     periodosParaGrafico.forEach(per => {
       getSetoresDoPeriodo(per.id).forEach(s => {
@@ -778,7 +782,7 @@
   }
 
   // ======== LISTAR CUSTOS FIXOS ========
-  window.listarCustosFixos = function (periodoId) {
+  window.listarCustosFixos = function(periodoId) {
     const container = document.getElementById('listaCustosFixosContainer');
     if (!container) return;
 
@@ -880,7 +884,7 @@
     container.innerHTML = html;
 
     container.querySelectorAll('.btn-editar-custo-fixo').forEach(btn => {
-      btn.addEventListener('click', function (e) {
+      btn.addEventListener('click', function(e) {
         e.stopPropagation();
         const id = this.getAttribute('data-id');
         if (id) window.editarCustoFixo(id);
@@ -889,7 +893,7 @@
   };
 
   // ======== ABRIR MODAL CUSTO FIXO ========
-  window.abrirModalCustoFixo = function (id) {
+  window.abrirModalCustoFixo = function(id) {
     const modal = document.getElementById('modalCustoFixo');
     if (!modal) return;
 
@@ -949,7 +953,7 @@
 
         // Adiciona eventos para habilitar/desabilitar o input de porcentagem
         setoresContainer.querySelectorAll('.setor-fixo-checkbox').forEach(checkbox => {
-          checkbox.addEventListener('change', function () {
+          checkbox.addEventListener('change', function() {
             const percentInput = this.closest('.setor-selecao-item').querySelector('.setor-fixo-percentual');
             if (this.checked) {
               percentInput.disabled = false;
@@ -992,7 +996,7 @@
   };
 
   // ======== SALVAR CUSTO FIXO ========
-  window.salvarCustoFixo = async function () {
+  window.salvarCustoFixo = async function() {
     const periodoId = document.getElementById('custoFixoPeriodo').value;
     const categoriaId = document.getElementById('custoFixoCategoria').value;
     const nome = document.getElementById('custoFixoNome').value.trim();
@@ -1076,12 +1080,12 @@
   };
 
   // ======== EDITAR CUSTO FIXO ========
-  window.editarCustoFixo = function (id) {
+  window.editarCustoFixo = function(id) {
     window.abrirModalCustoFixo(id);
   };
 
   // ======== EXCLUIR CUSTO FIXO ========
-  window.excluirCustoFixo = async function (id) {
+  window.excluirCustoFixo = async function(id) {
     if (!confirm('Excluir este custo fixo e todos os itens vinculados?')) return;
 
     try {
@@ -1105,7 +1109,7 @@
   };
 
   // ======== TOGGLE TODOS SETORES ========
-  window.toggleTodosSetores = function (tipo) {
+  window.toggleTodosSetores = function(tipo) {
     if (!periodoAtual) return;
     const sets = getSetoresDoPeriodo(periodoAtual.id);
     const setsDoTipo = sets.filter(s =>
@@ -1124,7 +1128,7 @@
   };
 
   // ======== MINIMIZAR/EXPANDIR CUSTOS FIXOS ========
-  window.toggleCustosFixos = function () {
+  window.toggleCustosFixos = function() {
     const container = document.getElementById('listaCustosFixosContainer');
     if (!container) return;
 
@@ -1328,7 +1332,7 @@
             titleFont: { size: 14 },
             bodyFont: { size: 13 },
             callbacks: {
-              label: function (context) {
+              label: function(context) {
                 const value = context.parsed.y;
                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                 const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
@@ -1340,7 +1344,7 @@
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: function (value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
+            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
             grid: { color: '#e5e7eb', drawBorder: false }
           },
           x: {
@@ -1372,7 +1376,7 @@
       `;
       document.body.appendChild(modal);
 
-      document.addEventListener('keydown', function (e) {
+      document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && document.getElementById('modalGraficoFullscreen')?.classList.contains('active')) {
           fecharGraficoFullscreen();
         }
@@ -1478,14 +1482,15 @@
     bc.innerHTML = html;
   }
 
-  window.navegarPara = function (nivel) {
-    if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; }
-    else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; }
-    else if (nivel === 'materiais') { nivelAtual = 'materiais'; }
+  window.navegarPara = function(nivel) {
+    if (nivel === 'periodos') { periodoAtual = null;
+      setorAtual = null;
+      nivelAtual = 'periodos'; } else if (nivel === 'setores') { setorAtual = null;
+      nivelAtual = 'setores'; } else if (nivel === 'materiais') { nivelAtual = 'materiais'; }
     renderizarTela();
   };
 
-  window.selecionarPeriodo = function (id) {
+  window.selecionarPeriodo = function(id) {
     periodoAtual = periodos.find(p => p.id === id);
     setorAtual = null;
     nivelAtual = 'setores';
@@ -1493,14 +1498,14 @@
     renderizarTela();
   };
 
-  window.selecionarSetor = function (id) {
+  window.selecionarSetor = function(id) {
     setorAtual = setores.find(s => s.id === id);
     nivelAtual = 'analise';
     renderizarTela();
   };
 
   // ======== CRUD PERÍODOS ========
-  window.abrirModalPeriodo = function (id) {
+  window.abrirModalPeriodo = function(id) {
     const modal = document.getElementById('modalPeriodo');
     if (!modal) return;
     modal.classList.add('active');
@@ -1522,22 +1527,23 @@
     }
   };
 
-  window.salvarPeriodo = async function () {
+  window.salvarPeriodo = async function() {
     const mes = parseInt(document.getElementById('periodoMes').value);
     const ano = parseInt(document.getElementById('periodoAno').value);
     const obs = document.getElementById('periodoObs').value.trim();
     const editId = document.getElementById('periodoEditId').value;
     const periodo = { mes, ano, obs, createdAt: new Date().toISOString() };
-    if (editId) { periodo.id = editId; const idx = periodos.findIndex(p => p.id === editId); if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo }; }
-    else { periodo.id = 'per_' + Date.now(); periodos.push(periodo); }
+    if (editId) { periodo.id = editId;
+      const idx = periodos.findIndex(p => p.id === editId); if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo }; } else { periodo.id = 'per_' + Date.now();
+      periodos.push(periodo); }
     await salvarFB('periodos', periodo);
     window.fecharModal('modalPeriodo');
     renderizarTela();
   };
 
-  window.editarPeriodo = function (id) { if (id) window.abrirModalPeriodo(id); };
+  window.editarPeriodo = function(id) { if (id) window.abrirModalPeriodo(id); };
 
-  window.excluirPeriodo = async function (id) {
+  window.excluirPeriodo = async function(id) {
     if (!confirm('Excluir período e todos os dados relacionados?')) return;
     try {
       const setoresDoPeriodo = setores.filter(s => s.periodold === id);
@@ -1556,13 +1562,15 @@
       periodos = periodos.filter(p => p.id !== id);
       periodosSelecionadosResumo.delete(id);
       await excluirFB('periodos', id);
-      if (periodoAtual && periodoAtual.id === id) { periodoAtual = null; nivelAtual = 'periodos'; }
+      if (periodoAtual && periodoAtual.id === id) { periodoAtual = null;
+        nivelAtual = 'periodos'; }
       renderizarTela();
-    } catch (error) { console.error('Erro ao excluir período:', error); alert('Erro ao excluir período.'); }
+    } catch (error) { console.error('Erro ao excluir período:', error);
+      alert('Erro ao excluir período.'); }
   };
 
   // ======== COPIAR PERÍODO ========
-  window.abrirCopiarPeriodo = function (id) {
+  window.abrirCopiarPeriodo = function(id) {
     const p = periodos.find(x => x.id === id);
     if (!p) return;
     periodoOrigemCopia = p;
@@ -1575,7 +1583,7 @@
     }
   };
 
-  window.copiarPeriodo = async function () {
+  window.copiarPeriodo = async function() {
     if (!periodoOrigemCopia) { alert('Selecione um período de origem primeiro.'); return; }
 
     const novoMes = parseInt(document.getElementById('copiarMes').value);
@@ -1590,7 +1598,8 @@
 
       const novoPeriodo = {
         id: 'per_' + Date.now(),
-        mes: novoMes, ano: novoAno,
+        mes: novoMes,
+        ano: novoAno,
         obs: 'Cópia de ' + getNomeMes(periodoOrigemCopia.mes) + '/' + periodoOrigemCopia.ano,
         createdAt: new Date().toISOString()
       };
@@ -1644,7 +1653,7 @@
   };
 
   // ======== CRUD SETORES ========
-  window.abrirModalSetor = function (id) {
+  window.abrirModalSetor = function(id) {
     if (!periodoAtual) { alert('Selecione um período!'); return; }
     const modal = document.getElementById('modalSetor');
     if (!modal) return;
@@ -1671,22 +1680,23 @@
     }
   };
 
-  window.salvarSetor = async function () {
+  window.salvarSetor = async function() {
     if (!periodoAtual) { alert('Nenhum período selecionado!'); return; }
     const nome = document.getElementById('setorNome').value.trim();
     if (!nome) { alert('Digite o nome!'); return; }
     const setor = { periodold: periodoAtual.id, nome, descricao: document.getElementById('setorDescricao').value.trim() || '', ordem: parseInt(document.getElementById('setorOrdem').value) || 1, produtoFinal: document.getElementById('setorProdutoFinal').checked || false, tipo: document.getElementById('setorTipo').value || 'custo', createdAt: new Date().toISOString() };
     const editId = document.getElementById('setorEditId').value;
-    if (editId) { setor.id = editId; const idx = setores.findIndex(x => x.id === editId); if (idx !== -1) setores[idx] = Object.assign({}, setores[idx], setor); }
-    else { setor.id = 'set_' + Date.now(); setores.push(setor); }
+    if (editId) { setor.id = editId;
+      const idx = setores.findIndex(x => x.id === editId); if (idx !== -1) setores[idx] = Object.assign({}, setores[idx], setor); } else { setor.id = 'set_' + Date.now();
+      setores.push(setor); }
     await salvarFB('setores', setor);
     window.fecharModal('modalSetor');
     renderizarTela();
   };
 
-  window.editarSetor = function (id) { window.abrirModalSetor(id); };
+  window.editarSetor = function(id) { window.abrirModalSetor(id); };
 
-  window.excluirSetor = async function (id) {
+  window.excluirSetor = async function(id) {
     if (!confirm('Excluir setor e todos os itens/produções relacionados?')) return;
     try {
       await Promise.all([
@@ -1700,21 +1710,28 @@
       setoresExcluidosResumo.delete(id);
       if (setorAtual && setorAtual.id === id) setorAtual = null;
       renderizarTela();
-    } catch (error) { console.error('Erro ao excluir setor:', error); alert('Erro ao excluir setor.'); }
+    } catch (error) { console.error('Erro ao excluir setor:', error);
+      alert('Erro ao excluir setor.'); }
   };
 
   // ======== CRUD CATEGORIAS ========
-  window.abrirModalCategoria = function (id) {
+  window.abrirModalCategoria = function(id) {
     const modal = document.getElementById('modalCategoria');
     if (!modal) return;
     modal.classList.add('active');
     if (id) {
       const cat = categorias.find(c => c.id === id);
-      if (cat) { document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria'; document.getElementById('categoriaEditId').value = cat.id; document.getElementById('categoriaNome').value = cat.nome; document.getElementById('categoriaCor').value = cat.cor; }
-    } else { document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria'; document.getElementById('categoriaEditId').value = ''; document.getElementById('categoriaNome').value = ''; document.getElementById('categoriaCor').value = '#0d904f'; }
+      if (cat) { document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria';
+        document.getElementById('categoriaEditId').value = cat.id;
+        document.getElementById('categoriaNome').value = cat.nome;
+        document.getElementById('categoriaCor').value = cat.cor; }
+    } else { document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria';
+      document.getElementById('categoriaEditId').value = '';
+      document.getElementById('categoriaNome').value = '';
+      document.getElementById('categoriaCor').value = '#0d904f'; }
   };
 
-  window.salvarCategoria = async function () {
+  window.salvarCategoria = async function() {
     const nome = document.getElementById('categoriaNome').value.trim();
     if (!nome) { alert('Digite o nome da categoria.'); return; }
     const cor = document.getElementById('categoriaCor').value;
@@ -1722,15 +1739,16 @@
     let categoria;
     if (editId) {
       const idx = categorias.findIndex(c => c.id === editId);
-      if (idx !== -1) { categoria = Object.assign({}, categorias[idx], { nome, cor }); categorias[idx] = categoria; }
-    }
-    else { categoria = { id: 'cat_' + Date.now(), nome, cor }; categorias.push(categoria); }
+      if (idx !== -1) { categoria = Object.assign({}, categorias[idx], { nome, cor });
+        categorias[idx] = categoria; }
+    } else { categoria = { id: 'cat_' + Date.now(), nome, cor };
+      categorias.push(categoria); }
     await salvarFB('categorias', categoria);
     window.fecharModal('modalCategoria');
     renderizarTela();
   };
 
-  window.excluirCategoria = async function (id) {
+  window.excluirCategoria = async function(id) {
     if (!confirm('Excluir categoria?')) return;
     categorias = categorias.filter(c => c.id !== id);
     await excluirFB('categorias', id);
@@ -1738,7 +1756,7 @@
   };
 
   // ======== CRUD ITENS DE CUSTO ========
-  window.abrirModalItemCusto = function (id) {
+  window.abrirModalItemCusto = function(id) {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalItemCusto');
     if (!modal) return;
@@ -1759,7 +1777,9 @@
         if (item.tipo === 'fixo' && item.custoFixold) {
           custoFixoSelecionadoId = item.custoFixold;
           const cf = custosFixos.find(c => c.id === item.custoFixold);
-          if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome; document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor); document.getElementById('itemFixoPercentual').value = item.percentual || 100; }
+          if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome;
+            document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
+            document.getElementById('itemFixoPercentual').value = item.percentual || 100; }
         }
         mudarTipoItem(item.tipo || 'normal');
       }
@@ -1782,14 +1802,15 @@
     const container = document.getElementById('custosFixosSelect');
     if (!container) return;
     const fixos = getCustosFixosDoPeriodo(periodoAtual ? periodoAtual.id : null);
-    if (fixos.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>'; }
-    else { container.innerHTML = fixos.map(cf => `<div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" onclick="window.selecionarCustoFixo('${cf.id}')" style="cursor:pointer;margin-bottom:0.5rem;"><div><div class="cf-nome">${cf.nome}</div><div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div></div><div class="cf-valor">${formatMoney(cf.valor)}</div></div>`).join(''); }
+    if (fixos.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>'; } else { container.innerHTML = fixos.map(cf => `<div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" onclick="window.selecionarCustoFixo('${cf.id}')" style="cursor:pointer;margin-bottom:0.5rem;"><div><div class="cf-nome">${cf.nome}</div><div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div></div><div class="cf-valor">${formatMoney(cf.valor)}</div></div>`).join(''); }
   }
 
-  window.selecionarCustoFixo = function (id) {
+  window.selecionarCustoFixo = function(id) {
     custoFixoSelecionadoId = id;
     const cf = custosFixos.find(c => c.id === id);
-    if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome; document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor); document.getElementById('areaItemFixoDetalhe').style.display = 'block'; }
+    if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome;
+      document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
+      document.getElementById('areaItemFixoDetalhe').style.display = 'block'; }
     atualizarListaCustosFixos();
   };
 
@@ -1804,22 +1825,29 @@
 
   window.mudarTipoItem = mudarTipoItem;
 
-  window.salvarItemCusto = async function () {
+  window.salvarItemCusto = async function() {
     const tipo = document.getElementById('itemTipo').value;
     const editId = document.getElementById('itemEditId').value;
     const item = { setorld: setorAtual ? setorAtual.id : null, nome: document.getElementById('itemNome').value.trim(), obs: document.getElementById('itemObs').value.trim() || '', tipo };
-    if (tipo === 'normal') { item.categoriald = document.getElementById('itemCategoria').value; item.valorTotal = parseFloat(document.getElementById('itemValorTotal').value) || 0; item.percentual = parseFloat(document.getElementById('itemPercentual').value) || 100; item.custoFixold = null; }
-    else { if (!custoFixoSelecionadoId) { alert('Selecione um custo fixo.'); return; } const cf = custosFixos.find(c => c.id === custoFixoSelecionadoId); if (!cf) { alert('Custo fixo não encontrado.'); return; } item.categoriald = cf.categoriald; item.valorTotal = cf.valor; item.percentual = parseFloat(document.getElementById('itemFixoPercentual').value) || 100; item.custoFixold = custoFixoSelecionadoId; item.nome = cf.nome; }
+    if (tipo === 'normal') { item.categoriald = document.getElementById('itemCategoria').value;
+      item.valorTotal = parseFloat(document.getElementById('itemValorTotal').value) || 0;
+      item.percentual = parseFloat(document.getElementById('itemPercentual').value) || 100;
+      item.custoFixold = null; } else { if (!custoFixoSelecionadoId) { alert('Selecione um custo fixo.'); return; } const cf = custosFixos.find(c => c.id === custoFixoSelecionadoId); if (!cf) { alert('Custo fixo não encontrado.'); return; } item.categoriald = cf.categoriald;
+      item.valorTotal = cf.valor;
+      item.percentual = parseFloat(document.getElementById('itemFixoPercentual').value) || 100;
+      item.custoFixold = custoFixoSelecionadoId;
+      item.nome = cf.nome; }
     if (!item.setorld || !item.nome || item.valorTotal <= 0) { alert('Preencha todos os campos corretamente.'); return; }
-    if (editId) { item.id = editId; const idx = itensCusto.findIndex(x => x.id === editId); if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item); }
-    else { item.id = 'item_' + Date.now(); itensCusto.push(item); }
+    if (editId) { item.id = editId;
+      const idx = itensCusto.findIndex(x => x.id === editId); if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item); } else { item.id = 'item_' + Date.now();
+      itensCusto.push(item); }
     await salvarFB('itensCusto', item);
     window.fecharModal('modalItemCusto');
     renderizarTela();
   };
 
-  window.editarItemCusto = function (id) { window.abrirModalItemCusto(id); };
-  window.excluirItemCusto = async function (id) {
+  window.editarItemCusto = function(id) { window.abrirModalItemCusto(id); };
+  window.excluirItemCusto = async function(id) {
     if (!confirm('Excluir item?')) return;
     itensCusto = itensCusto.filter(i => i.id !== id);
     await excluirFB('itensCusto', id);
@@ -1827,7 +1855,7 @@
   };
 
   // ======== CRUD PRODUÇÃO ========
-  window.abrirModalProducao = function () {
+  window.abrirModalProducao = function() {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalProducao');
     if (!modal) return;
@@ -1837,7 +1865,7 @@
     document.getElementById('producaoData').value = new Date().toISOString().split('T')[0];
   };
 
-  window.salvarProducao = async function () {
+  window.salvarProducao = async function() {
     if (!setorAtual) { alert('Selecione um setor.'); return; }
     const produto = document.getElementById('producaoProduto').value.trim();
     const kg = parseFloat(document.getElementById('producaoKg').value);
@@ -1849,7 +1877,7 @@
     renderizarTela();
   };
 
-  window.excluirProducao = async function (id) {
+  window.excluirProducao = async function(id) {
     if (!confirm('Excluir produção?')) return;
     producoes = producoes.filter(p => p.id !== id);
     await excluirFB('producoes', id);
@@ -1857,37 +1885,44 @@
   };
 
   // ======== CRUD MATERIAL ========
-  window.abrirModalMaterial = function (id) {
+  window.abrirModalMaterial = function(id) {
     const modal = document.getElementById('modalMaterial');
     if (!modal) return;
     modal.classList.add('active');
-    if (id) { const m = materiais.find(x => x.id === id); if (m) { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Material'; document.getElementById('materialEditId').value = m.id; document.getElementById('materialNome').value = m.nome; document.getElementById('materialDescricao').value = m.descricao || ''; } }
-    else { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-box"></i> Novo Material'; document.getElementById('materialEditId').value = ''; document.getElementById('materialNome').value = ''; document.getElementById('materialDescricao').value = ''; }
+    if (id) { const m = materiais.find(x => x.id === id); if (m) { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Material';
+        document.getElementById('materialEditId').value = m.id;
+        document.getElementById('materialNome').value = m.nome;
+        document.getElementById('materialDescricao').value = m.descricao || ''; } } else { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-box"></i> Novo Material';
+      document.getElementById('materialEditId').value = '';
+      document.getElementById('materialNome').value = '';
+      document.getElementById('materialDescricao').value = ''; }
   };
 
-  window.salvarMaterial = async function () {
+  window.salvarMaterial = async function() {
     const nome = document.getElementById('materialNome').value.trim();
     if (!nome) { alert('Digite o nome do material.'); return; }
     const editId = document.getElementById('materialEditId').value;
     const m = { nome, descricao: document.getElementById('materialDescricao').value.trim() || '' };
-    if (editId) { m.id = editId; const idx = materiais.findIndex(x => x.id === editId); if (idx !== -1) materiais[idx] = Object.assign({}, materiais[idx], m); }
-    else { m.id = 'mat_' + Date.now(); materiais.push(m); }
+    if (editId) { m.id = editId;
+      const idx = materiais.findIndex(x => x.id === editId); if (idx !== -1) materiais[idx] = Object.assign({}, materiais[idx], m); } else { m.id = 'mat_' + Date.now();
+      materiais.push(m); }
     await salvarFB('materiais', m);
     window.fecharModal('modalMaterial');
     renderizarTela();
   };
 
-  window.editarMaterial = function (id) { window.abrirModalMaterial(id); };
-  window.excluirMaterial = async function (id) {
+  window.editarMaterial = function(id) { window.abrirModalMaterial(id); };
+  window.excluirMaterial = async function(id) {
     if (!confirm('Excluir material?')) return;
     materiais = materiais.filter(m => m.id !== id);
     await excluirFB('materiais', id);
     renderizarTela();
   };
-  window.verHistoricoMaterial = function (id) { nivelAtual = 'historicoMaterial'; renderizarTela(); };
+  window.verHistoricoMaterial = function(id) { nivelAtual = 'historicoMaterial';
+    renderizarTela(); };
 
   // ======== GERAR CUSTO MATERIAL ========
-  window.abrirGerarCustoMaterial = function () {
+  window.abrirGerarCustoMaterial = function() {
     const modal = document.getElementById('modalGerarCusto');
     if (!modal) return;
     modal.classList.add('active');
@@ -1902,24 +1937,29 @@
     window.atualizarSetoresGerarCusto();
   };
 
-  window.atualizarSetoresGerarCusto = function () {
+  window.atualizarSetoresGerarCusto = function() {
     const periodoId = document.getElementById('gerarCustoPeriodo').value;
     const container = document.getElementById('setoresGerarCusto');
     if (!periodoId) { container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período primeiro</p>'; return; }
     const sets = setores.filter(s => s.periodold === periodoId);
-    if (sets.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>'; }
-    else { container.innerHTML = sets.map(s => `<div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}"><div class="ss-header"><input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)"><div class="ss-info"><div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div><div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div></div></div></div>`).join(''); }
+    if (sets.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>'; } else { container.innerHTML = sets.map(s => `<div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}"><div class="ss-header"><input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)"><div class="ss-info"><div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div><div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div></div></div></div>`).join(''); }
   };
 
-  window.toggleSetorGerarCusto = function (setorId, checked) { if (checked) setoresSelecionadosGerar.set(setorId, true); else setoresSelecionadosGerar.delete(setorId); window.atualizarSetoresGerarCusto(); window.atualizarResumoGerarCusto(); };
+  window.toggleSetorGerarCusto = function(setorId, checked) { if (checked) setoresSelecionadosGerar.set(setorId, true);
+    else setoresSelecionadosGerar.delete(setorId);
+    window.atualizarSetoresGerarCusto();
+    window.atualizarResumoGerarCusto(); };
 
-  window.atualizarResumoGerarCusto = function () {
+  window.atualizarResumoGerarCusto = function() {
     const container = document.getElementById('resumoLinhas');
     if (!container) return;
     const setorIds = Array.from(setoresSelecionadosGerar.keys());
     if (setorIds.length === 0) { container.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>'; return; }
-    let custoTotal = 0, producaoTotal = 0;
-    setorIds.forEach(id => { const custos = calcularCustosSetor(id); custoTotal += custos.totalCusto; producaoTotal += custos.totalKg; });
+    let custoTotal = 0,
+      producaoTotal = 0;
+    setorIds.forEach(id => { const custos = calcularCustosSetor(id);
+      custoTotal += custos.totalCusto;
+      producaoTotal += custos.totalKg; });
     const custoKg = producaoTotal > 0 ? custoTotal / producaoTotal : 0;
     let custoInsumos = 0;
     document.querySelectorAll('.insumo-row').forEach(row => { const input = row.querySelector('.insumo-custo'); if (input) custoInsumos += parseFloat(input.value) || 0; });
@@ -1934,16 +1974,22 @@
     if (imposto > 0) html += `<div class="linha"><span>Imposto (${imposto}%)</span><span class="l-valor">${formatMoney(custoFinal * imposto / 100)}/kg</span></div>`;
     if (margem > 0) html += `<div class="linha"><span>Margem (${margem}%)</span><span class="l-valor">${formatMoney(custoFinal * (1 + imposto / 100) * margem / 100)}/kg</span></div>`;
     html += `<div class="linha total"><span>Preço Sugerido</span><span class="l-valor">${formatMoney(precoSugerido)}/kg</span></div>`;
-    if (valorAtual > 0) { const diff = precoSugerido - valorAtual; html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div><div class="linha"><span>Diferença</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`; }
+    if (valorAtual > 0) { const diff = precoSugerido - valorAtual;
+      html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div><div class="linha"><span>Diferença</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`; }
     container.innerHTML = html;
   };
 
-  window.adicionarInsumo = function () { const container = document.getElementById('insumosContainer'); const div = document.createElement('div'); div.className = 'insumo-row'; div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`; container.appendChild(div); };
-  window.salvarCustoMaterial = async function () { alert('Custo de material salvo com sucesso!'); window.fecharModal('modalGerarCusto'); };
-  window.gerarPDFCustoMaterial = function () { alert('Função de exportação PDF em desenvolvimento.'); };
+  window.adicionarInsumo = function() { const container = document.getElementById('insumosContainer');
+    const div = document.createElement('div');
+    div.className = 'insumo-row';
+    div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
+    container.appendChild(div); };
+  window.salvarCustoMaterial = async function() { alert('Custo de material salvo com sucesso!');
+    window.fecharModal('modalGerarCusto'); };
+  window.gerarPDFCustoMaterial = function() { alert('Função de exportação PDF em desenvolvimento.'); };
 
   // ======== GRÁFICOS MODAIS ========
-  window.abrirGraficoMensal = function (periodoId) {
+  window.abrirGraficoMensal = function(periodoId) {
     if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
     const modal = document.getElementById('modalGraficoMensal');
     if (!modal) return;
@@ -1952,7 +1998,8 @@
     if (!per) return;
     document.getElementById('graficoMensalTitulo').innerText = getNomeMes(per.mes) + '/' + per.ano;
     const sets = getSetoresDoPeriodo(periodoId);
-    const cats = categorias.map(c => ({ ...c, total: 0 }));
+    const cats = categorias.map(c => ({ ...c,
+      total: 0 }));
     sets.forEach(s => {
       itensCusto.filter(i => i.setorld === s.id).forEach(i => {
         const cat = cats.find(c => c.id === i.categoriald);
@@ -1964,18 +2011,20 @@
     const canvas = document.getElementById('graficoMensalCanvas');
     if (!canvas) return;
     graficoMensalChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar', data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
+      type: 'bar',
+      data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
       options: { responsive: true, plugins: { legend: { display: false } } }
     });
   };
 
-  window.abrirGraficoConsolidado = function () {
+  window.abrirGraficoConsolidado = function() {
     if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
     if (periodosSelecionadosResumo.size === 0) { alert('Selecione períodos.'); return; }
     const modal = document.getElementById('modalGraficoConsolidado');
     if (!modal) return;
     modal.classList.add('active');
-    const cats = categorias.map(c => ({ ...c, total: 0 }));
+    const cats = categorias.map(c => ({ ...c,
+      total: 0 }));
     periodosSelecionadosResumo.forEach(pid => {
       getSetoresDoPeriodo(pid).forEach(s => {
         itensCusto.filter(i => i.setorld === s.id).forEach(i => {
@@ -1989,39 +2038,57 @@
     const canvas = document.getElementById('graficoConsolidadoCanvas');
     if (!canvas) return;
     graficoConsolidadoChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar', data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
+      type: 'bar',
+      data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
       options: { responsive: true, plugins: { legend: { display: false } } }
     });
   };
 
-  window.exportarGraficoMensal = function () { const c = document.getElementById('graficoMensalCanvas'); if (c) { const a = document.createElement('a'); a.download = 'grafico.png'; a.href = c.toDataURL(); a.click(); } };
-  window.exportarGraficoConsolidado = function () { const c = document.getElementById('graficoConsolidadoCanvas'); if (c) { const a = document.createElement('a'); a.download = 'grafico.png'; a.href = c.toDataURL(); a.click(); } };
+  window.exportarGraficoMensal = function() { const c = document.getElementById('graficoMensalCanvas'); if (c) { const a = document.createElement('a');
+    a.download = 'grafico.png';
+    a.href = c.toDataURL();
+    a.click(); } };
+  window.exportarGraficoConsolidado = function() { const c = document.getElementById('graficoConsolidadoCanvas'); if (c) { const a = document.createElement('a');
+    a.download = 'grafico.png';
+    a.href = c.toDataURL();
+    a.click(); } };
 
   // ======== FILTROS ========
-  window.mudarFiltroAno = function (v) { filtroAnoAtual = v; periodosSelecionadosResumo.clear(); renderizarTela(); };
-  window.togglePeriodoResumo = function (pid, checked) { if (checked) periodosSelecionadosResumo.add(pid); else periodosSelecionadosResumo.delete(pid); renderizarTela(); };
-  window.removePeriodoResumo = function (pid) { periodosSelecionadosResumo.delete(pid); renderizarTela(); };
-  window.limparSelecaoResumo = function () { periodosSelecionadosResumo.clear(); renderizarTela(); };
-  window.toggleSetorResumo = function (sid, checked) { if (checked) setoresExcluidosResumo.delete(sid); else setoresExcluidosResumo.add(sid); renderizarTela(); };
-  window.limparSetoresExcluidos = function () { setoresExcluidosResumo.clear(); renderizarTela(); };
+  window.mudarFiltroAno = function(v) { filtroAnoAtual = v;
+    periodosSelecionadosResumo.clear();
+    renderizarTela(); };
+  window.togglePeriodoResumo = function(pid, checked) { if (checked) periodosSelecionadosResumo.add(pid);
+    else periodosSelecionadosResumo.delete(pid);
+    renderizarTela(); };
+  window.removePeriodoResumo = function(pid) { periodosSelecionadosResumo.delete(pid);
+    renderizarTela(); };
+  window.limparSelecaoResumo = function() { periodosSelecionadosResumo.clear();
+    renderizarTela(); };
+  window.toggleSetorResumo = function(sid, checked) { if (checked) setoresExcluidosResumo.delete(sid);
+    else setoresExcluidosResumo.add(sid);
+    renderizarTela(); };
+  window.limparSetoresExcluidos = function() { setoresExcluidosResumo.clear();
+    renderizarTela(); };
 
-  window.fecharModal = function (id) {
+  window.fecharModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove('active');
   };
 
   function adicionarListeners() {
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
       if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
         e.target.classList.remove('active');
       }
       const btnEditar = e.target.closest('.btn-editar-periodo');
       if (btnEditar) {
         const id = btnEditar.getAttribute('data-id');
-        if (id) { e.preventDefault(); e.stopPropagation(); window.editarPeriodo(id); }
+        if (id) { e.preventDefault();
+          e.stopPropagation();
+          window.editarPeriodo(id); }
       }
     });
-    document.addEventListener('keydown', function (e) {
+    document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
       }
@@ -2032,6 +2099,328 @@
     const el = document.getElementById('firebaseStatus');
     if (el) el.innerHTML = '<span class="status-dot"></span> Firebase Online';
   }
+
+  // ====================================================
+  // PAINEL DE CUSTO DE PROCESSO - MÉDIA POR SETOR
+  // ====================================================
+
+  // ======== INICIALIZAR PAINEL ========
+  window.inicializarCustoProcesso = function() {
+    // Preenche os filtros de ano
+    const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
+    const selectAno = document.getElementById('custoProcessoAno');
+    if (selectAno) {
+      selectAno.innerHTML = '<option value="">Todos</option>' +
+        anosDisponiveis.map(a => `<option value="${a}">${a}</option>`).join('');
+    }
+
+    // Preenche períodos
+    window.atualizarPeriodosCustoProcesso();
+  };
+
+  // ======== ATUALIZAR PERÍODOS ========
+  window.atualizarPeriodosCustoProcesso = function() {
+    const selectPeriodo = document.getElementById('custoProcessoPeriodo');
+    if (!selectPeriodo) return;
+
+    const ano = document.getElementById('custoProcessoAno').value;
+    const mesesSelect = document.getElementById('custoProcessoMeses');
+    const mesesSelecionados = Array.from(mesesSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    let periodosFiltrados = [...periodos];
+    if (ano) periodosFiltrados = periodosFiltrados.filter(p => p.ano === parseInt(ano));
+    if (mesesSelecionados.length > 0) {
+      periodosFiltrados = periodosFiltrados.filter(p => mesesSelecionados.includes(p.mes));
+    }
+
+    periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
+
+    selectPeriodo.innerHTML = '<option value="">Selecione um período...</option>' +
+      periodosFiltrados.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+  };
+
+  // ======== FILTRAR CUSTO PROCESSO ========
+  window.filtrarCustoProcesso = function() {
+    window.atualizarPeriodosCustoProcesso();
+    // Limpa seleção anterior
+    document.getElementById('custoProcessoSetoresLista').innerHTML =
+      '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
+    document.getElementById('custoProcessoSetoresSelecionados').innerHTML =
+      '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
+    custoProcessoSetoresSelecionados = [];
+    window.limparResumoCustoProcesso();
+  };
+
+  // ======== CARREGAR SETORES DO PERÍODO ========
+  window.carregarSetoresProcesso = function() {
+    const periodoId = document.getElementById('custoProcessoPeriodo').value;
+    if (!periodoId) {
+      document.getElementById('custoProcessoSetoresLista').innerHTML =
+        '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
+      return;
+    }
+
+    // Busca todos os setores do período (apenas CUSTOS, não despesas)
+    const sets = getSetoresDoPeriodo(periodoId).filter(s => s.tipo !== 'despesa');
+
+    const container = document.getElementById('custoProcessoSetoresLista');
+    let html = '';
+
+    if (sets.length === 0) {
+      html = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum setor de custo encontrado neste período.</p>';
+    } else {
+      // Calcula dados de cada setor
+      sets.forEach(s => {
+        const custos = calcularCustosSetor(s.id);
+        const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
+
+        html += `
+                <div style="display:flex;align-items:center;padding:0.5rem;border-bottom:1px solid #f0f0f0;${isSelecionado ? 'background:#f0fdf4;' : ''}">
+                    <input type="checkbox" class="setor-processo-checkbox" data-setor-id="${s.id}" 
+                           data-nome="${s.nome}" data-producao="${custos.totalKg}" data-custo="${custos.totalCusto}" data-custo-kg="${custos.custoPorKg}"
+                           ${isSelecionado ? 'checked' : ''}
+                           onchange="window.toggleSetorCustoProcesso(this)">
+                    <div style="flex:1;margin-left:0.5rem;">
+                        <div style="font-weight:500;display:flex;align-items:center;gap:0.5rem;">
+                            ${s.nome}
+                            ${s.produtoFinal ? '<span class="badge badge-orange" style="font-size:0.6rem;padding:0.1rem 0.4rem;">⭐ Final</span>' : ''}
+                        </div>
+                        <div style="font-size:0.75rem;color:var(--text-light);display:flex;gap:1rem;flex-wrap:wrap;">
+                            <span>📊 Produção: ${formatNumber(custos.totalKg, 0)} kg</span>
+                            <span>💰 Custo: ${formatMoney(custos.totalCusto)}</span>
+                            <span>📈 Custo/KG: ${formatMoney(custos.custoPorKg)}/kg</span>
+                            <span>📦 Itens: ${custos.qtdItens}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+      });
+    }
+
+    container.innerHTML = html;
+
+    // Atualiza lista de selecionados
+    window.atualizarSetoresSelecionados();
+    window.calcularCustoProcesso();
+  };
+
+  // ======== TOGGLE SETOR CUSTO PROCESSO ========
+  window.toggleSetorCustoProcesso = function(checkbox) {
+    const setorId = checkbox.dataset.setorId;
+    const nome = checkbox.dataset.nome;
+    const producao = parseFloat(checkbox.dataset.producao) || 0;
+    const custo = parseFloat(checkbox.dataset.custo) || 0;
+    const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
+
+    if (checkbox.checked) {
+      // Adiciona setor
+      const existe = custoProcessoSetoresSelecionados.some(item => item.id === setorId);
+      if (!existe) {
+        custoProcessoSetoresSelecionados.push({
+          id: setorId,
+          nome: nome,
+          producao: producao,
+          custo: custo,
+          custoKg: custoKg
+        });
+      }
+    } else {
+      // Remove setor
+      custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
+    }
+
+    window.atualizarSetoresSelecionados();
+    window.calcularCustoProcesso();
+  };
+
+  // ======== ATUALIZAR SETORES SELECIONADOS ========
+  window.atualizarSetoresSelecionados = function() {
+    const container = document.getElementById('custoProcessoSetoresSelecionados');
+    if (!container) return;
+
+    if (custoProcessoSetoresSelecionados.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
+      return;
+    }
+
+    let html = `
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+    `;
+
+    custoProcessoSetoresSelecionados.forEach(setor => {
+      html += `
+            <div style="display:flex;align-items:center;gap:0.3rem;background:#f0fdf4;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #86efac;">
+                <span style="font-weight:500;font-size:0.85rem;">${setor.nome}</span>
+                <span style="font-size:0.7rem;color:var(--text-light);">
+                    ${formatNumber(setor.producao, 0)}kg | ${formatMoney(setor.custo)} | ${formatMoney(setor.custoKg)}/kg
+                </span>
+                <button class="btn btn-danger btn-xs" onclick="window.removerSetorSelecionado('${setor.id}')" style="padding:0.1rem 0.3rem;font-size:0.6rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  };
+
+  // ======== REMOVER SETOR SELECIONADO ========
+  window.removerSetorSelecionado = function(setorId) {
+    // Desmarca o checkbox
+    const checkbox = document.querySelector(`.setor-processo-checkbox[data-setor-id="${setorId}"]`);
+    if (checkbox) checkbox.checked = false;
+
+    // Remove da lista
+    custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
+
+    window.atualizarSetoresSelecionados();
+    window.calcularCustoProcesso();
+  };
+
+  // ======== LIMPAR SELEÇÃO DE SETORES ========
+  window.limparSelecaoSetores = function() {
+    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
+    custoProcessoSetoresSelecionados = [];
+    window.atualizarSetoresSelecionados();
+    window.limparResumoCustoProcesso();
+  };
+
+  // ======== CALCULAR CUSTO PROCESSO (MÉDIA) ========
+  window.calcularCustoProcesso = function() {
+    if (custoProcessoSetoresSelecionados.length === 0) {
+      window.limparResumoCustoProcesso();
+      return;
+    }
+
+    // Calcula médias
+    let totalProducao = 0;
+    let totalCusto = 0;
+
+    custoProcessoSetoresSelecionados.forEach(setor => {
+      totalProducao += setor.producao;
+      totalCusto += setor.custo;
+    });
+
+    const qtdSetores = custoProcessoSetoresSelecionados.length;
+    const mediaProducao = totalProducao / qtdSetores;
+    const mediaCusto = totalCusto / qtdSetores;
+    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
+
+    // Atualiza resumo
+    document.getElementById('custoProcessoQtdSetores').textContent = qtdSetores;
+    document.getElementById('custoProcessoProducao').textContent = formatNumber(mediaProducao, 0) + ' kg';
+    document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(mediaCusto);
+    document.getElementById('custoProcessoCustoKg').textContent = formatMoney(mediaCustoKg) + '/kg';
+  };
+
+  // ======== LIMPAR RESUMO ========
+  window.limparResumoCustoProcesso = function() {
+    document.getElementById('custoProcessoQtdSetores').textContent = '0';
+    document.getElementById('custoProcessoProducao').textContent = '0 kg';
+    document.getElementById('custoProcessoCustoTotal').textContent = 'R$ 0,00';
+    document.getElementById('custoProcessoCustoKg').textContent = 'R$ 0,00/kg';
+  };
+
+  // ======== LIMPAR TUDO ========
+  window.limparCustoProcesso = function() {
+    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
+    custoProcessoSetoresSelecionados = [];
+    window.atualizarSetoresSelecionados();
+    window.limparResumoCustoProcesso();
+  };
+
+  // ======== EXPORTAR PDF ========
+  window.exportarCustoProcessoPDF = function() {
+    if (custoProcessoSetoresSelecionados.length === 0) {
+      alert('Selecione pelo menos um setor para exportar.');
+      return;
+    }
+
+    const periodoId = document.getElementById('custoProcessoPeriodo').value;
+    const periodo = periodos.find(p => p.id === periodoId);
+    const nomePeriodo = periodo ? `${getNomeMes(periodo.mes)}/${periodo.ano}` : 'Período não selecionado';
+
+    // Calcula médias
+    let totalProducao = 0;
+    let totalCusto = 0;
+
+    custoProcessoSetoresSelecionados.forEach(setor => {
+      totalProducao += setor.producao;
+      totalCusto += setor.custo;
+    });
+
+    const qtdSetores = custoProcessoSetoresSelecionados.length;
+    const mediaProducao = totalProducao / qtdSetores;
+    const mediaCusto = totalCusto / qtdSetores;
+    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
+
+    let html = `
+        <div style="font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:0 auto;">
+            <h1 style="color:#0d904f;border-bottom:3px solid #0d904f;padding-bottom:10px;">
+                <i class="fas fa-cogs"></i> Custo de Processo - Média por Setor
+            </h1>
+            <p><strong>Período:</strong> ${nomePeriodo}</p>
+            <p><strong>Setores Analisados:</strong> ${qtdSetores}</p>
+            
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
+                <div><strong>Produção Média:</strong> ${formatNumber(mediaProducao, 0)} kg</div>
+                <div><strong>Custo Total Médio:</strong> ${formatMoney(mediaCusto)}</div>
+                <div><strong>Custo por KG Médio:</strong> ${formatMoney(mediaCustoKg)}/kg</div>
+            </div>
+            
+            <h3 style="margin-top:20px;">Setores Analisados</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#0d904f;color:#fff;">
+                        <th style="padding:8px;text-align:left;">Setor</th>
+                        <th style="padding:8px;text-align:right;">Produção (KG)</th>
+                        <th style="padding:8px;text-align:right;">Custo Total</th>
+                        <th style="padding:8px;text-align:right;">Custo / KG</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+    custoProcessoSetoresSelecionados.forEach(setor => {
+      html += `
+            <tr style="border-bottom:1px solid #e5e7eb;">
+                <td style="padding:6px 8px;">${setor.nome}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatNumber(setor.producao, 0)}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custo)}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custoKg)}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
+                    <td style="padding:8px;color:#0d904f;">MÉDIA</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatNumber(mediaProducao, 0)}</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCusto)}</td>
+                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCustoKg)}</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p style="margin-top:20px;font-size:0.8rem;color:#999;">
+            Gerado em ${new Date().toLocaleString()}
+        </p>
+    </div>`;
+
+    const win = window.open('', '_blank', 'width=900,height=600');
+    win.document.write(`<html><head><title>Custo de Processo - ${nomePeriodo}</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+            .badge-orange { background: #f59e0b; color: #fff; }
+        </style>
+    </head><body>`);
+    win.document.write(html);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.print();
+  };
 
   // ✅ FUNÇÃO INIT CORRIGIDA
   async function init() {
@@ -2074,330 +2463,5 @@
   } else {
     init();
   }
-
-// ====================================================
-// PAINEL DE CUSTO DE PROCESSO - MÉDIA POR SETOR
-// ====================================================
-
-// Variáveis globais do painel
-let custoProcessoSetoresSelecionados = [];
-
-// ======== INICIALIZAR PAINEL ========
-window.inicializarCustoProcesso = function() {
-    // Preenche os filtros de ano
-    const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
-    const selectAno = document.getElementById('custoProcessoAno');
-    if (selectAno) {
-        selectAno.innerHTML = '<option value="">Todos</option>' + 
-            anosDisponiveis.map(a => `<option value="${a}">${a}</option>`).join('');
-    }
-    
-    // Preenche períodos
-    window.atualizarPeriodosCustoProcesso();
-};
-
-// ======== ATUALIZAR PERÍODOS ========
-window.atualizarPeriodosCustoProcesso = function() {
-    const selectPeriodo = document.getElementById('custoProcessoPeriodo');
-    if (!selectPeriodo) return;
-    
-    const ano = document.getElementById('custoProcessoAno').value;
-    const mesesSelect = document.getElementById('custoProcessoMeses');
-    const mesesSelecionados = Array.from(mesesSelect.selectedOptions).map(opt => parseInt(opt.value));
-    
-    let periodosFiltrados = [...periodos];
-    if (ano) periodosFiltrados = periodosFiltrados.filter(p => p.ano === parseInt(ano));
-    if (mesesSelecionados.length > 0) {
-        periodosFiltrados = periodosFiltrados.filter(p => mesesSelecionados.includes(p.mes));
-    }
-    
-    periodosFiltrados.sort((a, b) => b.ano - a.ano || b.mes - a.mes);
-    
-    selectPeriodo.innerHTML = '<option value="">Selecione um período...</option>' +
-        periodosFiltrados.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
-};
-
-// ======== FILTRAR CUSTO PROCESSO ========
-window.filtrarCustoProcesso = function() {
-    window.atualizarPeriodosCustoProcesso();
-    // Limpa seleção anterior
-    document.getElementById('custoProcessoSetoresLista').innerHTML = 
-        '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
-    document.getElementById('custoProcessoSetoresSelecionados').innerHTML = 
-        '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
-    custoProcessoSetoresSelecionados = [];
-    window.limparResumoCustoProcesso();
-};
-
-// ======== CARREGAR SETORES DO PERÍODO ========
-window.carregarSetoresProcesso = function() {
-    const periodoId = document.getElementById('custoProcessoPeriodo').value;
-    if (!periodoId) {
-        document.getElementById('custoProcessoSetoresLista').innerHTML = 
-            '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período para carregar os setores.</p>';
-        return;
-    }
-    
-    // Busca todos os setores do período (apenas CUSTOS, não despesas)
-    const sets = getSetoresDoPeriodo(periodoId).filter(s => s.tipo !== 'despesa');
-    
-    const container = document.getElementById('custoProcessoSetoresLista');
-    let html = '';
-    
-    if (sets.length === 0) {
-        html = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum setor de custo encontrado neste período.</p>';
-    } else {
-        // Calcula dados de cada setor
-        sets.forEach(s => {
-            const custos = calcularCustosSetor(s.id);
-            const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
-            
-            html += `
-                <div style="display:flex;align-items:center;padding:0.5rem;border-bottom:1px solid #f0f0f0;${isSelecionado ? 'background:#f0fdf4;' : ''}">
-                    <input type="checkbox" class="setor-processo-checkbox" data-setor-id="${s.id}" 
-                           data-nome="${s.nome}" data-producao="${custos.totalKg}" data-custo="${custos.totalCusto}" data-custo-kg="${custos.custoPorKg}"
-                           ${isSelecionado ? 'checked' : ''}
-                           onchange="window.toggleSetorCustoProcesso(this)">
-                    <div style="flex:1;margin-left:0.5rem;">
-                        <div style="font-weight:500;display:flex;align-items:center;gap:0.5rem;">
-                            ${s.nome}
-                            ${s.produtoFinal ? '<span class="badge badge-orange" style="font-size:0.6rem;padding:0.1rem 0.4rem;">⭐ Final</span>' : ''}
-                        </div>
-                        <div style="font-size:0.75rem;color:var(--text-light);display:flex;gap:1rem;flex-wrap:wrap;">
-                            <span>📊 Produção: ${formatNumber(custos.totalKg, 0)} kg</span>
-                            <span>💰 Custo: ${formatMoney(custos.totalCusto)}</span>
-                            <span>📈 Custo/KG: ${formatMoney(custos.custoPorKg)}/kg</span>
-                            <span>📦 Itens: ${custos.qtdItens}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    
-    container.innerHTML = html;
-    
-    // Atualiza lista de selecionados
-    window.atualizarSetoresSelecionados();
-    window.calcularCustoProcesso();
-};
-
-// ======== TOGGLE SETOR CUSTO PROCESSO ========
-window.toggleSetorCustoProcesso = function(checkbox) {
-    const setorId = checkbox.dataset.setorId;
-    const nome = checkbox.dataset.nome;
-    const producao = parseFloat(checkbox.dataset.producao) || 0;
-    const custo = parseFloat(checkbox.dataset.custo) || 0;
-    const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
-    
-    if (checkbox.checked) {
-        // Adiciona setor
-        const existe = custoProcessoSetoresSelecionados.some(item => item.id === setorId);
-        if (!existe) {
-            custoProcessoSetoresSelecionados.push({
-                id: setorId,
-                nome: nome,
-                producao: producao,
-                custo: custo,
-                custoKg: custoKg
-            });
-        }
-    } else {
-        // Remove setor
-        custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
-    }
-    
-    window.atualizarSetoresSelecionados();
-    window.calcularCustoProcesso();
-};
-
-// ======== ATUALIZAR SETORES SELECIONADOS ========
-window.atualizarSetoresSelecionados = function() {
-    const container = document.getElementById('custoProcessoSetoresSelecionados');
-    if (!container) return;
-    
-    if (custoProcessoSetoresSelecionados.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">Nenhum setor selecionado.</p>';
-        return;
-    }
-    
-    let html = `
-        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-    `;
-    
-    custoProcessoSetoresSelecionados.forEach(setor => {
-        html += `
-            <div style="display:flex;align-items:center;gap:0.3rem;background:#f0fdf4;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #86efac;">
-                <span style="font-weight:500;font-size:0.85rem;">${setor.nome}</span>
-                <span style="font-size:0.7rem;color:var(--text-light);">
-                    ${formatNumber(setor.producao, 0)}kg | ${formatMoney(setor.custo)} | ${formatMoney(setor.custoKg)}/kg
-                </span>
-                <button class="btn btn-danger btn-xs" onclick="window.removerSetorSelecionado('${setor.id}')" style="padding:0.1rem 0.3rem;font-size:0.6rem;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    container.innerHTML = html;
-};
-
-// ======== REMOVER SETOR SELECIONADO ========
-window.removerSetorSelecionado = function(setorId) {
-    // Desmarca o checkbox
-    const checkbox = document.querySelector(`.setor-processo-checkbox[data-setor-id="${setorId}"]`);
-    if (checkbox) checkbox.checked = false;
-    
-    // Remove da lista
-    custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
-    
-    window.atualizarSetoresSelecionados();
-    window.calcularCustoProcesso();
-};
-
-// ======== LIMPAR SELEÇÃO DE SETORES ========
-window.limparSelecaoSetores = function() {
-    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
-    custoProcessoSetoresSelecionados = [];
-    window.atualizarSetoresSelecionados();
-    window.limparResumoCustoProcesso();
-};
-
-// ======== CALCULAR CUSTO PROCESSO (MÉDIA) ========
-window.calcularCustoProcesso = function() {
-    if (custoProcessoSetoresSelecionados.length === 0) {
-        window.limparResumoCustoProcesso();
-        return;
-    }
-    
-    // Calcula médias
-    let totalProducao = 0;
-    let totalCusto = 0;
-    
-    custoProcessoSetoresSelecionados.forEach(setor => {
-        totalProducao += setor.producao;
-        totalCusto += setor.custo;
-    });
-    
-    const qtdSetores = custoProcessoSetoresSelecionados.length;
-    const mediaProducao = totalProducao / qtdSetores;
-    const mediaCusto = totalCusto / qtdSetores;
-    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
-    
-    // Atualiza resumo
-    document.getElementById('custoProcessoQtdSetores').textContent = qtdSetores;
-    document.getElementById('custoProcessoProducao').textContent = formatNumber(mediaProducao, 0) + ' kg';
-    document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(mediaCusto);
-    document.getElementById('custoProcessoCustoKg').textContent = formatMoney(mediaCustoKg) + '/kg';
-};
-
-// ======== LIMPAR RESUMO ========
-window.limparResumoCustoProcesso = function() {
-    document.getElementById('custoProcessoQtdSetores').textContent = '0';
-    document.getElementById('custoProcessoProducao').textContent = '0 kg';
-    document.getElementById('custoProcessoCustoTotal').textContent = 'R$ 0,00';
-    document.getElementById('custoProcessoCustoKg').textContent = 'R$ 0,00/kg';
-};
-
-// ======== LIMPAR TUDO ========
-window.limparCustoProcesso = function() {
-    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
-    custoProcessoSetoresSelecionados = [];
-    window.atualizarSetoresSelecionados();
-    window.limparResumoCustoProcesso();
-};
-
-// ======== EXPORTAR PDF ========
-window.exportarCustoProcessoPDF = function() {
-    if (custoProcessoSetoresSelecionados.length === 0) {
-        alert('Selecione pelo menos um setor para exportar.');
-        return;
-    }
-    
-    const periodoId = document.getElementById('custoProcessoPeriodo').value;
-    const periodo = periodos.find(p => p.id === periodoId);
-    const nomePeriodo = periodo ? `${getNomeMes(periodo.mes)}/${periodo.ano}` : 'Período não selecionado';
-    
-    // Calcula médias
-    let totalProducao = 0;
-    let totalCusto = 0;
-    
-    custoProcessoSetoresSelecionados.forEach(setor => {
-        totalProducao += setor.producao;
-        totalCusto += setor.custo;
-    });
-    
-    const qtdSetores = custoProcessoSetoresSelecionados.length;
-    const mediaProducao = totalProducao / qtdSetores;
-    const mediaCusto = totalCusto / qtdSetores;
-    const mediaCustoKg = mediaProducao > 0 ? mediaCusto / mediaProducao : 0;
-    
-    let html = `
-        <div style="font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:0 auto;">
-            <h1 style="color:#0d904f;border-bottom:3px solid #0d904f;padding-bottom:10px;">
-                <i class="fas fa-cogs"></i> Custo de Processo - Média por Setor
-            </h1>
-            <p><strong>Período:</strong> ${nomePeriodo}</p>
-            <p><strong>Setores Analisados:</strong> ${qtdSetores}</p>
-            
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
-                <div><strong>Produção Média:</strong> ${formatNumber(mediaProducao, 0)} kg</div>
-                <div><strong>Custo Total Médio:</strong> ${formatMoney(mediaCusto)}</div>
-                <div><strong>Custo por KG Médio:</strong> ${formatMoney(mediaCustoKg)}/kg</div>
-            </div>
-            
-            <h3 style="margin-top:20px;">Setores Analisados</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
-                <thead>
-                    <tr style="background:#0d904f;color:#fff;">
-                        <th style="padding:8px;text-align:left;">Setor</th>
-                        <th style="padding:8px;text-align:right;">Produção (KG)</th>
-                        <th style="padding:8px;text-align:right;">Custo Total</th>
-                        <th style="padding:8px;text-align:right;">Custo / KG</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    custoProcessoSetoresSelecionados.forEach(setor => {
-        html += `
-            <tr style="border-bottom:1px solid #e5e7eb;">
-                <td style="padding:6px 8px;">${setor.nome}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatNumber(setor.producao, 0)}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custo)}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custoKg)}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-                <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-                    <td style="padding:8px;color:#0d904f;">MÉDIA</td>
-                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatNumber(mediaProducao, 0)}</td>
-                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCusto)}</td>
-                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(mediaCustoKg)}</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <p style="margin-top:20px;font-size:0.8rem;color:#999;">
-            Gerado em ${new Date().toLocaleString()}
-        </p>
-    </div>`;
-    
-    const win = window.open('', '_blank', 'width=900,height=600');
-    win.document.write(`<html><head><title>Custo de Processo - ${nomePeriodo}</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <style>
-            body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
-            .badge-orange { background: #f59e0b; color: #fff; }
-        </style>
-    </head><body>`);
-    win.document.write(html);
-    win.document.write('</body></html>');
-    win.document.close();
-    win.print();
-};
 
 })();
