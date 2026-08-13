@@ -1,11 +1,8 @@
 // ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v3.3 FINAL)
-// ✅ CORRIGIDO: Cadastro de custo fixo com seleção de setores
-// ✅ CORRIGIDO: Definição de porcentagem por setor
-// ✅ CORRIGIDO: Criação direta de itens fixos nos setores
-// ✅ CORRIGIDO: Painel de Custo de Processo - Soma dos Custo/KG
-// ✅ CORRIGIDO: Custo Casual (extra) com imposto
-// ✅ CORRIGIDO: Período opcional - carrega múltiplos períodos
+// CUSTO.JS - Central de Custos (Firestore Puro - v3.4 FINAL)
+// ✅ CORRIGIDO: Simulação de processo produtivo
+// ✅ CORRIGIDO: Custo Casual com quantidade inicial
+// ✅ CORRIGIDO: Perda por setor com peso acumulado
 // ====================================================
 (function() {
   'use strict';
@@ -62,6 +59,8 @@
   // ======== VARIÁVEIS DO PAINEL DE CUSTO DE PROCESSO ========
   let custoProcessoSetoresSelecionados = [];
   let custoProcessoCasualItens = [];
+  let pesoInicialSimulacao = 0;
+  let nomeMateriaPrima = '';
 
   // ======== UTILITÁRIOS ========
   function formatMoney(v) { return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
@@ -374,7 +373,7 @@
     html += `
 <div class="card custo-processo-card" style="margin-bottom:1.5rem;margin-top:1.5rem;">
   <div class="card-header">
-    <span class="card-title"><i class="fas fa-cogs"></i> Custo de Processo - Soma dos Custos/KG por Setor</span>
+    <span class="card-title"><i class="fas fa-cogs"></i> Simulação de Processo Produtivo</span>
     <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
         <i class="fas fa-eraser"></i> Limpar
@@ -423,37 +422,43 @@
   <div class="custo-processo-resumo" id="custoProcessoResumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
     <div class="stat-card-home" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;">
       <div class="stat-info">
-        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Setores Selecionados</div>
-        <div class="stat-value" id="custoProcessoQtdSetores" style="color:#fff;">0</div>
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Peso Inicial</div>
+        <div class="stat-value" id="custoProcessoPesoInicial" style="color:#fff;">0 kg</div>
       </div>
     </div>
     <div class="stat-card-home" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;">
       <div class="stat-info">
-        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Soma dos Custos/KG</div>
-        <div class="stat-value" id="custoProcessoProducao" style="color:#fff;">R$ 0,00</div>
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Peso Final</div>
+        <div class="stat-value" id="custoProcessoPesoFinal" style="color:#fff;">0 kg</div>
+      </div>
+    </div>
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;">
+      <div class="stat-info">
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Perda Total</div>
+        <div class="stat-value" id="custoProcessoPerdaTotal" style="color:#fff;">0%</div>
       </div>
     </div>
     <div class="stat-card-home" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:none;">
       <div class="stat-info">
-        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custos Casuais</div>
-        <div class="stat-value" id="custoProcessoCasualCount" style="color:#fff;">0</div>
+        <div class="stat-label" style="color:rgba(255,255,255,0.8);">Custo Total Acumulado</div>
+        <div class="stat-value" id="custoProcessoCustoTotal" style="color:#fff;">R$ 0,00</div>
       </div>
     </div>
   </div>
 
-  <!-- Custos Casuais -->
+  <!-- Matéria Prima (Custo Casual com quantidade) -->
   <div style="margin-bottom:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
       <label style="font-weight:600;font-size:0.9rem;margin:0;">
-        <i class="fas fa-plus-circle" style="color:#f59e0b;"></i> Custos Casuais (Extra)
+        <i class="fas fa-box"></i> Matéria Prima (Custo Inicial)
       </label>
       <button class="btn btn-warning btn-sm" onclick="window.adicionarCustoCasual()">
-        <i class="fas fa-plus"></i> Adicionar Custo Casual
+        <i class="fas fa-plus"></i> Adicionar Matéria Prima
       </button>
     </div>
     <div id="custoProcessoCasualLista" style="border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;min-height:50px;">
       <p style="color:var(--text-light);text-align:center;padding:0.5rem;margin:0;font-size:0.85rem;">
-        Nenhum custo casual adicionado.
+        Nenhuma matéria prima adicionada. Clique em "Adicionar Matéria Prima".
       </p>
     </div>
   </div>
@@ -461,8 +466,8 @@
   <!-- Lista de Setores do Período -->
   <div style="margin-bottom:1rem;">
     <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:0.5rem;">
-      <i class="fas fa-industry"></i> Setores de Custo
-      <span style="font-weight:400;font-size:0.8rem;color:var(--text-light);">(selecione os setores para somar os custos/kg)</span>
+      <i class="fas fa-industry"></i> Setores do Processo
+      <span style="font-weight:400;font-size:0.8rem;color:var(--text-light);">(selecione os setores na ordem do processo)</span>
     </label>
     <div id="custoProcessoSetoresLista" style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;">
       <p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione os filtros para carregar os setores.</p>
@@ -473,7 +478,7 @@
   <div style="margin-bottom:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
       <label style="font-weight:600;font-size:0.9rem;margin:0;">
-        <i class="fas fa-check-circle" style="color:#0d904f;"></i> Setores Selecionados
+        <i class="fas fa-check-circle" style="color:#0d904f;"></i> Setores Selecionados (Ordem do Processo)
       </label>
       <button class="btn btn-outline btn-sm" onclick="window.limparSelecaoSetores()">
         <i class="fas fa-times"></i> Limpar Seleção
@@ -481,7 +486,7 @@
     </div>
     <div id="custoProcessoSetoresSelecionados" style="border:1px solid #e5e7eb;border-radius:8px;padding:0.5rem;min-height:80px;">
       <p style="color:var(--text-light);text-align:center;padding:1rem;margin:0;">
-        Nenhum setor selecionado. Marque os setores abaixo para calcular a soma.
+        Nenhum setor selecionado. Marque os setores abaixo na ordem do processo.
       </p>
     </div>
   </div>
@@ -489,7 +494,7 @@
   <!-- Botões de Ação -->
   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
     <button class="btn btn-warning btn-sm" onclick="window.calcularCustoProcesso()">
-      <i class="fas fa-sync"></i> Calcular Soma
+      <i class="fas fa-sync"></i> Simular Processo
     </button>
     <button class="btn btn-outline btn-sm" onclick="window.limparCustoProcesso()">
       <i class="fas fa-eraser"></i> Limpar Tudo
@@ -2234,7 +2239,7 @@
   }
 
   // ====================================================
-  // PAINEL DE CUSTO DE PROCESSO - SOMA DOS CUSTO/KG + CUSTOS CASUAIS
+  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA
   // ====================================================
 
   // ======== INICIALIZAR PAINEL ========
@@ -2358,30 +2363,31 @@
         });
         const mediaCustoKg = count > 0 ? somaCustoKg / count : 0;
 
-        // Pega o último setor para produção e custo total (ou calcula média)
-        const ultimoSetor = setoresDoPeriodo[setoresDoPeriodo.length - 1];
-        const custos = calcularCustosSetor(ultimoSetor.id);
-
         const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
 
         html += `
                 <div style="display:flex;align-items:center;padding:0.5rem;border-bottom:1px solid #f0f0f0;${isSelecionado ? 'background:#f0fdf4;' : ''}">
-                    <input type="checkbox" class="setor-processo-checkbox" data-setor-id="${s.id}" 
-                           data-nome="${s.nome}" data-custo-kg="${mediaCustoKg}"
-                           ${isSelecionado ? 'checked' : ''}
-                           onchange="window.toggleSetorCustoProcesso(this)">
-                    <div style="flex:1;margin-left:0.5rem;">
-                        <div style="font-weight:500;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                            ${s.nome}
+                    <div style="display:flex;flex-direction:column;flex:1;margin-left:0.5rem;">
+                        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                            <input type="checkbox" class="setor-processo-checkbox" data-setor-id="${s.id}" 
+                                   data-nome="${s.nome}" data-custo-kg="${mediaCustoKg}"
+                                   ${isSelecionado ? 'checked' : ''}
+                                   onchange="window.toggleSetorCustoProcesso(this)">
+                            <span style="font-weight:500;">${s.nome}</span>
                             ${s.produtoFinal ? '<span class="badge badge-orange" style="font-size:0.6rem;padding:0.1rem 0.4rem;">⭐ Final</span>' : ''}
                             <span style="font-size:0.65rem;color:var(--text-light);font-weight:400;">
                                 (${setoresDoPeriodo.length} períodos)
                             </span>
                         </div>
-                        <div style="font-size:0.75rem;color:var(--text-light);display:flex;gap:1rem;flex-wrap:wrap;">
+                        <div style="font-size:0.75rem;color:var(--text-light);display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.2rem;">
                             <span>📈 Custo/KG médio: ${formatMoney(mediaCustoKg)}/kg</span>
-                            <span>📊 Produção: ${formatNumber(custos.totalKg, 0)} kg</span>
-                            <span>💰 Custo: ${formatMoney(custos.totalCusto)}</span>
+                            <span style="display:flex;align-items:center;gap:0.3rem;">
+                                <label style="font-size:0.7rem;">Perda:</label>
+                                <input type="number" class="setor-perda-input" data-setor-id="${s.id}" 
+                                       value="0" min="0" max="100" step="0.1"
+                                       style="width:60px;padding:0.2rem;border-radius:4px;border:1px solid #ddd;text-align:center;font-size:0.75rem;">
+                                <span style="font-size:0.7rem;">%</span>
+                            </span>
                         </div>
                         <div style="font-size:0.6rem;color:var(--text-light);margin-top:0.2rem;">
                             Períodos: ${setoresDoPeriodo.map(item => item.periodoNome).join(', ')}
@@ -2404,6 +2410,10 @@
     const setorId = checkbox.dataset.setorId;
     const nome = checkbox.dataset.nome;
     const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
+    
+    // Busca a perda configurada
+    const perdaInput = document.querySelector(`.setor-perda-input[data-setor-id="${setorId}"]`);
+    const perda = perdaInput ? parseFloat(perdaInput.value) || 0 : 0;
 
     if (checkbox.checked) {
       const existe = custoProcessoSetoresSelecionados.some(item => item.id === setorId);
@@ -2411,7 +2421,8 @@
         custoProcessoSetoresSelecionados.push({
           id: setorId,
           nome: nome,
-          custoKg: custoKg
+          custoKg: custoKg,
+          perda: perda
         });
       }
     } else {
@@ -2432,13 +2443,16 @@
       return;
     }
 
-    let html = '';
-    custoProcessoSetoresSelecionados.forEach(setor => {
+    // Ordena pela ordem de seleção (manter a ordem que foram adicionados)
+    let html = '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;">';
+    custoProcessoSetoresSelecionados.forEach((setor, index) => {
       html += `
-            <div style="display:inline-flex;align-items:center;gap:0.3rem;background:#f0fdf4;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #86efac;margin:0.2rem;">
+            <div style="display:inline-flex;align-items:center;gap:0.3rem;background:#f0fdf4;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #86efac;margin:0.1rem;">
+                <span style="font-weight:500;font-size:0.8rem;">${index + 1}º</span>
                 <span style="font-weight:500;font-size:0.85rem;">${setor.nome}</span>
                 <span style="font-size:0.7rem;color:var(--text-light);">
                     ${formatMoney(setor.custoKg)}/kg
+                    ${setor.perda > 0 ? `🔻 ${setor.perda}%` : ''}
                 </span>
                 <button class="btn btn-danger btn-xs" onclick="window.removerSetorSelecionado('${setor.id}')" style="padding:0.1rem 0.3rem;font-size:0.6rem;">
                     <i class="fas fa-times"></i>
@@ -2446,7 +2460,7 @@
             </div>
         `;
     });
-
+    html += '</div>';
     container.innerHTML = html;
   };
 
@@ -2469,10 +2483,13 @@
     window.limparResumoCustoProcesso();
   };
 
-  // ======== ADICIONAR CUSTO CASUAL ========
+  // ======== ADICIONAR MATÉRIA PRIMA (CUSTO CASUAL COM QUANTIDADE) ========
   window.adicionarCustoCasual = function() {
-    const nome = prompt('Digite o nome do custo casual (ex: Matéria Prima X):');
+    const nome = prompt('Digite o nome da matéria prima:');
     if (!nome) return;
+
+    const quantidade = prompt('Digite a quantidade inicial (KG):');
+    if (quantidade === null || isNaN(parseFloat(quantidade)) || parseFloat(quantidade) <= 0) return;
 
     const custoKg = prompt('Digite o custo por KG (R$):');
     if (custoKg === null || isNaN(parseFloat(custoKg))) return;
@@ -2481,89 +2498,191 @@
     if (imposto === null || isNaN(parseFloat(imposto))) return;
 
     const id = 'casual_' + Date.now();
+    custoProcessoCasualItens = []; // Remove itens anteriores (apenas 1 matéria prima)
     custoProcessoCasualItens.push({
       id: id,
       nome: nome,
+      quantidade: parseFloat(quantidade),
       custoKg: parseFloat(custoKg),
       imposto: parseFloat(imposto) || 0
     });
+    
+    pesoInicialSimulacao = parseFloat(quantidade);
+    nomeMateriaPrima = nome;
 
     window.atualizarListaCasual();
     window.calcularCustoProcesso();
   };
 
-  // ======== REMOVER CUSTO CASUAL ========
+  // ======== REMOVER MATÉRIA PRIMA ========
   window.removerCustoCasual = function(id) {
     custoProcessoCasualItens = custoProcessoCasualItens.filter(item => item.id !== id);
+    pesoInicialSimulacao = 0;
+    nomeMateriaPrima = '';
     window.atualizarListaCasual();
     window.calcularCustoProcesso();
   };
 
-  // ======== ATUALIZAR LISTA DE CUSTOS CASUAIS ========
+  // ======== ATUALIZAR LISTA DE MATÉRIA PRIMA ========
   window.atualizarListaCasual = function() {
     const container = document.getElementById('custoProcessoCasualLista');
     if (!container) return;
 
     if (custoProcessoCasualItens.length === 0) {
-      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:0.5rem;margin:0;font-size:0.85rem;">Nenhum custo casual adicionado.</p>';
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:0.5rem;margin:0;font-size:0.85rem;">Nenhuma matéria prima adicionada. Clique em "Adicionar Matéria Prima".</p>';
+      document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
       return;
     }
 
-    let html = '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;">';
-    custoProcessoCasualItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      html += `
-            <div style="display:inline-flex;align-items:center;gap:0.3rem;background:#fef3c7;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #f59e0b;margin:0.1rem;">
-                <span style="font-weight:500;font-size:0.85rem;">${item.nome}</span>
-                <span style="font-size:0.7rem;color:var(--text-light);">
-                    ${formatMoney(item.custoKg)}/kg
-                    ${item.imposto > 0 ? `+ ${item.imposto}%` : ''}
-                    <strong style="color:#d97706;">→ ${formatMoney(valorComImposto)}/kg</strong>
-                </span>
-                <button class="btn btn-danger btn-xs" onclick="window.removerCustoCasual('${item.id}')" style="padding:0.1rem 0.3rem;font-size:0.6rem;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-    });
-    html += '</div>';
+    const item = custoProcessoCasualItens[0];
+    const valorTotal = item.quantidade * item.custoKg * (1 + (item.imposto || 0) / 100);
+    
+    let html = `
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:#fef3c7;padding:0.5rem 1rem;border-radius:6px;border:1px solid #f59e0b;">
+            <span style="font-weight:600;font-size:0.9rem;">📦 ${item.nome}</span>
+            <span style="font-size:0.85rem;">Peso: <strong>${formatNumber(item.quantidade, 0)} kg</strong></span>
+            <span style="font-size:0.85rem;">Custo: ${formatMoney(item.custoKg)}/kg</span>
+            ${item.imposto > 0 ? `<span style="font-size:0.8rem;color:#d97706;">+ ${item.imposto}% imposto</span>` : ''}
+            <span style="font-weight:600;color:#0d904f;font-size:0.9rem;">Total: ${formatMoney(valorTotal)}</span>
+            <button class="btn btn-danger btn-xs" onclick="window.removerCustoCasual('${item.id}')" style="padding:0.2rem 0.5rem;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
     container.innerHTML = html;
-
-    // Atualiza contador
-    document.getElementById('custoProcessoCasualCount').textContent = custoProcessoCasualItens.length;
+    document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(item.quantidade, 0) + ' kg';
   };
 
-  // ======== CALCULAR CUSTO PROCESSO (SOMA DOS CUSTO/KG + CASUAIS) ========
+  // ======== CALCULAR CUSTO PROCESSO (SIMULAÇÃO COM PERDA) ========
   window.calcularCustoProcesso = function() {
-    let somaCustoKg = 0;
-    let qtdSetores = custoProcessoSetoresSelecionados.length;
+    // Verifica se tem matéria prima
+    if (custoProcessoCasualItens.length === 0) {
+      window.limparResumoCustoProcesso();
+      document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
+      document.getElementById('custoProcessoCasualLista').innerHTML = 
+        '<p style="color:var(--text-light);text-align:center;padding:0.5rem;margin:0;font-size:0.85rem;">Nenhuma matéria prima adicionada.</p>';
+      return;
+    }
 
-    // Soma dos custos/kg dos setores
-    custoProcessoSetoresSelecionados.forEach(setor => {
-      somaCustoKg += setor.custoKg;
+    const materiaPrima = custoProcessoCasualItens[0];
+    let pesoAtual = materiaPrima.quantidade;
+    let custoTotalAcumulado = 0;
+    let detalhes = [];
+
+    // Calcula o custo da matéria prima
+    const custoMP = pesoAtual * materiaPrima.custoKg * (1 + (materiaPrima.imposto || 0) / 100);
+    custoTotalAcumulado += custoMP;
+    
+    detalhes.push({
+      etapa: 'Matéria Prima',
+      nome: materiaPrima.nome,
+      pesoEntrada: pesoAtual,
+      custoKg: materiaPrima.custoKg,
+      imposto: materiaPrima.imposto || 0,
+      perda: 0,
+      pesoSaida: pesoAtual,
+      custoParcial: custoMP
     });
 
-    // Soma dos custos casuais (com imposto)
-    custoProcessoCasualItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      somaCustoKg += valorComImposto;
+    // Processa cada setor na ordem selecionada
+    let pesoEntrada = pesoAtual;
+    custoProcessoSetoresSelecionados.forEach((setor, index) => {
+      const perda = setor.perda || 0;
+      const pesoPerdido = pesoEntrada * (perda / 100);
+      const pesoSaida = pesoEntrada - pesoPerdido;
+      
+      // Custo do setor aplicado sobre o peso de entrada
+      const custoParcial = pesoEntrada * setor.custoKg;
+      custoTotalAcumulado += custoParcial;
+
+      detalhes.push({
+        etapa: `${index + 1}º`,
+        nome: setor.nome,
+        pesoEntrada: pesoEntrada,
+        custoKg: setor.custoKg,
+        perda: perda,
+        pesoPerdido: pesoPerdido,
+        pesoSaida: pesoSaida,
+        custoParcial: custoParcial
+      });
+
+      pesoAtual = pesoSaida;
+      pesoEntrada = pesoSaida;
     });
 
-    const totalItens = qtdSetores + custoProcessoCasualItens.length;
+    const perdaTotal = pesoAtual > 0 ? ((materiaPrima.quantidade - pesoAtual) / materiaPrima.quantidade * 100) : 100;
 
     // Atualiza resumo
-    document.getElementById('custoProcessoQtdSetores').textContent = totalItens;
-    document.getElementById('custoProcessoProducao').textContent = formatMoney(somaCustoKg);
-    document.getElementById('custoProcessoCustoTotal').textContent = totalItens > 0 ? formatMoney(somaCustoKg / totalItens) : 'R$ 0,00';
-    document.getElementById('custoProcessoCustoKg').textContent = totalItens > 0 ? formatMoney(somaCustoKg / totalItens) + '/kg' : 'R$ 0,00/kg';
+    document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(materiaPrima.quantidade, 0) + ' kg';
+    document.getElementById('custoProcessoPesoFinal').textContent = formatNumber(pesoAtual, 0) + ' kg';
+    document.getElementById('custoProcessoPerdaTotal').textContent = perdaTotal.toFixed(1) + '%';
+    document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(custoTotalAcumulado);
+
+    // Mostra detalhes da simulação
+    const container = document.getElementById('custoProcessoSetoresSelecionados');
+    if (container && detalhes.length > 0) {
+      let html = `
+        <div style="overflow-x:auto;margin-top:0.5rem;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+            <thead>
+              <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb;">
+                <th style="text-align:left;padding:0.3rem 0.5rem;">Etapa</th>
+                <th style="text-align:left;padding:0.3rem 0.5rem;">Item</th>
+                <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Entrada</th>
+                <th style="text-align:right;padding:0.3rem 0.5rem;">Custo/KG</th>
+                <th style="text-align:right;padding:0.3rem 0.5rem;">Perda</th>
+                <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Saída</th>
+                <th style="text-align:right;padding:0.3rem 0.5rem;">Custo Parcial</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+      detalhes.forEach(d => {
+        html += `
+              <tr style="border-bottom:1px solid #f0f0f0;${d.etapa === 'Matéria Prima' ? 'background:#fef3c7;' : ''}">
+                <td style="padding:0.3rem 0.5rem;font-weight:500;">${d.etapa}</td>
+                <td style="padding:0.3rem 0.5rem;">${d.nome}</td>
+                <td style="text-align:right;padding:0.3rem 0.5rem;">${formatNumber(d.pesoEntrada, 0)} kg</td>
+                <td style="text-align:right;padding:0.3rem 0.5rem;">${formatMoney(d.custoKg)}</td>
+                <td style="text-align:right;padding:0.3rem 0.5rem;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
+                <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;color:#0d904f;">${formatNumber(d.pesoSaida, 0)} kg</td>
+                <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;">${formatMoney(d.custoParcial)}</td>
+              </tr>
+          `;
+      });
+
+      // Linha de total
+      html += `
+            <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
+              <td colspan="6" style="padding:0.5rem;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
+              <td style="padding:0.5rem;text-align:right;color:#0d904f;font-size:1rem;">${formatMoney(custoTotalAcumulado)}</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      `;
+      
+      // Adiciona o resumo da simulação abaixo da tabela
+      html += `
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:6px;">
+          <span><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</span>
+          <span><strong>Peso Final:</strong> ${formatNumber(pesoAtual, 0)} kg</span>
+          <span><strong>Perda Total:</strong> ${perdaTotal.toFixed(1)}%</span>
+          <span><strong>Custo Total:</strong> ${formatMoney(custoTotalAcumulado)}</span>
+          <span><strong>Custo/KG Final:</strong> ${pesoAtual > 0 ? formatMoney(custoTotalAcumulado / pesoAtual) : 'R$ 0,00'}/kg</span>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    }
   };
 
   // ======== LIMPAR RESUMO ========
   window.limparResumoCustoProcesso = function() {
-    document.getElementById('custoProcessoQtdSetores').textContent = '0';
-    document.getElementById('custoProcessoProducao').textContent = 'R$ 0,00';
+    document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
+    document.getElementById('custoProcessoPesoFinal').textContent = '0 kg';
+    document.getElementById('custoProcessoPerdaTotal').textContent = '0%';
     document.getElementById('custoProcessoCustoTotal').textContent = 'R$ 0,00';
-    document.getElementById('custoProcessoCustoKg').textContent = 'R$ 0,00/kg';
   };
 
   // ======== LIMPAR TUDO ========
@@ -2571,6 +2690,8 @@
     document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
     custoProcessoSetoresSelecionados = [];
     custoProcessoCasualItens = [];
+    pesoInicialSimulacao = 0;
+    nomeMateriaPrima = '';
     window.atualizarSetoresSelecionados();
     window.atualizarListaCasual();
     window.limparResumoCustoProcesso();
@@ -2578,8 +2699,8 @@
 
   // ======== EXPORTAR PDF ========
   window.exportarCustoProcessoPDF = function() {
-    if (custoProcessoSetoresSelecionados.length === 0 && custoProcessoCasualItens.length === 0) {
-      alert('Selecione pelo menos um setor ou adicione um custo casual para exportar.');
+    if (custoProcessoCasualItens.length === 0 && custoProcessoSetoresSelecionados.length === 0) {
+      alert('Adicione uma matéria prima e selecione pelo menos um setor para exportar.');
       return;
     }
 
@@ -2587,90 +2708,119 @@
     const periodo = periodos.find(p => p.id === periodoId);
     const nomePeriodo = periodo ? `${getNomeMes(periodo.mes)}/${periodo.ano}` : 'Período não selecionado';
 
-    let somaCustoKg = 0;
-    custoProcessoSetoresSelecionados.forEach(setor => {
-      somaCustoKg += setor.custoKg;
+    // Recalcula para ter os dados atualizados
+    const materiaPrima = custoProcessoCasualItens[0];
+    if (!materiaPrima) {
+      alert('Adicione uma matéria prima primeiro.');
+      return;
+    }
+
+    let pesoAtual = materiaPrima.quantidade;
+    let custoTotalAcumulado = 0;
+    let detalhes = [];
+
+    const custoMP = pesoAtual * materiaPrima.custoKg * (1 + (materiaPrima.imposto || 0) / 100);
+    custoTotalAcumulado += custoMP;
+    detalhes.push({
+      etapa: 'Matéria Prima',
+      nome: materiaPrima.nome,
+      pesoEntrada: pesoAtual,
+      custoKg: materiaPrima.custoKg,
+      imposto: materiaPrima.imposto || 0,
+      perda: 0,
+      pesoPerdido: 0,
+      pesoSaida: pesoAtual,
+      custoParcial: custoMP
     });
-    custoProcessoCasualItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      somaCustoKg += valorComImposto;
+
+    let pesoEntrada = pesoAtual;
+    custoProcessoSetoresSelecionados.forEach((setor, index) => {
+      const perda = setor.perda || 0;
+      const pesoPerdido = pesoEntrada * (perda / 100);
+      const pesoSaida = pesoEntrada - pesoPerdido;
+      const custoParcial = pesoEntrada * setor.custoKg;
+      custoTotalAcumulado += custoParcial;
+
+      detalhes.push({
+        etapa: `${index + 1}º`,
+        nome: setor.nome,
+        pesoEntrada: pesoEntrada,
+        custoKg: setor.custoKg,
+        perda: perda,
+        pesoPerdido: pesoPerdido,
+        pesoSaida: pesoSaida,
+        custoParcial: custoParcial
+      });
+
+      pesoAtual = pesoSaida;
+      pesoEntrada = pesoSaida;
     });
-    const totalItens = custoProcessoSetoresSelecionados.length + custoProcessoCasualItens.length;
-    const mediaCustoKg = totalItens > 0 ? somaCustoKg / totalItens : 0;
+
+    const perdaTotal = pesoAtual > 0 ? ((materiaPrima.quantidade - pesoAtual) / materiaPrima.quantidade * 100) : 100;
 
     let html = `
-        <div style="font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:0 auto;">
+        <div style="font-family:Arial,sans-serif;padding:20px;max-width:1000px;margin:0 auto;">
             <h1 style="color:#0d904f;border-bottom:3px solid #0d904f;padding-bottom:10px;">
-                <i class="fas fa-cogs"></i> Custo de Processo - Soma de Custos
+                <i class="fas fa-cogs"></i> Simulação de Processo Produtivo
             </h1>
             <p><strong>Período:</strong> ${nomePeriodo}</p>
-            <p><strong>Total de Itens:</strong> ${totalItens}</p>
+            <p><strong>Matéria Prima:</strong> ${materiaPrima.nome}</p>
             
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
-                <div><strong>Soma dos Custos/KG:</strong> ${formatMoney(somaCustoKg)}</div>
-                <div><strong>Média do Custo/KG:</strong> ${formatMoney(mediaCustoKg)}/kg</div>
-                <div><strong>Itens:</strong> ${totalItens}</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
+                <div><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</div>
+                <div><strong>Peso Final:</strong> ${formatNumber(pesoAtual, 0)} kg</div>
+                <div><strong>Perda Total:</strong> ${perdaTotal.toFixed(1)}%</div>
+                <div><strong>Custo Total:</strong> ${formatMoney(custoTotalAcumulado)}</div>
             </div>
             
-            <h3 style="margin-top:20px;">Setores Analisados</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+            <h3 style="margin-top:20px;">Detalhamento do Processo</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                 <thead>
                     <tr style="background:#0d904f;color:#fff;">
+                        <th style="padding:8px;text-align:left;">Etapa</th>
                         <th style="padding:8px;text-align:left;">Item</th>
-                        <th style="padding:8px;text-align:right;">Custo / KG</th>
-                        <th style="padding:8px;text-align:center;">Tipo</th>
+                        <th style="padding:8px;text-align:right;">Peso Entrada</th>
+                        <th style="padding:8px;text-align:right;">Custo/KG</th>
+                        <th style="padding:8px;text-align:right;">Perda</th>
+                        <th style="padding:8px;text-align:right;">Peso Saída</th>
+                        <th style="padding:8px;text-align:right;">Custo Parcial</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
-    custoProcessoSetoresSelecionados.forEach(setor => {
+    detalhes.forEach(d => {
       html += `
-            <tr style="border-bottom:1px solid #e5e7eb;">
-                <td style="padding:6px 8px;">${setor.nome}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatMoney(setor.custoKg)}</td>
-                <td style="padding:6px 8px;text-align:center;"><span class="badge badge-green">Setor</span></td>
-            </tr>
-        `;
-    });
-
-    custoProcessoCasualItens.forEach(item => {
-      const valorComImposto = item.custoKg * (1 + (item.imposto || 0) / 100);
-      html += `
-            <tr style="border-bottom:1px solid #e5e7eb;background:#fef3c7;">
-                <td style="padding:6px 8px;">${item.nome}</td>
-                <td style="padding:6px 8px;text-align:right;">${formatMoney(item.custoKg)} ${item.imposto > 0 ? `(+${item.imposto}%)` : ''}</td>
-                <td style="padding:6px 8px;text-align:center;"><span class="badge badge-warning">Casual</span></td>
+            <tr style="border-bottom:1px solid #e5e7eb;${d.etapa === 'Matéria Prima' ? 'background:#fef3c7;' : ''}">
+                <td style="padding:6px 8px;font-weight:500;">${d.etapa}</td>
+                <td style="padding:6px 8px;">${d.nome}</td>
+                <td style="padding:6px 8px;text-align:right;">${formatNumber(d.pesoEntrada, 0)} kg</td>
+                <td style="padding:6px 8px;text-align:right;">${formatMoney(d.custoKg)}</td>
+                <td style="padding:6px 8px;text-align:right;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
+                <td style="padding:6px 8px;text-align:right;font-weight:600;color:#0d904f;">${formatNumber(d.pesoSaida, 0)} kg</td>
+                <td style="padding:6px 8px;text-align:right;font-weight:600;">${formatMoney(d.custoParcial)}</td>
             </tr>
         `;
     });
 
     html += `
-                <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-                    <td style="padding:8px;color:#0d904f;">SOMA</td>
-                    <td style="padding:8px;text-align:right;color:#0d904f;">${formatMoney(somaCustoKg)}</td>
-                    <td style="padding:8px;text-align:center;color:#0d904f;">-</td>
-                </tr>
-                <tr style="background:#fef3c7;font-weight:700;border-top:1px solid #f59e0b;">
-                    <td style="padding:8px;color:#d97706;">MÉDIA</td>
-                    <td style="padding:8px;text-align:right;color:#d97706;">${formatMoney(mediaCustoKg)}/kg</td>
-                    <td style="padding:8px;text-align:center;color:#d97706;">-</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <p style="margin-top:20px;font-size:0.8rem;color:#999;">
-            Gerado em ${new Date().toLocaleString()}
-        </p>
-    </div>`;
+            <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
+                <td colspan="6" style="padding:8px;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
+                <td style="padding:8px;text-align:right;color:#0d904f;font-size:1.1rem;">${formatMoney(custoTotalAcumulado)}</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <p style="margin-top:20px;font-size:0.8rem;color:#999;">
+        Gerado em ${new Date().toLocaleString()}
+    </p>
+</div>`;
 
-    const win = window.open('', '_blank', 'width=900,height=600');
-    win.document.write(`<html><head><title>Custo de Processo - ${nomePeriodo}</title>
+    const win = window.open('', '_blank', 'width=1000,height=700');
+    win.document.write(`<html><head><title>Simulação de Processo - ${nomePeriodo}</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
-            .badge-green { background: #0d904f; color: #fff; }
-            .badge-warning { background: #f59e0b; color: #fff; }
+            body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+            @media print { body { padding: 10px; } }
         </style>
     </head><body>`);
     win.document.write(html);
