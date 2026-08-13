@@ -1,10 +1,3 @@
-// ====================================================
-// CUSTO.JS - Central de Custos (Firestore Puro - v3.4 FINAL)
-// ✅ CORRIGIDO: Simulação de processo produtivo com perda
-// ✅ CORRIGIDO: Perda sendo descontada no peso acumulado
-// ✅ CORRIGIDO: Total Produzido da HOME apenas com produtos finais
-// ✅ CORRIGIDO: Custo Casual com quantidade inicial
-// ====================================================
 (function() {
   'use strict';
 
