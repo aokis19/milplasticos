@@ -1,8 +1,9 @@
 // ====================================================
 // CUSTO.JS - Central de Custos (Firestore Puro - v3.4 FINAL)
-// ✅ CORRIGIDO: Simulação de processo produtivo
+// ✅ CORRIGIDO: Simulação de processo produtivo com perda
+// ✅ CORRIGIDO: Perda sendo descontada no peso acumulado
+// ✅ CORRIGIDO: Total Produzido da HOME apenas com produtos finais
 // ✅ CORRIGIDO: Custo Casual com quantidade inicial
-// ✅ CORRIGIDO: Perda por setor com peso acumulado
 // ====================================================
 (function() {
   'use strict';
@@ -303,14 +304,23 @@
     let totalProduzidoGeral = 0;
     let totalGastoGeral = 0;
     let totalSetoresCount = 0;
+    let totalSetoresFinais = 0;
 
     periodosParaCalculo.forEach(per => {
       const sets = getSetoresDoPeriodo(per.id);
       totalSetoresCount += sets.length;
+      
+      // Só considera setores com produtoFinal = true para produção
+      const setsFinais = sets.filter(s => s.produtoFinal === true);
+      totalSetoresFinais += setsFinais.length;
+      
       sets.forEach(s => {
         const custosSetor = calcularCustosSetor(s.id);
         totalGastoGeral += custosSetor.totalCusto;
-        totalProduzidoGeral += custosSetor.totalKg;
+        // Só soma produção se for Produto Final
+        if (s.produtoFinal === true) {
+          totalProduzidoGeral += custosSetor.totalKg;
+        }
       });
     });
 
@@ -327,7 +337,7 @@
         <div class="stat-info">
           <div class="stat-label">Períodos</div>
           <div class="stat-value">${periodosParaCalculo.length}</div>
-          <div style="font-size:0.7rem;color:var(--text-light);">${totalSetoresCount} setores</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">${totalSetoresCount} setores (${totalSetoresFinais} finais)</div>
         </div>
       </div>`;
 
@@ -339,7 +349,7 @@
         <div class="stat-info">
           <div class="stat-label">Total Produzido</div>
           <div class="stat-value">${formatNumber(totalProduzidoGeral, 0)} kg</div>
-          <div style="font-size:0.7rem;color:var(--text-light);">Produção acumulada</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">Apenas produtos finais</div>
         </div>
       </div>`;
 
@@ -363,7 +373,7 @@
         <div class="stat-info">
           <div class="stat-label">Custo por KG</div>
           <div class="stat-value" style="color:#0d904f;">${formatMoney(custoPorKgCalculado)}/kg</div>
-          <div style="font-size:0.7rem;color:var(--text-light);">Gasto ÷ Produzido</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">Gasto ÷ Produzido (finais)</div>
         </div>
       </div>`;
 
@@ -419,7 +429,7 @@
   </div>
 
   <!-- Resumo Principal -->
-  <div class="custo-processo-resumo" id="custoProcessoResumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+  <div class="custo-processo-resumo" id="custoProcessoResumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
     <div class="stat-card-home" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;">
       <div class="stat-info">
         <div class="stat-label" style="color:rgba(255,255,255,0.8);">Peso Inicial</div>
@@ -432,7 +442,7 @@
         <div class="stat-value" id="custoProcessoPesoFinal" style="color:#fff;">0 kg</div>
       </div>
     </div>
-    <div class="stat-card-home" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;">
+    <div class="stat-card-home" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;">
       <div class="stat-info">
         <div class="stat-label" style="color:rgba(255,255,255,0.8);">Perda Total</div>
         <div class="stat-value" id="custoProcessoPerdaTotal" style="color:#fff;">0%</div>
@@ -2239,7 +2249,7 @@
   }
 
   // ====================================================
-  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA
+  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA (CORRIGIDO)
   // ====================================================
 
   // ======== INICIALIZAR PAINEL ========
@@ -2348,12 +2358,9 @@
     if (setoresUnicos.length === 0) {
       html = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum setor de custo encontrado nos períodos selecionados.</p>';
     } else {
-      // Calcula dados de cada setor (média entre os períodos)
       setoresUnicos.forEach(s => {
-        // Pega todos os períodos que têm este setor
         const setoresDoPeriodo = todosSetores.filter(item => item.nome === s.nome);
 
-        // Calcula a média do custo/kg
         let somaCustoKg = 0;
         let count = 0;
         setoresDoPeriodo.forEach(item => {
@@ -2364,6 +2371,12 @@
         const mediaCustoKg = count > 0 ? somaCustoKg / count : 0;
 
         const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
+        // Busca a perda salva se já estiver selecionado
+        let perdaSalva = 0;
+        if (isSelecionado) {
+          const setorSalvo = custoProcessoSetoresSelecionados.find(item => item.id === s.id);
+          if (setorSalvo) perdaSalva = setorSalvo.perda || 0;
+        }
 
         html += `
                 <div style="display:flex;align-items:center;padding:0.5rem;border-bottom:1px solid #f0f0f0;${isSelecionado ? 'background:#f0fdf4;' : ''}">
@@ -2384,7 +2397,7 @@
                             <span style="display:flex;align-items:center;gap:0.3rem;">
                                 <label style="font-size:0.7rem;">Perda:</label>
                                 <input type="number" class="setor-perda-input" data-setor-id="${s.id}" 
-                                       value="0" min="0" max="100" step="0.1"
+                                       value="${perdaSalva}" min="0" max="100" step="0.1"
                                        style="width:60px;padding:0.2rem;border-radius:4px;border:1px solid #ddd;text-align:center;font-size:0.75rem;">
                                 <span style="font-size:0.7rem;">%</span>
                             </span>
@@ -2400,7 +2413,19 @@
 
     container.innerHTML = html;
 
-    // Atualiza lista de selecionados
+    // Atualiza lista de selecionados com as perdas atuais
+    document.querySelectorAll('.setor-processo-checkbox').forEach(cb => {
+      if (cb.checked) {
+        const setorId = cb.dataset.setorId;
+        const perdaInput = document.querySelector(`.setor-perda-input[data-setor-id="${setorId}"]`);
+        const perda = perdaInput ? parseFloat(perdaInput.value) || 0 : 0;
+        const setorExistente = custoProcessoSetoresSelecionados.find(item => item.id === setorId);
+        if (setorExistente) {
+          setorExistente.perda = perda;
+        }
+      }
+    });
+
     window.atualizarSetoresSelecionados();
     window.calcularCustoProcesso();
   };
@@ -2410,7 +2435,7 @@
     const setorId = checkbox.dataset.setorId;
     const nome = checkbox.dataset.nome;
     const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
-    
+
     // Busca a perda configurada
     const perdaInput = document.querySelector(`.setor-perda-input[data-setor-id="${setorId}"]`);
     const perda = perdaInput ? parseFloat(perdaInput.value) || 0 : 0;
@@ -2443,7 +2468,6 @@
       return;
     }
 
-    // Ordena pela ordem de seleção (manter a ordem que foram adicionados)
     let html = '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;">';
     custoProcessoSetoresSelecionados.forEach((setor, index) => {
       html += `
@@ -2498,7 +2522,7 @@
     if (imposto === null || isNaN(parseFloat(imposto))) return;
 
     const id = 'casual_' + Date.now();
-    custoProcessoCasualItens = []; // Remove itens anteriores (apenas 1 matéria prima)
+    custoProcessoCasualItens = [];
     custoProcessoCasualItens.push({
       id: id,
       nome: nome,
@@ -2506,7 +2530,7 @@
       custoKg: parseFloat(custoKg),
       imposto: parseFloat(imposto) || 0
     });
-    
+
     pesoInicialSimulacao = parseFloat(quantidade);
     nomeMateriaPrima = nome;
 
@@ -2536,7 +2560,7 @@
 
     const item = custoProcessoCasualItens[0];
     const valorTotal = item.quantidade * item.custoKg * (1 + (item.imposto || 0) / 100);
-    
+
     let html = `
         <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:#fef3c7;padding:0.5rem 1rem;border-radius:6px;border:1px solid #f59e0b;">
             <span style="font-weight:600;font-size:0.9rem;">📦 ${item.nome}</span>
@@ -2553,13 +2577,13 @@
     document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(item.quantidade, 0) + ' kg';
   };
 
-  // ======== CALCULAR CUSTO PROCESSO (SIMULAÇÃO COM PERDA) ========
+  // ======== CALCULAR CUSTO PROCESSO (SIMULAÇÃO COM PERDA - CORRIGIDO) ========
   window.calcularCustoProcesso = function() {
     // Verifica se tem matéria prima
     if (custoProcessoCasualItens.length === 0) {
       window.limparResumoCustoProcesso();
       document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
-      document.getElementById('custoProcessoCasualLista').innerHTML = 
+      document.getElementById('custoProcessoCasualLista').innerHTML =
         '<p style="color:var(--text-light);text-align:center;padding:0.5rem;margin:0;font-size:0.85rem;">Nenhuma matéria prima adicionada.</p>';
       return;
     }
@@ -2572,7 +2596,7 @@
     // Calcula o custo da matéria prima
     const custoMP = pesoAtual * materiaPrima.custoKg * (1 + (materiaPrima.imposto || 0) / 100);
     custoTotalAcumulado += custoMP;
-    
+
     detalhes.push({
       etapa: 'Matéria Prima',
       nome: materiaPrima.nome,
@@ -2580,18 +2604,21 @@
       custoKg: materiaPrima.custoKg,
       imposto: materiaPrima.imposto || 0,
       perda: 0,
+      pesoPerdido: 0,
       pesoSaida: pesoAtual,
       custoParcial: custoMP
     });
 
     // Processa cada setor na ordem selecionada
     let pesoEntrada = pesoAtual;
+
     custoProcessoSetoresSelecionados.forEach((setor, index) => {
       const perda = setor.perda || 0;
+      // 🔥 CORREÇÃO: Calcula o peso perdido com base no peso de entrada
       const pesoPerdido = pesoEntrada * (perda / 100);
       const pesoSaida = pesoEntrada - pesoPerdido;
-      
-      // Custo do setor aplicado sobre o peso de entrada
+
+      // Custo aplicado sobre o peso de ENTRADA
       const custoParcial = pesoEntrada * setor.custoKg;
       custoTotalAcumulado += custoParcial;
 
@@ -2606,11 +2633,13 @@
         custoParcial: custoParcial
       });
 
+      // 🔥 CORREÇÃO: Atualiza o peso para a próxima etapa
       pesoAtual = pesoSaida;
       pesoEntrada = pesoSaida;
     });
 
     const perdaTotal = pesoAtual > 0 ? ((materiaPrima.quantidade - pesoAtual) / materiaPrima.quantidade * 100) : 100;
+    const custoPorKgFinal = pesoAtual > 0 ? custoTotalAcumulado / pesoAtual : 0;
 
     // Atualiza resumo
     document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(materiaPrima.quantidade, 0) + ' kg';
@@ -2622,57 +2651,63 @@
     const container = document.getElementById('custoProcessoSetoresSelecionados');
     if (container && detalhes.length > 0) {
       let html = `
-        <div style="overflow-x:auto;margin-top:0.5rem;">
-          <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
-            <thead>
-              <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb;">
-                <th style="text-align:left;padding:0.3rem 0.5rem;">Etapa</th>
-                <th style="text-align:left;padding:0.3rem 0.5rem;">Item</th>
-                <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Entrada</th>
-                <th style="text-align:right;padding:0.3rem 0.5rem;">Custo/KG</th>
-                <th style="text-align:right;padding:0.3rem 0.5rem;">Perda</th>
-                <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Saída</th>
-                <th style="text-align:right;padding:0.3rem 0.5rem;">Custo Parcial</th>
-              </tr>
-            </thead>
-            <tbody>`;
+            <div style="overflow-x:auto;margin-top:0.5rem;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                    <thead>
+                        <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb;">
+                            <th style="text-align:left;padding:0.3rem 0.5rem;">Etapa</th>
+                            <th style="text-align:left;padding:0.3rem 0.5rem;">Item</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Entrada</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Custo/KG</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Perda</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Perdido</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Peso Saída</th>
+                            <th style="text-align:right;padding:0.3rem 0.5rem;">Custo Parcial</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
 
       detalhes.forEach(d => {
         html += `
-              <tr style="border-bottom:1px solid #f0f0f0;${d.etapa === 'Matéria Prima' ? 'background:#fef3c7;' : ''}">
-                <td style="padding:0.3rem 0.5rem;font-weight:500;">${d.etapa}</td>
-                <td style="padding:0.3rem 0.5rem;">${d.nome}</td>
-                <td style="text-align:right;padding:0.3rem 0.5rem;">${formatNumber(d.pesoEntrada, 0)} kg</td>
-                <td style="text-align:right;padding:0.3rem 0.5rem;">${formatMoney(d.custoKg)}</td>
-                <td style="text-align:right;padding:0.3rem 0.5rem;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
-                <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;color:#0d904f;">${formatNumber(d.pesoSaida, 0)} kg</td>
-                <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;">${formatMoney(d.custoParcial)}</td>
-              </tr>
-          `;
+                    <tr style="border-bottom:1px solid #f0f0f0;${d.etapa === 'Matéria Prima' ? 'background:#fef3c7;' : ''}">
+                        <td style="padding:0.3rem 0.5rem;font-weight:500;">${d.etapa}</td>
+                        <td style="padding:0.3rem 0.5rem;">${d.nome}</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;">${formatNumber(d.pesoEntrada, 0)} kg</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;">${formatMoney(d.custoKg)}</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? formatNumber(d.pesoPerdido, 0) + ' kg' : '-'}</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;color:#0d904f;">${formatNumber(d.pesoSaida, 0)} kg</td>
+                        <td style="text-align:right;padding:0.3rem 0.5rem;font-weight:600;">${formatMoney(d.custoParcial)}</td>
+                    </tr>
+                `;
       });
 
       // Linha de total
       html += `
-            <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-              <td colspan="6" style="padding:0.5rem;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
-              <td style="padding:0.5rem;text-align:right;color:#0d904f;font-size:1rem;">${formatMoney(custoTotalAcumulado)}</td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      `;
-      
+                    <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
+                        <td colspan="7" style="padding:0.5rem;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
+                        <td style="padding:0.5rem;text-align:right;color:#0d904f;font-size:1rem;">${formatMoney(custoTotalAcumulado)}</td>
+                    </tr>
+                    <tr style="background:#fef3c7;font-weight:600;border-top:1px solid #f59e0b;">
+                        <td colspan="7" style="padding:0.3rem 0.5rem;text-align:right;color:#d97706;">Custo por KG Final</td>
+                        <td style="padding:0.3rem 0.5rem;text-align:right;color:#d97706;font-size:0.95rem;">${formatMoney(custoPorKgFinal)}/kg</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+        `;
+
       // Adiciona o resumo da simulação abaixo da tabela
       html += `
-        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:6px;">
-          <span><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</span>
-          <span><strong>Peso Final:</strong> ${formatNumber(pesoAtual, 0)} kg</span>
-          <span><strong>Perda Total:</strong> ${perdaTotal.toFixed(1)}%</span>
-          <span><strong>Custo Total:</strong> ${formatMoney(custoTotalAcumulado)}</span>
-          <span><strong>Custo/KG Final:</strong> ${pesoAtual > 0 ? formatMoney(custoTotalAcumulado / pesoAtual) : 'R$ 0,00'}/kg</span>
-        </div>
-      `;
-      
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;margin-top:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:6px;">
+                <div><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</div>
+                <div><strong>Peso Final:</strong> ${formatNumber(pesoAtual, 0)} kg</div>
+                <div><strong>Perda Total:</strong> ${perdaTotal.toFixed(1)}%</div>
+                <div><strong>Custo Total:</strong> ${formatMoney(custoTotalAcumulado)}</div>
+                <div><strong>Custo/KG Final:</strong> ${formatMoney(custoPorKgFinal)}/kg</div>
+            </div>
+        `;
+
       container.innerHTML = html;
     }
   };
@@ -2708,7 +2743,6 @@
     const periodo = periodos.find(p => p.id === periodoId);
     const nomePeriodo = periodo ? `${getNomeMes(periodo.mes)}/${periodo.ano}` : 'Período não selecionado';
 
-    // Recalcula para ter os dados atualizados
     const materiaPrima = custoProcessoCasualItens[0];
     if (!materiaPrima) {
       alert('Adicione uma matéria prima primeiro.');
@@ -2757,6 +2791,7 @@
     });
 
     const perdaTotal = pesoAtual > 0 ? ((materiaPrima.quantidade - pesoAtual) / materiaPrima.quantidade * 100) : 100;
+    const custoPorKgFinal = pesoAtual > 0 ? custoTotalAcumulado / pesoAtual : 0;
 
     let html = `
         <div style="font-family:Arial,sans-serif;padding:20px;max-width:1000px;margin:0 auto;">
@@ -2765,14 +2800,14 @@
             </h1>
             <p><strong>Período:</strong> ${nomePeriodo}</p>
             <p><strong>Matéria Prima:</strong> ${materiaPrima.nome}</p>
-            
+
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
                 <div><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</div>
                 <div><strong>Peso Final:</strong> ${formatNumber(pesoAtual, 0)} kg</div>
                 <div><strong>Perda Total:</strong> ${perdaTotal.toFixed(1)}%</div>
                 <div><strong>Custo Total:</strong> ${formatMoney(custoTotalAcumulado)}</div>
             </div>
-            
+
             <h3 style="margin-top:20px;">Detalhamento do Processo</h3>
             <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                 <thead>
@@ -2782,6 +2817,7 @@
                         <th style="padding:8px;text-align:right;">Peso Entrada</th>
                         <th style="padding:8px;text-align:right;">Custo/KG</th>
                         <th style="padding:8px;text-align:right;">Perda</th>
+                        <th style="padding:8px;text-align:right;">Peso Perdido</th>
                         <th style="padding:8px;text-align:right;">Peso Saída</th>
                         <th style="padding:8px;text-align:right;">Custo Parcial</th>
                     </tr>
@@ -2796,6 +2832,7 @@
                 <td style="padding:6px 8px;text-align:right;">${formatNumber(d.pesoEntrada, 0)} kg</td>
                 <td style="padding:6px 8px;text-align:right;">${formatMoney(d.custoKg)}</td>
                 <td style="padding:6px 8px;text-align:right;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
+                <td style="padding:6px 8px;text-align:right;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? formatNumber(d.pesoPerdido, 0) + ' kg' : '-'}</td>
                 <td style="padding:6px 8px;text-align:right;font-weight:600;color:#0d904f;">${formatNumber(d.pesoSaida, 0)} kg</td>
                 <td style="padding:6px 8px;text-align:right;font-weight:600;">${formatMoney(d.custoParcial)}</td>
             </tr>
@@ -2804,12 +2841,16 @@
 
     html += `
             <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
-                <td colspan="6" style="padding:8px;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
+                <td colspan="7" style="padding:8px;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
                 <td style="padding:8px;text-align:right;color:#0d904f;font-size:1.1rem;">${formatMoney(custoTotalAcumulado)}</td>
+            </tr>
+            <tr style="background:#fef3c7;font-weight:600;border-top:1px solid #f59e0b;">
+                <td colspan="7" style="padding:6px 8px;text-align:right;color:#d97706;">Custo por KG Final</td>
+                <td style="padding:6px 8px;text-align:right;color:#d97706;font-size:1rem;">${formatMoney(custoPorKgFinal)}/kg</td>
             </tr>
         </tbody>
     </table>
-    
+
     <p style="margin-top:20px;font-size:0.8rem;color:#999;">
         Gerado em ${new Date().toLocaleString()}
     </p>
