@@ -1,378 +1,290 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Produção | Mil Plásticos</title>
+  <title>Controle de Estoque | Mil Plásticos</title>
 
   <!-- CSS Principal -->
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/sidebar.css">
   <link rel="stylesheet" href="/assets/css/topbar.css">
-  
-  <!-- CSS Específico -->
-  <link rel="stylesheet" href="/assets/css/producao.css">
-  
+  <link rel="stylesheet" href="/assets/css/estoque.css">
+
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  
-  <!-- Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-  <script src="/js/data-loader.js"></script>
-  
-  <!-- Bibliotecas específicas -->
+
+  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
+
 <body>
   <!-- Topbar Container -->
   <div id="topbar-container"></div>
-  
+
   <!-- Container principal -->
   <div class="container">
     <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
-    
+
     <!-- Conteúdo principal -->
     <main class="main-content">
-      <div class="page-container">
-        
-        <!-- Cabeçalho da página -->
-        <div class="page-header">
-          <div>
-            <h1><i class="fas fa-industry"></i> Controle de Produção</h1>
-            <p>Gerencie fechamentos, materiais e fornecedores</p>
-          </div>
-          <div class="page-actions">
-            <button class="btn btn-success" id="btnCadastrarMaterial">
-              <i class="fas fa-box"></i> Cadastrar Material
-            </button>
-            <button class="btn btn-info" id="btnCadastrarFornecedor">
-              <i class="fas fa-truck"></i> Cadastrar Fornecedor
-            </button>
-            <button class="btn btn-primary" id="btnNovoFechamento">
-              <i class="fas fa-plus-circle"></i> Novo Fechamento
-            </button>
-          </div>
-        </div>
-        
-        <!-- Abas de Navegação -->
-        <div class="tabs-container">
-          <div class="tabs">
-            <button class="tab-btn active" data-tab="fechamentos">
-              <i class="fas fa-folder-open"></i> Fechamentos
-            </button>
-            <button class="tab-btn" data-tab="materiais">
-              <i class="fas fa-boxes"></i> Materiais
-            </button>
-            <button class="tab-btn" data-tab="fornecedores">
-              <i class="fas fa-truck"></i> Fornecedores
-            </button>
-          </div>
-        </div>
-        
-        <!-- Aba: Fechamentos -->
-        <div class="tab-content active" id="tab-fechamentos">
-          
-          <!-- Filtros -->
-          <div class="card card-filters">
-            <div class="card-header">
-              <h3><i class="fas fa-filter"></i> Filtros</h3>
-            </div>
-            <div class="card-body">
-              <div class="filter-grid">
-                <div class="form-group">
-                  <label for="filtroFornecedor"><i class="fas fa-truck"></i> Fornecedor</label>
-                  <select id="filtroFornecedor">
-                    <option value="">Todos os fornecedores</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="filtroStatus"><i class="fas fa-tag"></i> Status</label>
-                  <select id="filtroStatus">
-                    <option value="">Todos</option>
-                    <option value="aberto">Em aberto</option>
-                    <option value="finalizado">Finalizados</option>
-                    <option value="concluido">Concluídos</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="filtroPeriodo"><i class="fas fa-calendar-alt"></i> Período</label>
-                  <select id="filtroPeriodo">
-                    <option value="30">Últimos 30 dias</option>
-                    <option value="7">Última semana</option>
-                    <option value="hoje">Hoje</option>
-                    <option value="todos">Todos</option>
-                  </select>
-                </div>
-                <div class="form-actions">
-                  <button class="btn btn-secondary" id="btnLimparFiltros">
-                    <i class="fas fa-broom"></i> Limpar
-                  </button>
-                  <button class="btn btn-primary" id="btnAplicarFiltros">
-                    <i class="fas fa-search"></i> Filtrar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Estatísticas -->
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon"><i class="fas fa-folder"></i></div>
-              <div class="stat-info">
-                <h3 id="totalFechamentos">0</h3>
-                <p>Fechamentos</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
-              <div class="stat-info">
-                <h3 id="totalFolhas">0</h3>
-                <p>Total de Folhas</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon"><i class="fas fa-weight-hanging"></i></div>
-              <div class="stat-info">
-                <h3 id="totalPeso">0 kg</h3>
-                <p>Peso Total</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
-              <div class="stat-info">
-                <h3 id="fechamentosAbertos">0</h3>
-                <p>Em Aberto</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Lista de Fechamentos -->
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-history"></i> Histórico de Fechamentos</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="searchFechamentos" placeholder="Buscar fechamentos...">
-                </div>
-                <span class="badge" id="totalRegistros">0 registros</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <div id="listaFechamentos">
-                <div class="empty-state">
-                  <i class="fas fa-folder-open"></i>
-                  <p>Nenhum fechamento encontrado</p>
-                  <small>Clique em "Novo Fechamento" para começar</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Aba: Materiais -->
-        <div class="tab-content" id="tab-materiais">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-boxes"></i> Materiais Cadastrados</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="searchMateriais" placeholder="Buscar materiais...">
-                </div>
-                <span class="badge" id="totalMateriais">0 materiais</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <div id="listaMateriaisCadastrados" class="cadastros-grid">
-                <div class="empty-state">
-                  <i class="fas fa-box-open"></i>
-                  <p>Nenhum material cadastrado</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Aba: Fornecedores -->
-        <div class="tab-content" id="tab-fornecedores">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-truck"></i> Fornecedores Cadastrados</h2>
-              <div class="table-actions">
-                <div class="search-box">
-                  <i class="fas fa-search"></i>
-                  <input type="text" id="searchFornecedores" placeholder="Buscar fornecedores...">
-                </div>
-                <span class="badge" id="totalFornecedores">0 fornecedores</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <div id="listaFornecedoresCadastrados" class="cadastros-grid">
-                <div class="empty-state">
-                  <i class="fas fa-truck"></i>
-                  <p>Nenhum fornecedor cadastrado</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
+
+      <!-- LOADING -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem; color: var(--text);">Carregando Controle de Estoque...</p>
       </div>
+
+      <!-- CONTEÚDO PRINCIPAL -->
+      <div class="estoque-container">
+        
+        <!-- HEADER -->
+        <div class="header-estoque">
+          <h1><i class="fas fa-boxes"></i> Controle de Estoque</h1>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-success btn-sm" onclick="window.abrirModalBaia()">
+              <i class="fas fa-plus"></i> Nova Baia
+            </button>
+            <button class="btn btn-pdf btn-sm" onclick="window.gerarPDFEstoque()">
+              <i class="fas fa-file-pdf"></i> Gerar PDF
+            </button>
+            <button class="btn btn-info btn-sm" onclick="window.exportarDados()">
+              <i class="fas fa-download"></i> Exportar
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="window.importarDados()">
+              <i class="fas fa-upload"></i> Importar
+            </button>
+            <span id="firebaseStatusEstoque" class="firebase-status status-local">
+              <span class="status-dot"></span> Conectando...
+            </span>
+          </div>
+        </div>
+
+        <!-- BREADCRUMB -->
+        <div class="breadcrumb" id="breadcrumbEstoque">
+          <span><i class="fas fa-home"></i> Dashboard</span>
+          <span><i class="fas fa-chevron-right"></i></span>
+          <span class="active">Controle de Estoque</span>
+        </div>
+
+        <!-- ========== PAINEL DE CONTROLE ========== -->
+        <div class="estoque-painel">
+          
+          <!-- RESUMO RÁPIDO -->
+          <div class="estoque-resumo" id="estoqueResumo">
+            <div class="resumo-card">
+              <div class="resumo-icon" style="background: #e8f4f8; color: #1a2a3a;">
+                <i class="fas fa-warehouse"></i>
+              </div>
+              <div class="resumo-info">
+                <span class="resumo-label">Total de Baias</span>
+                <span class="resumo-valor" id="totalBaias">0</span>
+              </div>
+            </div>
+            <div class="resumo-card">
+              <div class="resumo-icon" style="background: #eafaf1; color: #27ae60;">
+                <i class="fas fa-weight-scale"></i>
+              </div>
+              <div class="resumo-info">
+                <span class="resumo-label">Total Estimado (kg)</span>
+                <span class="resumo-valor" id="totalEstimado">0</span>
+              </div>
+            </div>
+            <div class="resumo-card">
+              <div class="resumo-icon" style="background: #fef9e7; color: #f1c40f;">
+                <i class="fas fa-sack"></i>
+              </div>
+              <div class="resumo-info">
+                <span class="resumo-label">Total de Bags</span>
+                <span class="resumo-valor" id="totalBags">0</span>
+              </div>
+            </div>
+            <div class="resumo-card">
+              <div class="resumo-icon" style="background: #fdedec; color: #e74c3c;">
+                <i class="fas fa-box-open"></i>
+              </div>
+              <div class="resumo-info">
+                <span class="resumo-label">Materiais Únicos</span>
+                <span class="resumo-valor" id="totalMateriais">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABS -->
+          <div class="tabs-estoque">
+            <button class="tab-estoque active" data-tipo="moido-sujo" onclick="window.mudarTipoEstoque('moido-sujo')">
+              <i class="fas fa-drum"></i> Moído Sujo
+              <span class="badge" id="badgeSujo">0</span>
+            </button>
+            <button class="tab-estoque" data-tipo="moido-lavado" onclick="window.mudarTipoEstoque('moido-lavado')">
+              <i class="fas fa-water"></i> Moído Lavado
+              <span class="badge" id="badgeLavado">0</span>
+            </button>
+            <button class="tab-estoque" data-tipo="todos" onclick="window.mudarTipoEstoque('todos')">
+              <i class="fas fa-layer-group"></i> Todos
+              <span class="badge" id="badgeTodos">0</span>
+            </button>
+          </div>
+
+          <!-- FILTROS -->
+          <div class="filtros-estoque">
+            <div class="filtro-group">
+              <input type="text" id="filtroBusca" placeholder="🔍 Buscar baia ou material..." 
+                     oninput="window.filtrarEstoque()">
+            </div>
+            <div class="filtro-group">
+              <select id="filtroMaterial" onchange="window.filtrarEstoque()">
+                <option value="">Todos os materiais</option>
+              </select>
+            </div>
+            <div class="filtro-group">
+              <button class="btn btn-outline btn-sm" onclick="window.limparFiltros()">
+                <i class="fas fa-times"></i> Limpar
+              </button>
+            </div>
+          </div>
+
+          <!-- GRID DE BAIAS -->
+          <div id="baias-container" class="baias-grid">
+            <!-- Renderizado via JS -->
+          </div>
+
+          <!-- PAGINAÇÃO -->
+          <div class="paginacao" id="paginacaoEstoque">
+            <button class="btn btn-outline btn-sm" onclick="window.paginaAnterior()">
+              <i class="fas fa-chevron-left"></i> Anterior
+            </button>
+            <span id="paginaInfo">Página 1 de 1</span>
+            <button class="btn btn-outline btn-sm" onclick="window.proximaPagina()">
+              Próxima <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===================== MODAIS ===================== -->
+
+      <!-- MODAL BAIAS -->
+      <div class="modal-overlay" id="modalBaia">
+        <div class="modal">
+          <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
+          <form id="formBaia">
+            <input type="hidden" id="editBaiaIndex" value="-1" />
+            <input type="hidden" id="editTipo" value="moido-sujo" />
+
+            <div class="form-group">
+              <label for="baiaNome">Nome da Baia <span class="required">*</span></label>
+              <input type="text" id="baiaNome" placeholder="Ex: Baia A1, Estoque 01..." required />
+            </div>
+
+            <div class="form-group">
+              <label for="materialNome">Material <span class="required">*</span></label>
+              <input type="text" id="materialNome" placeholder="Ex: PP, PE, PET, PEAD..." required />
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="qtdBag">Quantidade (Bag) <span class="required">*</span></label>
+                <input type="number" id="qtdBag" placeholder="0" min="0" step="1" required />
+              </div>
+              <div class="form-group">
+                <label for="estimativaKg">Estimativa (kg/Bag) <span class="required">*</span></label>
+                <input type="number" id="estimativaKg" placeholder="0" min="0" step="0.1" required />
+              </div>
+            </div>
+
+            <div class="form-group" style="background: #f0f4fa; padding: 12px 16px; border-radius: 8px;">
+              <label style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-calculator"></i> Quantidade Estimada (kg)</span>
+                <span id="previewEstimada" style="font-weight: 700; font-size: 20px; color: #1a2a3a;">0,0</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>Observação</label>
+              <input type="text" id="baiaObs" placeholder="Observações sobre a baia (opcional)" />
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" onclick="window.fecharModalBaia()">Cancelar</button>
+              <button type="submit" class="btn btn-success" id="btnSalvarBaia">
+                <i class="fas fa-save"></i> Salvar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL DETALHES DA BAIA -->
+      <div class="modal-overlay" id="modalDetalhesBaia">
+        <div class="modal modal-lg">
+          <h2><i class="fas fa-archive"></i> <span id="detalhesBaiaTitulo">Detalhes da Baia</span></h2>
+          <div id="detalhesBaiaConteudo">
+            <!-- Renderizado via JS -->
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-pdf btn-sm" onclick="window.gerarPDFBaia()">
+              <i class="fas fa-file-pdf"></i> PDF da Baia
+            </button>
+            <button class="btn btn-outline" onclick="window.fecharModal('modalDetalhesBaia')">Fechar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL CONFIRMAÇÃO -->
+      <div class="modal-overlay" id="modalConfirmacao">
+        <div class="modal modal-sm">
+          <h2><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Confirmar Exclusão</h2>
+          <p id="confirmacaoMensagem">Tem certeza que deseja excluir esta baia?</p>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="window.fecharModal('modalConfirmacao')">Cancelar</button>
+            <button class="btn btn-danger" id="btnConfirmarExclusao">
+              <i class="fas fa-trash"></i> Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL IMPORTAR -->
+      <div class="modal-overlay" id="modalImportar">
+        <div class="modal">
+          <h2><i class="fas fa-upload"></i> Importar Dados</h2>
+          <p style="color: var(--text-light); margin-bottom: 1rem;">
+            Selecione um arquivo JSON exportado anteriormente.
+          </p>
+          <div class="form-group">
+            <label>Arquivo JSON</label>
+            <input type="file" id="arquivoImportar" accept=".json" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="window.fecharModal('modalImportar')">Cancelar</button>
+            <button class="btn btn-primary" onclick="window.confirmarImportar()">
+              <i class="fas fa-upload"></i> Importar
+            </button>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
-  <!-- Modal: Novo Fechamento -->
-  <div id="modalNovoFechamento" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><i class="fas fa-folder-plus"></i> Novo Fechamento</h3>
-        <button class="btn-icon close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formNovoFechamento">
-          <div class="form-group">
-            <label for="dataEntradaFechamento"><i class="fas fa-calendar-alt"></i> Data de Entrada *</label>
-            <input type="date" id="dataEntradaFechamento" required>
-          </div>
-          <div class="form-group">
-            <label for="fechamentoFornecedor"><i class="fas fa-truck"></i> Fornecedor *</label>
-            <select id="fechamentoFornecedor" required>
-              <option value="">Selecione um fornecedor...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="pesoBrutoFechamento"><i class="fas fa-weight-hanging"></i> Peso Bruto (kg)</label>
-            <input type="number" id="pesoBrutoFechamento" step="0.01" min="0" placeholder="Peso total da balança">
-          </div>
-          <div class="form-group">
-            <label for="estadoMaterialFechamento"><i class="fas fa-tag"></i> Estado do Material *</label>
-            <select id="estadoMaterialFechamento" required>
-              <option value="">Selecione o estado...</option>
-              <option value="Separado">Separado</option>
-              <option value="Sucata">Sucata</option>
-              <option value="Moído">Moído</option>
-            </select>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btnCriarFechamento">
-          <i class="fas fa-save"></i> Criar Fechamento
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- ===================== FIREBASE CONFIG ===================== -->
+  <script>
   
-  <!-- Modal: Folha -->
-  <div id="modalFolha" class="modal">
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <h3><i class="fas fa-file-alt"></i> <span id="modalFolhaTitulo">Nova Folha</span></h3>
-        <button class="btn-icon close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="fechamentoAtualId">
-        <input type="hidden" id="folhaEditandoId">
-        <form id="formFolha">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="folhaData"><i class="fas fa-calendar-alt"></i> Data Pesagem *</label>
-              <input type="date" id="folhaData" required>
-            </div>
-            <div class="form-group">
-              <label for="folhaDescricao"><i class="fas fa-file-alt"></i> Descrição da Folha</label>
-              <input type="text" id="folhaDescricao" placeholder="Ex: Folha 01, Lote A...">
-            </div>
-          </div>
-          <div class="materiais-section">
-            <div class="section-header">
-              <h4><i class="fas fa-boxes"></i> Materiais e Pesos Individuais</h4>
-              <button type="button" class="btn btn-sm btn-primary" id="btnAddMaterial">
-                <i class="fas fa-plus"></i> Adicionar Material
-              </button>
-            </div>
-            <div id="materiaisList" class="materiais-list"></div>
-            <div class="total-soma">
-              Soma Total dos Materiais: <strong id="somaMateriais">0,00</strong> kg
-            </div>
-            <div id="comparativoDiv" class="comparativo-box">Aguardando preenchimento...</div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btnSalvarFolha">
-          <i class="fas fa-save"></i> Salvar Folha
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Modal: Cadastrar Material -->
-  <div id="modalCadastroMaterial" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><i class="fas fa-box"></i> Cadastrar Material</h3>
-        <button class="btn-icon close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formCadastroMaterial">
-          <div class="form-group">
-            <label for="novoMaterialNome"><i class="fas fa-tag"></i> Nome do Material *</label>
-            <input type="text" id="novoMaterialNome" placeholder="Ex: ABS Preto, PP Branco..." required>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btnSalvarMaterial">
-          <i class="fas fa-save"></i> Salvar Material
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Modal: Cadastrar Fornecedor -->
-  <div id="modalCadastroFornecedor" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3><i class="fas fa-truck"></i> Cadastrar Fornecedor</h3>
-        <button class="btn-icon close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formCadastroFornecedor">
-          <div class="form-group">
-            <label for="novoFornecedorNome"><i class="fas fa-tag"></i> Nome do Fornecedor *</label>
-            <input type="text" id="novoFornecedorNome" placeholder="Ex: Plásticos Silva Ltda" required>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btnSalvarFornecedor">
-          <i class="fas fa-save"></i> Salvar Fornecedor
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Alerta Flutuante -->
-  <div id="alertaFlutuante" class="alerta-flutuante">
-    <i class="fas fa-info-circle"></i>
-    <span id="mensagemAlerta"></span>
-  </div>
+      });
+  </script>
 
-  <!-- ========== SCRIPTS ========== -->
-  <script src="/js/main.js"></script>
-  <script src="/js/producao.js"></script>
+  <!-- ===================== SCRIPTS ===================== -->
+  <script src="/js/estoque.js"></script>
+
 </body>
+
 </html>
