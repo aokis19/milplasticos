@@ -39,11 +39,25 @@ function configurarEventos() {
     const qtdBag = document.getElementById('qtdBag');
     const estimativaKg = document.getElementById('estimativaKg');
     if (qtdBag && estimativaKg) {
-        qtdBag.addEventListener('input', atualizarPreviewEstimativa);
-        estimativaKg.addEventListener('input', atualizarPreviewEstimativa);
+        qtdBag.addEventListener('input', function() {
+            atualizarPreviewEstimativa();
+            calcularTotal();
+        });
+        estimativaKg.addEventListener('input', function() {
+            atualizarPreviewEstimativa();
+            calcularTotal();
+        });
         // Permitir decimais
         qtdBag.setAttribute('step', '0.1');
         estimativaKg.setAttribute('step', '0.1');
+    }
+
+    // Tipo de baia - antes do nome
+    const tipoBaiaSelect = document.getElementById('tipoBaiaSelect');
+    if (tipoBaiaSelect) {
+        tipoBaiaSelect.addEventListener('change', function() {
+            document.getElementById('editTipo').value = this.value;
+        });
     }
 
     // Fechar modal ao clicar no overlay
@@ -73,6 +87,27 @@ function configurarEventos() {
     }
 }
 
+// ========== CALCULAR TOTAL EM TEMPO REAL ==========
+function calcularTotal() {
+    const qtd = parseFloat(document.getElementById('qtdBag')?.value) || 0;
+    const kg = parseFloat(document.getElementById('estimativaKg')?.value) || 0;
+    const total = qtd * kg;
+    
+    // Atualizar campo total se existir
+    const totalField = document.getElementById('totalCalculado');
+    if (totalField) {
+        totalField.textContent = total.toFixed(1) + ' kg';
+    }
+    
+    // Atualizar preview
+    const preview = document.getElementById('previewEstimada');
+    if (preview) {
+        preview.textContent = total.toFixed(1);
+    }
+    
+    return total;
+}
+
 // ========== FIREBASE - CARREGAR DADOS ==========
 function carregarDadosEstoque() {
     mostrarLoading(true);
@@ -91,10 +126,10 @@ function carregarDadosEstoque() {
                         id: doc.id,
                         ...data,
                         dataCriacao: data.dataCriacao || new Date().toISOString(),
-                        // Garantir que os números sejam float
                         quantidade: parseFloat(data.quantidade) || 0,
                         estimativaKg: parseFloat(data.estimativaKg) || 0,
-                        totalKg: parseFloat(data.totalKg) || 0
+                        totalKg: parseFloat(data.totalKg) || 0,
+                        historico: data.historico || []
                     });
                 });
                 
@@ -128,16 +163,18 @@ function carregarDadosLocais() {
                 {
                     id: '1',
                     nome: 'Baia A1',
+                    tipo: 'moido-sujo',
                     material: 'PP',
                     quantidade: 10.5,
                     estimativaKg: 25.5,
-                    tipo: 'moido-sujo',
+                    totalKg: 267.75,
                     observacao: 'Material de alta qualidade',
                     dataCriacao: new Date().toISOString(),
                     historico: [
                         {
                             data: new Date().toISOString(),
                             acao: 'Criação',
+                            tipo: 'moido-sujo',
                             detalhes: 'Baia criada com 10.5 bags'
                         }
                     ]
@@ -145,16 +182,18 @@ function carregarDadosLocais() {
                 {
                     id: '2',
                     nome: 'Baia B2',
+                    tipo: 'moido-lavado',
                     material: 'PEAD',
                     quantidade: 8.0,
                     estimativaKg: 30.0,
-                    tipo: 'moido-lavado',
+                    totalKg: 240.0,
                     observacao: 'Lavado e seco',
                     dataCriacao: new Date().toISOString(),
                     historico: [
                         {
                             data: new Date().toISOString(),
                             acao: 'Criação',
+                            tipo: 'moido-lavado',
                             detalhes: 'Baia criada com 8.0 bags'
                         }
                     ]
@@ -174,12 +213,17 @@ function salvarNoFirebase(dados) {
     try {
         const db = firebase.firestore();
         
-        // Garantir que os números sejam float
+        // Garantir que os números sejam float e calcular total
+        const quantidade = parseFloat(dados.quantidade) || 0;
+        const estimativaKg = parseFloat(dados.estimativaKg) || 0;
+        const totalKg = quantidade * estimativaKg;
+        
         const dadosToSave = {
             ...dados,
-            quantidade: parseFloat(dados.quantidade) || 0,
-            estimativaKg: parseFloat(dados.estimativaKg) || 0,
-            totalKg: parseFloat(dados.quantidade) * parseFloat(dados.estimativaKg) || 0
+            quantidade: quantidade,
+            estimativaKg: estimativaKg,
+            totalKg: totalKg,
+            historico: dados.historico || []
         };
         
         if (dados.id && !dados.id.startsWith('local_')) {
@@ -194,14 +238,7 @@ function salvarNoFirebase(dados) {
             const newData = {
                 ...dadosToSave,
                 dataCriacao: new Date().toISOString(),
-                dataAtualizacao: new Date().toISOString(),
-                historico: dados.historico || [
-                    {
-                        data: new Date().toISOString(),
-                        acao: 'Criação',
-                        detalhes: `Baia criada com ${parseFloat(dados.quantidade).toFixed(1)} bags`
-                    }
-                ]
+                dataAtualizacao: new Date().toISOString()
             };
             return db.collection('baias').add(newData);
         }
@@ -556,24 +593,28 @@ window.abrirModalBaia = function() {
     document.getElementById('editBaiaIndex').value = '-1';
     document.getElementById('editTipo').value = currentTipo === 'todos' ? 'moido-sujo' : currentTipo;
     document.getElementById('previewEstimada').textContent = '0,0';
-    document.getElementById('editBaiaIndex').value = '-1';
+    
+    // Resetar select de tipo
+    const tipoSelect = document.getElementById('tipoBaiaSelect');
+    if (tipoSelect) {
+        tipoSelect.value = currentTipo === 'todos' ? 'moido-sujo' : currentTipo;
+    }
     
     // Garantir que aceita decimais
     document.getElementById('qtdBag').step = '0.1';
     document.getElementById('estimativaKg').step = '0.1';
+    document.getElementById('qtdBag').value = '';
+    document.getElementById('estimativaKg').value = '';
+    
+    // Limpar total calculado
+    const totalField = document.getElementById('totalCalculado');
+    if (totalField) totalField.textContent = '0,0 kg';
     
     if (titulo) titulo.textContent = 'Nova Baia';
     if (btnSalvar) btnSalvar.innerHTML = '<i class="fas fa-save"></i> Salvar';
     
-    if (currentTipo === 'todos') {
-        const activeTab = document.querySelector('.tab-estoque.active');
-        if (activeTab) {
-            document.getElementById('editTipo').value = activeTab.dataset.tipo;
-        }
-    }
-    
     modal.classList.add('active');
-    document.getElementById('baiaNome')?.focus();
+    document.getElementById('tipoBaiaSelect')?.focus();
 };
 
 // ========== FECHAR MODAL BAIAS ==========
@@ -585,14 +626,21 @@ window.fecharModalBaia = function() {
 // ========== SALVAR BAIA ==========
 function salvarBaia() {
     const editIndex = parseInt(document.getElementById('editBaiaIndex').value);
+    const tipo = document.getElementById('tipoBaiaSelect').value;
     const nome = document.getElementById('baiaNome').value.trim();
     const material = document.getElementById('materialNome').value.trim();
     const quantidade = parseFloat(document.getElementById('qtdBag').value) || 0;
     const estimativaKg = parseFloat(document.getElementById('estimativaKg').value) || 0;
-    const tipo = document.getElementById('editTipo').value;
     const observacao = document.getElementById('baiaObs').value.trim();
+    const totalKg = quantidade * estimativaKg;
     
     // Validações
+    if (!tipo) {
+        alert('Por favor, selecione o tipo da baia (Sujo ou Lavado).');
+        document.getElementById('tipoBaiaSelect').focus();
+        return;
+    }
+    
     if (!nome) {
         alert('Por favor, preencha o nome da baia.');
         document.getElementById('baiaNome').focus();
@@ -617,16 +665,14 @@ function salvarBaia() {
         return;
     }
     
-    const totalKg = quantidade * estimativaKg;
-    
     const dados = {
-        nome,
-        material,
+        tipo: tipo,
+        nome: nome,
+        material: material,
         quantidade: quantidade,
         estimativaKg: estimativaKg,
-        tipo,
-        observacao,
-        totalKg: totalKg
+        totalKg: totalKg,
+        observacao: observacao
     };
     
     mostrarLoading(true);
@@ -641,6 +687,7 @@ function salvarBaia() {
         dados.historico.push({
             data: new Date().toISOString(),
             acao: 'Atualização',
+            tipo: tipo,
             detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
         });
         
@@ -666,6 +713,7 @@ function salvarBaia() {
             {
                 data: new Date().toISOString(),
                 acao: 'Criação',
+                tipo: tipo,
                 detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
             }
         ];
@@ -703,26 +751,32 @@ window.editarBaia = function(index) {
     const titulo = document.getElementById('modalBaiaTitulo');
     const btnSalvar = document.getElementById('btnSalvarBaia');
     
+    // Preencher formulário
     document.getElementById('editBaiaIndex').value = realIndex;
+    document.getElementById('tipoBaiaSelect').value = item.tipo || 'moido-sujo';
+    document.getElementById('editTipo').value = item.tipo || 'moido-sujo';
     document.getElementById('baiaNome').value = item.nome || '';
     document.getElementById('materialNome').value = item.material || '';
     document.getElementById('qtdBag').value = item.quantidade || 0;
     document.getElementById('estimativaKg').value = item.estimativaKg || 0;
-    document.getElementById('editTipo').value = item.tipo || 'moido-sujo';
     document.getElementById('baiaObs').value = item.observacao || '';
     
     // Garantir que aceita decimais
     document.getElementById('qtdBag').step = '0.1';
     document.getElementById('estimativaKg').step = '0.1';
     
+    // Calcular e mostrar total
     const totalKg = (parseFloat(item.quantidade) || 0) * (parseFloat(item.estimativaKg) || 0);
     document.getElementById('previewEstimada').textContent = totalKg.toFixed(1);
+    
+    const totalField = document.getElementById('totalCalculado');
+    if (totalField) totalField.textContent = totalKg.toFixed(1) + ' kg';
     
     if (titulo) titulo.textContent = 'Editar Baia';
     if (btnSalvar) btnSalvar.innerHTML = '<i class="fas fa-save"></i> Atualizar';
     
     if (modal) modal.classList.add('active');
-    document.getElementById('baiaNome')?.focus();
+    document.getElementById('tipoBaiaSelect')?.focus();
 };
 
 // ========== VER DETALHES DA BAIA ==========
@@ -743,22 +797,45 @@ window.verDetalhesBaia = function(index) {
     const totalKg = (quantidade * estimativa).toFixed(1);
     const tipoLabel = item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado';
     
-    // Gerar histórico
+    // Gerar histórico filtrado por tipo
     let historicoHtml = '';
     if (item.historico && item.historico.length > 0) {
-        historicoHtml = `
-            <div style="margin-top:16px;">
-                <h4 style="color:#1a2a3a; margin-bottom:8px;">
-                    <i class="fas fa-history"></i> Histórico de Movimentações
-                </h4>
-                <div style="background:#f8f9fc; border-radius:8px; padding:12px; max-height:200px; overflow-y:auto;">
-                    ${item.historico.slice().reverse().map(h => `
-                        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eef2f7; font-size:13px;">
-                            <span><strong>${h.acao}</strong> - ${h.detalhes}</span>
-                            <span style="color:#888; font-size:11px;">${formatarDataCompleta(h.data)}</span>
-                        </div>
-                    `).join('')}
+        // Filtrar histórico pelo tipo da baia
+        const historicoFiltrado = item.historico.filter(h => h.tipo === item.tipo);
+        
+        if (historicoFiltrado.length > 0) {
+            historicoHtml = `
+                <div style="margin-top:16px;">
+                    <h4 style="color:#1a2a3a; margin-bottom:8px;">
+                        <i class="fas fa-history"></i> Histórico de Movimentações (${tipoLabel})
+                    </h4>
+                    <div style="background:#f8f9fc; border-radius:8px; padding:12px; max-height:200px; overflow-y:auto;">
+                        ${historicoFiltrado.slice().reverse().map(h => `
+                            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eef2f7; font-size:13px;">
+                                <span>
+                                    <strong>${h.acao}</strong> 
+                                    <span style="color:#666; font-size:11px;">${h.tipo === 'moido-sujo' ? '🟡 Sujo' : '🔵 Lavado'}</span>
+                                    - ${h.detalhes}
+                                </span>
+                                <span style="color:#888; font-size:11px;">${formatarDataCompleta(h.data)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
+            `;
+        } else {
+            historicoHtml = `
+                <div style="margin-top:16px; text-align:center; color:#888; padding:20px;">
+                    <i class="fas fa-history" style="font-size:24px; display:block; margin-bottom:8px;"></i>
+                    Nenhum histórico encontrado para este tipo.
+                </div>
+            `;
+        }
+    } else {
+        historicoHtml = `
+            <div style="margin-top:16px; text-align:center; color:#888; padding:20px;">
+                <i class="fas fa-history" style="font-size:24px; display:block; margin-bottom:8px;"></i>
+                Nenhum histórico registrado.
             </div>
         `;
     }
@@ -970,6 +1047,7 @@ window.gerarPDFBaia = function() {
         const quantidade = parseFloat(item.quantidade) || 0;
         const estimativa = parseFloat(item.estimativaKg) || 0;
         const totalKg = (quantidade * estimativa).toFixed(1);
+        const tipoLabel = item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado';
         
         doc.setFontSize(22);
         doc.setTextColor(26, 42, 58);
@@ -983,7 +1061,7 @@ window.gerarPDFBaia = function() {
         
         const dados = [
             ['Nome da Baia', item.nome || '-'],
-            ['Tipo', item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado'],
+            ['Tipo', tipoLabel],
             ['Material', item.material || '-'],
             ['Quantidade (Bags)', quantidade.toFixed(1)],
             ['Estimativa (kg/Bag)', estimativa.toFixed(1)],
@@ -1001,24 +1079,28 @@ window.gerarPDFBaia = function() {
             y += 10;
         });
         
-        // Histórico
+        // Histórico filtrado por tipo
         if (item.historico && item.historico.length > 0) {
-            y += 5;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.text('Histórico de Movimentações:', 20, y);
-            y += 6;
+            const historicoFiltrado = item.historico.filter(h => h.tipo === item.tipo);
             
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            item.historico.slice().reverse().forEach(h => {
-                doc.text(`• ${h.acao}: ${h.detalhes}`, 25, y);
+            if (historicoFiltrado.length > 0) {
                 y += 5;
-                doc.setTextColor(150, 150, 150);
-                doc.text(`  ${formatarDataCompleta(h.data)}`, 28, y);
-                doc.setTextColor(26, 42, 58);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text(`Histórico de Movimentações (${tipoLabel}):`, 20, y);
                 y += 6;
-            });
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                historicoFiltrado.slice().reverse().forEach(h => {
+                    doc.text(`• ${h.acao}: ${h.detalhes}`, 25, y);
+                    y += 5;
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(`  ${formatarDataCompleta(h.data)}`, 28, y);
+                    doc.setTextColor(26, 42, 58);
+                    y += 6;
+                });
+            }
         }
         
         doc.setDrawColor(39, 174, 96);
@@ -1119,7 +1201,8 @@ window.confirmarImportar = function() {
                 id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 quantidade: parseFloat(item.quantidade) || 0,
                 estimativaKg: parseFloat(item.estimativaKg) || 0,
-                totalKg: parseFloat(item.quantidade) * parseFloat(item.estimativaKg) || 0
+                totalKg: parseFloat(item.quantidade) * parseFloat(item.estimativaKg) || 0,
+                historico: item.historico || []
             }));
             
             baiasData = novasBaias;
@@ -1167,9 +1250,15 @@ function atualizarPreviewEstimativa() {
     const qtd = parseFloat(document.getElementById('qtdBag')?.value) || 0;
     const kg = parseFloat(document.getElementById('estimativaKg')?.value) || 0;
     const preview = document.getElementById('previewEstimada');
+    const totalField = document.getElementById('totalCalculado');
+    const total = qtd * kg;
     
     if (preview) {
-        preview.textContent = (qtd * kg).toFixed(1);
+        preview.textContent = total.toFixed(1);
+    }
+    
+    if (totalField) {
+        totalField.textContent = total.toFixed(1) + ' kg';
     }
 }
 
@@ -1222,7 +1311,9 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
     setTimeout(() => {
         notificacao.style.transform = 'translateX(120%)';
         setTimeout(() => {
-            document.body.removeChild(notificacao);
+            if (notificacao.parentNode) {
+                document.body.removeChild(notificacao);
+            }
         }, 400);
     }, 4000);
     
