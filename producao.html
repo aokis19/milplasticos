@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/assets/css/topbar.css">
 
   <!-- CSS Específico -->
-  <link rel="stylesheet" href="/assets/css/producao.css">
+  <link rel="stylesheet" href="/assets/css/estoque.css">
 
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -21,11 +21,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  <!-- Init e Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-
-  <!-- Bibliotecas específicas (carregadas depois para não bloquear) -->
+  <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -41,6 +37,9 @@
     <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
 
+    <!-- MAIN CONTENT -->
+    <main class="main-content" style="flex:1; min-height:100vh; background:#f0f4fa; padding:0;">
+
       <!-- LOADING -->
       <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
@@ -54,16 +53,16 @@
         <div class="header-estoque">
           <h1><i class="fas fa-boxes"></i> Controle de Estoque</h1>
           <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-success btn-sm" onclick="window.abrirModalBaia()">
+            <button class="btn btn-success btn-sm" onclick="abrirModalBaia()">
               <i class="fas fa-plus"></i> Nova Baia
             </button>
-            <button class="btn btn-pdf btn-sm" onclick="window.gerarPDFEstoque()">
+            <button class="btn btn-pdf btn-sm" onclick="gerarPDFEstoque()">
               <i class="fas fa-file-pdf"></i> Gerar PDF
             </button>
-            <button class="btn btn-info btn-sm" onclick="window.exportarDados()">
+            <button class="btn btn-info btn-sm" onclick="exportarDados()">
               <i class="fas fa-download"></i> Exportar
             </button>
-            <button class="btn btn-outline btn-sm" onclick="window.importarDados()">
+            <button class="btn btn-outline btn-sm" onclick="importarDados()">
               <i class="fas fa-upload"></i> Importar
             </button>
             <span id="firebaseStatusEstoque" class="firebase-status status-local">
@@ -124,15 +123,15 @@
 
           <!-- TABS -->
           <div class="tabs-estoque">
-            <button class="tab-estoque active" data-tipo="moido-sujo" onclick="window.mudarTipoEstoque('moido-sujo')">
+            <button class="tab-estoque active" data-tipo="moido-sujo" onclick="mudarTipo('moido-sujo')">
               <i class="fas fa-drum"></i> Moído Sujo
               <span class="badge" id="badgeSujo">0</span>
             </button>
-            <button class="tab-estoque" data-tipo="moido-lavado" onclick="window.mudarTipoEstoque('moido-lavado')">
+            <button class="tab-estoque" data-tipo="moido-lavado" onclick="mudarTipo('moido-lavado')">
               <i class="fas fa-water"></i> Moído Lavado
               <span class="badge" id="badgeLavado">0</span>
             </button>
-            <button class="tab-estoque" data-tipo="todos" onclick="window.mudarTipoEstoque('todos')">
+            <button class="tab-estoque" data-tipo="todos" onclick="mudarTipo('todos')">
               <i class="fas fa-layer-group"></i> Todos
               <span class="badge" id="badgeTodos">0</span>
             </button>
@@ -141,16 +140,15 @@
           <!-- FILTROS -->
           <div class="filtros-estoque">
             <div class="filtro-group">
-              <input type="text" id="filtroBusca" placeholder="🔍 Buscar baia ou material..." 
-                     oninput="window.filtrarEstoque()">
+              <input type="text" id="filtroBusca" placeholder="🔍 Buscar baia ou material..." oninput="filtrarDados()">
             </div>
             <div class="filtro-group">
-              <select id="filtroMaterial" onchange="window.filtrarEstoque()">
+              <select id="filtroMaterial" onchange="filtrarDados()">
                 <option value="">Todos os materiais</option>
               </select>
             </div>
             <div class="filtro-group">
-              <button class="btn btn-outline btn-sm" onclick="window.limparFiltros()">
+              <button class="btn btn-outline btn-sm" onclick="limparFiltros()">
                 <i class="fas fa-times"></i> Limpar
               </button>
             </div>
@@ -163,201 +161,158 @@
 
           <!-- PAGINAÇÃO -->
           <div class="paginacao" id="paginacaoEstoque">
-            <button class="btn btn-outline btn-sm" onclick="window.paginaAnterior()">
+            <button class="btn btn-outline btn-sm" onclick="paginaAnterior()">
               <i class="fas fa-chevron-left"></i> Anterior
             </button>
             <span id="paginaInfo">Página 1 de 1</span>
-            <button class="btn btn-outline btn-sm" onclick="window.proximaPagina()">
+            <button class="btn btn-outline btn-sm" onclick="proximaPagina()">
               Próxima <i class="fas fa-chevron-right"></i>
             </button>
           </div>
 
         </div>
       </div>
+    </main>
+  </div>
 
-      <!-- ===================== MODAIS ===================== -->
+  <!-- ===================== MODAIS ===================== -->
 
-      <!-- MODAL BAIAS -->
-      <!-- MODAL BAIAS -->
-<div class="modal-overlay" id="modalBaia">
+  <!-- MODAL BAIAS (CORRIGIDO - SEM DUPLICAÇÃO) -->
+  <div class="modal-overlay" id="modalBaia">
     <div class="modal">
-        <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
-        <form id="formBaia">
-            <input type="hidden" id="editBaiaIndex" value="-1" />
-            <input type="hidden" id="editTipo" value="moido-sujo" />
+      <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
+      <form id="formBaia">
+        <input type="hidden" id="editBaiaIndex" value="-1" />
+        <input type="hidden" id="editTipo" value="moido-sujo" />
 
-            <form id="formBaia">
-    <input type="hidden" id="editBaiaIndex" value="-1" />
-    <input type="hidden" id="editTipo" value="moido-sujo" />
-
-    <!-- SELECT DE TIPO -->
-    <div class="form-group">
-        <label for="tipoBaiaSelect">Tipo da Baia <span class="required">*</span></label>
-        <select id="tipoBaiaSelect" required>
+        <!-- SELECT DE TIPO -->
+        <div class="form-group">
+          <label for="tipoBaiaSelect">Tipo da Baia <span class="required">*</span></label>
+          <select id="tipoBaiaSelect" required>
             <option value="moido-sujo">🟡 Moído Sujo</option>
             <option value="moido-lavado">🔵 Moído Lavado</option>
-        </select>
-    </div>
+          </select>
+        </div>
 
-    <div class="form-group">
-        <label for="baiaNome">Nome da Baia <span class="required">*</span></label>
-        <input type="text" id="baiaNome" placeholder="Ex: Baia A1" required />
-    </div>
-
-    <div class="form-group">
-        <label for="materialNome">Material <span class="required">*</span></label>
-        <input type="text" id="materialNome" placeholder="Ex: PP, PE, PET" required />
-    </div>
-
-    <div class="grid-2">
         <div class="form-group">
+          <label for="baiaNome">Nome da Baia <span class="required">*</span></label>
+          <input type="text" id="baiaNome" placeholder="Ex: Baia A1" required />
+        </div>
+
+        <div class="form-group">
+          <label for="materialNome">Material <span class="required">*</span></label>
+          <input type="text" id="materialNome" placeholder="Ex: PP, PE, PET" required />
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
             <label for="qtdBag">Quantidade (Bag) <span class="required">*</span></label>
             <input type="number" id="qtdBag" placeholder="0" min="0" step="0.1" required />
-        </div>
-        <div class="form-group">
+          </div>
+          <div class="form-group">
             <label for="estimativaKg">Estimativa (kg/Bag) <span class="required">*</span></label>
             <input type="number" id="estimativaKg" placeholder="0" min="0" step="0.1" required />
+          </div>
         </div>
-    </div>
 
-    <!-- TOTAL CALCULADO -->
-    <div class="form-group" style="background: #f0f4fa; padding: 12px 16px; border-radius: 8px;">
-        <label style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+        <!-- TOTAL CALCULADO EM TEMPO REAL -->
+        <div class="form-group" style="background: #f0f4fa; padding: 12px 16px; border-radius: 8px;">
+          <label style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
             <span><i class="fas fa-calculator"></i> Total Estimado</span>
             <span id="totalCalculado" style="font-weight: 700; font-size: 20px; color: #1a2a3a;">0,0 kg</span>
-        </label>
-    </div>
+          </label>
+        </div>
 
-    <div class="form-group" style="display:none;">
-        <span id="previewEstimada">0,0</span>
-    </div>
+        <!-- Preview oculto (para compatibilidade) -->
+        <div style="display:none;">
+          <span id="previewEstimada">0,0</span>
+        </div>
 
-    <div class="form-group">
-        <label>Observação</label>
-        <input type="text" id="baiaObs" placeholder="Observações (opcional)" />
-    </div>
+        <div class="form-group">
+          <label>Observação</label>
+          <input type="text" id="baiaObs" placeholder="Observações (opcional)" />
+        </div>
 
-    <div class="modal-actions">
-        <button type="button" class="btn btn-outline" onclick="fecharModalBaia()">Cancelar</button>
-        <button type="submit" class="btn btn-success" id="btnSalvarBaia">
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="fecharModalBaia()">Cancelar</button>
+          <button type="submit" class="btn btn-success" id="btnSalvarBaia">
             <i class="fas fa-save"></i> Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DETALHES DA BAIA -->
+  <div class="modal-overlay" id="modalDetalhesBaia">
+    <div class="modal modal-lg">
+      <h2><i class="fas fa-archive"></i> <span id="detalhesBaiaTitulo">Detalhes da Baia</span></h2>
+      <div id="detalhesBaiaConteudo">
+        <!-- Renderizado via JS -->
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-pdf btn-sm" onclick="gerarPDFBaia()">
+          <i class="fas fa-file-pdf"></i> PDF da Baia
         </button>
+        <button class="btn btn-outline" onclick="fecharModal('modalDetalhesBaia')">Fechar</button>
+      </div>
     </div>
-</form>
+  </div>
+
+  <!-- MODAL CONFIRMAÇÃO -->
+  <div class="modal-overlay" id="modalConfirmacao">
+    <div class="modal modal-sm">
+      <h2><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Confirmar Exclusão</h2>
+      <p id="confirmacaoMensagem">Tem certeza que deseja excluir esta baia?</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="fecharModal('modalConfirmacao')">Cancelar</button>
+        <button class="btn btn-danger" id="btnConfirmarExclusao">
+          <i class="fas fa-trash"></i> Excluir
+        </button>
+      </div>
     </div>
-</div> 
-      <div class="modal-overlay" id="modalBaia">
-        <div class="modal">
-          <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
-          <form id="formBaia">
-            <input type="hidden" id="editBaiaIndex" value="-1" />
-            <input type="hidden" id="editTipo" value="moido-sujo" />
+  </div>
 
-            <div class="form-group">
-              <label for="baiaNome">Nome da Baia <span class="required">*</span></label>
-              <input type="text" id="baiaNome" placeholder="Ex: Baia A1, Estoque 01..." required />
-            </div>
-
-            <div class="form-group">
-              <label for="materialNome">Material <span class="required">*</span></label>
-              <input type="text" id="materialNome" placeholder="Ex: PP, PE, PET, PEAD..." required />
-            </div>
-
-            <div class="grid-2">
-              <div class="form-group">
-                <label for="qtdBag">Quantidade (Bag) <span class="required">*</span></label>
-                <input type="number" id="qtdBag" placeholder="0" min="0" step="1" required />
-              </div>
-              <div class="form-group">
-                <label for="estimativaKg">Estimativa (kg/Bag) <span class="required">*</span></label>
-                <input type="number" id="estimativaKg" placeholder="0" min="0" step="0.1" required />
-              </div>
-            </div>
-
-            <div class="form-group" style="background: #f0f4fa; padding: 12px 16px; border-radius: 8px;">
-              <label style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
-                <span><i class="fas fa-calculator"></i> Quantidade Estimada (kg)</span>
-                <span id="previewEstimada" style="font-weight: 700; font-size: 20px; color: #1a2a3a;">0,0</span>
-              </label>
-            </div>
-
-            <div class="form-group">
-              <label>Observação</label>
-              <input type="text" id="baiaObs" placeholder="Observações sobre a baia (opcional)" />
-            </div>
-
-            <div class="modal-actions">
-              <button type="button" class="btn btn-outline" onclick="window.fecharModalBaia()">Cancelar</button>
-              <button type="submit" class="btn btn-success" id="btnSalvarBaia">
-                <i class="fas fa-save"></i> Salvar
-              </button>
-            </div>
-          </form>
-        </div>
+  <!-- MODAL IMPORTAR -->
+  <div class="modal-overlay" id="modalImportar">
+    <div class="modal">
+      <h2><i class="fas fa-upload"></i> Importar Dados</h2>
+      <p style="color: var(--text-light); margin-bottom: 1rem;">
+        Selecione um arquivo JSON exportado anteriormente.
+      </p>
+      <div class="form-group">
+        <label>Arquivo JSON</label>
+        <input type="file" id="arquivoImportar" accept=".json" />
       </div>
-
-      <!-- MODAL DETALHES DA BAIA -->
-      <div class="modal-overlay" id="modalDetalhesBaia">
-        <div class="modal modal-lg">
-          <h2><i class="fas fa-archive"></i> <span id="detalhesBaiaTitulo">Detalhes da Baia</span></h2>
-          <div id="detalhesBaiaConteudo">
-            <!-- Renderizado via JS -->
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-pdf btn-sm" onclick="window.gerarPDFBaia()">
-              <i class="fas fa-file-pdf"></i> PDF da Baia
-            </button>
-            <button class="btn btn-outline" onclick="window.fecharModal('modalDetalhesBaia')">Fechar</button>
-          </div>
-        </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="fecharModal('modalImportar')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarImportar()">
+          <i class="fas fa-upload"></i> Importar
+        </button>
       </div>
-
-      <!-- MODAL CONFIRMAÇÃO -->
-      <div class="modal-overlay" id="modalConfirmacao">
-        <div class="modal modal-sm">
-          <h2><i class="fas fa-exclamation-triangle" style="color: #e74c3c;"></i> Confirmar Exclusão</h2>
-          <p id="confirmacaoMensagem">Tem certeza que deseja excluir esta baia?</p>
-          <div class="modal-actions">
-            <button class="btn btn-outline" onclick="window.fecharModal('modalConfirmacao')">Cancelar</button>
-            <button class="btn btn-danger" id="btnConfirmarExclusao">
-              <i class="fas fa-trash"></i> Excluir
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODAL IMPORTAR -->
-      <div class="modal-overlay" id="modalImportar">
-        <div class="modal">
-          <h2><i class="fas fa-upload"></i> Importar Dados</h2>
-          <p style="color: var(--text-light); margin-bottom: 1rem;">
-            Selecione um arquivo JSON exportado anteriormente.
-          </p>
-          <div class="form-group">
-            <label>Arquivo JSON</label>
-            <input type="file" id="arquivoImportar" accept=".json" />
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-outline" onclick="window.fecharModal('modalImportar')">Cancelar</button>
-            <button class="btn btn-primary" onclick="window.confirmarImportar()">
-              <i class="fas fa-upload"></i> Importar
-            </button>
-          </div>
-        </div>
-      </div>
-
-    </main>
+    </div>
   </div>
 
   <!-- ===================== FIREBASE CONFIG ===================== -->
   <script>
-  
-      });
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SEU_PROJETO.firebaseapp.com",
+      projectId: "SEU_PROJETO",
+      storageBucket: "SEU_PROJETO.appspot.com",
+      messagingSenderId: "SEU_SENDER_ID",
+      appId: "SEU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    console.log('🔥 Firebase inicializado');
   </script>
 
   <!-- ===================== SCRIPTS ===================== -->
-  <script src="/js/producao.js"></script>
-  <script src="/js/main.js"></script>
+  <script src="/js/estoque.js"></script>
 
 </body>
 
