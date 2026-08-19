@@ -1,5 +1,5 @@
 // ============================================================
-// CONTROLE DE ESTOQUE - JavaScript (COM FALLBACK OFFLINE)
+// CONTROLE DE ESTOQUE - JavaScript (ALINHADO COM FIREBASE DO CUSTO)
 // ============================================================
 
 // ========== VARIÁVEIS GLOBAIS ==========
@@ -11,12 +11,31 @@ let currentTipo = 'todos';
 let deleteIndex = -1;
 let isEditando = false;
 let firebaseDisponivel = false;
+let db = null;
 
 // ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando Controle de Estoque...');
     
-    // Tentar carregar dados
+    // Tenta obter a instância do Firebase da mesma forma que o custo.js
+    db = window.firebaseDB || window.db || null;
+    
+    if (!db && typeof firebase !== 'undefined' && firebase.firestore) {
+        try {
+            db = firebase.firestore();
+            console.log('✅ Firestore obtido via firebase.firestore()');
+        } catch (e) {
+            console.warn('⚠️ Erro ao obter Firestore:', e);
+        }
+    }
+    
+    if (!db) {
+        console.warn('⚠️ Firebase não disponível, modo offline');
+    } else {
+        console.log('✅ Firebase disponível!');
+    }
+    
+    // Carregar dados
     setTimeout(function() {
         carregarDados();
     }, 500);
@@ -27,7 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ========== CONFIGURAR EVENTOS ==========
 function configurarEventos() {
-    // Formulário da Baia
     const formBaia = document.getElementById('formBaia');
     if (formBaia) {
         formBaia.addEventListener('submit', function(e) {
@@ -36,7 +54,6 @@ function configurarEventos() {
         });
     }
 
-    // Preview da estimativa
     const qtdBag = document.getElementById('qtdBag');
     const estimativaKg = document.getElementById('estimativaKg');
     if (qtdBag && estimativaKg) {
@@ -46,7 +63,6 @@ function configurarEventos() {
         estimativaKg.setAttribute('step', '0.1');
     }
 
-    // Fechar modais com clique no overlay
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) {
@@ -55,7 +71,6 @@ function configurarEventos() {
         });
     });
 
-    // ESC para fechar modais
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal-overlay.active').forEach(modal => {
@@ -64,7 +79,6 @@ function configurarEventos() {
         }
     });
 
-    // Confirmar exclusão
     const btnConfirmar = document.getElementById('btnConfirmarExclusao');
     if (btnConfirmar) {
         btnConfirmar.addEventListener('click', function() {
@@ -97,7 +111,7 @@ function carregarDados() {
     mostrarLoading(true);
     console.log('📥 Carregando dados...');
     
-    // PRIMEIRO: Tentar carregar do localStorage (mais rápido)
+    // PRIMEIRO: Carregar do localStorage
     const dadosLocais = localStorage.getItem('estoque_baias');
     if (dadosLocais) {
         try {
@@ -110,12 +124,13 @@ function carregarDados() {
         }
     }
     
-    // SEGUNDO: Tentar carregar do Firebase
-    try {
-        if (typeof firebase !== 'undefined' && firebase.firestore) {
-            const db = firebase.firestore();
+    // SEGUNDO: Tentar carregar do Firebase (usando a mesma estrutura do custo.js)
+    if (db) {
+        try {
+            // Usa a mesma estrutura de coleção que o custo.js
+            const colecao = db.collection('baias');
             
-            db.collection('baias')
+            colecao
                 .orderBy('dataCriacao', 'desc')
                 .get()
                 .then((snapshot) => {
@@ -145,7 +160,6 @@ function carregarDados() {
                         atualizarInterface();
                         atualizarStatusFirebase('online');
                     } else if (baiasData.length === 0) {
-                        // Se não tem dados em lugar nenhum, criar dados de exemplo
                         criarDadosExemplo();
                     }
                     mostrarLoading(false);
@@ -153,25 +167,22 @@ function carregarDados() {
                 .catch((error) => {
                     console.warn('⚠️ Erro ao carregar do Firebase:', error.message);
                     atualizarStatusFirebase('offline');
-                    
                     if (baiasData.length === 0) {
                         criarDadosExemplo();
                     }
                     mostrarLoading(false);
                 });
-        } else {
-            console.warn('⚠️ Firebase não disponível');
+        } catch (error) {
+            console.warn('⚠️ Erro ao acessar Firebase:', error);
             atualizarStatusFirebase('offline');
-            
             if (baiasData.length === 0) {
                 criarDadosExemplo();
             }
             mostrarLoading(false);
         }
-    } catch (error) {
-        console.warn('⚠️ Erro ao acessar Firebase:', error);
+    } else {
+        console.warn('⚠️ Firebase não disponível');
         atualizarStatusFirebase('offline');
-        
         if (baiasData.length === 0) {
             criarDadosExemplo();
         }
@@ -258,12 +269,11 @@ function atualizarStatusFirebase(status) {
 function salvarNoFirebase(dados) {
     return new Promise((resolve, reject) => {
         try {
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
+            if (!db) {
                 reject(new Error('Firebase não disponível'));
                 return;
             }
             
-            const db = firebase.firestore();
             const quantidade = parseFloat(dados.quantidade) || 0;
             const estimativaKg = parseFloat(dados.estimativaKg) || 0;
             const totalKg = quantidade * estimativaKg;
@@ -272,9 +282,11 @@ function salvarNoFirebase(dados) {
             dados.quantidade = quantidade;
             dados.estimativaKg = estimativaKg;
             
+            const colecao = db.collection('baias');
+            
             if (dados.id && !dados.id.startsWith('exemplo_') && !dados.id.startsWith('local_')) {
                 const { id, ...dataToUpdate } = dados;
-                db.collection('baias').doc(id).update({
+                colecao.doc(id).update({
                     ...dataToUpdate,
                     dataAtualizacao: new Date().toISOString()
                 }).then(resolve).catch(reject);
@@ -285,7 +297,7 @@ function salvarNoFirebase(dados) {
                     dataAtualizacao: new Date().toISOString()
                 };
                 delete newData.id;
-                db.collection('baias').add(newData).then((docRef) => {
+                colecao.add(newData).then((docRef) => {
                     resolve(docRef);
                 }).catch(reject);
             }
@@ -299,12 +311,11 @@ function salvarNoFirebase(dados) {
 function excluirDoFirebase(id) {
     return new Promise((resolve, reject) => {
         try {
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
+            if (!db) {
                 reject(new Error('Firebase não disponível'));
                 return;
             }
             
-            const db = firebase.firestore();
             db.collection('baias').doc(id).delete().then(resolve).catch(reject);
         } catch (error) {
             reject(error);
@@ -966,7 +977,6 @@ function gerarPDFEstoque() {
         return;
     }
     mostrarNotificacao('Gerando PDF...', 'info');
-    // Implementação do PDF pode ser adicionada aqui
 }
 
 function gerarPDFBaia() {
