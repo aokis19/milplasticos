@@ -1,5 +1,5 @@
 // ============================================================
-// CONTROLE DE ESTOQUE - JavaScript (VERSÃO DEFINITIVA)
+// CONTROLE DE ESTOQUE - JavaScript (COM FALLBACK OFFLINE)
 // ============================================================
 
 // ========== VARIÁVEIS GLOBAIS ==========
@@ -10,23 +10,20 @@ const itemsPerPage = 6;
 let currentTipo = 'todos';
 let deleteIndex = -1;
 let isEditando = false;
+let firebaseDisponivel = false;
 
 // ========== INICIALIZAÇÃO ==========
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando Controle de Estoque...');
-    iniciarAplicacao();
-});
-
-function iniciarAplicacao() {
-    // Carregar dados
-    carregarDados();
+    
+    // Tentar carregar dados
+    setTimeout(function() {
+        carregarDados();
+    }, 500);
     
     // Configurar eventos
     configurarEventos();
-    
-    // Verificar status Firebase
-    verificarStatusFirebase();
-}
+});
 
 // ========== CONFIGURAR EVENTOS ==========
 function configurarEventos() {
@@ -45,12 +42,11 @@ function configurarEventos() {
     if (qtdBag && estimativaKg) {
         qtdBag.addEventListener('input', atualizarPreview);
         estimativaKg.addEventListener('input', atualizarPreview);
-        // Permitir decimais
         qtdBag.setAttribute('step', '0.1');
         estimativaKg.setAttribute('step', '0.1');
     }
 
-    // Fechar modais
+    // Fechar modais com clique no overlay
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) {
@@ -88,7 +84,6 @@ function atualizarPreview() {
         preview.textContent = total.toFixed(1);
     }
     
-    // Atualizar campo de total visível
     const totalField = document.getElementById('totalCalculado');
     if (totalField) {
         totalField.textContent = total.toFixed(1) + ' kg';
@@ -100,133 +95,221 @@ function atualizarPreview() {
 // ========== CARREGAR DADOS ==========
 function carregarDados() {
     mostrarLoading(true);
+    console.log('📥 Carregando dados...');
     
+    // PRIMEIRO: Tentar carregar do localStorage (mais rápido)
+    const dadosLocais = localStorage.getItem('estoque_baias');
+    if (dadosLocais) {
+        try {
+            baiasData = JSON.parse(dadosLocais);
+            console.log('📁 Dados carregados do localStorage:', baiasData.length, 'baias');
+            atualizarInterface();
+            mostrarLoading(false);
+        } catch (e) {
+            console.error('❌ Erro ao ler localStorage:', e);
+        }
+    }
+    
+    // SEGUNDO: Tentar carregar do Firebase
     try {
-        const db = firebase.firestore();
-        
-        db.collection('baias')
-            .orderBy('dataCriacao', 'desc')
-            .get()
-            .then((snapshot) => {
-                baiasData = [];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    baiasData.push({
-                        id: doc.id,
-                        nome: data.nome || 'Sem nome',
-                        tipo: data.tipo || 'moido-sujo',
-                        material: data.material || 'Sem material',
-                        quantidade: parseFloat(data.quantidade) || 0,
-                        estimativaKg: parseFloat(data.estimativaKg) || 0,
-                        totalKg: parseFloat(data.totalKg) || 0,
-                        observacao: data.observacao || '',
-                        dataCriacao: data.dataCriacao || new Date().toISOString(),
-                        historico: data.historico || []
+        if (typeof firebase !== 'undefined' && firebase.firestore) {
+            const db = firebase.firestore();
+            
+            db.collection('baias')
+                .orderBy('dataCriacao', 'desc')
+                .get()
+                .then((snapshot) => {
+                    firebaseDisponivel = true;
+                    const dadosFirebase = [];
+                    
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        dadosFirebase.push({
+                            id: doc.id,
+                            nome: data.nome || 'Sem nome',
+                            tipo: data.tipo || 'moido-sujo',
+                            material: data.material || 'Sem material',
+                            quantidade: parseFloat(data.quantidade) || 0,
+                            estimativaKg: parseFloat(data.estimativaKg) || 0,
+                            totalKg: parseFloat(data.totalKg) || 0,
+                            observacao: data.observacao || '',
+                            dataCriacao: data.dataCriacao || new Date().toISOString(),
+                            historico: data.historico || []
+                        });
                     });
+                    
+                    if (dadosFirebase.length > 0) {
+                        baiasData = dadosFirebase;
+                        console.log('✅ Dados carregados do Firebase:', baiasData.length, 'baias');
+                        localStorage.setItem('estoque_baias', JSON.stringify(baiasData));
+                        atualizarInterface();
+                        atualizarStatusFirebase('online');
+                    } else if (baiasData.length === 0) {
+                        // Se não tem dados em lugar nenhum, criar dados de exemplo
+                        criarDadosExemplo();
+                    }
+                    mostrarLoading(false);
+                })
+                .catch((error) => {
+                    console.warn('⚠️ Erro ao carregar do Firebase:', error.message);
+                    atualizarStatusFirebase('offline');
+                    
+                    if (baiasData.length === 0) {
+                        criarDadosExemplo();
+                    }
+                    mostrarLoading(false);
                 });
-                
-                console.log('✅ Dados carregados:', baiasData.length, 'baias');
-                atualizarInterface();
-                mostrarLoading(false);
-            })
-            .catch((error) => {
-                console.error('❌ Erro ao carregar:', error);
-                carregarDadosLocais();
-                mostrarLoading(false);
-            });
+        } else {
+            console.warn('⚠️ Firebase não disponível');
+            atualizarStatusFirebase('offline');
+            
+            if (baiasData.length === 0) {
+                criarDadosExemplo();
+            }
+            mostrarLoading(false);
+        }
     } catch (error) {
-        console.error('❌ Erro no Firebase:', error);
-        carregarDadosLocais();
+        console.warn('⚠️ Erro ao acessar Firebase:', error);
+        atualizarStatusFirebase('offline');
+        
+        if (baiasData.length === 0) {
+            criarDadosExemplo();
+        }
         mostrarLoading(false);
     }
 }
 
-// ========== CARREGAR DADOS LOCAIS ==========
-function carregarDadosLocais() {
-    try {
-        const dadosSalvos = localStorage.getItem('estoque_baias');
-        if (dadosSalvos) {
-            baiasData = JSON.parse(dadosSalvos);
-            console.log('📁 Dados locais carregados:', baiasData.length, 'baias');
-        } else {
-            baiasData = [];
-            console.log('📁 Nenhum dado local encontrado');
+// ========== CRIAR DADOS DE EXEMPLO ==========
+function criarDadosExemplo() {
+    console.log('📝 Criando dados de exemplo...');
+    baiasData = [
+        {
+            id: 'exemplo_1',
+            nome: 'Baia A1',
+            tipo: 'moido-sujo',
+            material: 'PP',
+            quantidade: 10.5,
+            estimativaKg: 25.5,
+            totalKg: 267.75,
+            observacao: 'Material de alta qualidade',
+            dataCriacao: new Date().toISOString(),
+            historico: [{
+                data: new Date().toISOString(),
+                acao: 'Criação',
+                tipo: 'moido-sujo',
+                detalhes: 'Baia criada com 10.5 bags'
+            }]
+        },
+        {
+            id: 'exemplo_2',
+            nome: 'Baia B2',
+            tipo: 'moido-lavado',
+            material: 'PEAD',
+            quantidade: 8.0,
+            estimativaKg: 30.0,
+            totalKg: 240.0,
+            observacao: 'Lavado e seco',
+            dataCriacao: new Date().toISOString(),
+            historico: [{
+                data: new Date().toISOString(),
+                acao: 'Criação',
+                tipo: 'moido-lavado',
+                detalhes: 'Baia criada com 8.0 bags'
+            }]
+        },
+        {
+            id: 'exemplo_3',
+            nome: 'Baia C3',
+            tipo: 'moido-sujo',
+            material: 'PET',
+            quantidade: 15.0,
+            estimativaKg: 20.0,
+            totalKg: 300.0,
+            observacao: 'Material reciclado',
+            dataCriacao: new Date(Date.now() - 86400000).toISOString(),
+            historico: [{
+                data: new Date(Date.now() - 86400000).toISOString(),
+                acao: 'Criação',
+                tipo: 'moido-sujo',
+                detalhes: 'Baia criada com 15.0 bags'
+            }]
         }
-        atualizarInterface();
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados locais:', error);
-        baiasData = [];
-        atualizarInterface();
-    }
+    ];
+    localStorage.setItem('estoque_baias', JSON.stringify(baiasData));
+    atualizarInterface();
+    mostrarNotificacao('Dados de exemplo carregados!', 'info');
 }
 
-// ========== SALVAR DADOS ==========
-function salvarDados(dados) {
-    try {
-        const db = firebase.firestore();
-        
-        // Calcular total
-        const quantidade = parseFloat(dados.quantidade) || 0;
-        const estimativaKg = parseFloat(dados.estimativaKg) || 0;
-        const totalKg = quantidade * estimativaKg;
-        
-        dados.totalKg = totalKg;
-        dados.quantidade = quantidade;
-        dados.estimativaKg = estimativaKg;
-        
-        if (dados.id && !dados.id.startsWith('local_')) {
-            // Atualizar
-            const { id, ...dataToUpdate } = dados;
-            return db.collection('baias').doc(id).update({
-                ...dataToUpdate,
-                dataAtualizacao: new Date().toISOString()
-            });
-        } else {
-            // Criar
-            const newData = {
-                ...dados,
-                dataCriacao: new Date().toISOString(),
-                dataAtualizacao: new Date().toISOString()
-            };
-            return db.collection('baias').add(newData);
-        }
-    } catch (error) {
-        console.error('❌ Erro ao salvar:', error);
-        return Promise.reject(error);
-    }
-}
-
-// ========== EXCLUIR DADOS ==========
-function excluirDados(id) {
-    try {
-        const db = firebase.firestore();
-        return db.collection('baias').doc(id).delete();
-    } catch (error) {
-        console.error('❌ Erro ao excluir:', error);
-        return Promise.reject(error);
-    }
-}
-
-// ========== VERIFICAR STATUS FIREBASE ==========
-function verificarStatusFirebase() {
+// ========== ATUALIZAR STATUS FIREBASE ==========
+function atualizarStatusFirebase(status) {
     const statusElement = document.getElementById('firebaseStatusEstoque');
     if (!statusElement) return;
     
-    try {
-        const db = firebase.firestore();
-        db.collection('baias').limit(1).get()
-            .then(() => {
-                statusElement.className = 'firebase-status status-online';
-                statusElement.innerHTML = '<span class="status-dot"></span> Online';
-            })
-            .catch(() => {
-                statusElement.className = 'firebase-status status-offline';
-                statusElement.innerHTML = '<span class="status-dot"></span> Offline';
-            });
-    } catch (error) {
+    if (status === 'online') {
+        statusElement.className = 'firebase-status status-online';
+        statusElement.innerHTML = '<span class="status-dot"></span> Online';
+    } else {
         statusElement.className = 'firebase-status status-offline';
-        statusElement.innerHTML = '<span class="status-dot"></span> Offline';
+        statusElement.innerHTML = '<span class="status-dot"></span> Offline (Local)';
     }
+}
+
+// ========== SALVAR NO FIREBASE ==========
+function salvarNoFirebase(dados) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                reject(new Error('Firebase não disponível'));
+                return;
+            }
+            
+            const db = firebase.firestore();
+            const quantidade = parseFloat(dados.quantidade) || 0;
+            const estimativaKg = parseFloat(dados.estimativaKg) || 0;
+            const totalKg = quantidade * estimativaKg;
+            
+            dados.totalKg = totalKg;
+            dados.quantidade = quantidade;
+            dados.estimativaKg = estimativaKg;
+            
+            if (dados.id && !dados.id.startsWith('exemplo_') && !dados.id.startsWith('local_')) {
+                const { id, ...dataToUpdate } = dados;
+                db.collection('baias').doc(id).update({
+                    ...dataToUpdate,
+                    dataAtualizacao: new Date().toISOString()
+                }).then(resolve).catch(reject);
+            } else {
+                const newData = {
+                    ...dados,
+                    dataCriacao: new Date().toISOString(),
+                    dataAtualizacao: new Date().toISOString()
+                };
+                delete newData.id;
+                db.collection('baias').add(newData).then((docRef) => {
+                    resolve(docRef);
+                }).catch(reject);
+            }
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+// ========== EXCLUIR DO FIREBASE ==========
+function excluirDoFirebase(id) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                reject(new Error('Firebase não disponível'));
+                return;
+            }
+            
+            const db = firebase.firestore();
+            db.collection('baias').doc(id).delete().then(resolve).catch(reject);
+        } catch (error) {
+            reject(error);
+        }
+    });
 }
 
 // ========== ATUALIZAR INTERFACE ==========
@@ -325,12 +408,10 @@ function filtrarDados() {
     
     let dados = baiasData;
     
-    // Filtrar por tipo
     if (currentTipo !== 'todos') {
         dados = dados.filter(item => item.tipo === currentTipo);
     }
     
-    // Filtrar por busca
     if (busca) {
         dados = dados.filter(item => {
             const nomeMatch = item.nome?.toLowerCase().includes(busca);
@@ -339,7 +420,6 @@ function filtrarDados() {
         });
     }
     
-    // Filtrar por material
     if (material) {
         dados = dados.filter(item => item.material === material);
     }
@@ -490,13 +570,19 @@ function mudarTipo(tipo) {
     filtrarDados();
 }
 
+// ========== LIMPAR FILTROS ==========
+function limparFiltros() {
+    document.getElementById('filtroBusca').value = '';
+    document.getElementById('filtroMaterial').value = '';
+    filtrarDados();
+}
+
 // ========== ABRIR MODAL ==========
 function abrirModalBaia() {
     const modal = document.getElementById('modalBaia');
-    const form = document.getElementById('formBaia');
-    
     if (!modal) return;
     
+    const form = document.getElementById('formBaia');
     form.reset();
     document.getElementById('editBaiaIndex').value = '-1';
     document.getElementById('previewEstimada').textContent = '0,0';
@@ -506,7 +592,6 @@ function abrirModalBaia() {
     document.getElementById('qtdBag').step = '0.1';
     document.getElementById('estimativaKg').step = '0.1';
     
-    // Definir tipo padrão
     const tipoSelect = document.getElementById('tipoBaiaSelect');
     if (tipoSelect) {
         tipoSelect.value = currentTipo !== 'todos' ? currentTipo : 'moido-sujo';
@@ -537,35 +622,11 @@ function salvarBaia() {
     const observacao = document.getElementById('baiaObs').value.trim();
     const totalKg = quantidade * estimativaKg;
     
-    // Validações
-    if (!tipo) {
-        alert('Selecione o tipo da baia.');
-        return;
-    }
-    
-    if (!nome) {
-        alert('Preencha o nome da baia.');
-        document.getElementById('baiaNome').focus();
-        return;
-    }
-    
-    if (!material) {
-        alert('Preencha o material.');
-        document.getElementById('materialNome').focus();
-        return;
-    }
-    
-    if (quantidade <= 0) {
-        alert('Informe uma quantidade válida.');
-        document.getElementById('qtdBag').focus();
-        return;
-    }
-    
-    if (estimativaKg <= 0) {
-        alert('Informe uma estimativa válida.');
-        document.getElementById('estimativaKg').focus();
-        return;
-    }
+    if (!tipo) { alert('Selecione o tipo da baia.'); return; }
+    if (!nome) { alert('Preencha o nome da baia.'); document.getElementById('baiaNome').focus(); return; }
+    if (!material) { alert('Preencha o material.'); document.getElementById('materialNome').focus(); return; }
+    if (quantidade <= 0) { alert('Informe uma quantidade válida.'); document.getElementById('qtdBag').focus(); return; }
+    if (estimativaKg <= 0) { alert('Informe uma estimativa válida.'); document.getElementById('estimativaKg').focus(); return; }
     
     const dados = {
         tipo: tipo,
@@ -591,7 +652,7 @@ function salvarBaia() {
             detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
         });
         
-        salvarDados(dados)
+        salvarNoFirebase(dados)
             .then(() => {
                 baiasData[editIndex] = { ...item, ...dados };
                 atualizarInterface();
@@ -600,7 +661,7 @@ function salvarBaia() {
                 mostrarNotificacao('Baia atualizada!', 'success');
             })
             .catch((error) => {
-                console.error('Erro ao atualizar:', error);
+                console.warn('⚠️ Erro ao salvar no Firebase:', error);
                 baiasData[editIndex] = { ...item, ...dados };
                 atualizarInterface();
                 fecharModalBaia();
@@ -616,9 +677,9 @@ function salvarBaia() {
             detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
         }];
         
-        salvarDados(dados)
+        salvarNoFirebase(dados)
             .then((docRef) => {
-                dados.id = docRef.id;
+                dados.id = docRef ? docRef.id : 'local_' + Date.now();
                 baiasData.unshift(dados);
                 atualizarInterface();
                 fecharModalBaia();
@@ -626,7 +687,7 @@ function salvarBaia() {
                 mostrarNotificacao('Baia criada com sucesso!', 'success');
             })
             .catch((error) => {
-                console.error('Erro ao criar:', error);
+                console.warn('⚠️ Erro ao salvar no Firebase:', error);
                 dados.id = 'local_' + Date.now();
                 baiasData.unshift(dados);
                 atualizarInterface();
@@ -645,7 +706,6 @@ function editarBaia(index) {
     const realIndex = baiasData.findIndex(b => b.id === item.id);
     if (realIndex === -1) return;
     
-    // Preencher formulário
     document.getElementById('editBaiaIndex').value = realIndex;
     document.getElementById('tipoBaiaSelect').value = item.tipo || 'moido-sujo';
     document.getElementById('baiaNome').value = item.nome || '';
@@ -684,7 +744,6 @@ function verDetalhesBaia(index) {
     const totalKg = (quantidade * estimativa).toFixed(1);
     const tipoLabel = item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado';
     
-    // Gerar histórico
     let historicoHtml = '';
     if (item.historico && item.historico.length > 0) {
         const historicoFiltrado = item.historico.filter(h => h.tipo === item.tipo);
@@ -764,9 +823,7 @@ function confirmarExclusaoBaia(index) {
     if (realIndex === -1) return;
     
     deleteIndex = realIndex;
-    
-    document.getElementById('confirmacaoMensagem').textContent = 
-        `Tem certeza que deseja excluir a baia "${item.nome}"?`;
+    document.getElementById('confirmacaoMensagem').textContent = `Tem certeza que deseja excluir a baia "${item.nome}"?`;
     document.getElementById('modalConfirmacao').classList.add('active');
 }
 
@@ -779,8 +836,8 @@ function confirmarExclusao() {
     
     mostrarLoading(true);
     
-    if (item.id && !item.id.startsWith('local_')) {
-        excluirDados(item.id)
+    if (item.id && !item.id.startsWith('exemplo_') && !item.id.startsWith('local_')) {
+        excluirDoFirebase(item.id)
             .then(() => {
                 baiasData.splice(deleteIndex, 1);
                 atualizarInterface();
@@ -790,7 +847,7 @@ function confirmarExclusao() {
                 deleteIndex = -1;
             })
             .catch((error) => {
-                console.error('Erro ao excluir:', error);
+                console.warn('⚠️ Erro ao excluir do Firebase:', error);
                 baiasData.splice(deleteIndex, 1);
                 atualizarInterface();
                 fecharModal('modalConfirmacao');
@@ -836,7 +893,11 @@ function fecharModal(id) {
 function mostrarLoading(ativo) {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) {
-        overlay.classList.toggle('active', ativo);
+        if (ativo) {
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
     }
 }
 
@@ -846,6 +907,13 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
         warning: '#f39c12',
         info: '#3498db',
         error: '#e74c3c'
+    };
+    
+    const icons = {
+        success: '✅',
+        warning: '⚠️',
+        info: 'ℹ️',
+        error: '❌'
     };
     
     const notificacao = document.createElement('div');
@@ -864,14 +932,8 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
         transform: translateX(120%);
         transition: transform 0.3s ease;
         cursor: pointer;
+        font-family: 'Segoe UI', sans-serif;
     `;
-    
-    const icons = {
-        success: '✅',
-        warning: '⚠️',
-        info: 'ℹ️',
-        error: '❌'
-    };
     
     notificacao.innerHTML = `${icons[tipo] || 'ℹ️'} ${mensagem}`;
     document.body.appendChild(notificacao);
@@ -897,34 +959,21 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
     });
 }
 
-// ========== EXPORTAR FUNÇÕES GLOBAIS ==========
-window.abrirModalBaia = abrirModalBaia;
-window.fecharModalBaia = fecharModalBaia;
-window.editarBaia = editarBaia;
-window.verDetalhesBaia = verDetalhesBaia;
-window.confirmarExclusaoBaia = confirmarExclusaoBaia;
-window.filtrarDados = filtrarDados;
-window.mudarTipo = mudarTipo;
-window.paginaAnterior = paginaAnterior;
-window.proximaPagina = proximaPagina;
-window.fecharModal = fecharModal;
-window.limparFiltros = function() {
-    document.getElementById('filtroBusca').value = '';
-    document.getElementById('filtroMaterial').value = '';
-    filtrarDados();
-};
-
-// ========== FUNÇÕES PDF E EXPORT ==========
-window.gerarPDFEstoque = function() {
+// ========== PDF E EXPORT ==========
+function gerarPDFEstoque() {
     if (baiasData.length === 0) {
         alert('Não há dados para gerar PDF.');
         return;
     }
     mostrarNotificacao('Gerando PDF...', 'info');
-    // Implementação do PDF aqui
-};
+    // Implementação do PDF pode ser adicionada aqui
+}
 
-window.exportarDados = function() {
+function gerarPDFBaia() {
+    mostrarNotificacao('Gerando PDF da baia...', 'info');
+}
+
+function exportarDados() {
     if (baiasData.length === 0) {
         alert('Não há dados para exportar.');
         return;
@@ -944,13 +993,13 @@ window.exportarDados = function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     mostrarNotificacao('Dados exportados!', 'success');
-};
+}
 
-window.importarDados = function() {
+function importarDados() {
     document.getElementById('modalImportar').classList.add('active');
-};
+}
 
-window.confirmarImportar = function() {
+function confirmarImportar() {
     const input = document.getElementById('arquivoImportar');
     if (!input.files || !input.files[0]) {
         alert('Selecione um arquivo JSON.');
@@ -982,6 +1031,25 @@ window.confirmarImportar = function() {
         }
     };
     reader.readAsText(input.files[0]);
-};
+}
+
+// ========== EXPORTAR FUNÇÕES GLOBAIS ==========
+window.abrirModalBaia = abrirModalBaia;
+window.fecharModalBaia = fecharModalBaia;
+window.editarBaia = editarBaia;
+window.verDetalhesBaia = verDetalhesBaia;
+window.confirmarExclusaoBaia = confirmarExclusaoBaia;
+window.filtrarDados = filtrarDados;
+window.mudarTipo = mudarTipo;
+window.paginaAnterior = paginaAnterior;
+window.proximaPagina = proximaPagina;
+window.fecharModal = fecharModal;
+window.limparFiltros = limparFiltros;
+window.gerarPDFEstoque = gerarPDFEstoque;
+window.gerarPDFBaia = gerarPDFBaia;
+window.exportarDados = exportarDados;
+window.importarDados = importarDados;
+window.confirmarImportar = confirmarImportar;
 
 console.log('✅ Controle de Estoque pronto!');
+console.log(`📊 ${baiasData.length} baias carregadas`);
