@@ -1,10 +1,7 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Central de Custos | Mil Plásticos</title>
+  <title>Estoque Moido | Mil Plásticos</title>
 
   <!-- CSS Principal -->
   <link rel="stylesheet" href="/assets/css/main.css">
@@ -17,12 +14,13 @@
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Init e Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-  <!-- Firebase SDK -->
+  <!-- ========== FIREBASE SDK (PRIMEIRO) ========== -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- ========== FIREBASE INIT (DEPOIS DO SDK) ========== -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
 
   <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
