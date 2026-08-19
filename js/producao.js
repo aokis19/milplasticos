@@ -1,5 +1,5 @@
 // ============================================================
-// CONTROLE DE ESTOQUE - JavaScript Completo
+// CONTROLE DE ESTOQUE - JavaScript Completo (CORRIGIDO)
 // ============================================================
 
 // ========== VARIÁVEIS GLOBAIS ==========
@@ -35,12 +35,15 @@ function configurarEventos() {
         });
     }
 
-    // Preview da estimativa
+    // Preview da estimativa - ACEITA DECIMAIS
     const qtdBag = document.getElementById('qtdBag');
     const estimativaKg = document.getElementById('estimativaKg');
     if (qtdBag && estimativaKg) {
         qtdBag.addEventListener('input', atualizarPreviewEstimativa);
         estimativaKg.addEventListener('input', atualizarPreviewEstimativa);
+        // Permitir decimais
+        qtdBag.setAttribute('step', '0.1');
+        estimativaKg.setAttribute('step', '0.1');
     }
 
     // Fechar modal ao clicar no overlay
@@ -87,7 +90,11 @@ function carregarDadosEstoque() {
                     baiasData.push({
                         id: doc.id,
                         ...data,
-                        dataCriacao: data.dataCriacao || new Date().toISOString()
+                        dataCriacao: data.dataCriacao || new Date().toISOString(),
+                        // Garantir que os números sejam float
+                        quantidade: parseFloat(data.quantidade) || 0,
+                        estimativaKg: parseFloat(data.estimativaKg) || 0,
+                        totalKg: parseFloat(data.totalKg) || 0
                     });
                 });
                 
@@ -97,7 +104,6 @@ function carregarDadosEstoque() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar dados:', error);
-                // Tentar carregar dados locais
                 carregarDadosLocais();
                 mostrarLoading(false);
             });
@@ -123,21 +129,35 @@ function carregarDadosLocais() {
                     id: '1',
                     nome: 'Baia A1',
                     material: 'PP',
-                    quantidade: 10,
-                    estimativaKg: 25,
+                    quantidade: 10.5,
+                    estimativaKg: 25.5,
                     tipo: 'moido-sujo',
                     observacao: 'Material de alta qualidade',
-                    dataCriacao: new Date().toISOString()
+                    dataCriacao: new Date().toISOString(),
+                    historico: [
+                        {
+                            data: new Date().toISOString(),
+                            acao: 'Criação',
+                            detalhes: 'Baia criada com 10.5 bags'
+                        }
+                    ]
                 },
                 {
                     id: '2',
                     nome: 'Baia B2',
                     material: 'PEAD',
-                    quantidade: 8,
-                    estimativaKg: 30,
+                    quantidade: 8.0,
+                    estimativaKg: 30.0,
                     tipo: 'moido-lavado',
                     observacao: 'Lavado e seco',
-                    dataCriacao: new Date().toISOString()
+                    dataCriacao: new Date().toISOString(),
+                    historico: [
+                        {
+                            data: new Date().toISOString(),
+                            acao: 'Criação',
+                            detalhes: 'Baia criada com 8.0 bags'
+                        }
+                    ]
                 }
             ];
             atualizarTudo();
@@ -154,9 +174,17 @@ function salvarNoFirebase(dados) {
     try {
         const db = firebase.firestore();
         
-        if (dados.id) {
+        // Garantir que os números sejam float
+        const dadosToSave = {
+            ...dados,
+            quantidade: parseFloat(dados.quantidade) || 0,
+            estimativaKg: parseFloat(dados.estimativaKg) || 0,
+            totalKg: parseFloat(dados.quantidade) * parseFloat(dados.estimativaKg) || 0
+        };
+        
+        if (dados.id && !dados.id.startsWith('local_')) {
             // Atualizar existente
-            const { id, ...dataToUpdate } = dados;
+            const { id, ...dataToUpdate } = dadosToSave;
             return db.collection('baias').doc(id).update({
                 ...dataToUpdate,
                 dataAtualizacao: new Date().toISOString()
@@ -164,9 +192,16 @@ function salvarNoFirebase(dados) {
         } else {
             // Criar novo
             const newData = {
-                ...dados,
+                ...dadosToSave,
                 dataCriacao: new Date().toISOString(),
-                dataAtualizacao: new Date().toISOString()
+                dataAtualizacao: new Date().toISOString(),
+                historico: dados.historico || [
+                    {
+                        data: new Date().toISOString(),
+                        acao: 'Criação',
+                        detalhes: `Baia criada com ${parseFloat(dados.quantidade).toFixed(1)} bags`
+                    }
+                ]
             };
             return db.collection('baias').add(newData);
         }
@@ -240,16 +275,16 @@ function atualizarResumo() {
     
     if (totalEstimado) {
         const total = baiasData.reduce((sum, item) => {
-            return sum + (item.quantidade * item.estimativaKg);
+            return sum + (parseFloat(item.quantidade) * parseFloat(item.estimativaKg));
         }, 0);
         totalEstimado.textContent = total.toFixed(1);
     }
     
     if (totalBags) {
         const total = baiasData.reduce((sum, item) => {
-            return sum + item.quantidade;
+            return sum + parseFloat(item.quantidade);
         }, 0);
-        totalBags.textContent = total;
+        totalBags.textContent = total.toFixed(1);
     }
     
     if (totalMateriais) {
@@ -383,9 +418,16 @@ function renderizarBaias() {
     let html = '';
     pageData.forEach((item, index) => {
         const realIndex = startIndex + index;
-        const totalKg = (item.quantidade * item.estimativaKg).toFixed(1);
+        const quantidade = parseFloat(item.quantidade) || 0;
+        const estimativa = parseFloat(item.estimativaKg) || 0;
+        const totalKg = (quantidade * estimativa).toFixed(1);
         const tipoClass = item.tipo === 'moido-sujo' ? 'sujo' : 'lavado';
         const tipoLabel = item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado';
+        
+        // Pegar último histórico
+        const ultimoHistorico = item.historico && item.historico.length > 0 
+            ? item.historico[item.historico.length - 1] 
+            : null;
         
         html += `
             <div class="baia-card tipo-${tipoClass}">
@@ -427,7 +469,7 @@ function renderizarBaias() {
                     <tbody>
                         <tr>
                             <td>${item.material || 'Material'}</td>
-                            <td style="text-align:right;">${item.quantidade || 0} bags</td>
+                            <td style="text-align:right;">${quantidade.toFixed(1)} bags</td>
                             <td style="text-align:right; font-weight:600;">${totalKg}</td>
                         </tr>
                         <tr class="total-row">
@@ -440,7 +482,8 @@ function renderizarBaias() {
                 <div class="baia-footer">
                     <div class="baia-footer-info">
                         <span><i class="fas fa-calendar"></i> ${formatarData(item.dataCriacao)}</span>
-                        <span><i class="fas fa-weight-scale"></i> ${item.estimativaKg || 0} kg/bag</span>
+                        <span><i class="fas fa-weight-scale"></i> ${estimativa.toFixed(1)} kg/bag</span>
+                        ${ultimoHistorico ? `<span><i class="fas fa-history"></i> ${ultimoHistorico.acao}</span>` : ''}
                     </div>
                     ${item.observacao ? `
                         <div class="baia-obs">
@@ -485,7 +528,6 @@ window.paginaAnterior = function() {
         currentPage--;
         renderizarBaias();
         atualizarPaginacao();
-        // Scroll para o topo da lista
         document.querySelector('.baias-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 };
@@ -516,10 +558,13 @@ window.abrirModalBaia = function() {
     document.getElementById('previewEstimada').textContent = '0,0';
     document.getElementById('editBaiaIndex').value = '-1';
     
+    // Garantir que aceita decimais
+    document.getElementById('qtdBag').step = '0.1';
+    document.getElementById('estimativaKg').step = '0.1';
+    
     if (titulo) titulo.textContent = 'Nova Baia';
     if (btnSalvar) btnSalvar.innerHTML = '<i class="fas fa-save"></i> Salvar';
     
-    // Se estiver em "todos", usar o tipo da primeira aba ativa
     if (currentTipo === 'todos') {
         const activeTab = document.querySelector('.tab-estoque.active');
         if (activeTab) {
@@ -542,7 +587,7 @@ function salvarBaia() {
     const editIndex = parseInt(document.getElementById('editBaiaIndex').value);
     const nome = document.getElementById('baiaNome').value.trim();
     const material = document.getElementById('materialNome').value.trim();
-    const quantidade = parseInt(document.getElementById('qtdBag').value) || 0;
+    const quantidade = parseFloat(document.getElementById('qtdBag').value) || 0;
     const estimativaKg = parseFloat(document.getElementById('estimativaKg').value) || 0;
     const tipo = document.getElementById('editTipo').value;
     const observacao = document.getElementById('baiaObs').value.trim();
@@ -572,14 +617,16 @@ function salvarBaia() {
         return;
     }
     
+    const totalKg = quantidade * estimativaKg;
+    
     const dados = {
         nome,
         material,
-        quantidade,
-        estimativaKg,
+        quantidade: quantidade,
+        estimativaKg: estimativaKg,
         tipo,
         observacao,
-        totalKg: quantidade * estimativaKg
+        totalKg: totalKg
     };
     
     mostrarLoading(true);
@@ -588,6 +635,14 @@ function salvarBaia() {
         // Editar existente
         const item = baiasData[editIndex];
         dados.id = item.id;
+        
+        // Adicionar ao histórico
+        dados.historico = item.historico || [];
+        dados.historico.push({
+            data: new Date().toISOString(),
+            acao: 'Atualização',
+            detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
+        });
         
         salvarNoFirebase(dados)
             .then(() => {
@@ -599,7 +654,6 @@ function salvarBaia() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao atualizar:', error);
-                // Atualizar localmente mesmo com erro
                 baiasData[editIndex] = { ...item, ...dados };
                 atualizarTudo();
                 fecharModalBaia();
@@ -608,6 +662,14 @@ function salvarBaia() {
             });
     } else {
         // Nova baia
+        dados.historico = [
+            {
+                data: new Date().toISOString(),
+                acao: 'Criação',
+                detalhes: `Quantidade: ${quantidade.toFixed(1)} bags, Estimativa: ${estimativaKg.toFixed(1)} kg/bag, Total: ${totalKg.toFixed(1)} kg`
+            }
+        ];
+        
         salvarNoFirebase(dados)
             .then((docRef) => {
                 dados.id = docRef.id;
@@ -619,7 +681,6 @@ function salvarBaia() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao criar:', error);
-                // Salvar localmente
                 dados.id = 'local_' + Date.now();
                 baiasData.unshift(dados);
                 atualizarTudo();
@@ -635,7 +696,6 @@ window.editarBaia = function(index) {
     const item = filteredData[index];
     if (!item) return;
     
-    // Encontrar o índice real no baiasData
     const realIndex = baiasData.findIndex(b => b.id === item.id);
     if (realIndex === -1) return;
     
@@ -651,7 +711,11 @@ window.editarBaia = function(index) {
     document.getElementById('editTipo').value = item.tipo || 'moido-sujo';
     document.getElementById('baiaObs').value = item.observacao || '';
     
-    const totalKg = (item.quantidade || 0) * (item.estimativaKg || 0);
+    // Garantir que aceita decimais
+    document.getElementById('qtdBag').step = '0.1';
+    document.getElementById('estimativaKg').step = '0.1';
+    
+    const totalKg = (parseFloat(item.quantidade) || 0) * (parseFloat(item.estimativaKg) || 0);
     document.getElementById('previewEstimada').textContent = totalKg.toFixed(1);
     
     if (titulo) titulo.textContent = 'Editar Baia';
@@ -674,8 +738,30 @@ window.verDetalhesBaia = function(index) {
     
     if (titulo) titulo.textContent = `Detalhes - ${item.nome || 'Baia'}`;
     
-    const totalKg = (item.quantidade * item.estimativaKg).toFixed(1);
+    const quantidade = parseFloat(item.quantidade) || 0;
+    const estimativa = parseFloat(item.estimativaKg) || 0;
+    const totalKg = (quantidade * estimativa).toFixed(1);
     const tipoLabel = item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado';
+    
+    // Gerar histórico
+    let historicoHtml = '';
+    if (item.historico && item.historico.length > 0) {
+        historicoHtml = `
+            <div style="margin-top:16px;">
+                <h4 style="color:#1a2a3a; margin-bottom:8px;">
+                    <i class="fas fa-history"></i> Histórico de Movimentações
+                </h4>
+                <div style="background:#f8f9fc; border-radius:8px; padding:12px; max-height:200px; overflow-y:auto;">
+                    ${item.historico.slice().reverse().map(h => `
+                        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eef2f7; font-size:13px;">
+                            <span><strong>${h.acao}</strong> - ${h.detalhes}</span>
+                            <span style="color:#888; font-size:11px;">${formatarDataCompleta(h.data)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
     
     conteudo.innerHTML = `
         <div style="display:grid; gap:16px;">
@@ -694,11 +780,11 @@ window.verDetalhesBaia = function(index) {
                 </div>
                 <div style="background:#f8f9fc; padding:12px 16px; border-radius:8px;">
                     <span style="font-size:12px; color:#888; display:block;">Quantidade (Bags)</span>
-                    <span style="font-size:16px; font-weight:600; color:#1a2a3a;">${item.quantidade || 0}</span>
+                    <span style="font-size:16px; font-weight:600; color:#1a2a3a;">${quantidade.toFixed(1)}</span>
                 </div>
                 <div style="background:#f8f9fc; padding:12px 16px; border-radius:8px;">
                     <span style="font-size:12px; color:#888; display:block;">Estimativa (kg/Bag)</span>
-                    <span style="font-size:16px; font-weight:600; color:#1a2a3a;">${item.estimativaKg || 0}</span>
+                    <span style="font-size:16px; font-weight:600; color:#1a2a3a;">${estimativa.toFixed(1)}</span>
                 </div>
                 <div style="background:#eafaf1; padding:12px 16px; border-radius:8px; border:2px solid #27ae60;">
                     <span style="font-size:12px; color:#27ae60; display:block;">Total Estimado</span>
@@ -721,12 +807,11 @@ window.verDetalhesBaia = function(index) {
                     <span style="font-size:12px; color:#888;">${item.id || '-'}</span>
                 </div>
             </div>
+            ${historicoHtml}
         </div>
     `;
     
-    // Salvar o índice atual para o PDF
     window._detalheBaiaIndex = index;
-    
     modal.classList.add('active');
 };
 
@@ -770,7 +855,6 @@ function confirmarExclusao() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao excluir:', error);
-                // Excluir localmente mesmo com erro
                 baiasData.splice(deleteIndex, 1);
                 atualizarTudo();
                 fecharModal('modalConfirmacao');
@@ -779,7 +863,6 @@ function confirmarExclusao() {
                 deleteIndex = -1;
             });
     } else {
-        // Excluir local
         baiasData.splice(deleteIndex, 1);
         atualizarTudo();
         fecharModal('modalConfirmacao');
@@ -800,34 +883,30 @@ window.gerarPDFEstoque = function() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape', 'mm', 'a4');
         
-        // Título
         doc.setFontSize(20);
         doc.setTextColor(26, 42, 58);
         doc.text('Controle de Estoque - Mil Plásticos', 20, 20);
         
-        // Data
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 20, 28);
         
-        // Resumo
-        const totalBags = baiasData.reduce((sum, i) => sum + i.quantidade, 0);
-        const totalKg = baiasData.reduce((sum, i) => sum + (i.quantidade * i.estimativaKg), 0);
+        const totalBags = baiasData.reduce((sum, i) => sum + parseFloat(i.quantidade), 0);
+        const totalKg = baiasData.reduce((sum, i) => sum + (parseFloat(i.quantidade) * parseFloat(i.estimativaKg)), 0);
         
         doc.setFontSize(11);
         doc.setTextColor(26, 42, 58);
         doc.text(`Total de Baias: ${baiasData.length}`, 20, 38);
-        doc.text(`Total de Bags: ${totalBags}`, 80, 38);
+        doc.text(`Total de Bags: ${totalBags.toFixed(1)}`, 80, 38);
         doc.text(`Total Estimado: ${totalKg.toFixed(1)} kg`, 140, 38);
         
-        // Tabela
         const tableData = baiasData.map(item => [
             item.nome || '-',
             item.material || '-',
             item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado',
-            item.quantidade || 0,
-            item.estimativaKg || 0,
-            (item.quantidade * item.estimativaKg).toFixed(1) + ' kg'
+            (parseFloat(item.quantidade) || 0).toFixed(1),
+            (parseFloat(item.estimativaKg) || 0).toFixed(1),
+            ((parseFloat(item.quantidade) || 0) * (parseFloat(item.estimativaKg) || 0)).toFixed(1) + ' kg'
         ]);
         
         doc.autoTable({
@@ -854,7 +933,6 @@ window.gerarPDFEstoque = function() {
             }
         });
         
-        // Rodapé
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
@@ -889,18 +967,17 @@ window.gerarPDFBaia = function() {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('portrait', 'mm', 'a4');
-        const totalKg = (item.quantidade * item.estimativaKg).toFixed(1);
+        const quantidade = parseFloat(item.quantidade) || 0;
+        const estimativa = parseFloat(item.estimativaKg) || 0;
+        const totalKg = (quantidade * estimativa).toFixed(1);
         
-        // Título
         doc.setFontSize(22);
         doc.setTextColor(26, 42, 58);
         doc.text('Detalhes da Baia', 20, 25);
         
-        // Linha separadora
         doc.setDrawColor(200, 200, 200);
         doc.line(20, 30, 190, 30);
         
-        // Dados
         doc.setFontSize(12);
         doc.setTextColor(26, 42, 58);
         
@@ -908,8 +985,8 @@ window.gerarPDFBaia = function() {
             ['Nome da Baia', item.nome || '-'],
             ['Tipo', item.tipo === 'moido-sujo' ? 'Moído Sujo' : 'Moído Lavado'],
             ['Material', item.material || '-'],
-            ['Quantidade (Bags)', item.quantidade || 0],
-            ['Estimativa (kg/Bag)', item.estimativaKg || 0],
+            ['Quantidade (Bags)', quantidade.toFixed(1)],
+            ['Estimativa (kg/Bag)', estimativa.toFixed(1)],
             ['Total Estimado', `${totalKg} kg`],
             ['Data de Criação', formatarDataCompleta(item.dataCriacao)],
             ['Observação', item.observacao || 'Nenhuma']
@@ -924,7 +1001,26 @@ window.gerarPDFBaia = function() {
             y += 10;
         });
         
-        // Total em destaque
+        // Histórico
+        if (item.historico && item.historico.length > 0) {
+            y += 5;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('Histórico de Movimentações:', 20, y);
+            y += 6;
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            item.historico.slice().reverse().forEach(h => {
+                doc.text(`• ${h.acao}: ${h.detalhes}`, 25, y);
+                y += 5;
+                doc.setTextColor(150, 150, 150);
+                doc.text(`  ${formatarDataCompleta(h.data)}`, 28, y);
+                doc.setTextColor(26, 42, 58);
+                y += 6;
+            });
+        }
+        
         doc.setDrawColor(39, 174, 96);
         doc.setFillColor(234, 250, 241);
         doc.rect(20, y + 5, 170, 15, 'F');
@@ -1018,10 +1114,12 @@ window.confirmarImportar = function() {
             
             mostrarLoading(true);
             
-            // Importar dados
             const novasBaias = dados.dados.map(item => ({
                 ...item,
-                id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+                id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                quantidade: parseFloat(item.quantidade) || 0,
+                estimativaKg: parseFloat(item.estimativaKg) || 0,
+                totalKg: parseFloat(item.quantidade) * parseFloat(item.estimativaKg) || 0
             }));
             
             baiasData = novasBaias;
@@ -1045,7 +1143,6 @@ window.confirmarImportar = function() {
 
 // ========== FUNÇÕES UTILITÁRIAS ==========
 
-// Formatar data
 function formatarData(data) {
     if (!data) return '-';
     try {
@@ -1066,7 +1163,6 @@ function formatarDataCompleta(data) {
     }
 }
 
-// Atualizar preview da estimativa
 function atualizarPreviewEstimativa() {
     const qtd = parseFloat(document.getElementById('qtdBag')?.value) || 0;
     const kg = parseFloat(document.getElementById('estimativaKg')?.value) || 0;
@@ -1077,13 +1173,11 @@ function atualizarPreviewEstimativa() {
     }
 }
 
-// Fechar modal
 window.fecharModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove('active');
 };
 
-// Mostrar/ocultar loading
 function mostrarLoading(ativo) {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) {
@@ -1095,9 +1189,7 @@ function mostrarLoading(ativo) {
     }
 }
 
-// Notificações
 function mostrarNotificacao(mensagem, tipo = 'info') {
-    // Criar elemento de notificação
     const notificacao = document.createElement('div');
     notificacao.style.cssText = `
         position: fixed;
@@ -1123,12 +1215,10 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
     
     document.body.appendChild(notificacao);
     
-    // Animar entrada
     setTimeout(() => {
         notificacao.style.transform = 'translateX(0)';
     }, 100);
     
-    // Remover após 4 segundos
     setTimeout(() => {
         notificacao.style.transform = 'translateX(120%)';
         setTimeout(() => {
@@ -1136,7 +1226,6 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
         }, 400);
     }, 4000);
     
-    // Fechar ao clicar
     notificacao.addEventListener('click', function() {
         this.style.transform = 'translateX(120%)';
         setTimeout(() => {
@@ -1148,7 +1237,6 @@ function mostrarNotificacao(mensagem, tipo = 'info') {
 }
 
 // ========== EXPORTAR FUNÇÕES GLOBAIS ==========
-// Garantir que todas as funções estejam disponíveis globalmente
 window.carregarDadosEstoque = carregarDadosEstoque;
 window.filtrarEstoque = filtrarEstoque;
 window.limparFiltros = limparFiltros;
