@@ -4,14 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle de Estoque | Mil Plásticos</title>
+  <title>Central de Custos | Mil Plásticos</title>
 
   <!-- CSS Principal -->
-  
   <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/components/sidebar.css">
-  <link rel="stylesheet" href="/components/topbar.css">
-  <link rel="stylesheet" href="/assets/css/producao.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
+
+  <!-- CSS Específico -->
+  <link rel="stylesheet" href="/assets/css/custo.css">
 
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -20,8 +21,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  <!-- jsPDF -->
+  <!-- Init e Sync System -->
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+
+  <!-- Bibliotecas específicas (carregadas depois para não bloquear) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
 
@@ -33,9 +40,6 @@
   <div class="container">
     <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
-
-    <!-- Conteúdo principal -->
-    <main class="main-content">
 
       <!-- LOADING -->
       <div class="loading-overlay" id="loadingOverlay">
