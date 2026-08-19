@@ -178,6 +178,72 @@
       <!-- ===================== MODAIS ===================== -->
 
       <!-- MODAL BAIAS -->
+      <!-- MODAL BAIAS -->
+<div class="modal-overlay" id="modalBaia">
+    <div class="modal">
+        <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
+        <form id="formBaia">
+            <input type="hidden" id="editBaiaIndex" value="-1" />
+            <input type="hidden" id="editTipo" value="moido-sujo" />
+
+            <!-- NOVO: SELECT DE TIPO ANTES DO NOME -->
+            <div class="form-group">
+                <label for="tipoBaiaSelect">Tipo da Baia <span class="required">*</span></label>
+                <select id="tipoBaiaSelect" required>
+                    <option value="moido-sujo">🟡 Moído Sujo</option>
+                    <option value="moido-lavado">🔵 Moído Lavado</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="baiaNome">Nome da Baia <span class="required">*</span></label>
+                <input type="text" id="baiaNome" placeholder="Ex: Baia A1, Estoque 01..." required />
+            </div>
+
+            <div class="form-group">
+                <label for="materialNome">Material <span class="required">*</span></label>
+                <input type="text" id="materialNome" placeholder="Ex: PP, PE, PET, PEAD..." required />
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="qtdBag">Quantidade (Bag) <span class="required">*</span></label>
+                    <input type="number" id="qtdBag" placeholder="0" min="0" step="0.1" required />
+                </div>
+                <div class="form-group">
+                    <label for="estimativaKg">Estimativa (kg/Bag) <span class="required">*</span></label>
+                    <input type="number" id="estimativaKg" placeholder="0" min="0" step="0.1" required />
+                </div>
+            </div>
+
+            <!-- CAMPO DE TOTAL CALCULADO -->
+            <div class="form-group" style="background: #f0f4fa; padding: 12px 16px; border-radius: 8px;">
+                <label style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-calculator"></i> Quantidade Estimada (kg)</span>
+                    <span id="totalCalculado" style="font-weight: 700; font-size: 20px; color: #1a2a3a;">0,0 kg</span>
+                </label>
+            </div>
+
+            <!-- Preview (mantido para compatibilidade) -->
+            <div class="form-group" style="display:none;">
+                <label>Preview</label>
+                <span id="previewEstimada">0,0</span>
+            </div>
+
+            <div class="form-group">
+                <label>Observação</label>
+                <input type="text" id="baiaObs" placeholder="Observações sobre a baia (opcional)" />
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="window.fecharModalBaia()">Cancelar</button>
+                <button type="submit" class="btn btn-success" id="btnSalvarBaia">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+</div> 
       <div class="modal-overlay" id="modalBaia">
         <div class="modal">
           <h2><i class="fas fa-archive"></i> <span id="modalBaiaTitulo">Nova Baia</span></h2>
