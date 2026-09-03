@@ -1,4 +1,4 @@
-// cotacao.js - Sistema de Cotações Completo (VERSÃO FINAL CORRIGIDA)
+// cotacao.js - Sistema de Cotações (VERSÃO COMPLETAMENTE REFEITA)
 // Mil Plásticos
 
 // ================== DADOS GLOBAIS ==================
@@ -26,7 +26,7 @@ function formatarDataHora(dataStr) {
 }
 
 function gerarId() {
-  return Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
+  return 'cot_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 4);
 }
 
 function salvarDados() {
@@ -37,23 +37,108 @@ function salvarDados() {
 }
 
 function carregarDados() {
-  produtos = JSON.parse(localStorage.getItem('produtos_cotacao')) || [];
-  cotacoes = JSON.parse(localStorage.getItem('cotacoes')) || [];
-  historico = JSON.parse(localStorage.getItem('historico_cotacao')) || [];
-  fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
+  try {
+    produtos = JSON.parse(localStorage.getItem('produtos_cotacao')) || [];
+    cotacoes = JSON.parse(localStorage.getItem('cotacoes')) || [];
+    historico = JSON.parse(localStorage.getItem('historico_cotacao')) || [];
+    fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
+  } catch (e) {
+    console.error('Erro ao carregar dados:', e);
+    produtos = [];
+    cotacoes = [];
+    historico = [];
+    fornecedores = [];
+  }
   
+  // Garantir que os IDs sejam strings
+  cotacoes = cotacoes.filter(c => c.id).map(c => ({ ...c, id: String(c.id) }));
+  historico = historico.filter(h => h.id).map(h => ({ ...h, id: String(h.id) }));
+  produtos = produtos.filter(p => p.id).map(p => ({ ...p, id: String(p.id) }));
+  fornecedores = fornecedores.filter(f => f.id).map(f => ({ ...f, id: String(f.id) }));
+  
+  // Dados iniciais se estiver vazio
   if (produtos.length === 0) {
     produtos = [
-      { id: 'prod1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
-      { id: 'prod2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
+      { id: 'prod_1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
+      { id: 'prod_2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" },
+      { id: 'prod_3', nome: "Polietileno PEAD", codigo: "PE-001", categoria: "Matéria Prima", unidadePadrao: "kg", ncm: "3901.20.90" }
     ];
   }
   if (fornecedores.length === 0) {
     fornecedores = [
-      { id: 'forn1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
-      { id: 'forn2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
+      { id: 'forn_1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
+      { id: 'forn_2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" },
+      { id: 'forn_3', nomeEmpresa: "PolyPlast", cnpj: "11.222.333/0001-44", ie: "111.222.333", telefone: "(11) 77777-7777", email: "vendas@polyplast.com", uf: "SP" }
     ];
   }
+  
+  // Cotações de exemplo se estiver vazio
+  if (cotacoes.length === 0 && historico.length === 0) {
+    const hoje = new Date().toISOString().split('T')[0];
+    cotacoes = [
+      {
+        id: 'cot_1',
+        produto: "GotaLube SP",
+        fornecedor: "LMJ Plásticos",
+        uf: "SP",
+        quantidade: 10,
+        valorUnitario: 15.50,
+        dataCotacao: hoje,
+        dataEntrega: '2026-09-15',
+        observacoes: "",
+        aliquotaICMS: 18,
+        valorICMS: 27.90,
+        aliquotaIPI: 5,
+        valorIPI: 7.75,
+        valorFrete: 15.00,
+        prazoPagamento: "30 dias",
+        condicaoPagamento: "Boleto",
+        status: "ativo",
+        dataCadastro: new Date().toISOString()
+      },
+      {
+        id: 'cot_2',
+        produto: "GotaLube SP",
+        fornecedor: "PlastTotal",
+        uf: "SP",
+        quantidade: 10,
+        valorUnitario: 14.80,
+        dataCotacao: hoje,
+        dataEntrega: '2026-09-20',
+        observacoes: "",
+        aliquotaICMS: 18,
+        valorICMS: 26.64,
+        aliquotaIPI: 5,
+        valorIPI: 7.40,
+        valorFrete: 20.00,
+        prazoPagamento: "15 dias",
+        condicaoPagamento: "Cartão",
+        status: "ativo",
+        dataCadastro: new Date().toISOString()
+      },
+      {
+        id: 'cot_3',
+        produto: "Sacaria Plástica",
+        fornecedor: "PolyPlast",
+        uf: "SP",
+        quantidade: 100,
+        valorUnitario: 2.50,
+        dataCotacao: hoje,
+        dataEntrega: '2026-09-10',
+        observacoes: "",
+        aliquotaICMS: 18,
+        valorICMS: 45.00,
+        aliquotaIPI: 5,
+        valorIPI: 12.50,
+        valorFrete: 30.00,
+        prazoPagamento: "45 dias",
+        condicaoPagamento: "Boleto",
+        status: "ativo",
+        dataCadastro: new Date().toISOString()
+      }
+    ];
+  }
+  
   salvarDados();
 }
 
@@ -63,10 +148,10 @@ function renderCotacoes() {
   const empty = document.getElementById('emptyState');
   if (!container) return;
   
-  // Mostra TODAS as cotações que NÃO estão finalizadas
+  // Mostra TODAS as cotações (não finalizadas)
   const ativas = cotacoes.filter(c => c.status !== "finalizado");
   
-  console.log('📊 Renderizando cotações:', ativas.length, 'ativas');
+  console.log('📊 Renderizando cotações ativas:', ativas.length);
   
   if (ativas.length === 0) {
     container.innerHTML = '';
@@ -90,7 +175,7 @@ function renderCotacoes() {
       <div><strong>${formatarMoeda(totalComImpostos)}</strong></div>
       <div>${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}</div>
       <div>
-        <span class="status-badge ${cot.status === 'ativo' ? 'status-ativo' : 'status-pendente'}">${cot.status || 'Ativo'}</span>
+        <span class="status-badge status-ativo">Ativo</span>
       </div>
       <div class="actions">
         <button class="btn-icon edit-cotacao" data-id="${cot.id}" title="Editar"><i class="fas fa-edit"></i></button>
@@ -207,8 +292,6 @@ function compararSelecionados() {
   const selecionados = document.querySelectorAll('.select-cotacao:checked');
   
   console.log('📋 Selecionados:', selecionados.length);
-  console.log('📋 IDs selecionados:', Array.from(selecionados).map(cb => cb.value));
-  console.log('📋 Todas cotações:', cotacoes.map(c => ({ id: c.id, produto: c.produto, status: c.status })));
   
   if (selecionados.length < 2) {
     alert('Selecione pelo menos 2 cotações para comparar');
@@ -216,10 +299,13 @@ function compararSelecionados() {
   }
   
   // Pega os IDs como string
-  const ids = Array.from(selecionados).map(cb => cb.value);
+  const ids = Array.from(selecionados).map(cb => String(cb.value));
   
-  // Filtra as cotações pelos IDs (comparação de string)
-  const itens = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
+  console.log('📋 IDs selecionados:', ids);
+  console.log('📋 Cotações disponíveis:', cotacoes.map(c => ({ id: String(c.id), produto: c.produto, status: c.status })));
+  
+  // Filtra as cotações pelos IDs
+  const itens = cotacoes.filter(c => ids.includes(String(c.id)) && c.status !== "finalizado");
   
   console.log('📋 Itens encontrados:', itens.length);
   
@@ -287,14 +373,14 @@ function compararSelecionados() {
     const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
     if (totalComImpostos < menorTotal) {
       menorTotal = totalComImpostos;
-      menorId = item.id;
+      menorId = String(item.id);
     }
   });
   
   itens.forEach((item, idx) => {
     const total = (item.quantidade || 0) * (item.valorUnitario || 0);
     const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
-    const isMelhor = item.id === menorId;
+    const isMelhor = String(item.id) === String(menorId);
     
     html += `
       <tr class="${isMelhor ? 'melhor-preco' : ''}" data-id="${item.id}">
@@ -453,8 +539,8 @@ function finalizarCotacoesSelecionadas() {
     return;
   }
   
-  const ids = Array.from(checkboxes).map(cb => cb.value);
-  const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
+  const ids = Array.from(checkboxes).map(cb => String(cb.value));
+  const itensParaFinalizar = cotacoes.filter(c => ids.includes(String(c.id)));
   
   if (itensParaFinalizar.length === 0) {
     alert('Nenhuma cotação encontrada para finalizar');
@@ -465,14 +551,16 @@ function finalizarCotacoesSelecionadas() {
   
   if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
     itensParaFinalizar.forEach(item => {
-      item.status = 'finalizado';
-      item.dataFinalizacao = new Date().toISOString();
-      historico.push({ ...item });
+      const itemFinalizado = {
+        ...item,
+        status: 'finalizado',
+        dataFinalizacao: new Date().toISOString()
+      };
+      historico.push(itemFinalizado);
     });
     
-    // Remove as finalizadas da lista de cotações ativas
-    const idsFinalizados = itensParaFinalizar.map(item => item.id);
-    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(c.id));
+    const idsFinalizados = itensParaFinalizar.map(item => String(item.id));
+    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(String(c.id)));
     
     salvarDados();
     renderCotacoes();
@@ -489,8 +577,8 @@ function finalizarSelecionadosDireto() {
     return;
   }
   
-  const ids = Array.from(selecionados).map(cb => cb.value);
-  const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
+  const ids = Array.from(selecionados).map(cb => String(cb.value));
+  const itensParaFinalizar = cotacoes.filter(c => ids.includes(String(c.id)) && c.status !== "finalizado");
   
   if (itensParaFinalizar.length === 0) {
     alert('Nenhuma cotação ativa selecionada');
@@ -501,13 +589,16 @@ function finalizarSelecionadosDireto() {
   
   if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
     itensParaFinalizar.forEach(item => {
-      item.status = 'finalizado';
-      item.dataFinalizacao = new Date().toISOString();
-      historico.push({ ...item });
+      const itemFinalizado = {
+        ...item,
+        status: 'finalizado',
+        dataFinalizacao: new Date().toISOString()
+      };
+      historico.push(itemFinalizado);
     });
     
-    const idsFinalizados = itensParaFinalizar.map(item => item.id);
-    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(c.id));
+    const idsFinalizados = itensParaFinalizar.map(item => String(item.id));
+    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(String(c.id)));
     
     salvarDados();
     renderCotacoes();
@@ -527,7 +618,7 @@ function abrirModalCotacao(id = null) {
   document.getElementById('cotacaoData').value = hoje;
   
   if (id) {
-    const cot = cotacoes.find(c => c.id === id);
+    const cot = cotacoes.find(c => String(c.id) === String(id));
     if (cot) {
       document.getElementById('cotacaoProduto').value = cot.produto || '';
       document.getElementById('cotacaoFornecedor').value = cot.fornecedor || '';
@@ -600,7 +691,7 @@ function salvarCotacao(event) {
   console.log('💾 Salvando cotação:', cotacaoData);
   
   if (editingId) {
-    const idx = cotacoes.findIndex(c => c.id === editingId);
+    const idx = cotacoes.findIndex(c => String(c.id) === String(editingId));
     if (idx !== -1) cotacoes[idx] = cotacaoData;
   } else {
     cotacoes.push(cotacaoData);
@@ -629,7 +720,7 @@ function salvarProduto(event) {
   };
   
   if (editingProdutoId) {
-    const idx = produtos.findIndex(p => p.id === editingProdutoId);
+    const idx = produtos.findIndex(p => String(p.id) === String(editingProdutoId));
     if (idx !== -1) produtos[idx] = prodData;
   } else {
     produtos.push(prodData);
@@ -642,7 +733,7 @@ function salvarProduto(event) {
 }
 
 function editarProduto(id) {
-  const prod = produtos.find(p => p.id === id);
+  const prod = produtos.find(p => String(p.id) === String(id));
   if (!prod) return;
   
   editingProdutoId = id;
@@ -672,7 +763,7 @@ function salvarFornecedor(event) {
   };
   
   if (editingFornecedorId) {
-    const idx = fornecedores.findIndex(f => f.id === editingFornecedorId);
+    const idx = fornecedores.findIndex(f => String(f.id) === String(editingFornecedorId));
     if (idx !== -1) fornecedores[idx] = fornData;
   } else {
     fornecedores.push(fornData);
@@ -685,7 +776,7 @@ function salvarFornecedor(event) {
 }
 
 function editarFornecedor(id) {
-  const forn = fornecedores.find(f => f.id === id);
+  const forn = fornecedores.find(f => String(f.id) === String(id));
   if (!forn) return;
   
   editingFornecedorId = id;
@@ -765,7 +856,7 @@ function init() {
     const viewCot = e.target.closest('.view-cotacao');
     if (viewCot) {
       const id = viewCot.dataset.id;
-      const cot = cotacoes.find(c => c.id === id);
+      const cot = cotacoes.find(c => String(c.id) === String(id));
       if (cot) {
         const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
         const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
@@ -792,7 +883,7 @@ function init() {
     const delCot = e.target.closest('.delete-cotacao');
     if (delCot) {
       if (confirm('Excluir esta cotação permanentemente?')) {
-        cotacoes = cotacoes.filter(c => c.id !== delCot.dataset.id);
+        cotacoes = cotacoes.filter(c => String(c.id) !== String(delCot.dataset.id));
         salvarDados();
         renderCotacoes();
         alert('Cotação excluída com sucesso!');
@@ -807,7 +898,7 @@ function init() {
     const delProd = e.target.closest('.btn-excluir-produto');
     if (delProd) {
       if (confirm('Excluir este produto?')) {
-        produtos = produtos.filter(p => p.id !== delProd.dataset.id);
+        produtos = produtos.filter(p => String(p.id) !== String(delProd.dataset.id));
         salvarDados();
         renderProdutos();
         alert('Produto excluído com sucesso!');
@@ -822,7 +913,7 @@ function init() {
     const delForn = e.target.closest('.btn-excluir-fornecedor');
     if (delForn) {
       if (confirm('Excluir este fornecedor?')) {
-        fornecedores = fornecedores.filter(f => f.id !== delForn.dataset.id);
+        fornecedores = fornecedores.filter(f => String(f.id) !== String(delForn.dataset.id));
         salvarDados();
         renderFornecedores();
         alert('Fornecedor excluído com sucesso!');
