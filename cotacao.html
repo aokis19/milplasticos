@@ -25,11 +25,48 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
     
-    .page-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    #sidebar-container {
+      width: 240px;
+      flex-shrink: 0;
+    }
+    
+    .main-content {
+      flex: 1;
+      padding: 0;
+    }
+    
+    .page-container { 
+      padding: 15px 20px; 
+      max-width: 1400px; 
+      margin: 0 auto; 
+    }
 
     /* TABS */
-    .cotacao-tabs { display: flex; gap: 5px; background: white; padding: 10px 20px 0 20px; border-radius: 12px 12px 0 0; margin-bottom: 20px; flex-wrap: wrap; }
-    .tab-btn { padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-size: 15px; font-weight: 500; color: #666; border-radius: 8px 8px 0 0; transition: all 0.3s; }
+    .cotacao-tabs { 
+      display: flex; 
+      gap: 5px; 
+      background: white; 
+      padding: 8px 20px 0 20px; 
+      border-radius: 12px 12px 0 0; 
+      margin-bottom: 15px; 
+      flex-wrap: wrap; 
+    }
+    .tab-btn { 
+      padding: 10px 20px; 
+      border: none; 
+      background: transparent; 
+      cursor: pointer; 
+      font-size: 14px; 
+      font-weight: 500; 
+      color: #666; 
+      border-radius: 8px 8px 0 0; 
+      transition: all 0.3s; 
+    }
     .tab-btn i { margin-right: 8px; }
     .tab-btn:hover { background: #f0f0f0; color: #3498db; }
     .tab-btn.active { background: white; color: #3498db; border-bottom: 3px solid #3498db; }
@@ -38,13 +75,36 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     /* HEADER */
-    .cotacao-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-    .cotacao-header h1 { font-size: 24px; color: #2c3e50; }
+    .cotacao-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 12px; 
+      flex-wrap: wrap; 
+      gap: 10px; 
+    }
+    .cotacao-header h1 { 
+      font-size: 20px; 
+      color: #2c3e50; 
+      margin: 0;
+    }
     .cotacao-header h1 i { color: #3498db; margin-right: 10px; }
-    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
     /* BOTÕES */
-    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s; white-space: nowrap; }
+    .btn { 
+      padding: 8px 16px; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 13px; 
+      font-weight: 500; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px; 
+      transition: all 0.3s; 
+      white-space: nowrap; 
+    }
     .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
     .btn-primary { background: #3498db; color: white; }
     .btn-primary:hover { background: #2980b9; }
@@ -55,8 +115,17 @@
     .btn-secondary { background: #95a5a6; color: white; }
     .btn-secondary:hover { background: #7f8c8d; }
     .btn-danger { background: #e74c3c; color: white; }
-    .btn-small { padding: 6px 12px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-icon { background: none; border: none; color: #3498db; cursor: pointer; padding: 5px 8px; border-radius: 4px; font-size: 16px; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-small { padding: 5px 10px; font-size: 11px; }
+    .btn-icon { 
+      background: none; 
+      border: none; 
+      color: #3498db; 
+      cursor: pointer; 
+      padding: 4px 6px; 
+      border-radius: 4px; 
+      font-size: 14px; 
+    }
     .btn-icon:hover { background: rgba(52,152,219,0.1); }
     .btn-icon.delete { color: #e74c3c; }
     .btn-icon.delete:hover { background: rgba(231,76,60,0.1); }
@@ -64,19 +133,36 @@
     .btn-icon.view-cotacao:hover { background: rgba(108,117,125,0.1); color: #495057; }
 
     /* TABELAS */
-    .table-header { display: grid; grid-template-columns: 0.5fr 1.5fr 1.5fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr 1fr 1.2fr; background: #2c3e50; color: white; padding: 12px 15px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 12px; }
-    .table-row { display: grid; grid-template-columns: 0.5fr 1.5fr 1.5fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr 1fr 1.2fr; padding: 12px 15px; border-bottom: 1px solid #e9ecef; align-items: center; background: white; font-size: 13px; }
+    .table-header { 
+      display: grid; 
+      grid-template-columns: 0.4fr 1.2fr 1.2fr 0.6fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1.1fr; 
+      background: #2c3e50; 
+      color: white; 
+      padding: 10px 12px; 
+      border-radius: 8px 8px 0 0; 
+      font-weight: 600; 
+      font-size: 11px; 
+    }
+    .table-row { 
+      display: grid; 
+      grid-template-columns: 0.4fr 1.2fr 1.2fr 0.6fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1.1fr; 
+      padding: 10px 12px; 
+      border-bottom: 1px solid #e9ecef; 
+      align-items: center; 
+      background: white; 
+      font-size: 12px; 
+    }
     .table-row:hover { background: #f8f9fa; }
     .checkbox-column { text-align: center; }
-    .checkbox-column input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-    .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+    .checkbox-column input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+    .actions { display: flex; gap: 3px; flex-wrap: wrap; }
 
     /* STATUS */
     .status-badge {
       display: inline-block;
-      padding: 4px 12px;
+      padding: 3px 10px;
       border-radius: 20px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
     }
     .status-ativo { background: #d4edda; color: #155724; }
@@ -84,91 +170,267 @@
     .status-finalizado { background: #cce5ff; color: #004085; }
 
     /* MODAL */
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
-    .modal-content { background: white; margin: 50px auto; max-width: 900px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: modalSlideIn 0.3s ease; }
+    .modal { 
+      display: none; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      z-index: 1000; 
+      overflow-y: auto; 
+    }
+    .modal-content { 
+      background: white; 
+      margin: 40px auto; 
+      max-width: 900px; 
+      border-radius: 12px; 
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+      animation: modalSlideIn 0.3s ease; 
+    }
     .modal-content.comparison-modal { max-width: 1400px; }
-    @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
-    .modal-header { padding: 20px 25px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0; }
-    .modal-header h2, .modal-header h3 { color: white; margin: 0; }
+    @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-header { 
+      padding: 18px 25px; 
+      border-bottom: 1px solid #e9ecef; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+      border-radius: 12px 12px 0 0; 
+    }
+    .modal-header h2, .modal-header h3 { color: white; margin: 0; font-size: 20px; }
     .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
-    .modal-footer { padding: 15px 25px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px; }
-    .close-modal { background: none; border: none; font-size: 28px; cursor: pointer; color: white; }
-    .close-modal:hover { opacity: 0.7; }
+    .modal-footer { 
+      padding: 15px 25px; 
+      border-top: 1px solid #e9ecef; 
+      display: flex; 
+      justify-content: flex-end; 
+      gap: 10px; 
+      background: #f8f9fa;
+      border-radius: 0 0 12px 12px;
+    }
+    .close-modal { 
+      background: none; 
+      border: none; 
+      font-size: 28px; 
+      cursor: pointer; 
+      color: white; 
+      transition: transform 0.3s;
+    }
+    .close-modal:hover { transform: rotate(90deg); opacity: 0.7; }
 
-    /* FORMULÁRIO - Campos de texto livre */
-    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
+    /* FORMULÁRIO */
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { 
+      display: block; 
+      margin-bottom: 4px; 
+      font-weight: 600; 
+      font-size: 12px; 
+      color: #555; 
+    }
     .form-group input, .form-group select, .form-group textarea { 
-      width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; 
+      width: 100%; 
+      padding: 8px 12px; 
+      border: 1px solid #ddd; 
+      border-radius: 6px; 
+      font-size: 13px; 
+      background: white; 
+      transition: border-color 0.3s, box-shadow 0.3s;
     }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { 
-      outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); 
+      outline: none; 
+      border-color: #3498db; 
+      box-shadow: 0 0 0 3px rgba(52,152,219,0.1); 
     }
-    .form-group input[type="text"] {
-      background: white;
-    }
+    .form-group input[type="text"] { background: white; }
     .full-width { grid-column: 1 / -1; }
 
     /* CARDS */
-    .produtos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px 0; }
-    .produto-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .produto-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
-    .produto-card p { color: #666; font-size: 13px; margin-bottom: 5px; }
-    .produto-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
+    .produtos-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+      gap: 15px; 
+      padding: 15px 0; 
+    }
+    .produto-card, .fornecedor-card { 
+      background: white; 
+      border: 1px solid #e0e0e0; 
+      border-radius: 10px; 
+      padding: 18px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+      transition: box-shadow 0.3s;
+    }
+    .produto-card:hover, .fornecedor-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .produto-card h3, .fornecedor-card h3 { margin: 0 0 8px 0; color: #2c3e50; font-size: 16px; }
+    .produto-card p, .fornecedor-card p { color: #666; font-size: 12px; margin-bottom: 4px; }
+    .produto-actions, .fornecedor-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
     
-    .fornecedores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px 0; }
-    .fornecedor-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; }
-    .fornecedor-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
-    .fornecedor-card p { color: #666; font-size: 13px; margin-bottom: 5px; }
-    .fornecedor-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
+    .fornecedores-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+      gap: 15px; 
+      padding: 15px 0; 
+    }
 
     /* HISTÓRICO */
-    .filtro-historico { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; background: white; padding: 20px; border-radius: 10px; }
-    .filtro-historico input, .filtro-historico select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-    .historico-item { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
-    .historico-item-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+    .filtro-historico { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+      gap: 12px; 
+      margin-bottom: 15px; 
+      background: white; 
+      padding: 15px; 
+      border-radius: 10px; 
+    }
+    .filtro-historico input, .filtro-historico select { 
+      padding: 8px 12px; 
+      border: 1px solid #ddd; 
+      border-radius: 6px; 
+      font-size: 13px; 
+    }
+    .historico-item { 
+      background: white; 
+      border: 1px solid #e0e0e0; 
+      border-radius: 10px; 
+      padding: 15px; 
+      margin-bottom: 10px; 
+    }
+    .historico-item-header { 
+      display: flex; 
+      justify-content: space-between; 
+      margin-bottom: 8px; 
+      padding-bottom: 8px; 
+      border-bottom: 1px solid #eee; 
+    }
     .historico-produto { font-weight: bold; color: #2c3e50; }
-    .historico-data { color: #666; font-size: 12px; }
-    .historico-detalhes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+    .historico-data { color: #666; font-size: 11px; }
+    .historico-detalhes { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); 
+      gap: 8px; 
+      margin-top: 8px; 
+    }
 
     /* COMPARATIVO */
-    .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .resumo-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; gap: 15px; border-left: 4px solid; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .resumo-cards { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+      gap: 12px; 
+      margin-bottom: 15px; 
+    }
+    .resumo-card { 
+      background: white; 
+      border-radius: 10px; 
+      padding: 15px; 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      border-left: 4px solid; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+    }
     .resumo-card.total { border-left-color: #3498db; }
-    .resumo-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .resumo-icon { 
+      width: 40px; 
+      height: 40px; 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-size: 18px; 
+    }
     .resumo-icon.total { background: #e3f2fd; color: #1976d2; }
     .resumo-value { font-size: 18px; font-weight: bold; }
-    .resumo-label { font-size: 11px; color: #666; }
-    .comparativo-tabela { background: white; border-radius: 10px; overflow-x: auto; }
-    .comparativo-tabela table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .comparativo-tabela th { background: #2c3e50; color: white; padding: 10px; text-align: left; font-size: 11px; white-space: nowrap; }
-    .comparativo-tabela td { padding: 8px 10px; border-bottom: 1px solid #e9ecef; font-size: 12px; }
+    .resumo-label { font-size: 10px; color: #666; }
+    .comparativo-tabela { 
+      background: white; 
+      border-radius: 10px; 
+      overflow-x: auto; 
+      padding: 5px;
+    }
+    .comparativo-tabela table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 12px; 
+    }
+    .comparativo-tabela th { 
+      background: #2c3e50; 
+      color: white; 
+      padding: 8px 10px; 
+      text-align: left; 
+      font-size: 10px; 
+      white-space: nowrap; 
+    }
+    .comparativo-tabela td { 
+      padding: 6px 10px; 
+      border-bottom: 1px solid #e9ecef; 
+      font-size: 11px; 
+    }
     .comparativo-tabela tr:hover { background: #f8f9fa; }
     .comparativo-tabela .melhor-preco { background: #d4edda !important; font-weight: bold; }
 
-    .empty-state { text-align: center; padding: 60px 20px; color: #999; display: none; }
-    .empty-state i { font-size: 48px; margin-bottom: 15px; color: #bdc3c7; }
-    .empty-state h3 { color: #7f8c8d; margin-bottom: 10px; }
+    .empty-state { 
+      text-align: center; 
+      padding: 40px 20px; 
+      color: #999; 
+      display: none; 
+    }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; color: #bdc3c7; }
+    .empty-state h3 { color: #7f8c8d; margin-bottom: 6px; font-size: 16px; }
+    .empty-state p { color: #95a5a6; font-size: 13px; }
 
-    .pdf-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
-    .pdf-loading-spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+    .pdf-loading { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(255,255,255,0.95); 
+      z-index: 9999; 
+      display: none; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      gap: 12px; 
+    }
+    .pdf-loading-spinner { 
+      width: 40px; 
+      height: 40px; 
+      border: 4px solid #f3f3f3; 
+      border-top: 4px solid #3498db; 
+      border-radius: 50%; 
+      animation: spin 1s linear infinite; 
+    }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     @media (max-width: 768px) {
-      .table-header, .table-row { grid-template-columns: 0.5fr 1.2fr 1.2fr 0.6fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr; font-size: 10px; padding: 8px 10px; }
+      .table-header, .table-row { 
+        grid-template-columns: 0.4fr 1fr 1fr 0.5fr 0.5fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1fr; 
+        font-size: 9px; 
+        padding: 6px 8px; 
+      }
       .form-grid { grid-template-columns: 1fr; }
       .modal-content { margin: 20px; width: calc(100% - 40px); }
       .cotacao-header { flex-direction: column; align-items: flex-start; }
       .header-actions { width: 100%; }
-      .header-actions .btn { flex: 1; justify-content: center; }
+      .header-actions .btn { flex: 1; justify-content: center; font-size: 11px; padding: 6px 12px; }
+      #sidebar-container { width: 60px; }
+      .page-container { padding: 10px; }
     }
   </style>
 </head>
 <body>
+  <!-- Topbar Container -->
   <div id="topbar-container"></div>
+
+  <!-- Container principal -->
   <div class="container">
+    <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
+
+    <!-- Conteúdo principal -->
     <main class="main-content">
       <div class="page-container">
         
@@ -186,8 +448,8 @@
             <h1><i class="fas fa-balance-scale"></i> Cotações Ativas</h1>
             <div class="header-actions">
               <button class="btn btn-primary" id="addCotacaoBtn"><i class="fas fa-plus-circle"></i> Nova Cotação</button>
-              <button class="btn btn-success" id="compararSelecionadosBtn"><i class="fas fa-chart-bar"></i> Comparar Selecionados</button>
-              <button class="btn btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar Selecionados</button>
+              <button class="btn btn-success" id="compararSelecionadosBtn"><i class="fas fa-chart-bar"></i> Comparar</button>
+              <button class="btn btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar</button>
             </div>
           </div>
           
@@ -217,7 +479,7 @@
           <div class="cotacao-header">
             <h1><i class="fas fa-history"></i> Histórico de Compras</h1>
             <div class="header-actions">
-              <button class="btn btn-secondary" id="limparHistoricoBtn"><i class="fas fa-trash-alt"></i> Limpar Histórico</button>
+              <button class="btn btn-danger" id="limparHistoricoBtn"><i class="fas fa-trash-alt"></i> Limpar Histórico</button>
             </div>
           </div>
           <div class="filtro-historico">
@@ -472,828 +734,15 @@
     <p>Gerando PDF...</p>
   </div>
 
-  <script>
-    // ================== DADOS GLOBAIS ==================
-    let produtos = [];
-    let cotacoes = [];
-    let historico = [];
-    let fornecedores = [];
-    let editingId = null;
-    let editingFornecedorId = null;
-    let editingProdutoId = null;
+  <!-- ============================================ -->
+  <!-- SCRIPTS - Carregamento dos módulos -->
+  <!-- ============================================ -->
+  
+  <!-- 2. Módulo Principal (main.js) -->
+  <script src="/js/main.js"></script>
+  
+  <!-- 3. Sistema de Cotações (cotacao.js) -->
+  <script src="/js/cotacao.js"></script>
 
-    // ================== UTILITÁRIOS ==================
-    function formatarMoeda(valor) {
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
-    }
-
-    function formatarData(dataStr) {
-      if (!dataStr) return '';
-      try { const d = new Date(dataStr + 'T00:00:00'); return d.toLocaleDateString('pt-BR'); } catch { return dataStr; }
-    }
-
-    function formatarDataHora(dataStr) {
-      if (!dataStr) return '';
-      try { const d = new Date(dataStr); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR'); } catch { return dataStr; }
-    }
-
-    function gerarId() { return Date.now() + Math.random() * 1000; }
-
-    function salvarDados() {
-      localStorage.setItem('produtos_cotacao', JSON.stringify(produtos));
-      localStorage.setItem('cotacoes', JSON.stringify(cotacoes));
-      localStorage.setItem('historico_cotacao', JSON.stringify(historico));
-      localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
-    }
-
-    function carregarDados() {
-      produtos = JSON.parse(localStorage.getItem('produtos_cotacao')) || [];
-      cotacoes = JSON.parse(localStorage.getItem('cotacoes')) || [];
-      historico = JSON.parse(localStorage.getItem('historico_cotacao')) || [];
-      fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
-      
-      if (produtos.length === 0) {
-        produtos = [
-          { id: 1, nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
-          { id: 2, nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
-        ];
-      }
-      if (fornecedores.length === 0) {
-        fornecedores = [
-          { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
-          { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
-        ];
-      }
-      salvarDados();
-    }
-
-    // ================== RENDERIZAÇÃO ==================
-    function renderCotacoes() {
-      const container = document.getElementById('cotacoesContainer');
-      const empty = document.getElementById('emptyState');
-      if (!container) return;
-      
-      const ativas = cotacoes.filter(c => c.status !== "finalizado");
-      if (ativas.length === 0) {
-        container.innerHTML = '';
-        if (empty) empty.style.display = 'block';
-        return;
-      }
-      if (empty) empty.style.display = 'none';
-      
-      container.innerHTML = ativas.map(cot => {
-        const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
-        const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
-        
-        return `<div class="table-row" data-id="${cot.id}">
-          <div class="checkbox-column"><input type="checkbox" class="select-cotacao" value="${cot.id}"></div>
-          <div><strong>${cot.produto || '-'}</strong></div>
-          <div>${cot.fornecedor || '-'}</div>
-          <div>${cot.uf || '-'}</div>
-          <div>${cot.quantidade || 0}</div>
-          <div>${formatarMoeda(cot.valorUnitario)}</div>
-          <div>${formatarMoeda(total)}</div>
-          <div><strong>${formatarMoeda(totalComImpostos)}</strong></div>
-          <div>${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}</div>
-          <div>
-            <span class="status-badge ${cot.status === 'ativo' ? 'status-ativo' : 'status-pendente'}">${cot.status || 'Ativo'}</span>
-          </div>
-          <div class="actions">
-            <button class="btn-icon edit-cotacao" data-id="${cot.id}" title="Editar"><i class="fas fa-edit"></i></button>
-            <button class="btn-icon delete delete-cotacao" data-id="${cot.id}" title="Excluir"><i class="fas fa-trash"></i></button>
-            <button class="btn-icon view-cotacao" data-id="${cot.id}" title="Ver detalhes"><i class="fas fa-eye"></i></button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    function renderHistorico() {
-      const container = document.getElementById('historicoContainer');
-      if (!container) return;
-      
-      const filtroProd = document.getElementById('filtroProduto')?.value?.toLowerCase() || '';
-      const filtroForn = document.getElementById('filtroFornecedor')?.value?.toLowerCase() || '';
-      const periodo = document.getElementById('filtroPeriodo')?.value || 'todos';
-      
-      let lista = [...historico];
-      if (filtroProd) lista = lista.filter(i => (i.produto || '').toLowerCase().includes(filtroProd));
-      if (filtroForn) lista = lista.filter(i => (i.fornecedor || '').toLowerCase().includes(filtroForn));
-      
-      if (periodo !== 'todos') {
-        const dataLimite = new Date();
-        dataLimite.setDate(dataLimite.getDate() - parseInt(periodo));
-        lista = lista.filter(i => new Date(i.dataFinalizacao || i.dataCotacao) >= dataLimite);
-      }
-      
-      if (lista.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="display:block;"><i class="fas fa-history"></i><h3>Nenhum histórico encontrado</h3></div>';
-        return;
-      }
-      
-      container.innerHTML = lista.map(item => {
-        const total = (item.quantidade || 0) * (item.valorUnitario || 0);
-        const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
-        
-        return `<div class="historico-item">
-          <div class="historico-item-header">
-            <div class="historico-produto"><i class="fas fa-box"></i> ${item.produto || '-'}</div>
-            <div class="historico-data">${formatarDataHora(item.dataFinalizacao || item.dataCotacao)}</div>
-          </div>
-          <div class="historico-detalhes">
-            <div><strong>Fornecedor:</strong> ${item.fornecedor || '-'}</div>
-            <div><strong>Qtd:</strong> ${item.quantidade || 0}</div>
-            <div><strong>Valor Unit.:</strong> ${formatarMoeda(item.valorUnitario)}</div>
-            <div><strong>Subtotal:</strong> ${formatarMoeda(total)}</div>
-            <div><strong>ICMS:</strong> ${item.aliquotaICMS || 0}% (${formatarMoeda(item.valorICMS || 0)})</div>
-            <div><strong>IPI:</strong> ${item.aliquotaIPI || 0}% (${formatarMoeda(item.valorIPI || 0)})</div>
-            <div><strong>Frete:</strong> ${formatarMoeda(item.valorFrete || 0)}</div>
-            <div><strong>Total c/ Impostos:</strong> ${formatarMoeda(totalComImpostos)}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    function renderProdutos() {
-      const container = document.getElementById('produtosContainer');
-      const empty = document.getElementById('emptyProdutos');
-      if (!container) return;
-      
-      if (produtos.length === 0) {
-        container.innerHTML = '';
-        if (empty) empty.style.display = 'block';
-        return;
-      }
-      if (empty) empty.style.display = 'none';
-      
-      container.innerHTML = produtos.map(p => `
-        <div class="produto-card">
-          <h3>${p.nome}</h3>
-          <p><i class="fas fa-barcode"></i> Código: ${p.codigo || '-'}</p>
-          <p><i class="fas fa-tag"></i> Categoria: ${p.categoria || '-'}</p>
-          <p><i class="fas fa-ruler"></i> Unidade: ${p.unidadePadrao || 'un'}</p>
-          <p><i class="fas fa-file-invoice"></i> NCM: ${p.ncm || '-'}</p>
-          <div class="produto-actions">
-            <button class="btn-icon btn-editar-produto" data-id="${p.id}"><i class="fas fa-edit"></i></button>
-            <button class="btn-icon delete btn-excluir-produto" data-id="${p.id}"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderFornecedores() {
-      const container = document.getElementById('fornecedoresContainer');
-      const empty = document.getElementById('emptyFornecedores');
-      if (!container) return;
-      
-      if (fornecedores.length === 0) {
-        container.innerHTML = '';
-        if (empty) empty.style.display = 'block';
-        return;
-      }
-      if (empty) empty.style.display = 'none';
-      
-      container.innerHTML = fornecedores.map(f => `
-        <div class="fornecedor-card">
-          <h3>${f.nomeEmpresa}</h3>
-          <p><i class="fas fa-id-card"></i> CNPJ: ${f.cnpj || '-'}</p>
-          <p><i class="fas fa-id-card"></i> IE: ${f.ie || '-'}</p>
-          <p><i class="fas fa-phone"></i> ${f.telefone || '-'}</p>
-          <p><i class="fas fa-envelope"></i> ${f.email || '-'}</p>
-          <p><i class="fas fa-map-marker-alt"></i> UF: ${f.uf || '-'}</p>
-          <div class="fornecedor-actions">
-            <button class="btn-icon btn-editar-fornecedor" data-id="${f.id}"><i class="fas fa-edit"></i></button>
-            <button class="btn-icon delete btn-excluir-fornecedor" data-id="${f.id}"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // ================== COMPARATIVO ==================
-    function compararSelecionados() {
-      const selecionados = document.querySelectorAll('.select-cotacao:checked');
-      if (selecionados.length < 2) {
-        alert('Selecione pelo menos 2 cotações para comparar');
-        return;
-      }
-      
-      const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
-      const itens = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
-      
-      if (itens.length < 2) {
-        alert('Selecione pelo menos 2 cotações ativas');
-        return;
-      }
-      
-      const modal = document.getElementById('modalComparativo');
-      const body = document.getElementById('comparativoBody');
-      
-      let html = `
-        <div class="comparativo-container">
-          <div class="resumo-cards">
-            <div class="resumo-card total">
-              <div class="resumo-icon total"><i class="fas fa-file-invoice"></i></div>
-              <div>
-                <div class="resumo-label">Cotações Comparadas</div>
-                <div class="resumo-value">${itens.length}</div>
-              </div>
-            </div>
-            <div class="resumo-card total">
-              <div class="resumo-icon total"><i class="fas fa-boxes"></i></div>
-              <div>
-                <div class="resumo-label">Produtos</div>
-                <div class="resumo-value">${new Set(itens.map(i => i.produto)).size}</div>
-              </div>
-            </div>
-            <div class="resumo-card total">
-              <div class="resumo-icon total"><i class="fas fa-truck"></i></div>
-              <div>
-                <div class="resumo-label">Fornecedores</div>
-                <div class="resumo-value">${new Set(itens.map(i => i.fornecedor)).size}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="comparativo-tabela">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Produto</th>
-                  <th>Fornecedor</th>
-                  <th>UF</th>
-                  <th>Qtd</th>
-                  <th>Valor Unit.</th>
-                  <th>Subtotal</th>
-                  <th>ICMS</th>
-                  <th>IPI</th>
-                  <th>Frete</th>
-                  <th>Total c/ Imp.</th>
-                  <th>Entrega</th>
-                  <th>Finalizar</th>
-                </tr>
-              </thead>
-              <tbody>
-      `;
-      
-      let menorTotal = Infinity;
-      let menorId = null;
-      
-      itens.forEach(item => {
-        const total = (item.quantidade || 0) * (item.valorUnitario || 0);
-        const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
-        if (totalComImpostos < menorTotal) {
-          menorTotal = totalComImpostos;
-          menorId = item.id;
-        }
-      });
-      
-      itens.forEach((item, idx) => {
-        const total = (item.quantidade || 0) * (item.valorUnitario || 0);
-        const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
-        const isMelhor = item.id === menorId;
-        
-        html += `
-          <tr class="${isMelhor ? 'melhor-preco' : ''}" data-id="${item.id}">
-            <td>${idx + 1}</td>
-            <td><strong>${item.produto || '-'}</strong></td>
-            <td>${item.fornecedor || '-'}</td>
-            <td>${item.uf || '-'}</td>
-            <td>${item.quantidade || 0}</td>
-            <td>${formatarMoeda(item.valorUnitario)}</td>
-            <td>${formatarMoeda(total)}</td>
-            <td>${item.aliquotaICMS || 0}%<br><small>${formatarMoeda(item.valorICMS || 0)}</small></td>
-            <td>${item.aliquotaIPI || 0}%<br><small>${formatarMoeda(item.valorIPI || 0)}</small></td>
-            <td>${formatarMoeda(item.valorFrete || 0)}</td>
-            <td><strong>${formatarMoeda(totalComImpostos)}</strong> ${isMelhor ? '🏆' : ''}</td>
-            <td>${item.dataEntrega ? formatarData(item.dataEntrega) : '-'}</td>
-            <td>
-              <input type="checkbox" class="finalizar-cotacao" value="${item.id}" ${isMelhor ? 'checked' : ''}>
-            </td>
-          </tr>
-        `;
-      });
-      
-      html += `
-              </tbody>
-            </table>
-          </div>
-          
-          <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-            <button class="btn btn-success" onclick="gerarPDFComparativo()">
-              <i class="fas fa-file-pdf"></i> Gerar PDF
-            </button>
-            <button class="btn btn-primary" onclick="finalizarCotacoesSelecionadas()">
-              <i class="fas fa-check-circle"></i> Finalizar Selecionadas
-            </button>
-            <button class="btn btn-secondary" onclick="document.getElementById('modalComparativo').style.display='none'">
-              <i class="fas fa-times"></i> Fechar
-            </button>
-          </div>
-        </div>
-      `;
-      
-      body.innerHTML = html;
-      modal.style.display = 'block';
-    }
-
-    // ================== PDF DO COMPARATIVO ==================
-    function gerarPDFComparativo() {
-      const loading = document.getElementById('pdfLoading');
-      loading.style.display = 'flex';
-      
-      setTimeout(() => {
-        try {
-          const { jsPDF } = window.jspdf;
-          const doc = new jsPDF('landscape', 'mm', 'a4');
-          const pageWidth = 297;
-          const margin = 15;
-          let y = margin;
-          
-          // Cabeçalho
-          doc.setFillColor(52, 152, 219);
-          doc.rect(0, 0, pageWidth, 30, 'F');
-          
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(20);
-          doc.setFont('helvetica', 'bold');
-          doc.text('📊 Comparativo de Cotações', pageWidth / 2, 18, { align: 'center' });
-          
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, 38);
-          
-          y = 45;
-          
-          const table = document.querySelector('.comparativo-tabela table');
-          if (table) {
-            const rows = table.querySelectorAll('tbody tr');
-            const headers = table.querySelectorAll('thead th');
-            
-            const colWidths = [8, 28, 25, 15, 15, 20, 22, 20, 20, 20, 28, 25, 15];
-            let x = margin;
-            
-            doc.setFillColor(44, 62, 80);
-            doc.rect(margin, y - 4, pageWidth - (margin * 2), 8, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            
-            headers.forEach((th, i) => {
-              if (i < colWidths.length && th.textContent.trim() !== 'Finalizar') {
-                doc.text(th.textContent.trim(), x + 1, y + 3);
-                x += colWidths[i];
-              }
-            });
-            
-            y += 8;
-            doc.setTextColor(50, 50, 50);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            
-            rows.forEach((row, rowIdx) => {
-              const cells = row.querySelectorAll('td');
-              x = margin;
-              
-              if (rowIdx % 2 === 0) {
-                doc.setFillColor(245, 245, 245);
-                doc.rect(margin, y - 3, pageWidth - (margin * 2), 6, 'F');
-              }
-              
-              const isMelhor = row.classList.contains('melhor-preco');
-              if (isMelhor) {
-                doc.setFillColor(212, 237, 218);
-                doc.rect(margin, y - 3, pageWidth - (margin * 2), 6, 'F');
-              }
-              
-              cells.forEach((cell, i) => {
-                if (i < colWidths.length && i !== 12) {
-                  const text = cell.textContent.trim().replace(/\s+/g, ' ');
-                  doc.setTextColor(isMelhor ? 0 : 50, isMelhor ? 100 : 50, isMelhor ? 0 : 50);
-                  doc.text(text, x + 1, y + 3);
-                  x += colWidths[i];
-                }
-              });
-              
-              y += 7;
-              
-              if (y > 190) {
-                doc.addPage();
-                y = margin + 10;
-              }
-            });
-          }
-          
-          doc.setDrawColor(200, 200, 200);
-          doc.line(margin, 190, pageWidth - margin, 190);
-          doc.setFontSize(8);
-          doc.setTextColor(150, 150, 150);
-          doc.text('Mil Plásticos - Sistema de Cotações', margin, 197);
-          doc.text(`Página ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - margin, 197, { align: 'right' });
-          
-          doc.save('comparativo_cotacoes.pdf');
-        } catch (error) {
-          console.error('Erro ao gerar PDF:', error);
-          alert('Erro ao gerar PDF. Tente novamente.');
-        }
-        
-        loading.style.display = 'none';
-      }, 500);
-    }
-
-    // ================== FINALIZAR COTAÇÕES ==================
-    function finalizarCotacoesSelecionadas() {
-      const checkboxes = document.querySelectorAll('.finalizar-cotacao:checked');
-      if (checkboxes.length === 0) {
-        alert('Selecione pelo menos uma cotação para finalizar');
-        return;
-      }
-      
-      const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
-      const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
-      
-      if (itensParaFinalizar.length === 0) {
-        alert('Nenhuma cotação encontrada para finalizar');
-        return;
-      }
-      
-      const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
-      
-      if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
-        itensParaFinalizar.forEach(item => {
-          item.status = 'finalizado';
-          item.dataFinalizacao = new Date().toISOString();
-          historico.push({ ...item });
-          cotacoes = cotacoes.filter(c => c.id !== item.id);
-        });
-        
-        salvarDados();
-        renderCotacoes();
-        renderHistorico();
-        document.getElementById('modalComparativo').style.display = 'none';
-        alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
-      }
-    }
-
-    // ================== FINALIZAR SELEÇÕES DIRETO DA LISTA ==================
-    function finalizarSelecionadosDireto() {
-      const selecionados = document.querySelectorAll('.select-cotacao:checked');
-      if (selecionados.length === 0) {
-        alert('Selecione pelo menos uma cotação para finalizar');
-        return;
-      }
-      
-      const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
-      const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
-      
-      if (itensParaFinalizar.length === 0) {
-        alert('Nenhuma cotação ativa selecionada');
-        return;
-      }
-      
-      const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
-      
-      if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
-        itensParaFinalizar.forEach(item => {
-          item.status = 'finalizado';
-          item.dataFinalizacao = new Date().toISOString();
-          historico.push({ ...item });
-          cotacoes = cotacoes.filter(c => c.id !== item.id);
-        });
-        
-        salvarDados();
-        renderCotacoes();
-        renderHistorico();
-        alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
-      }
-    }
-
-    // ================== MODAIS ==================
-    function abrirModalCotacao(id = null) {
-      editingId = id;
-      const modal = document.getElementById('modalCotacao');
-      const form = document.getElementById('formCotacao');
-      form.reset();
-      
-      const hoje = new Date().toISOString().split('T')[0];
-      document.getElementById('cotacaoData').value = hoje;
-      
-      if (id) {
-        const cot = cotacoes.find(c => c.id === id);
-        if (cot) {
-          document.getElementById('cotacaoProduto').value = cot.produto || '';
-          document.getElementById('cotacaoFornecedor').value = cot.fornecedor || '';
-          document.getElementById('cotacaoUF').value = cot.uf || '';
-          document.getElementById('cotacaoQuantidade').value = cot.quantidade || '';
-          document.getElementById('cotacaoValorUnitario').value = cot.valorUnitario || '';
-          document.getElementById('cotacaoData').value = cot.dataCotacao || '';
-          document.getElementById('cotacaoDataEntrega').value = cot.dataEntrega || '';
-          document.getElementById('cotacaoObservacoes').value = cot.observacoes || '';
-          document.getElementById('cotacaoAliquotaICMS').value = cot.aliquotaICMS || 18;
-          document.getElementById('cotacaoAliquotaIPI').value = cot.aliquotaIPI || 5;
-          document.getElementById('cotacaoValorFrete').value = cot.valorFrete || 0;
-          document.getElementById('cotacaoPrazoPagamento').value = cot.prazoPagamento || '';
-          document.getElementById('cotacaoCondicaoPagamento').value = cot.condicaoPagamento || '';
-        }
-      }
-      
-      modal.style.display = 'block';
-    }
-
-    function fecharModalCotacao() {
-      document.getElementById('modalCotacao').style.display = 'none';
-    }
-
-    // ================== COTAÇÕES CRUD ==================
-    function salvarCotacao(event) {
-      if (event) event.preventDefault();
-      
-      const produto = document.getElementById('cotacaoProduto')?.value?.trim();
-      if (!produto) { alert('Digite o nome do produto'); return; }
-      
-      const fornecedor = document.getElementById('cotacaoFornecedor')?.value?.trim();
-      if (!fornecedor) { alert('Digite o nome do fornecedor'); return; }
-      
-      const qtd = parseFloat(document.getElementById('cotacaoQuantidade')?.value) || 0;
-      if (qtd <= 0) { alert('Digite uma quantidade válida'); return; }
-      
-      const vu = parseFloat(document.getElementById('cotacaoValorUnitario')?.value) || 0;
-      if (vu <= 0) { alert('Digite um valor unitário válido'); return; }
-      
-      const aliquotaICMS = parseFloat(document.getElementById('cotacaoAliquotaICMS')?.value) || 0;
-      const aliquotaIPI = parseFloat(document.getElementById('cotacaoAliquotaIPI')?.value) || 0;
-      const valorFrete = parseFloat(document.getElementById('cotacaoValorFrete')?.value) || 0;
-      
-      const subtotal = qtd * vu;
-      const valorICMS = subtotal * (aliquotaICMS / 100);
-      const valorIPI = subtotal * (aliquotaIPI / 100);
-      
-      const cotacaoData = {
-        id: editingId || gerarId(),
-        produto: produto,
-        fornecedor: fornecedor,
-        uf: document.getElementById('cotacaoUF')?.value || '',
-        dataCotacao: document.getElementById('cotacaoData')?.value || '',
-        quantidade: qtd,
-        valorUnitario: vu,
-        dataEntrega: document.getElementById('cotacaoDataEntrega')?.value || '',
-        observacoes: document.getElementById('cotacaoObservacoes')?.value || '',
-        aliquotaICMS: aliquotaICMS,
-        valorICMS: valorICMS,
-        aliquotaIPI: aliquotaIPI,
-        valorIPI: valorIPI,
-        valorFrete: valorFrete,
-        prazoPagamento: document.getElementById('cotacaoPrazoPagamento')?.value || '',
-        condicaoPagamento: document.getElementById('cotacaoCondicaoPagamento')?.value || '',
-        status: "ativo",
-        dataCadastro: new Date().toISOString()
-      };
-      
-      if (editingId) {
-        const idx = cotacoes.findIndex(c => c.id === editingId);
-        if (idx !== -1) cotacoes[idx] = cotacaoData;
-      } else {
-        cotacoes.push(cotacaoData);
-      }
-      
-      salvarDados();
-      fecharModalCotacao();
-      renderCotacoes();
-      alert('Cotação salva com sucesso!');
-    }
-
-    // ================== PRODUTOS CRUD ==================
-    function salvarProduto(event) {
-      if (event) event.preventDefault();
-      const nome = document.getElementById('produtoNome')?.value?.trim();
-      if (!nome) { alert('Nome obrigatório'); return; }
-      
-      const prodData = {
-        id: editingProdutoId || gerarId(),
-        nome: nome,
-        codigo: document.getElementById('produtoCodigo')?.value || '',
-        categoria: document.getElementById('produtoCategoria')?.value || '',
-        unidadePadrao: document.getElementById('produtoUnidade')?.value || 'un',
-        ncm: document.getElementById('produtoNCM')?.value || '',
-        descricao: document.getElementById('produtoDescricao')?.value || ''
-      };
-      
-      if (editingProdutoId) {
-        const idx = produtos.findIndex(p => p.id === editingProdutoId);
-        if (idx !== -1) produtos[idx] = prodData;
-      } else {
-        produtos.push(prodData);
-      }
-      
-      salvarDados();
-      document.getElementById('modalProduto').style.display = 'none';
-      renderProdutos();
-      alert('Produto salvo com sucesso!');
-    }
-
-    function editarProduto(id) {
-      const prod = produtos.find(p => p.id === id);
-      if (!prod) return;
-      
-      editingProdutoId = id;
-      document.getElementById('produtoNome').value = prod.nome || '';
-      document.getElementById('produtoCodigo').value = prod.codigo || '';
-      document.getElementById('produtoCategoria').value = prod.categoria || '';
-      document.getElementById('produtoUnidade').value = prod.unidadePadrao || 'un';
-      document.getElementById('produtoNCM').value = prod.ncm || '';
-      document.getElementById('produtoDescricao').value = prod.descricao || '';
-      document.getElementById('modalProduto').style.display = 'block';
-    }
-
-    // ================== FORNECEDORES CRUD ==================
-    function salvarFornecedor(event) {
-      if (event) event.preventDefault();
-      const nome = document.getElementById('fornecedorNome')?.value?.trim();
-      if (!nome) { alert('Nome obrigatório'); return; }
-      
-      const fornData = {
-        id: editingFornecedorId || gerarId().toString(),
-        nomeEmpresa: nome,
-        cnpj: document.getElementById('fornecedorCNPJ')?.value || '',
-        ie: document.getElementById('fornecedorIE')?.value || '',
-        telefone: document.getElementById('fornecedorTelefone')?.value || '',
-        email: document.getElementById('fornecedorEmail')?.value || '',
-        uf: document.getElementById('fornecedorUF')?.value || ''
-      };
-      
-      if (editingFornecedorId) {
-        const idx = fornecedores.findIndex(f => f.id === editingFornecedorId);
-        if (idx !== -1) fornecedores[idx] = fornData;
-      } else {
-        fornecedores.push(fornData);
-      }
-      
-      salvarDados();
-      document.getElementById('modalFornecedor').style.display = 'none';
-      renderFornecedores();
-      alert('Fornecedor salvo com sucesso!');
-    }
-
-    function editarFornecedor(id) {
-      const forn = fornecedores.find(f => f.id === id);
-      if (!forn) return;
-      
-      editingFornecedorId = id;
-      document.getElementById('fornecedorNome').value = forn.nomeEmpresa || '';
-      document.getElementById('fornecedorCNPJ').value = forn.cnpj || '';
-      document.getElementById('fornecedorIE').value = forn.ie || '';
-      document.getElementById('fornecedorTelefone').value = forn.telefone || '';
-      document.getElementById('fornecedorEmail').value = forn.email || '';
-      document.getElementById('fornecedorUF').value = forn.uf || '';
-      document.getElementById('modalFornecedor').style.display = 'block';
-    }
-
-    // ================== INICIALIZAÇÃO ==================
-    function init() {
-      console.log('🚀 Inicializando sistema de cotações...');
-      carregarDados();
-      
-      renderCotacoes();
-      renderHistorico();
-      renderProdutos();
-      renderFornecedores();
-      
-      // Tabs
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          btn.classList.add('active');
-          const tabId = btn.dataset.tab + 'Tab';
-          const tab = document.getElementById(tabId);
-          if (tab) tab.classList.add('active');
-        });
-      });
-      
-      // Eventos dos botões principais
-      document.getElementById('addCotacaoBtn')?.addEventListener('click', () => abrirModalCotacao());
-      document.getElementById('addProdutoBtn')?.addEventListener('click', () => {
-        editingProdutoId = null;
-        document.getElementById('formProduto')?.reset();
-        document.getElementById('modalProduto').style.display = 'block';
-      });
-      document.getElementById('addFornecedorBtn')?.addEventListener('click', () => {
-        editingFornecedorId = null;
-        document.getElementById('formFornecedor')?.reset();
-        document.getElementById('modalFornecedor').style.display = 'block';
-      });
-      
-      // Botões de ação
-      document.getElementById('compararSelecionadosBtn')?.addEventListener('click', compararSelecionados);
-      document.getElementById('finalizarSelecionadosBtn')?.addEventListener('click', finalizarSelecionadosDireto);
-      
-      // Forms
-      document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
-      document.getElementById('formProduto')?.addEventListener('submit', salvarProduto);
-      document.getElementById('formFornecedor')?.addEventListener('submit', salvarFornecedor);
-      
-      // Fechar modais ao clicar fora
-      window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
-          event.target.style.display = 'none';
-        }
-      };
-      
-      // Eventos de clique para editar/excluir (delegação)
-      document.addEventListener('click', function(e) {
-        const editCot = e.target.closest('.edit-cotacao');
-        if (editCot) {
-          abrirModalCotacao(parseInt(editCot.dataset.id));
-        }
-        
-        const viewCot = e.target.closest('.view-cotacao');
-        if (viewCot) {
-          const id = parseInt(viewCot.dataset.id);
-          const cot = cotacoes.find(c => c.id === id);
-          if (cot) {
-            const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
-            const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
-            alert(
-              `📋 DETALHES DA COTAÇÃO\n\n` +
-              `Produto: ${cot.produto}\n` +
-              `Fornecedor: ${cot.fornecedor}\n` +
-              `UF: ${cot.uf || '-'}\n` +
-              `Quantidade: ${cot.quantidade}\n` +
-              `Valor Unitário: ${formatarMoeda(cot.valorUnitario)}\n` +
-              `Subtotal: ${formatarMoeda(total)}\n` +
-              `ICMS: ${cot.aliquotaICMS || 0}% (${formatarMoeda(cot.valorICMS || 0)})\n` +
-              `IPI: ${cot.aliquotaIPI || 0}% (${formatarMoeda(cot.valorIPI || 0)})\n` +
-              `Frete: ${formatarMoeda(cot.valorFrete || 0)}\n` +
-              `TOTAL COM IMPOSTOS: ${formatarMoeda(totalComImpostos)}\n` +
-              `Prazo Pagamento: ${cot.prazoPagamento || '-'}\n` +
-              `Condição Pagamento: ${cot.condicaoPagamento || '-'}\n` +
-              `Data Entrega: ${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}\n` +
-              `Status: ${cot.status || 'Ativo'}`
-            );
-          }
-        }
-        
-        const delCot = e.target.closest('.delete-cotacao');
-        if (delCot) {
-          if (confirm('Excluir esta cotação permanentemente?')) {
-            cotacoes = cotacoes.filter(c => c.id != delCot.dataset.id);
-            salvarDados();
-            renderCotacoes();
-          }
-        }
-        
-        const editProd = e.target.closest('.btn-editar-produto');
-        if (editProd) {
-          editarProduto(parseInt(editProd.dataset.id));
-        }
-        
-        const delProd = e.target.closest('.btn-excluir-produto');
-        if (delProd) {
-          if (confirm('Excluir este produto?')) {
-            produtos = produtos.filter(p => p.id != delProd.dataset.id);
-            salvarDados();
-            renderProdutos();
-          }
-        }
-        
-        const editForn = e.target.closest('.btn-editar-fornecedor');
-        if (editForn) {
-          editarFornecedor(editForn.dataset.id);
-        }
-        
-        const delForn = e.target.closest('.btn-excluir-fornecedor');
-        if (delForn) {
-          if (confirm('Excluir este fornecedor?')) {
-            fornecedores = fornecedores.filter(f => f.id != delForn.dataset.id);
-            salvarDados();
-            renderFornecedores();
-          }
-        }
-      });
-      
-      // Selecionar todos
-      document.getElementById('selecionarTodos')?.addEventListener('change', function() {
-        document.querySelectorAll('.select-cotacao').forEach(cb => cb.checked = this.checked);
-      });
-      
-      // Filtros do histórico
-      document.getElementById('filtroProduto')?.addEventListener('input', renderHistorico);
-      document.getElementById('filtroFornecedor')?.addEventListener('input', renderHistorico);
-      document.getElementById('filtroPeriodo')?.addEventListener('change', renderHistorico);
-      
-      // Limpar histórico
-      document.getElementById('limparHistoricoBtn')?.addEventListener('click', () => {
-        if (confirm('Deseja realmente limpar todo o histórico de compras?')) {
-          historico = [];
-          salvarDados();
-          renderHistorico();
-        }
-      });
-      
-      console.log('✅ Sistema de cotações pronto!');
-    }
-
-    document.addEventListener('DOMContentLoaded', init);
-  </script>
 </body>
 </html>
