@@ -1,4 +1,4 @@
-// cotacao.js - Sistema de Cotações Completo
+// cotacao.js - Sistema de Cotações Completo (CORRIGIDO)
 // Mil Plásticos
 
 // ================== DADOS GLOBAIS ==================
@@ -25,7 +25,10 @@ function formatarDataHora(dataStr) {
   try { const d = new Date(dataStr); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR'); } catch { return dataStr; }
 }
 
-function gerarId() { return Date.now() + Math.random() * 1000; }
+function gerarId() { 
+  // Gera ID como string para evitar problemas de precisão
+  return Date.now().toString() + '_' + Math.random().toString(36).substr(2, 6);
+}
 
 function salvarDados() {
   localStorage.setItem('produtos_cotacao', JSON.stringify(produtos));
@@ -42,8 +45,8 @@ function carregarDados() {
   
   if (produtos.length === 0) {
     produtos = [
-      { id: 1, nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
-      { id: 2, nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
+      { id: '1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
+      { id: '2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
     ];
   }
   if (fornecedores.length === 0) {
@@ -199,12 +202,16 @@ function renderFornecedores() {
 // ================== COMPARATIVO ==================
 function compararSelecionados() {
   const selecionados = document.querySelectorAll('.select-cotacao:checked');
+  
   if (selecionados.length < 2) {
     alert('Selecione pelo menos 2 cotações para comparar');
     return;
   }
   
-  const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
+  // Pega os IDs como string (não converte para número)
+  const ids = Array.from(selecionados).map(cb => cb.value);
+  
+  // Filtra as cotações pelos IDs (comparação de string)
   const itens = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
   
   if (itens.length < 2) {
@@ -437,7 +444,10 @@ function finalizarCotacoesSelecionadas() {
     return;
   }
   
-  const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  // Pega os IDs como string
+  const ids = Array.from(checkboxes).map(cb => cb.value);
+  
+  // Filtra cotações por ID (comparação de string)
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
   
   if (itensParaFinalizar.length === 0) {
@@ -470,7 +480,10 @@ function finalizarSelecionadosDireto() {
     return;
   }
   
-  const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
+  // Pega os IDs como string
+  const ids = Array.from(selecionados).map(cb => cb.value);
+  
+  // Filtra cotações por ID (comparação de string)
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
   
   if (itensParaFinalizar.length === 0) {
@@ -730,12 +743,12 @@ function init() {
   document.addEventListener('click', function(e) {
     const editCot = e.target.closest('.edit-cotacao');
     if (editCot) {
-      abrirModalCotacao(parseInt(editCot.dataset.id));
+      abrirModalCotacao(editCot.dataset.id);
     }
     
     const viewCot = e.target.closest('.view-cotacao');
     if (viewCot) {
-      const id = parseInt(viewCot.dataset.id);
+      const id = viewCot.dataset.id;
       const cot = cotacoes.find(c => c.id === id);
       if (cot) {
         const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
@@ -763,7 +776,7 @@ function init() {
     const delCot = e.target.closest('.delete-cotacao');
     if (delCot) {
       if (confirm('Excluir esta cotação permanentemente?')) {
-        cotacoes = cotacoes.filter(c => c.id != delCot.dataset.id);
+        cotacoes = cotacoes.filter(c => c.id !== delCot.dataset.id);
         salvarDados();
         renderCotacoes();
       }
@@ -771,13 +784,13 @@ function init() {
     
     const editProd = e.target.closest('.btn-editar-produto');
     if (editProd) {
-      editarProduto(parseInt(editProd.dataset.id));
+      editarProduto(editProd.dataset.id);
     }
     
     const delProd = e.target.closest('.btn-excluir-produto');
     if (delProd) {
       if (confirm('Excluir este produto?')) {
-        produtos = produtos.filter(p => p.id != delProd.dataset.id);
+        produtos = produtos.filter(p => p.id !== delProd.dataset.id);
         salvarDados();
         renderProdutos();
       }
@@ -791,7 +804,7 @@ function init() {
     const delForn = e.target.closest('.btn-excluir-fornecedor');
     if (delForn) {
       if (confirm('Excluir este fornecedor?')) {
-        fornecedores = fornecedores.filter(f => f.id != delForn.dataset.id);
+        fornecedores = fornecedores.filter(f => f.id !== delForn.dataset.id);
         salvarDados();
         renderFornecedores();
       }
