@@ -1,4 +1,4 @@
-// cotacao.js - Sistema de Cotações Completo (CORRIGIDO)
+// cotacao.js - Sistema de Cotações Completo (VERSÃO FINAL CORRIGIDA)
 // Mil Plásticos
 
 // ================== DADOS GLOBAIS ==================
@@ -25,9 +25,8 @@ function formatarDataHora(dataStr) {
   try { const d = new Date(dataStr); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR'); } catch { return dataStr; }
 }
 
-function gerarId() { 
-  // Gera ID como string para evitar problemas de precisão
-  return Date.now().toString() + '_' + Math.random().toString(36).substr(2, 6);
+function gerarId() {
+  return Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
 }
 
 function salvarDados() {
@@ -45,14 +44,14 @@ function carregarDados() {
   
   if (produtos.length === 0) {
     produtos = [
-      { id: '1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
-      { id: '2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
+      { id: 'prod1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
+      { id: 'prod2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" }
     ];
   }
   if (fornecedores.length === 0) {
     fornecedores = [
-      { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
-      { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
+      { id: 'forn1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
+      { id: 'forn2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
     ];
   }
   salvarDados();
@@ -64,7 +63,11 @@ function renderCotacoes() {
   const empty = document.getElementById('emptyState');
   if (!container) return;
   
+  // Mostra TODAS as cotações que NÃO estão finalizadas
   const ativas = cotacoes.filter(c => c.status !== "finalizado");
+  
+  console.log('📊 Renderizando cotações:', ativas.length, 'ativas');
+  
   if (ativas.length === 0) {
     container.innerHTML = '';
     if (empty) empty.style.display = 'block';
@@ -203,16 +206,22 @@ function renderFornecedores() {
 function compararSelecionados() {
   const selecionados = document.querySelectorAll('.select-cotacao:checked');
   
+  console.log('📋 Selecionados:', selecionados.length);
+  console.log('📋 IDs selecionados:', Array.from(selecionados).map(cb => cb.value));
+  console.log('📋 Todas cotações:', cotacoes.map(c => ({ id: c.id, produto: c.produto, status: c.status })));
+  
   if (selecionados.length < 2) {
     alert('Selecione pelo menos 2 cotações para comparar');
     return;
   }
   
-  // Pega os IDs como string (não converte para número)
+  // Pega os IDs como string
   const ids = Array.from(selecionados).map(cb => cb.value);
   
   // Filtra as cotações pelos IDs (comparação de string)
   const itens = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
+  
+  console.log('📋 Itens encontrados:', itens.length);
   
   if (itens.length < 2) {
     alert('Selecione pelo menos 2 cotações ativas');
@@ -444,10 +453,7 @@ function finalizarCotacoesSelecionadas() {
     return;
   }
   
-  // Pega os IDs como string
   const ids = Array.from(checkboxes).map(cb => cb.value);
-  
-  // Filtra cotações por ID (comparação de string)
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
   
   if (itensParaFinalizar.length === 0) {
@@ -462,8 +468,11 @@ function finalizarCotacoesSelecionadas() {
       item.status = 'finalizado';
       item.dataFinalizacao = new Date().toISOString();
       historico.push({ ...item });
-      cotacoes = cotacoes.filter(c => c.id !== item.id);
     });
+    
+    // Remove as finalizadas da lista de cotações ativas
+    const idsFinalizados = itensParaFinalizar.map(item => item.id);
+    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(c.id));
     
     salvarDados();
     renderCotacoes();
@@ -480,10 +489,7 @@ function finalizarSelecionadosDireto() {
     return;
   }
   
-  // Pega os IDs como string
   const ids = Array.from(selecionados).map(cb => cb.value);
-  
-  // Filtra cotações por ID (comparação de string)
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
   
   if (itensParaFinalizar.length === 0) {
@@ -498,8 +504,10 @@ function finalizarSelecionadosDireto() {
       item.status = 'finalizado';
       item.dataFinalizacao = new Date().toISOString();
       historico.push({ ...item });
-      cotacoes = cotacoes.filter(c => c.id !== item.id);
     });
+    
+    const idsFinalizados = itensParaFinalizar.map(item => item.id);
+    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(c.id));
     
     salvarDados();
     renderCotacoes();
@@ -589,6 +597,8 @@ function salvarCotacao(event) {
     dataCadastro: new Date().toISOString()
   };
   
+  console.log('💾 Salvando cotação:', cotacaoData);
+  
   if (editingId) {
     const idx = cotacoes.findIndex(c => c.id === editingId);
     if (idx !== -1) cotacoes[idx] = cotacaoData;
@@ -652,7 +662,7 @@ function salvarFornecedor(event) {
   if (!nome) { alert('Nome obrigatório'); return; }
   
   const fornData = {
-    id: editingFornecedorId || gerarId().toString(),
+    id: editingFornecedorId || gerarId(),
     nomeEmpresa: nome,
     cnpj: document.getElementById('fornecedorCNPJ')?.value || '',
     ie: document.getElementById('fornecedorIE')?.value || '',
@@ -692,6 +702,12 @@ function editarFornecedor(id) {
 function init() {
   console.log('🚀 Inicializando sistema de cotações...');
   carregarDados();
+  
+  console.log('📦 Dados carregados:');
+  console.log('  - Produtos:', produtos.length);
+  console.log('  - Cotações:', cotacoes.length);
+  console.log('  - Histórico:', historico.length);
+  console.log('  - Fornecedores:', fornecedores.length);
   
   renderCotacoes();
   renderHistorico();
@@ -779,6 +795,7 @@ function init() {
         cotacoes = cotacoes.filter(c => c.id !== delCot.dataset.id);
         salvarDados();
         renderCotacoes();
+        alert('Cotação excluída com sucesso!');
       }
     }
     
@@ -793,6 +810,7 @@ function init() {
         produtos = produtos.filter(p => p.id !== delProd.dataset.id);
         salvarDados();
         renderProdutos();
+        alert('Produto excluído com sucesso!');
       }
     }
     
@@ -807,6 +825,7 @@ function init() {
         fornecedores = fornecedores.filter(f => f.id !== delForn.dataset.id);
         salvarDados();
         renderFornecedores();
+        alert('Fornecedor excluído com sucesso!');
       }
     }
   });
@@ -827,6 +846,7 @@ function init() {
       historico = [];
       salvarDados();
       renderHistorico();
+      alert('Histórico limpo com sucesso!');
     }
   });
   
