@@ -1,5 +1,5 @@
-// cotacao.js - Versão Melhorada com ICMS, Comparativo e PDF
-// Sistema de Cotações - Mil Plásticos
+// cotacao.js - Sistema de Cotações Completo
+// Mil Plásticos
 
 // ================== DADOS GLOBAIS ==================
 let produtos = [];
@@ -13,10 +13,6 @@ let editingProdutoId = null;
 // ================== UTILITÁRIOS ==================
 function formatarMoeda(valor) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
-}
-
-function formatarNumero(valor, casas = 2) {
-  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }).format(valor || 0);
 }
 
 function formatarData(dataStr) {
@@ -52,8 +48,8 @@ function carregarDados() {
   }
   if (fornecedores.length === 0) {
     fornecedores = [
-      { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP", produtosIds: [1] },
-      { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP", produtosIds: [1] }
+      { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
+      { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
     ];
   }
   salvarDados();
@@ -74,19 +70,18 @@ function renderCotacoes() {
   if (empty) empty.style.display = 'none';
   
   container.innerHTML = ativas.map(cot => {
-    const prod = produtos.find(p => p.id == cot.produtoId) || { nome: 'Produto' };
     const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
     const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
     
     return `<div class="table-row" data-id="${cot.id}">
       <div class="checkbox-column"><input type="checkbox" class="select-cotacao" value="${cot.id}"></div>
-      <div><strong>${prod.nome}</strong></div>
+      <div><strong>${cot.produto || '-'}</strong></div>
       <div>${cot.fornecedor || '-'}</div>
       <div>${cot.uf || '-'}</div>
       <div>${cot.quantidade || 0}</div>
       <div>${formatarMoeda(cot.valorUnitario)}</div>
-      <div><strong>${formatarMoeda(total)}</strong></div>
-      <div>${formatarMoeda(totalComImpostos)}</div>
+      <div>${formatarMoeda(total)}</div>
+      <div><strong>${formatarMoeda(totalComImpostos)}</strong></div>
       <div>${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}</div>
       <div>
         <span class="status-badge ${cot.status === 'ativo' ? 'status-ativo' : 'status-pendente'}">${cot.status || 'Ativo'}</span>
@@ -119,7 +114,7 @@ function renderHistorico() {
   }
   
   if (lista.length === 0) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><h3>Nenhum histórico encontrado</h3></div>';
+    container.innerHTML = '<div class="empty-state" style="display:block;"><i class="fas fa-history"></i><h3>Nenhum histórico encontrado</h3></div>';
     return;
   }
   
@@ -217,7 +212,6 @@ function compararSelecionados() {
     return;
   }
   
-  // Abrir modal de comparativo
   const modal = document.getElementById('modalComparativo');
   const body = document.getElementById('comparativoBody');
   
@@ -255,14 +249,15 @@ function compararSelecionados() {
               <th>Produto</th>
               <th>Fornecedor</th>
               <th>UF</th>
-              <th>Quantidade</th>
+              <th>Qtd</th>
               <th>Valor Unit.</th>
               <th>Subtotal</th>
               <th>ICMS</th>
               <th>IPI</th>
               <th>Frete</th>
-              <th>Total c/ Impostos</th>
+              <th>Total c/ Imp.</th>
               <th>Entrega</th>
+              <th>Finalizar</th>
             </tr>
           </thead>
           <tbody>
@@ -286,7 +281,7 @@ function compararSelecionados() {
     const isMelhor = item.id === menorId;
     
     html += `
-      <tr class="${isMelhor ? 'melhor-preco' : ''}">
+      <tr class="${isMelhor ? 'melhor-preco' : ''}" data-id="${item.id}">
         <td>${idx + 1}</td>
         <td><strong>${item.produto || '-'}</strong></td>
         <td>${item.fornecedor || '-'}</td>
@@ -299,6 +294,9 @@ function compararSelecionados() {
         <td>${formatarMoeda(item.valorFrete || 0)}</td>
         <td><strong>${formatarMoeda(totalComImpostos)}</strong> ${isMelhor ? '🏆' : ''}</td>
         <td>${item.dataEntrega ? formatarData(item.dataEntrega) : '-'}</td>
+        <td>
+          <input type="checkbox" class="finalizar-cotacao" value="${item.id}" ${isMelhor ? 'checked' : ''}>
+        </td>
       </tr>
     `;
   });
@@ -308,12 +306,15 @@ function compararSelecionados() {
         </table>
       </div>
       
-      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
         <button class="btn btn-success" onclick="gerarPDFComparativo()">
           <i class="fas fa-file-pdf"></i> Gerar PDF
         </button>
-        <button class="btn btn-primary" onclick="finalizarMelhorCotacao()">
-          <i class="fas fa-check-circle"></i> Finalizar Melhor Cotação
+        <button class="btn btn-primary" onclick="finalizarCotacoesSelecionadas()">
+          <i class="fas fa-check-circle"></i> Finalizar Selecionadas
+        </button>
+        <button class="btn btn-secondary" onclick="document.getElementById('modalComparativo').style.display='none'">
+          <i class="fas fa-times"></i> Fechar
         </button>
       </div>
     </div>
@@ -352,18 +353,14 @@ function gerarPDFComparativo() {
       
       y = 45;
       
-      // Dados do comparativo
-      const body = document.querySelector('.comparativo-tabela table');
-      if (body) {
-        // Capturar dados da tabela
-        const rows = body.querySelectorAll('tbody tr');
-        const headers = body.querySelectorAll('thead th');
+      const table = document.querySelector('.comparativo-tabela table');
+      if (table) {
+        const rows = table.querySelectorAll('tbody tr');
+        const headers = table.querySelectorAll('thead th');
         
-        // Configurar colunas
-        const colWidths = [8, 30, 25, 15, 18, 20, 25, 22, 22, 22, 30, 25];
+        const colWidths = [8, 28, 25, 15, 15, 20, 22, 20, 20, 20, 28, 25, 15];
         let x = margin;
         
-        // Cabeçalho
         doc.setFillColor(44, 62, 80);
         doc.rect(margin, y - 4, pageWidth - (margin * 2), 8, 'F');
         doc.setTextColor(255, 255, 255);
@@ -371,7 +368,7 @@ function gerarPDFComparativo() {
         doc.setFont('helvetica', 'bold');
         
         headers.forEach((th, i) => {
-          if (i < colWidths.length) {
+          if (i < colWidths.length && th.textContent.trim() !== 'Finalizar') {
             doc.text(th.textContent.trim(), x + 1, y + 3);
             x += colWidths[i];
           }
@@ -382,18 +379,15 @@ function gerarPDFComparativo() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         
-        // Dados
         rows.forEach((row, rowIdx) => {
           const cells = row.querySelectorAll('td');
           x = margin;
           
-          // Alternar cores
           if (rowIdx % 2 === 0) {
             doc.setFillColor(245, 245, 245);
             doc.rect(margin, y - 3, pageWidth - (margin * 2), 6, 'F');
           }
           
-          // Verificar se é o melhor preço
           const isMelhor = row.classList.contains('melhor-preco');
           if (isMelhor) {
             doc.setFillColor(212, 237, 218);
@@ -401,8 +395,8 @@ function gerarPDFComparativo() {
           }
           
           cells.forEach((cell, i) => {
-            if (i < colWidths.length) {
-              const text = cell.textContent.trim();
+            if (i < colWidths.length && i !== 12) {
+              const text = cell.textContent.trim().replace(/\s+/g, ' ');
               doc.setTextColor(isMelhor ? 0 : 50, isMelhor ? 100 : 50, isMelhor ? 0 : 50);
               doc.text(text, x + 1, y + 3);
               x += colWidths[i];
@@ -411,7 +405,6 @@ function gerarPDFComparativo() {
           
           y += 7;
           
-          // Nova página se necessário
           if (y > 190) {
             doc.addPage();
             y = margin + 10;
@@ -419,7 +412,6 @@ function gerarPDFComparativo() {
         });
       }
       
-      // Rodapé
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, 190, pageWidth - margin, 190);
       doc.setFontSize(8);
@@ -437,60 +429,69 @@ function gerarPDFComparativo() {
   }, 500);
 }
 
-// ================== FINALIZAR COTAÇÃO ==================
-function finalizarMelhorCotacao() {
-  const body = document.getElementById('comparativoBody');
-  const rows = body.querySelectorAll('.comparativo-tabela tbody tr');
-  
-  let melhorRow = null;
-  let melhorTotal = Infinity;
-  
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td');
-    if (cells.length >= 11) {
-      const totalText = cells[10].textContent.trim();
-      const total = parseFloat(totalText.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-      if (total < melhorTotal) {
-        melhorTotal = total;
-        melhorRow = row;
-      }
-    }
-  });
-  
-  if (!melhorRow) {
-    alert('Não foi possível identificar a melhor cotação');
+// ================== FINALIZAR COTAÇÕES ==================
+function finalizarCotacoesSelecionadas() {
+  const checkboxes = document.querySelectorAll('.finalizar-cotacao:checked');
+  if (checkboxes.length === 0) {
+    alert('Selecione pelo menos uma cotação para finalizar');
     return;
   }
   
-  const cells = melhorRow.querySelectorAll('td');
-  const produto = cells[1]?.textContent.trim() || '';
-  const fornecedor = cells[2]?.textContent.trim() || '';
-  const quantidade = parseInt(cells[4]?.textContent.trim()) || 0;
-  const valorUnitario = parseFloat(cells[5]?.textContent.trim().replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  const total = melhorTotal;
+  const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
   
-  if (confirm(`Deseja finalizar a cotação com o melhor preço?\n\nProduto: ${produto}\nFornecedor: ${fornecedor}\nTotal: ${formatarMoeda(total)}`)) {
-    // Mover para histórico
-    const cotacao = cotacoes.find(c => 
-      c.produto === produto && 
-      c.fornecedor === fornecedor && 
-      c.quantidade === quantidade && 
-      c.valorUnitario === valorUnitario
-    );
+  if (itensParaFinalizar.length === 0) {
+    alert('Nenhuma cotação encontrada para finalizar');
+    return;
+  }
+  
+  const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
+  
+  if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
+    itensParaFinalizar.forEach(item => {
+      item.status = 'finalizado';
+      item.dataFinalizacao = new Date().toISOString();
+      historico.push({ ...item });
+      cotacoes = cotacoes.filter(c => c.id !== item.id);
+    });
     
-    if (cotacao) {
-      cotacao.status = 'finalizado';
-      cotacao.dataFinalizacao = new Date().toISOString();
-      
-      historico.push({ ...cotacao });
-      cotacoes = cotacoes.filter(c => c.id !== cotacao.id);
-      
-      salvarDados();
-      renderCotacoes();
-      renderHistorico();
-      document.getElementById('modalComparativo').style.display = 'none';
-      alert('Cotação finalizada com sucesso!');
-    }
+    salvarDados();
+    renderCotacoes();
+    renderHistorico();
+    document.getElementById('modalComparativo').style.display = 'none';
+    alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+  }
+}
+
+function finalizarSelecionadosDireto() {
+  const selecionados = document.querySelectorAll('.select-cotacao:checked');
+  if (selecionados.length === 0) {
+    alert('Selecione pelo menos uma cotação para finalizar');
+    return;
+  }
+  
+  const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
+  const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
+  
+  if (itensParaFinalizar.length === 0) {
+    alert('Nenhuma cotação ativa selecionada');
+    return;
+  }
+  
+  const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
+  
+  if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
+    itensParaFinalizar.forEach(item => {
+      item.status = 'finalizado';
+      item.dataFinalizacao = new Date().toISOString();
+      historico.push({ ...item });
+      cotacoes = cotacoes.filter(c => c.id !== item.id);
+    });
+    
+    salvarDados();
+    renderCotacoes();
+    renderHistorico();
+    alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
   }
 }
 
@@ -501,29 +502,28 @@ function abrirModalCotacao(id = null) {
   const form = document.getElementById('formCotacao');
   form.reset();
   
-  // Preencher data atual
   const hoje = new Date().toISOString().split('T')[0];
   document.getElementById('cotacaoData').value = hoje;
   
   if (id) {
     const cot = cotacoes.find(c => c.id === id);
     if (cot) {
-      document.getElementById('cotacaoProduto').value = cot.produtoId || '';
+      document.getElementById('cotacaoProduto').value = cot.produto || '';
       document.getElementById('cotacaoFornecedor').value = cot.fornecedor || '';
+      document.getElementById('cotacaoUF').value = cot.uf || '';
       document.getElementById('cotacaoQuantidade').value = cot.quantidade || '';
       document.getElementById('cotacaoValorUnitario').value = cot.valorUnitario || '';
       document.getElementById('cotacaoData').value = cot.dataCotacao || '';
       document.getElementById('cotacaoDataEntrega').value = cot.dataEntrega || '';
       document.getElementById('cotacaoObservacoes').value = cot.observacoes || '';
-      document.getElementById('cotacaoAliquotaICMS').value = cot.aliquotaICMS || 0;
-      document.getElementById('cotacaoAliquotaIPI').value = cot.aliquotaIPI || 0;
+      document.getElementById('cotacaoAliquotaICMS').value = cot.aliquotaICMS || 18;
+      document.getElementById('cotacaoAliquotaIPI').value = cot.aliquotaIPI || 5;
       document.getElementById('cotacaoValorFrete').value = cot.valorFrete || 0;
       document.getElementById('cotacaoPrazoPagamento').value = cot.prazoPagamento || '';
       document.getElementById('cotacaoCondicaoPagamento').value = cot.condicaoPagamento || '';
     }
   }
   
-  atualizarSelectsCotacao();
   modal.style.display = 'block';
 }
 
@@ -534,17 +534,19 @@ function fecharModalCotacao() {
 // ================== COTAÇÕES CRUD ==================
 function salvarCotacao(event) {
   if (event) event.preventDefault();
-  console.log('Salvando cotação...');
   
-  const produtoId = document.getElementById('cotacaoProduto')?.value;
-  if (!produtoId) { alert('Selecione um produto'); return; }
+  const produto = document.getElementById('cotacaoProduto')?.value?.trim();
+  if (!produto) { alert('Digite o nome do produto'); return; }
   
-  const fornecedor = document.getElementById('cotacaoFornecedor')?.value;
-  if (!fornecedor) { alert('Selecione um fornecedor'); return; }
+  const fornecedor = document.getElementById('cotacaoFornecedor')?.value?.trim();
+  if (!fornecedor) { alert('Digite o nome do fornecedor'); return; }
   
-  const produto = produtos.find(p => p.id == produtoId);
   const qtd = parseFloat(document.getElementById('cotacaoQuantidade')?.value) || 0;
+  if (qtd <= 0) { alert('Digite uma quantidade válida'); return; }
+  
   const vu = parseFloat(document.getElementById('cotacaoValorUnitario')?.value) || 0;
+  if (vu <= 0) { alert('Digite um valor unitário válido'); return; }
+  
   const aliquotaICMS = parseFloat(document.getElementById('cotacaoAliquotaICMS')?.value) || 0;
   const aliquotaIPI = parseFloat(document.getElementById('cotacaoAliquotaIPI')?.value) || 0;
   const valorFrete = parseFloat(document.getElementById('cotacaoValorFrete')?.value) || 0;
@@ -555,8 +557,7 @@ function salvarCotacao(event) {
   
   const cotacaoData = {
     id: editingId || gerarId(),
-    produtoId: parseInt(produtoId),
-    produto: produto?.nome || '',
+    produto: produto,
     fornecedor: fornecedor,
     uf: document.getElementById('cotacaoUF')?.value || '',
     dataCotacao: document.getElementById('cotacaoData')?.value || '',
@@ -588,26 +589,6 @@ function salvarCotacao(event) {
   alert('Cotação salva com sucesso!');
 }
 
-function atualizarSelectsCotacao() {
-  const selProd = document.getElementById('cotacaoProduto');
-  const selForn = document.getElementById('cotacaoFornecedor');
-  const selUF = document.getElementById('cotacaoUF');
-  
-  if (selProd) {
-    selProd.innerHTML = '<option value="">Selecione o produto...</option>';
-    produtos.forEach(p => selProd.innerHTML += `<option value="${p.id}">${p.nome}</option>`);
-  }
-  if (selForn) {
-    selForn.innerHTML = '<option value="">Selecione o fornecedor...</option>';
-    fornecedores.forEach(f => selForn.innerHTML += `<option value="${f.nomeEmpresa}">${f.nomeEmpresa}</option>`);
-  }
-  if (selUF) {
-    selUF.innerHTML = '<option value="">Selecione...</option>';
-    const ufs = ['SP', 'RJ', 'MG', 'PR', 'SC', 'RS', 'BA', 'PE', 'CE', 'DF', 'GO', 'ES', 'MT', 'MS', 'PA', 'AM', 'AC', 'RO', 'TO', 'MA', 'PI', 'RN', 'PB', 'SE', 'AL', 'AP', 'RR'];
-    ufs.forEach(uf => selUF.innerHTML += `<option value="${uf}">${uf}</option>`);
-  }
-}
-
 // ================== PRODUTOS CRUD ==================
 function salvarProduto(event) {
   if (event) event.preventDefault();
@@ -634,7 +615,6 @@ function salvarProduto(event) {
   salvarDados();
   document.getElementById('modalProduto').style.display = 'none';
   renderProdutos();
-  atualizarSelectsCotacao();
   alert('Produto salvo com sucesso!');
 }
 
@@ -665,8 +645,7 @@ function salvarFornecedor(event) {
     ie: document.getElementById('fornecedorIE')?.value || '',
     telefone: document.getElementById('fornecedorTelefone')?.value || '',
     email: document.getElementById('fornecedorEmail')?.value || '',
-    uf: document.getElementById('fornecedorUF')?.value || '',
-    produtosIds: []
+    uf: document.getElementById('fornecedorUF')?.value || ''
   };
   
   if (editingFornecedorId) {
@@ -679,7 +658,6 @@ function salvarFornecedor(event) {
   salvarDados();
   document.getElementById('modalFornecedor').style.display = 'none';
   renderFornecedores();
-  atualizarSelectsCotacao();
   alert('Fornecedor salvo com sucesso!');
 }
 
@@ -731,7 +709,10 @@ function init() {
     document.getElementById('formFornecedor')?.reset();
     document.getElementById('modalFornecedor').style.display = 'block';
   });
+  
+  // Botões de ação
   document.getElementById('compararSelecionadosBtn')?.addEventListener('click', compararSelecionados);
+  document.getElementById('finalizarSelecionadosBtn')?.addEventListener('click', finalizarSelecionadosDireto);
   
   // Forms
   document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
@@ -757,19 +738,24 @@ function init() {
       const id = parseInt(viewCot.dataset.id);
       const cot = cotacoes.find(c => c.id === id);
       if (cot) {
+        const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
+        const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
         alert(
-          `📋 Detalhes da Cotação\n\n` +
+          `📋 DETALHES DA COTAÇÃO\n\n` +
           `Produto: ${cot.produto}\n` +
           `Fornecedor: ${cot.fornecedor}\n` +
+          `UF: ${cot.uf || '-'}\n` +
           `Quantidade: ${cot.quantidade}\n` +
           `Valor Unitário: ${formatarMoeda(cot.valorUnitario)}\n` +
+          `Subtotal: ${formatarMoeda(total)}\n` +
           `ICMS: ${cot.aliquotaICMS || 0}% (${formatarMoeda(cot.valorICMS || 0)})\n` +
           `IPI: ${cot.aliquotaIPI || 0}% (${formatarMoeda(cot.valorIPI || 0)})\n` +
           `Frete: ${formatarMoeda(cot.valorFrete || 0)}\n` +
-          `Total c/ Impostos: ${formatarMoeda((cot.quantidade * cot.valorUnitario) + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0))}\n` +
+          `TOTAL COM IMPOSTOS: ${formatarMoeda(totalComImpostos)}\n` +
           `Prazo Pagamento: ${cot.prazoPagamento || '-'}\n` +
           `Condição Pagamento: ${cot.condicaoPagamento || '-'}\n` +
-          `Data Entrega: ${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}`
+          `Data Entrega: ${cot.dataEntrega ? formatarData(cot.dataEntrega) : '-'}\n` +
+          `Status: ${cot.status || 'Ativo'}`
         );
       }
     }
@@ -794,7 +780,6 @@ function init() {
         produtos = produtos.filter(p => p.id != delProd.dataset.id);
         salvarDados();
         renderProdutos();
-        atualizarSelectsCotacao();
       }
     }
     
@@ -809,7 +794,6 @@ function init() {
         fornecedores = fornecedores.filter(f => f.id != delForn.dataset.id);
         salvarDados();
         renderFornecedores();
-        atualizarSelectsCotacao();
       }
     }
   });
@@ -833,12 +817,8 @@ function init() {
     }
   });
   
-  // Fechar modal comparativo
-  document.querySelector('#modalComparativo .close-modal')?.addEventListener('click', () => {
-    document.getElementById('modalComparativo').style.display = 'none';
-  });
-  
   console.log('✅ Sistema de cotações pronto!');
 }
 
+// Inicializar quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', init);
