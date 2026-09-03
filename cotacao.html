@@ -1,352 +1,110 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cotação | Mil Plásticos</title>
-
-  <!-- CSS Principal -->
-  <link rel="stylesheet" href="/assets/css/main.css">
-  <link rel="stylesheet" href="/assets/css/sidebar.css">
-  <link rel="stylesheet" href="/assets/css/topbar.css">
-  
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  
-  <!-- Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-  <script src="/js/data-loader.js"></script>
-
-  <!-- Bibliotecas específicas -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
-    
-    .page-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
-
-    /* TABS */
-    .cotacao-tabs { display: flex; gap: 5px; background: white; padding: 10px 20px 0 20px; border-radius: 12px 12px 0 0; margin-bottom: 20px; flex-wrap: wrap; }
-    .tab-btn { padding: 12px 24px; border: none; background: transparent; cursor: pointer; font-size: 15px; font-weight: 500; color: #666; border-radius: 8px 8px 0 0; transition: all 0.3s; }
-    .tab-btn i { margin-right: 8px; }
-    .tab-btn:hover { background: #f0f0f0; color: #3498db; }
-    .tab-btn.active { background: white; color: #3498db; border-bottom: 3px solid #3498db; }
-    .tab-content { display: none; animation: fadeIn 0.3s ease; }
-    .tab-content.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    /* HEADER */
-    .cotacao-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-    .cotacao-header h1 { font-size: 24px; color: #2c3e50; }
-    .cotacao-header h1 i { color: #3498db; margin-right: 10px; }
-    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-    /* BOTÕES */
-    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s; white-space: nowrap; }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-    .btn-primary { background: #3498db; color: white; }
-    .btn-primary:hover { background: #2980b9; }
-    .btn-success { background: #27ae60; color: white; }
-    .btn-success:hover { background: #219a52; }
-    .btn-warning { background: #f39c12; color: white; }
-    .btn-warning:hover { background: #e67e22; }
-    .btn-secondary { background: #95a5a6; color: white; }
-    .btn-secondary:hover { background: #7f8c8d; }
-    .btn-danger { background: #e74c3c; color: white; }
-    .btn-small { padding: 6px 12px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-icon { background: none; border: none; color: #3498db; cursor: pointer; padding: 5px 8px; border-radius: 4px; font-size: 16px; }
-    .btn-icon:hover { background: rgba(52,152,219,0.1); }
-    .btn-icon.delete { color: #e74c3c; }
-    .btn-icon.delete:hover { background: rgba(231,76,60,0.1); }
-
-    /* TABELAS */
-    .table-header { display: grid; grid-template-columns: 0.5fr 2fr 2fr 0.8fr 1fr 1fr 1fr 1.2fr 1fr; background: #2c3e50; color: white; padding: 12px 15px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 13px; }
-    .table-row { display: grid; grid-template-columns: 0.5fr 2fr 2fr 0.8fr 1fr 1fr 1fr 1.2fr 1fr; padding: 12px 15px; border-bottom: 1px solid #e9ecef; align-items: center; background: white; font-size: 13px; }
-    .table-row:hover { background: #f8f9fa; }
-    .checkbox-column { text-align: center; }
-    .checkbox-column input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-    .actions { display: flex; gap: 5px; }
-
-    /* MODAL */
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
-    .modal-content { background: white; margin: 50px auto; max-width: 800px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: modalSlideIn 0.3s ease; }
-    .modal-content.comparison-modal { max-width: 1400px; }
-    @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
-    .modal-header { padding: 20px 25px; border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0; }
-    .modal-header h2, .modal-header h3 { color: white; margin: 0; }
-    .modal-body { padding: 25px; max-height: 70vh; overflow-y: auto; }
-    .modal-footer { padding: 15px 25px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 10px; }
-    .close-modal { background: none; border: none; font-size: 28px; cursor: pointer; color: white; }
-    .close-modal:hover { opacity: 0.7; }
-
-    /* FORMULÁRIO */
-    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
-    .select-with-button { display: flex; gap: 10px; }
-    .select-with-button select { flex: 1; }
-    .full-width { grid-column: 1 / -1; }
-
-    /* CARDS */
-    .produtos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px 0; }
-    .produto-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .produto-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
-    .produto-card p { color: #666; font-size: 13px; margin-bottom: 5px; }
-    .produto-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
-    
-    .fornecedores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; padding: 20px 0; }
-    .fornecedor-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; }
-    .fornecedor-card h3 { margin: 0 0 10px 0; color: #2c3e50; }
-    .fornecedor-card p { color: #666; font-size: 13px; margin-bottom: 5px; }
-    .fornecedor-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
-
-    /* HISTÓRICO */
-    .filtro-historico { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .filtro-historico input, .filtro-historico select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-    .historico-item { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
-    .historico-item-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
-    .historico-produto { font-weight: bold; color: #2c3e50; }
-    .historico-data { color: #666; font-size: 12px; }
-    .historico-detalhes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-    .historico-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
-
-    /* COMPARATIVO */
-    .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .resumo-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; gap: 15px; border-left: 4px solid; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .resumo-card.total { border-left-color: #3498db; }
-    .resumo-card.menor { border-left-color: #27ae60; }
-    .resumo-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-    .resumo-icon.total { background: #e3f2fd; color: #1976d2; }
-    .resumo-icon.menor { background: #e8f5e8; color: #388e3c; }
-    .resumo-value { font-size: 18px; font-weight: bold; }
-    .resumo-label { font-size: 11px; color: #666; }
-    .comparativo-tabela { background: white; border-radius: 10px; overflow-x: auto; }
-    .comparativo-tabela table { width: 100%; border-collapse: collapse; }
-    .comparativo-tabela th { background: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 12px; }
-    .comparativo-tabela td { padding: 10px 12px; border-bottom: 1px solid #e9ecef; font-size: 13px; }
-    .melhor-preco { background: #d4edda !important; }
-
-    /* EMPTY STATE */
-    .empty-state { text-align: center; padding: 60px 20px; color: #999; display: none; }
-    .empty-state i { font-size: 48px; margin-bottom: 15px; color: #bdc3c7; }
-    .empty-state h3 { color: #7f8c8d; margin-bottom: 10px; }
-    .empty-state p { color: #95a5a6; }
-
-    /* SUMMARY */
-    .summary-preview { background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e9ecef; }
-    .summary-preview h4 { margin-bottom: 10px; color: #2c3e50; }
-    .summary-row { display: flex; justify-content: space-between; padding: 5px 0; }
-    .summary-row.total { border-top: 2px solid #dee2e6; margin-top: 5px; padding-top: 10px; font-weight: bold; font-size: 16px; }
-
-    /* LOADING */
-    .pdf-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
-    .pdf-loading-spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    /* NOTIFICAÇÃO */
-    #notificacao {
-      position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 8px;
-      z-index: 2000; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: opacity 0.3s;
-      font-weight: 500; font-size: 14px; max-width: 400px;
-    }
-
-    @media (max-width: 768px) {
-      .table-header, .table-row { grid-template-columns: 0.5fr 1.5fr 1.5fr 0.8fr 1fr 1fr 1fr 1fr 1fr; font-size: 11px; padding: 8px 10px; }
-      .form-grid { grid-template-columns: 1fr; }
-      .modal-content { margin: 20px; width: calc(100% - 40px); }
-      .cotacao-header { flex-direction: column; align-items: flex-start; }
-      .header-actions { width: 100%; }
-      .header-actions .btn { flex: 1; justify-content: center; }
-    }
-  </style>
-</head>
-<body>
-  <!-- Topbar Container -->
-  <div id="topbar-container"></div>
-
-  <!-- Container principal -->
-  <div class="container">
-    <!-- Sidebar Container -->
-    <div id="sidebar-container"></div>
-
-    <!-- Conteúdo principal -->
-    <main class="main-content">
-      <div class="page-container">
-        
-        <!-- Tabs -->
-        <div class="cotacao-tabs">
-          <button class="tab-btn active" data-tab="cotacoes"><i class="fas fa-balance-scale"></i> Cotações Ativas</button>
-          <button class="tab-btn" data-tab="historico"><i class="fas fa-history"></i> Histórico</button>
-          <button class="tab-btn" data-tab="produtos"><i class="fas fa-box"></i> Produtos</button>
-          <button class="tab-btn" data-tab="fornecedores"><i class="fas fa-truck"></i> Fornecedores</button>
-        </div>
-
-        <!-- ABA 1: Cotações Ativas -->
-        <div class="tab-content active" id="cotacoesTab">
-          <div class="cotacao-header">
-            <h1><i class="fas fa-balance-scale"></i> Cotações Ativas</h1>
-            <div class="header-actions">
-              <button class="btn btn-primary" id="addCotacaoBtn"><i class="fas fa-plus-circle"></i> Nova Cotação</button>
-              <button class="btn btn-success" id="compararSelecionadosBtn"><i class="fas fa-chart-bar"></i> Comparar Selecionados</button>
-              <button class="btn btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar</button>
-            </div>
-          </div>
-          
-          <div class="table-header">
-            <div class="checkbox-column"><input type="checkbox" id="selecionarTodos"></div>
-            <div>Produto</div>
-            <div>Fornecedor</div>
-            <div>UF</div>
-            <div>Qtd</div>
-            <div>Valor Unit.</div>
-            <div>Valor Total</div>
-            <div>Data Entrega</div>
-            <div>Ações</div>
-          </div>
-          <div id="cotacoesContainer"></div>
-          <div id="emptyState" class="empty-state" style="display:block;">
-            <i class="fas fa-clipboard-list"></i>
-            <h3>Nenhuma cotação ativa</h3>
-            <p>Clique em "Nova Cotação" para adicionar.</p>
-          </div>
-        </div>
-
-        <!-- ABA 2: Histórico -->
-        <div class="tab-content" id="historicoTab">
-          <div class="cotacao-header">
-            <h1><i class="fas fa-history"></i> Histórico de Compras</h1>
-            <div class="header-actions">
-              <button class="btn btn-secondary" id="limparHistoricoBtn"><i class="fas fa-trash-alt"></i> Limpar Histórico</button>
-            </div>
-          </div>
-          <div class="filtro-historico">
-            <input type="text" id="filtroProduto" placeholder="🔍 Filtrar por produto...">
-            <input type="text" id="filtroFornecedor" placeholder="🔍 Filtrar por fornecedor...">
-            <select id="filtroPeriodo">
-              <option value="todos">Todos os períodos</option>
-              <option value="7">Últimos 7 dias</option>
-              <option value="30">Últimos 30 dias</option>
-              <option value="90">Últimos 90 dias</option>
+<!-- Substitua o conteúdo do modal de cotação por este: -->
+<!-- Modal: Nova Cotação -->
+<div id="modalCotacao" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-plus-circle"></i> Nova Cotação</h2>
+      <button class="close-modal" onclick="document.getElementById('modalCotacao').style.display='none'">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="formCotacao">
+        <div class="form-grid">
+          <!-- Coluna 1 -->
+          <div class="form-group">
+            <label>Produto *</label>
+            <select id="cotacaoProduto" required>
+              <option value="">Selecione o produto...</option>
             </select>
           </div>
-          <div id="historicoContainer"></div>
+          <div class="form-group">
+            <label>Fornecedor *</label>
+            <select id="cotacaoFornecedor" required>
+              <option value="">Selecione o fornecedor...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>UF</label>
+            <select id="cotacaoUF">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quantidade *</label>
+            <input type="number" id="cotacaoQuantidade" placeholder="0" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>Valor Unitário (R$) *</label>
+            <input type="number" id="cotacaoValorUnitario" placeholder="0,00" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>Data da Cotação *</label>
+            <input type="date" id="cotacaoData" required>
+          </div>
+          <div class="form-group">
+            <label>Data de Entrega</label>
+            <input type="date" id="cotacaoDataEntrega">
+          </div>
+          
+          <!-- Coluna 2 - Impostos e Fiscais -->
+          <div class="form-group">
+            <label>Alíquota ICMS (%)</label>
+            <input type="number" id="cotacaoAliquotaICMS" placeholder="18" step="0.01" value="18">
+          </div>
+          <div class="form-group">
+            <label>Alíquota IPI (%)</label>
+            <input type="number" id="cotacaoAliquotaIPI" placeholder="5" step="0.01" value="5">
+          </div>
+          <div class="form-group">
+            <label>Valor do Frete (R$)</label>
+            <input type="number" id="cotacaoValorFrete" placeholder="0,00" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label>Prazo de Pagamento</label>
+            <input type="text" id="cotacaoPrazoPagamento" placeholder="Ex: 30 dias">
+          </div>
+          <div class="form-group">
+            <label>Condição de Pagamento</label>
+            <input type="text" id="cotacaoCondicaoPagamento" placeholder="Ex: Boleto, Cartão">
+          </div>
+          <div class="form-group full-width">
+            <label>Observações</label>
+            <textarea id="cotacaoObservacoes" rows="3" placeholder="Observações sobre esta cotação..."></textarea>
+          </div>
         </div>
-
-        <!-- ABA 3: Produtos -->
-        <div class="tab-content" id="produtosTab">
-          <div class="cotacao-header">
-            <h1><i class="fas fa-box"></i> Produtos</h1>
-            <div class="header-actions">
-              <button class="btn btn-primary" id="addProdutoBtn"><i class="fas fa-plus-circle"></i> Novo Produto</button>
-            </div>
-          </div>
-          <div id="produtosContainer" class="produtos-grid"></div>
-          <div id="emptyProdutos" class="empty-state" style="display:block;">
-            <i class="fas fa-box-open"></i>
-            <h3>Nenhum produto cadastrado</h3>
-          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCotacao').style.display='none'">Cancelar</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Cotação</button>
         </div>
-
-        <!-- ABA 4: Fornecedores -->
-        <div class="tab-content" id="fornecedoresTab">
-          <div class="cotacao-header">
-            <h1><i class="fas fa-truck"></i> Fornecedores</h1>
-            <div class="header-actions">
-              <button class="btn btn-primary" id="addFornecedorBtn"><i class="fas fa-plus-circle"></i> Novo Fornecedor</button>
-            </div>
-          </div>
-          <div id="fornecedoresContainer" class="fornecedores-grid"></div>
-          <div id="emptyFornecedores" class="empty-state" style="display:block;">
-            <i class="fas fa-truck"></i>
-            <h3>Nenhum fornecedor cadastrado</h3>
-          </div>
-        </div>
-        
-      </div>
-    </main>
-  </div>
-
-  <!-- Modal: Nova Cotação -->
-  <div id="modalCotacao" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2><i class="fas fa-plus-circle"></i> Nova Cotação</h2>
-        <button class="close-modal" onclick="document.getElementById('modalCotacao').style.display='none'">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formCotacao">
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Produto *</label>
-              <div class="select-with-button">
-                <select id="cotacaoProduto" required>
-                  <option value="">Selecione o produto...</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Fornecedor *</label>
-              <div class="select-with-button">
-                <select id="cotacaoFornecedor" required>
-                  <option value="">Selecione o fornecedor...</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Quantidade *</label>
-              <input type="number" id="cotacaoQuantidade" placeholder="0" min="1" required>
-            </div>
-            <div class="form-group">
-              <label>Valor Unitário (R$) *</label>
-              <input type="number" id="cotacaoValorUnitario" placeholder="0,00" step="0.01" required>
-            </div>
-            <div class="form-group">
-              <label>Data da Cotação *</label>
-              <input type="date" id="cotacaoData" required>
-            </div>
-            <div class="form-group">
-              <label>Data de Entrega</label>
-              <input type="date" id="cotacaoDataEntrega">
-            </div>
-            <div class="form-group full-width">
-              <label>Observações</label>
-              <textarea id="cotacaoObservacoes" rows="3" placeholder="Observações sobre esta cotação..."></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCotacao').style.display='none'">Cancelar</button>
-            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Cotação</button>
-          </div>
-        </form>
-      </div>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- Modal: Produto -->
-  <div id="modalProduto" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2><i class="fas fa-box"></i> Produto</h2>
-        <button class="close-modal" onclick="document.getElementById('modalProduto').style.display='none'">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formProduto">
+<!-- Atualize o modal de produto -->
+<div id="modalProduto" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-box"></i> Produto</h2>
+      <button class="close-modal" onclick="document.getElementById('modalProduto').style.display='none'">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="formProduto">
+        <div class="form-grid">
           <div class="form-group">
             <label>Nome do Produto *</label>
             <input type="text" id="produtoNome" placeholder="Nome do produto" required>
           </div>
           <div class="form-group">
-            <label>Descrição</label>
-            <textarea id="produtoDescricao" rows="2" placeholder="Descrição do produto..."></textarea>
+            <label>Código</label>
+            <input type="text" id="produtoCodigo" placeholder="Código do produto">
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <input type="text" id="produtoCategoria" placeholder="Ex: Lubrificantes">
+          </div>
+          <div class="form-group">
+            <label>NCM</label>
+            <input type="text" id="produtoNCM" placeholder="Ex: 2710.19.90">
           </div>
           <div class="form-group">
             <label>Unidade</label>
@@ -358,82 +116,141 @@
               <option value="cx">Caixa</option>
             </select>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalProduto').style.display='none'">Cancelar</button>
-            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Produto</button>
+          <div class="form-group full-width">
+            <label>Descrição</label>
+            <textarea id="produtoDescricao" rows="2" placeholder="Descrição do produto..."></textarea>
           </div>
-        </form>
-      </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalProduto').style.display='none'">Cancelar</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Produto</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- Modal: Fornecedor -->
-  <div id="modalFornecedor" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2><i class="fas fa-truck"></i> Fornecedor</h2>
-        <button class="close-modal" onclick="document.getElementById('modalFornecedor').style.display='none'">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="formFornecedor">
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Nome *</label>
-              <input type="text" id="fornecedorNome" placeholder="Nome do fornecedor" required>
-            </div>
-            <div class="form-group">
-              <label>CNPJ</label>
-              <input type="text" id="fornecedorCNPJ" placeholder="00.000.000/0000-00">
-            </div>
-            <div class="form-group">
-              <label>Telefone</label>
-              <input type="text" id="fornecedorTelefone" placeholder="(00) 00000-0000">
-            </div>
-            <div class="form-group">
-              <label>Email</label>
-              <input type="email" id="fornecedorEmail" placeholder="email@exemplo.com">
-            </div>
-            <div class="form-group">
-              <label>UF</label>
-              <select id="fornecedorUF">
-                <option value="">Selecione...</option>
-                <option value="SP">SP</option><option value="RJ">RJ</option><option value="MG">MG</option>
-                <option value="PR">PR</option><option value="SC">SC</option><option value="RS">RS</option>
-              </select>
-            </div>
-            <div class="form-group full-width">
-              <label>Observações</label>
-              <textarea id="fornecedorObservacoes" rows="2"></textarea>
-            </div>
+<!-- Atualize o modal de fornecedor -->
+<div id="modalFornecedor" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2><i class="fas fa-truck"></i> Fornecedor</h2>
+      <button class="close-modal" onclick="document.getElementById('modalFornecedor').style.display='none'">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="formFornecedor">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="fornecedorNome" placeholder="Nome do fornecedor" required>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalFornecedor').style.display='none'">Cancelar</button>
-            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Fornecedor</button>
+          <div class="form-group">
+            <label>CNPJ</label>
+            <input type="text" id="fornecedorCNPJ" placeholder="00.000.000/0000-00">
           </div>
-        </form>
-      </div>
+          <div class="form-group">
+            <label>Inscrição Estadual</label>
+            <input type="text" id="fornecedorIE" placeholder="123.456.789">
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" id="fornecedorTelefone" placeholder="(00) 00000-0000">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="fornecedorEmail" placeholder="email@exemplo.com">
+          </div>
+          <div class="form-group">
+            <label>UF</label>
+            <select id="fornecedorUF">
+              <option value="">Selecione...</option>
+              <option value="SP">SP</option><option value="RJ">RJ</option><option value="MG">MG</option>
+              <option value="PR">PR</option><option value="SC">SC</option><option value="RS">RS</option>
+              <option value="BA">BA</option><option value="PE">PE</option><option value="CE">CE</option>
+              <option value="DF">DF</option><option value="GO">GO</option><option value="ES">ES</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label>Observações</label>
+            <textarea id="fornecedorObservacoes" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalFornecedor').style.display='none'">Cancelar</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Fornecedor</button>
+        </div>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- Modal: Comparativo -->
-  <div id="modalComparativo" class="modal">
-    <div class="modal-content comparison-modal">
-      <div class="modal-header">
-        <h2><i class="fas fa-chart-bar"></i> Comparativo de Cotações</h2>
-        <button class="close-modal" onclick="document.getElementById('modalComparativo').style.display='none'">&times;</button>
-      </div>
-      <div class="modal-body" id="comparativoBody"></div>
-    </div>
-  </div>
-
-  <!-- PDF Loading -->
-  <div class="pdf-loading" id="pdfLoading">
-    <div class="pdf-loading-spinner"></div>
-    <p>Gerando PDF...</p>
-  </div>
-
-  <!-- Scripts -->
-  <script src="/js/main.js"></script>
-  <script src="/js/cotacao.js"></script>
-</body>
-</html>
+<!-- Adicione estes estilos no <style> -->
+<style>
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .status-ativo {
+    background: #d4edda;
+    color: #155724;
+  }
+  .status-pendente {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .comparativo-container {
+    padding: 10px 0;
+  }
+  
+  .comparativo-tabela table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  
+  .comparativo-tabela th {
+    background: #2c3e50;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  
+  .comparativo-tabela td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 12px;
+  }
+  
+  .comparativo-tabela tr:hover {
+    background: #f8f9fa;
+  }
+  
+  .comparativo-tabela .melhor-preco {
+    background: #d4edda !important;
+    font-weight: bold;
+  }
+  
+  .comparativo-tabela .melhor-preco td {
+    border-color: #28a745;
+  }
+  
+  .btn-icon.view-cotacao {
+    color: #6c757d;
+  }
+  .btn-icon.view-cotacao:hover {
+    background: rgba(108,117,125,0.1);
+    color: #495057;
+  }
+  
+  @media print {
+    .comparativo-tabela .melhor-preco {
+      background: #d4edda !important;
+    }
+  }
+</style>
