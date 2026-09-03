@@ -17,11 +17,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   
-  <!-- Sync System -->
-  <script src="/js/firebase-init.js"></script>
-  <script src="/js/firebase-sync.js"></script>
-  <script src="/js/data-loader.js"></script>
-
   <!-- Bibliotecas específicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -84,18 +79,9 @@
       font-size: 11px;
       font-weight: 600;
     }
-    .status-ativo {
-      background: #d4edda;
-      color: #155724;
-    }
-    .status-pendente {
-      background: #fff3cd;
-      color: #856404;
-    }
-    .status-finalizado {
-      background: #cce5ff;
-      color: #004085;
-    }
+    .status-ativo { background: #d4edda; color: #155724; }
+    .status-pendente { background: #fff3cd; color: #856404; }
+    .status-finalizado { background: #cce5ff; color: #004085; }
 
     /* MODAL */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; }
@@ -109,14 +95,19 @@
     .close-modal { background: none; border: none; font-size: 28px; cursor: pointer; color: white; }
     .close-modal:hover { opacity: 0.7; }
 
-    /* FORMULÁRIO */
+    /* FORMULÁRIO - Campos de texto livre */
     .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #555; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
-    .select-with-button { display: flex; gap: 10px; }
-    .select-with-button select { flex: 1; }
+    .form-group input, .form-group select, .form-group textarea { 
+      width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; 
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { 
+      outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); 
+    }
+    .form-group input[type="text"] {
+      background: white;
+    }
     .full-width { grid-column: 1 / -1; }
 
     /* CARDS */
@@ -140,16 +131,13 @@
     .historico-produto { font-weight: bold; color: #2c3e50; }
     .historico-data { color: #666; font-size: 12px; }
     .historico-detalhes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-    .historico-actions { margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; }
 
     /* COMPARATIVO */
     .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .resumo-card { background: white; border-radius: 10px; padding: 15px; display: flex; align-items: center; gap: 15px; border-left: 4px solid; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .resumo-card.total { border-left-color: #3498db; }
-    .resumo-card.menor { border-left-color: #27ae60; }
     .resumo-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     .resumo-icon.total { background: #e3f2fd; color: #1976d2; }
-    .resumo-icon.menor { background: #e8f5e8; color: #388e3c; }
     .resumo-value { font-size: 18px; font-weight: bold; }
     .resumo-label { font-size: 11px; color: #666; }
     .comparativo-tabela { background: white; border-radius: 10px; overflow-x: auto; }
@@ -158,58 +146,29 @@
     .comparativo-tabela td { padding: 8px 10px; border-bottom: 1px solid #e9ecef; font-size: 12px; }
     .comparativo-tabela tr:hover { background: #f8f9fa; }
     .comparativo-tabela .melhor-preco { background: #d4edda !important; font-weight: bold; }
-    .comparativo-tabela .melhor-preco td { border-color: #28a745; }
 
-    /* EMPTY STATE */
     .empty-state { text-align: center; padding: 60px 20px; color: #999; display: none; }
     .empty-state i { font-size: 48px; margin-bottom: 15px; color: #bdc3c7; }
     .empty-state h3 { color: #7f8c8d; margin-bottom: 10px; }
-    .empty-state p { color: #95a5a6; }
 
-    /* SUMMARY */
-    .summary-preview { background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e9ecef; }
-    .summary-preview h4 { margin-bottom: 10px; color: #2c3e50; }
-    .summary-row { display: flex; justify-content: space-between; padding: 5px 0; }
-    .summary-row.total { border-top: 2px solid #dee2e6; margin-top: 5px; padding-top: 10px; font-weight: bold; font-size: 16px; }
-
-    /* LOADING */
     .pdf-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
     .pdf-loading-spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* NOTIFICAÇÃO */
-    #notificacao {
-      position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 8px;
-      z-index: 2000; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: opacity 0.3s;
-      font-weight: 500; font-size: 14px; max-width: 400px;
-    }
-
     @media (max-width: 768px) {
-      .table-header, .table-row { grid-template-columns: 0.5fr 1.5fr 1.5fr 0.8fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr 1.2fr; font-size: 10px; padding: 8px 10px; }
+      .table-header, .table-row { grid-template-columns: 0.5fr 1.2fr 1.2fr 0.6fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 1fr; font-size: 10px; padding: 8px 10px; }
       .form-grid { grid-template-columns: 1fr; }
       .modal-content { margin: 20px; width: calc(100% - 40px); }
       .cotacao-header { flex-direction: column; align-items: flex-start; }
       .header-actions { width: 100%; }
       .header-actions .btn { flex: 1; justify-content: center; }
     }
-
-    @media print {
-      .comparativo-tabela .melhor-preco {
-        background: #d4edda !important;
-      }
-    }
   </style>
 </head>
 <body>
-  <!-- Topbar Container -->
   <div id="topbar-container"></div>
-
-  <!-- Container principal -->
   <div class="container">
-    <!-- Sidebar Container -->
     <div id="sidebar-container"></div>
-
-    <!-- Conteúdo principal -->
     <main class="main-content">
       <div class="page-container">
         
@@ -228,7 +187,7 @@
             <div class="header-actions">
               <button class="btn btn-primary" id="addCotacaoBtn"><i class="fas fa-plus-circle"></i> Nova Cotação</button>
               <button class="btn btn-success" id="compararSelecionadosBtn"><i class="fas fa-chart-bar"></i> Comparar Selecionados</button>
-              <button class="btn btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar</button>
+              <button class="btn btn-warning" id="finalizarSelecionadosBtn"><i class="fas fa-check-circle"></i> Finalizar Selecionados</button>
             </div>
           </div>
           
@@ -318,23 +277,27 @@
       <div class="modal-body">
         <form id="formCotacao">
           <div class="form-grid">
-            <!-- Coluna 1 -->
+            <!-- PRODUTO - Campo de texto livre -->
             <div class="form-group">
               <label>Produto *</label>
-              <select id="cotacaoProduto" required>
-                <option value="">Selecione o produto...</option>
-              </select>
+              <input type="text" id="cotacaoProduto" placeholder="Digite o nome do produto" required>
             </div>
+            
+            <!-- FORNECEDOR - Campo de texto livre -->
             <div class="form-group">
               <label>Fornecedor *</label>
-              <select id="cotacaoFornecedor" required>
-                <option value="">Selecione o fornecedor...</option>
-              </select>
+              <input type="text" id="cotacaoFornecedor" placeholder="Digite o nome do fornecedor" required>
             </div>
+            
             <div class="form-group">
               <label>UF</label>
               <select id="cotacaoUF">
                 <option value="">Selecione...</option>
+                <option value="SP">SP</option><option value="RJ">RJ</option>
+                <option value="MG">MG</option><option value="PR">PR</option>
+                <option value="SC">SC</option><option value="RS">RS</option>
+                <option value="BA">BA</option><option value="PE">PE</option>
+                <option value="CE">CE</option><option value="DF">DF</option>
               </select>
             </div>
             <div class="form-group">
@@ -354,7 +317,7 @@
               <input type="date" id="cotacaoDataEntrega">
             </div>
             
-            <!-- Coluna 2 - Impostos e Fiscais -->
+            <!-- Impostos -->
             <div class="form-group">
               <label>Alíquota ICMS (%)</label>
               <input type="number" id="cotacaoAliquotaICMS" placeholder="18" step="0.01" value="18">
@@ -473,10 +436,9 @@
               <label>UF</label>
               <select id="fornecedorUF">
                 <option value="">Selecione...</option>
-                <option value="SP">SP</option><option value="RJ">RJ</option><option value="MG">MG</option>
-                <option value="PR">PR</option><option value="SC">SC</option><option value="RS">RS</option>
-                <option value="BA">BA</option><option value="PE">PE</option><option value="CE">CE</option>
-                <option value="DF">DF</option><option value="GO">GO</option><option value="ES">ES</option>
+                <option value="SP">SP</option><option value="RJ">RJ</option>
+                <option value="MG">MG</option><option value="PR">PR</option>
+                <option value="SC">SC</option><option value="RS">RS</option>
               </select>
             </div>
             <div class="form-group full-width">
@@ -510,11 +472,6 @@
     <p>Gerando PDF...</p>
   </div>
 
-  <!-- Scripts -->
-  <script src="/js/main.js"></script>
-  <script src="/js/cotacao.js"></script>
-  
-  <!-- Script inline com a versão melhorada -->
   <script>
     // ================== DADOS GLOBAIS ==================
     let produtos = [];
@@ -528,10 +485,6 @@
     // ================== UTILITÁRIOS ==================
     function formatarMoeda(valor) {
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
-    }
-
-    function formatarNumero(valor, casas = 2) {
-      return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }).format(valor || 0);
     }
 
     function formatarData(dataStr) {
@@ -567,8 +520,8 @@
       }
       if (fornecedores.length === 0) {
         fornecedores = [
-          { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP", produtosIds: [1] },
-          { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP", produtosIds: [1] }
+          { id: '1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
+          { id: '2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" }
         ];
       }
       salvarDados();
@@ -589,13 +542,12 @@
       if (empty) empty.style.display = 'none';
       
       container.innerHTML = ativas.map(cot => {
-        const prod = produtos.find(p => p.id == cot.produtoId) || { nome: 'Produto' };
         const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
         const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
         
         return `<div class="table-row" data-id="${cot.id}">
           <div class="checkbox-column"><input type="checkbox" class="select-cotacao" value="${cot.id}"></div>
-          <div><strong>${prod.nome}</strong></div>
+          <div><strong>${cot.produto || '-'}</strong></div>
           <div>${cot.fornecedor || '-'}</div>
           <div>${cot.uf || '-'}</div>
           <div>${cot.quantidade || 0}</div>
@@ -777,6 +729,7 @@
                   <th>Frete</th>
                   <th>Total c/ Imp.</th>
                   <th>Entrega</th>
+                  <th>Finalizar</th>
                 </tr>
               </thead>
               <tbody>
@@ -800,7 +753,7 @@
         const isMelhor = item.id === menorId;
         
         html += `
-          <tr class="${isMelhor ? 'melhor-preco' : ''}">
+          <tr class="${isMelhor ? 'melhor-preco' : ''}" data-id="${item.id}">
             <td>${idx + 1}</td>
             <td><strong>${item.produto || '-'}</strong></td>
             <td>${item.fornecedor || '-'}</td>
@@ -813,6 +766,9 @@
             <td>${formatarMoeda(item.valorFrete || 0)}</td>
             <td><strong>${formatarMoeda(totalComImpostos)}</strong> ${isMelhor ? '🏆' : ''}</td>
             <td>${item.dataEntrega ? formatarData(item.dataEntrega) : '-'}</td>
+            <td>
+              <input type="checkbox" class="finalizar-cotacao" value="${item.id}" ${isMelhor ? 'checked' : ''}>
+            </td>
           </tr>
         `;
       });
@@ -826,8 +782,11 @@
             <button class="btn btn-success" onclick="gerarPDFComparativo()">
               <i class="fas fa-file-pdf"></i> Gerar PDF
             </button>
-            <button class="btn btn-primary" onclick="finalizarMelhorCotacao()">
-              <i class="fas fa-check-circle"></i> Finalizar Melhor Cotação
+            <button class="btn btn-primary" onclick="finalizarCotacoesSelecionadas()">
+              <i class="fas fa-check-circle"></i> Finalizar Selecionadas
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('modalComparativo').style.display='none'">
+              <i class="fas fa-times"></i> Fechar
             </button>
           </div>
         </div>
@@ -866,16 +825,14 @@
           
           y = 45;
           
-          // Capturar dados da tabela
           const table = document.querySelector('.comparativo-tabela table');
           if (table) {
             const rows = table.querySelectorAll('tbody tr');
             const headers = table.querySelectorAll('thead th');
             
-            const colWidths = [8, 28, 25, 15, 15, 20, 22, 20, 20, 20, 28, 25];
+            const colWidths = [8, 28, 25, 15, 15, 20, 22, 20, 20, 20, 28, 25, 15];
             let x = margin;
             
-            // Cabeçalho
             doc.setFillColor(44, 62, 80);
             doc.rect(margin, y - 4, pageWidth - (margin * 2), 8, 'F');
             doc.setTextColor(255, 255, 255);
@@ -883,7 +840,7 @@
             doc.setFont('helvetica', 'bold');
             
             headers.forEach((th, i) => {
-              if (i < colWidths.length) {
+              if (i < colWidths.length && th.textContent.trim() !== 'Finalizar') {
                 doc.text(th.textContent.trim(), x + 1, y + 3);
                 x += colWidths[i];
               }
@@ -894,7 +851,6 @@
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7);
             
-            // Dados
             rows.forEach((row, rowIdx) => {
               const cells = row.querySelectorAll('td');
               x = margin;
@@ -911,7 +867,7 @@
               }
               
               cells.forEach((cell, i) => {
-                if (i < colWidths.length) {
+                if (i < colWidths.length && i !== 12) {
                   const text = cell.textContent.trim().replace(/\s+/g, ' ');
                   doc.setTextColor(isMelhor ? 0 : 50, isMelhor ? 100 : 50, isMelhor ? 0 : 50);
                   doc.text(text, x + 1, y + 3);
@@ -928,7 +884,6 @@
             });
           }
           
-          // Rodapé
           doc.setDrawColor(200, 200, 200);
           doc.line(margin, 190, pageWidth - margin, 190);
           doc.setFontSize(8);
@@ -946,59 +901,70 @@
       }, 500);
     }
 
-    // ================== FINALIZAR COTAÇÃO ==================
-    function finalizarMelhorCotacao() {
-      const body = document.getElementById('comparativoBody');
-      const rows = body.querySelectorAll('.comparativo-tabela tbody tr');
-      
-      let melhorRow = null;
-      let melhorTotal = Infinity;
-      
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 11) {
-          const totalText = cells[10].textContent.trim();
-          const total = parseFloat(totalText.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-          if (total < melhorTotal) {
-            melhorTotal = total;
-            melhorRow = row;
-          }
-        }
-      });
-      
-      if (!melhorRow) {
-        alert('Não foi possível identificar a melhor cotação');
+    // ================== FINALIZAR COTAÇÕES ==================
+    function finalizarCotacoesSelecionadas() {
+      const checkboxes = document.querySelectorAll('.finalizar-cotacao:checked');
+      if (checkboxes.length === 0) {
+        alert('Selecione pelo menos uma cotação para finalizar');
         return;
       }
       
-      const cells = melhorRow.querySelectorAll('td');
-      const produto = cells[1]?.textContent.trim() || '';
-      const fornecedor = cells[2]?.textContent.trim() || '';
-      const quantidade = parseInt(cells[4]?.textContent.trim()) || 0;
-      const valorUnitario = parseFloat(cells[5]?.textContent.trim().replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-      const total = melhorTotal;
+      const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id));
       
-      if (confirm(`Deseja finalizar a cotação com o melhor preço?\n\nProduto: ${produto}\nFornecedor: ${fornecedor}\nTotal: ${formatarMoeda(total)}`)) {
-        const cotacao = cotacoes.find(c => 
-          c.produto === produto && 
-          c.fornecedor === fornecedor && 
-          c.quantidade === quantidade && 
-          c.valorUnitario === valorUnitario
-        );
+      if (itensParaFinalizar.length === 0) {
+        alert('Nenhuma cotação encontrada para finalizar');
+        return;
+      }
+      
+      const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
+      
+      if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
+        itensParaFinalizar.forEach(item => {
+          item.status = 'finalizado';
+          item.dataFinalizacao = new Date().toISOString();
+          historico.push({ ...item });
+          cotacoes = cotacoes.filter(c => c.id !== item.id);
+        });
         
-        if (cotacao) {
-          cotacao.status = 'finalizado';
-          cotacao.dataFinalizacao = new Date().toISOString();
-          
-          historico.push({ ...cotacao });
-          cotacoes = cotacoes.filter(c => c.id !== cotacao.id);
-          
-          salvarDados();
-          renderCotacoes();
-          renderHistorico();
-          document.getElementById('modalComparativo').style.display = 'none';
-          alert('Cotação finalizada com sucesso!');
-        }
+        salvarDados();
+        renderCotacoes();
+        renderHistorico();
+        document.getElementById('modalComparativo').style.display = 'none';
+        alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+      }
+    }
+
+    // ================== FINALIZAR SELEÇÕES DIRETO DA LISTA ==================
+    function finalizarSelecionadosDireto() {
+      const selecionados = document.querySelectorAll('.select-cotacao:checked');
+      if (selecionados.length === 0) {
+        alert('Selecione pelo menos uma cotação para finalizar');
+        return;
+      }
+      
+      const ids = Array.from(selecionados).map(cb => parseInt(cb.value));
+      const itensParaFinalizar = cotacoes.filter(c => ids.includes(c.id) && c.status !== "finalizado");
+      
+      if (itensParaFinalizar.length === 0) {
+        alert('Nenhuma cotação ativa selecionada');
+        return;
+      }
+      
+      const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
+      
+      if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
+        itensParaFinalizar.forEach(item => {
+          item.status = 'finalizado';
+          item.dataFinalizacao = new Date().toISOString();
+          historico.push({ ...item });
+          cotacoes = cotacoes.filter(c => c.id !== item.id);
+        });
+        
+        salvarDados();
+        renderCotacoes();
+        renderHistorico();
+        alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
       }
     }
 
@@ -1015,7 +981,7 @@
       if (id) {
         const cot = cotacoes.find(c => c.id === id);
         if (cot) {
-          document.getElementById('cotacaoProduto').value = cot.produtoId || '';
+          document.getElementById('cotacaoProduto').value = cot.produto || '';
           document.getElementById('cotacaoFornecedor').value = cot.fornecedor || '';
           document.getElementById('cotacaoUF').value = cot.uf || '';
           document.getElementById('cotacaoQuantidade').value = cot.quantidade || '';
@@ -1031,7 +997,6 @@
         }
       }
       
-      atualizarSelectsCotacao();
       modal.style.display = 'block';
     }
 
@@ -1042,17 +1007,19 @@
     // ================== COTAÇÕES CRUD ==================
     function salvarCotacao(event) {
       if (event) event.preventDefault();
-      console.log('Salvando cotação...');
       
-      const produtoId = document.getElementById('cotacaoProduto')?.value;
-      if (!produtoId) { alert('Selecione um produto'); return; }
+      const produto = document.getElementById('cotacaoProduto')?.value?.trim();
+      if (!produto) { alert('Digite o nome do produto'); return; }
       
-      const fornecedor = document.getElementById('cotacaoFornecedor')?.value;
-      if (!fornecedor) { alert('Selecione um fornecedor'); return; }
+      const fornecedor = document.getElementById('cotacaoFornecedor')?.value?.trim();
+      if (!fornecedor) { alert('Digite o nome do fornecedor'); return; }
       
-      const produto = produtos.find(p => p.id == produtoId);
       const qtd = parseFloat(document.getElementById('cotacaoQuantidade')?.value) || 0;
+      if (qtd <= 0) { alert('Digite uma quantidade válida'); return; }
+      
       const vu = parseFloat(document.getElementById('cotacaoValorUnitario')?.value) || 0;
+      if (vu <= 0) { alert('Digite um valor unitário válido'); return; }
+      
       const aliquotaICMS = parseFloat(document.getElementById('cotacaoAliquotaICMS')?.value) || 0;
       const aliquotaIPI = parseFloat(document.getElementById('cotacaoAliquotaIPI')?.value) || 0;
       const valorFrete = parseFloat(document.getElementById('cotacaoValorFrete')?.value) || 0;
@@ -1063,8 +1030,7 @@
       
       const cotacaoData = {
         id: editingId || gerarId(),
-        produtoId: parseInt(produtoId),
-        produto: produto?.nome || '',
+        produto: produto,
         fornecedor: fornecedor,
         uf: document.getElementById('cotacaoUF')?.value || '',
         dataCotacao: document.getElementById('cotacaoData')?.value || '',
@@ -1096,26 +1062,6 @@
       alert('Cotação salva com sucesso!');
     }
 
-    function atualizarSelectsCotacao() {
-      const selProd = document.getElementById('cotacaoProduto');
-      const selForn = document.getElementById('cotacaoFornecedor');
-      const selUF = document.getElementById('cotacaoUF');
-      
-      if (selProd) {
-        selProd.innerHTML = '<option value="">Selecione o produto...</option>';
-        produtos.forEach(p => selProd.innerHTML += `<option value="${p.id}">${p.nome}</option>`);
-      }
-      if (selForn) {
-        selForn.innerHTML = '<option value="">Selecione o fornecedor...</option>';
-        fornecedores.forEach(f => selForn.innerHTML += `<option value="${f.nomeEmpresa}">${f.nomeEmpresa}</option>`);
-      }
-      if (selUF) {
-        selUF.innerHTML = '<option value="">Selecione...</option>';
-        const ufs = ['SP', 'RJ', 'MG', 'PR', 'SC', 'RS', 'BA', 'PE', 'CE', 'DF', 'GO', 'ES', 'MT', 'MS', 'PA', 'AM', 'AC', 'RO', 'TO', 'MA', 'PI', 'RN', 'PB', 'SE', 'AL', 'AP', 'RR'];
-        ufs.forEach(uf => selUF.innerHTML += `<option value="${uf}">${uf}</option>`);
-      }
-    }
-
     // ================== PRODUTOS CRUD ==================
     function salvarProduto(event) {
       if (event) event.preventDefault();
@@ -1142,7 +1088,6 @@
       salvarDados();
       document.getElementById('modalProduto').style.display = 'none';
       renderProdutos();
-      atualizarSelectsCotacao();
       alert('Produto salvo com sucesso!');
     }
 
@@ -1173,8 +1118,7 @@
         ie: document.getElementById('fornecedorIE')?.value || '',
         telefone: document.getElementById('fornecedorTelefone')?.value || '',
         email: document.getElementById('fornecedorEmail')?.value || '',
-        uf: document.getElementById('fornecedorUF')?.value || '',
-        produtosIds: []
+        uf: document.getElementById('fornecedorUF')?.value || ''
       };
       
       if (editingFornecedorId) {
@@ -1187,7 +1131,6 @@
       salvarDados();
       document.getElementById('modalFornecedor').style.display = 'none';
       renderFornecedores();
-      atualizarSelectsCotacao();
       alert('Fornecedor salvo com sucesso!');
     }
 
@@ -1239,7 +1182,10 @@
         document.getElementById('formFornecedor')?.reset();
         document.getElementById('modalFornecedor').style.display = 'block';
       });
+      
+      // Botões de ação
       document.getElementById('compararSelecionadosBtn')?.addEventListener('click', compararSelecionados);
+      document.getElementById('finalizarSelecionadosBtn')?.addEventListener('click', finalizarSelecionadosDireto);
       
       // Forms
       document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
@@ -1307,7 +1253,6 @@
             produtos = produtos.filter(p => p.id != delProd.dataset.id);
             salvarDados();
             renderProdutos();
-            atualizarSelectsCotacao();
           }
         }
         
@@ -1322,7 +1267,6 @@
             fornecedores = fornecedores.filter(f => f.id != delForn.dataset.id);
             salvarDados();
             renderFornecedores();
-            atualizarSelectsCotacao();
           }
         }
       });
