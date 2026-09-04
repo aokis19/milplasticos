@@ -148,7 +148,6 @@ function renderCotacoes() {
   const empty = document.getElementById('emptyState');
   if (!container) return;
   
-  // Mostra TODAS as cotações (não finalizadas)
   const ativas = cotacoes.filter(c => c.status !== "finalizado");
   
   console.log('📊 Renderizando cotações ativas:', ativas.length);
@@ -298,13 +297,11 @@ function compararSelecionados() {
     return;
   }
   
-  // Pega os IDs como string
   const ids = Array.from(selecionados).map(cb => String(cb.value));
   
   console.log('📋 IDs selecionados:', ids);
   console.log('📋 Cotações disponíveis:', cotacoes.map(c => ({ id: String(c.id), produto: c.produto, status: c.status })));
   
-  // Filtra as cotações pelos IDs
   const itens = cotacoes.filter(c => ids.includes(String(c.id)) && c.status !== "finalizado");
   
   console.log('📋 Itens encontrados:', itens.length);
@@ -439,7 +436,6 @@ function gerarPDFComparativo() {
       const margin = 15;
       let y = margin;
       
-      // Cabeçalho
       doc.setFillColor(52, 152, 219);
       doc.rect(0, 0, pageWidth, 30, 'F');
       
@@ -607,7 +603,7 @@ function finalizarSelecionadosDireto() {
   }
 }
 
-// ================== MODAIS ==================
+// ================== MODAIS (CORRIGIDO - NÃO FECHA ACIDENTALMENTE) ==================
 function abrirModalCotacao(id = null) {
   editingId = id;
   const modal = document.getElementById('modalCotacao');
@@ -637,10 +633,12 @@ function abrirModalCotacao(id = null) {
   }
   
   modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
 
 function fecharModalCotacao() {
   document.getElementById('modalCotacao').style.display = 'none';
+  document.body.style.overflow = 'auto';
 }
 
 // ================== COTAÇÕES CRUD ==================
@@ -838,13 +836,6 @@ function init() {
   document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
   document.getElementById('formProduto')?.addEventListener('submit', salvarProduto);
   document.getElementById('formFornecedor')?.addEventListener('submit', salvarFornecedor);
-  
-  // Fechar modais ao clicar fora
-  window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-      event.target.style.display = 'none';
-    }
-  };
   
   // Eventos de clique para editar/excluir (delegação)
   document.addEventListener('click', function(e) {
