@@ -37,7 +37,7 @@
         <div class="rh-header">
           <div>
             <h1><i class="fas fa-users-gear"></i> Recursos Humanos</h1>
-            <p>Gestão de pessoas, ocorrências e indicadores</p>
+            <p>Gestão de pessoas e módulos do RH</p>
           </div>
           <div class="rh-header-actions">
             <button class="rh-btn rh-btn-secondary" id="btnNovoSetor">
@@ -49,42 +49,6 @@
           </div>
         </div>
 
-        <!-- ===================== KPIs RÁPIDOS ===================== -->
-        <div class="rh-kpis">
-          <div class="rh-kpi">
-            <div class="rh-kpi-info">
-              <div class="rh-kpi-label">Funcionários Ativos</div>
-              <div class="rh-kpi-value" id="hubKpiFunc">0</div>
-              <div class="rh-kpi-sub" id="hubKpiFuncSub">0 cadastrados</div>
-            </div>
-            <div class="rh-kpi-icon blue"><i class="fas fa-users"></i></div>
-          </div>
-          <div class="rh-kpi">
-            <div class="rh-kpi-info">
-              <div class="rh-kpi-label">Setores</div>
-              <div class="rh-kpi-value" id="hubKpiSetores">0</div>
-              <div class="rh-kpi-sub">cadastrados</div>
-            </div>
-            <div class="rh-kpi-icon purple"><i class="fas fa-building"></i></div>
-          </div>
-          <div class="rh-kpi">
-            <div class="rh-kpi-info">
-              <div class="rh-kpi-label">Ocorrências no Mês</div>
-              <div class="rh-kpi-value" id="hubKpiOcor">0</div>
-              <div class="rh-kpi-sub" id="hubKpiOcorSub">mês atual</div>
-            </div>
-            <div class="rh-kpi-icon yellow"><i class="fas fa-clipboard-list"></i></div>
-          </div>
-          <div class="rh-kpi">
-            <div class="rh-kpi-info">
-              <div class="rh-kpi-label">Dias Perdidos</div>
-              <div class="rh-kpi-value" id="hubKpiDias">0</div>
-              <div class="rh-kpi-sub">no mês atual</div>
-            </div>
-            <div class="rh-kpi-icon red"><i class="fas fa-calendar-xmark"></i></div>
-          </div>
-        </div>
-
         <!-- ===================== CARDS DE MÓDULOS ===================== -->
         <div class="hub-section-title">
           <i class="fas fa-th-large"></i> Módulos
@@ -93,7 +57,7 @@
         <div class="hub-grid" id="hubGrid">
 
           <!-- Atestados -->
-          <a href="/html/rh-atestados.html" class="hub-card hub-card-purple">
+          <a href="/rh-atestados.html" class="hub-card hub-card-purple">
             <div class="hub-card-icon"><i class="fas fa-file-medical"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Atestados</div>
@@ -104,7 +68,7 @@
           </a>
 
           <!-- Faltas -->
-          <a href="/html/rh-faltas.html" class="hub-card hub-card-red">
+          <a href="/rh-faltas.html" class="hub-card hub-card-red">
             <div class="hub-card-icon"><i class="fas fa-user-xmark"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Faltas</div>
@@ -115,7 +79,7 @@
           </a>
 
           <!-- Atrasos -->
-          <a href="/html/rh-atrasos.html" class="hub-card hub-card-yellow">
+          <a href="/rh-atrasos.html" class="hub-card hub-card-yellow">
             <div class="hub-card-icon"><i class="fas fa-clock"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Atrasos</div>
@@ -126,12 +90,12 @@
           </a>
 
           <!-- Dashboard -->
-          <a href="/html/rh-dashboard.html" target="_blank" class="hub-card hub-card-blue">
+          <a href="/rhdashboard.html" target="_blank" class="hub-card hub-card-blue">
             <div class="hub-card-icon"><i class="fas fa-chart-line"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Dashboard</div>
               <div class="hub-card-desc">Indicadores e gráficos consolidados</div>
-              <div class="hub-card-badge">Visualizar</div>
+              <div class="hub-card-badge">Abrir</div>
             </div>
             <div class="hub-card-arrow"><i class="fas fa-external-link-alt"></i></div>
           </a>
@@ -155,17 +119,17 @@
 
         </div>
 
-        <!-- ===================== LISTAS RÁPIDAS ===================== -->
+        <!-- ===================== LISTAS ===================== -->
         <div class="rh-tabs" style="margin-top:2rem;">
           <button class="rh-tab active" data-tab="funcionarios-hub">
-            <i class="fas fa-users"></i> Funcionários
+            <i class="fas fa-users"></i> Funcionários <span id="countFuncionarios" class="rh-tab-badge">0</span>
           </button>
           <button class="rh-tab" data-tab="setores-hub">
-            <i class="fas fa-building"></i> Setores
+            <i class="fas fa-building"></i> Setores <span id="countSetores" class="rh-tab-badge">0</span>
           </button>
         </div>
 
-        <!-- Tab: Funcionários (visão resumida) -->
+        <!-- Tab: Funcionários -->
         <div class="rh-tab-content active" id="tab-funcionarios-hub">
           <div class="rh-filters">
             <input type="text" id="filtroFuncionarioHub" placeholder="🔍 Buscar por nome, setor ou matrícula...">
