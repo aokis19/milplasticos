@@ -1,5 +1,6 @@
   /* =======================================================================
-     MÓDULO: HUB (página rh.html)
+     MÓDULO: HUB (rh.html)
+     Cadastro de funcionários + setores + cards de navegação
      ======================================================================= */
 
   const ModuloHub = {
@@ -31,15 +32,12 @@
     },
 
     bindEventos() {
-      // Botões de cadastro
       $('#btnNovoFuncionario')?.addEventListener('click', () => this.abrirModalFuncionario());
       $('#btnNovoSetor')?.addEventListener('click', () => this.abrirModalSetor());
 
-      // Forms
       $('#formFuncionario')?.addEventListener('submit', e => this.salvarFuncionario(e));
       $('#formSetor')?.addEventListener('submit', e => this.salvarSetor(e));
 
-      // Busca
       $('#filtroFuncionarioHub')?.addEventListener('input', () => this.renderFuncionarios());
     },
 
@@ -55,7 +53,7 @@
       });
     },
 
-    /* ---------- Setores ---------- */
+    /* ---------- SETORES ---------- */
     abrirModalSetor(setor = null) {
       $('#setorId').value = setor?.id || '';
       $('#setorNome').value = setor?.nome || '';
@@ -101,6 +99,10 @@
 
     renderSetores() {
       const tbody = $('#hubTabelaSetoresBody');
+      const count = $('#countSetores');
+
+      if (count) count.textContent = this.state.setores.length;
+
       if (tbody) {
         if (!this.state.setores.length) {
           tbody.innerHTML = '<tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>';
@@ -135,7 +137,7 @@
         }
       }
 
-      // Popula select do modal funcionário
+      // Popula select do modal de funcionário
       const selectFunc = $('#funcSetor');
       if (selectFunc) {
         const atual = selectFunc.value;
@@ -145,7 +147,7 @@
       }
     },
 
-    /* ---------- Funcionários ---------- */
+    /* ---------- FUNCIONÁRIOS ---------- */
     abrirModalFuncionario(func = null) {
       $('#funcionarioId').value = func?.id || '';
       $('#funcNome').value      = func?.nome || '';
@@ -205,6 +207,9 @@
 
     renderFuncionarios() {
       const grid = $('#hubGridFuncionarios');
+      const count = $('#countFuncionarios');
+
+      if (count) count.textContent = this.state.funcionarios.length;
       if (!grid) return;
 
       const busca = ($('#filtroFuncionarioHub')?.value || '').toLowerCase();
@@ -249,38 +254,14 @@
       );
     },
 
-    /* ---------- KPIs do hub ---------- */
-    renderKPIs() {
-      const totalFunc = this.state.funcionarios.length;
-      const ativos = this.state.funcionarios.filter(f => f.status === 'Ativo').length;
-      const setores = this.state.setores.length;
-
-      // Mês atual
-      const hoje = new Date();
-      const mesAtual = hoje.getMonth() + 1;
-      const anoAtual = hoje.getFullYear();
-      const ocsMes = this.state.ocorrencias.filter(o =>
-        Number(o.mes) === mesAtual && Number(o.ano) === anoAtual
-      );
-      const diasMes = ocsMes.reduce((s, o) => s + (Number(o.dias) || 0), 0);
-
-      const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
-      set('hubKpiFunc', ativos);
-      set('hubKpiFuncSub', `${totalFunc} cadastrados`);
-      set('hubKpiSetores', setores);
-      set('hubKpiOcor', ocsMes.length);
-      set('hubKpiOcorSub', `${MESES[mesAtual-1]} ${anoAtual}`);
-      set('hubKpiDias', diasMes);
-
-      // Badges dos cards
-      const atestados = this.state.ocorrencias.filter(o => o.tipo === 'Atestado').length;
-      const faltas    = this.state.ocorrencias.filter(o => o.tipo === 'Falta').length;
-      const atrasos   = this.state.ocorrencias.filter(o => o.tipo === 'Atraso').length;
-
+    /* ---------- Badges dos cards ---------- */
+    renderBadgesCards() {
       const fmt = n => `${n} ${n === 1 ? 'registro' : 'registros'}`;
-      set('hubBadgeAtestados', fmt(atestados));
-      set('hubBadgeFaltas',    fmt(faltas));
-      set('hubBadgeAtrasos',   fmt(atrasos));
+      const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
+
+      set('hubBadgeAtestados', fmt(this.state.ocorrencias.filter(o => o.tipo === 'Atestado').length));
+      set('hubBadgeFaltas',    fmt(this.state.ocorrencias.filter(o => o.tipo === 'Falta').length));
+      set('hubBadgeAtrasos',   fmt(this.state.ocorrencias.filter(o => o.tipo === 'Atraso').length));
     },
 
     /* ---------- Listeners ---------- */
@@ -297,14 +278,13 @@
           this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           this.renderFuncionarios();
           this.renderSetores();
-          this.renderKPIs();
         }, err => console.error('funcionarios:', err))
       );
 
       this.state.listeners.push(
         COL.ocorrencias.onSnapshot(snap => {
           this.state.ocorrencias = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          this.renderKPIs();
+          this.renderBadgesCards();
         }, err => console.error('ocorrencias:', err))
       );
     },
