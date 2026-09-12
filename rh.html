@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RH | Central de Custos</title>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
+  <link rel="stylesheet" href="/assets/css/rh.css">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js (gráficos) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
+</head>
+<body>
+  <div id="topbar-container"></div>
+
+  <div class="container">
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Carregando...</p>
+      </div>
+
+      <div class="rh-page">
+
+        <!-- Cabeçalho -->
+        <div class="rh-header">
+          <div>
+            <h1><i class="fas fa-users-gear"></i> Recursos Humanos</h1>
+            <p>Gestão de funcionários, setores e absenteísmo</p>
+          </div>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button class="rh-btn rh-btn-secondary" id="btnNovoSetor">
+              <i class="fas fa-building"></i> Novo Setor
+            </button>
+            <button class="rh-btn rh-btn-primary" id="btnNovoFuncionario">
+              <i class="fas fa-user-plus"></i> Novo Funcionário
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="rh-tabs">
+          <button class="rh-tab active" data-tab="dashboard">
+            <i class="fas fa-chart-pie"></i> Dashboard
+          </button>
+          <button class="rh-tab" data-tab="ocorrencias">
+            <i class="fas fa-file-medical"></i> Ocorrências
+          </button>
+          <button class="rh-tab" data-tab="funcionarios">
+            <i class="fas fa-users"></i> Funcionários
+          </button>
+          <button class="rh-tab" data-tab="setores">
+            <i class="fas fa-building"></i> Setores
+          </button>
+        </div>
+
+        <!-- ===================== TAB: DASHBOARD ===================== -->
+        <div class="rh-tab-content active" id="tab-dashboard">
+
+          <!-- KPIs -->
+          <div class="rh-kpis">
+            <div class="rh-kpi">
+              <div class="rh-kpi-info">
+                <div class="rh-kpi-label">Total Ocorrências</div>
+                <div class="rh-kpi-value" id="kpiTotal">0</div>
+              </div>
+              <div class="rh-kpi-icon blue"><i class="fas fa-clipboard-list"></i></div>
+            </div>
+            <div class="rh-kpi">
+              <div class="rh-kpi-info">
+                <div class="rh-kpi-label">Atestados</div>
+                <div class="rh-kpi-value" id="kpiAtestado">0</div>
+              </div>
+              <div class="rh-kpi-icon purple"><i class="fas fa-file-medical"></i></div>
+            </div>
+            <div class="rh-kpi">
+              <div class="rh-kpi-info">
+                <div class="rh-kpi-label">Faltas</div>
+                <div class="rh-kpi-value" id="kpiFalta">0</div>
+              </div>
+              <div class="rh-kpi-icon red"><i class="fas fa-user-xmark"></i></div>
+            </div>
+            <div class="rh-kpi">
+              <div class="rh-kpi-info">
+                <div class="rh-kpi-label">Declarações</div>
+                <div class="rh-kpi-value" id="kpiDeclaracao">0</div>
+              </div>
+              <div class="rh-kpi-icon yellow"><i class="fas fa-file-signature"></i></div>
+            </div>
+          </div>
+
+          <!-- Gráficos linha 1 -->
+          <div class="rh-charts">
+            <div class="rh-card">
+              <div class="rh-card-title">Ocorrências por Setor</div>
+              <div class="rh-card-sub">Distribuição entre os setores</div>
+              <div class="rh-chart-box"><canvas id="chartSetor"></canvas></div>
+            </div>
+            <div class="rh-card">
+              <div class="rh-card-title">Por Tipo</div>
+              <div class="rh-card-sub">Proporção dos tipos</div>
+              <div class="rh-chart-box"><canvas id="chartTipo"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Gráficos linha 2 -->
+          <div class="rh-charts" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="rh-card">
+              <div class="rh-card-title">Por Dia da Semana</div>
+              <div class="rh-card-sub">Concentração por weekday</div>
+              <div class="rh-chart-box"><canvas id="chartDia"></canvas></div>
+            </div>
+            <div class="rh-card">
+              <div class="rh-card-title">Por Mês</div>
+              <div class="rh-card-sub">Picos no ano</div>
+              <div class="rh-chart-box"><canvas id="chartMes"></canvas></div>
+            </div>
+            <div class="rh-card">
+              <div class="rh-card-title">Top Funcionários</div>
+              <div class="rh-card-sub">Maior número de ocorrências</div>
+              <div id="rankFuncionarios" style="max-height:260px; overflow-y:auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== TAB: OCORRÊNCIAS ===================== -->
+        <div class="rh-tab-content" id="tab-ocorrencias">
+          <div class="rh-table-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <div>
+                <div class="rh-card-title">Ocorrências</div>
+                <div class="rh-card-sub">Registre e gerencie atestados, faltas e declarações</div>
+              </div>
+              <button class="rh-btn rh-btn-primary" id="btnNovaOcorrencia">
+                <i class="fas fa-plus"></i> Nova Ocorrência
+              </button>
+            </div>
+
+            <div class="rh-filters">
+              <input type="text" id="filtroOcorrencia" placeholder="🔍 Buscar por funcionário ou setor...">
+              <select id="filtroTipoOcorrencia">
+                <option value="">Todos os tipos</option>
+                <option value="Atestado">Atestado</option>
+                <option value="Falta">Falta</option>
+                <option value="Declaração">Declaração</option>
+                <option value="Licença">Licença</option>
+              </select>
+            </div>
+
+            <div class="table-responsive">
+              <table class="rh-table">
+                <thead>
+                  <tr>
+                    <th>Funcionário</th>
+                    <th>Setor</th>
+                    <th>Tipo</th>
+                    <th>Data</th>
+                    <th>Dias</th>
+                    <th>Observação</th>
+                    <th style="text-align:right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaOcorrenciasBody">
+                  <tr><td colspan="7" class="rh-empty"><i class="fas fa-inbox"></i>Nenhuma ocorrência registrada</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== TAB: FUNCIONÁRIOS ===================== -->
+        <div class="rh-tab-content" id="tab-funcionarios">
+          <div class="rh-filters">
+            <input type="text" id="filtroFuncionario" placeholder="🔍 Buscar por nome, setor ou matrícula...">
+          </div>
+          <div class="rh-func-grid" id="gridFuncionarios"></div>
+        </div>
+
+        <!-- ===================== TAB: SETORES ===================== -->
+        <div class="rh-tab-content" id="tab-setores">
+          <div class="rh-table-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <div>
+                <div class="rh-card-title">Setores</div>
+                <div class="rh-card-sub">Cadastro de setores da empresa</div>
+              </div>
+              <button class="rh-btn rh-btn-primary" id="btnNovoSetorTab">
+                <i class="fas fa-plus"></i> Novo Setor
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="rh-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Qtd. Funcionários</th>
+                    <th style="text-align:right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaSetoresBody">
+                  <tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== MODAL: FUNCIONÁRIO ===================== -->
+  <div class="rh-modal" id="modalFuncionario">
+    <div class="rh-modal-box">
+      <div class="rh-modal-header">
+        <h3 id="modalFuncionarioTitle"><i class="fas fa-user-plus"></i> Novo Funcionário</h3>
+        <button class="rh-modal-close" data-close>&times;</button>
+      </div>
+      <form id="formFuncionario">
+        <div class="rh-modal-body">
+          <input type="hidden" id="funcionarioId">
+          <div class="rh-form-group">
+            <label>Nome completo *</label>
+            <input type="text" id="funcNome" required>
+          </div>
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Matrícula *</label>
+              <input type="text" id="funcMatricula" required>
+            </div>
+            <div class="rh-form-group">
+              <label>Cargo</label>
+              <input type="text" id="funcCargo">
+            </div>
+          </div>
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Setor *</label>
+              <select id="funcSetor" required>
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="rh-form-group">
+              <label>Admissão</label>
+              <input type="date" id="funcAdmissao">
+            </div>
+          </div>
+          <div class="rh-form-group">
+            <label>Status</label>
+            <select id="funcStatus">
+              <option value="Ativo">Ativo</option>
+              <option value="Inativo">Inativo</option>
+              <option value="Afastado">Afastado</option>
+            </select>
+          </div>
+        </div>
+        <div class="rh-modal-footer">
+          <button type="button" class="rh-btn rh-btn-secondary" data-close>Cancelar</button>
+          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: SETOR ===================== -->
+  <div class="rh-modal" id="modalSetor">
+    <div class="rh-modal-box" style="max-width:440px;">
+      <div class="rh-modal-header">
+        <h3 id="modalSetorTitle"><i class="fas fa-building"></i> Novo Setor</h3>
+        <button class="rh-modal-close" data-close>&times;</button>
+      </div>
+      <form id="formSetor">
+        <div class="rh-modal-body">
+          <input type="hidden" id="setorId">
+          <div class="rh-form-group">
+            <label>Nome do setor *</label>
+            <input type="text" id="setorNome" required>
+          </div>
+          <div class="rh-form-group">
+            <label>Descrição</label>
+            <textarea id="setorDescricao" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="rh-modal-footer">
+          <button type="button" class="rh-btn rh-btn-secondary" data-close>Cancelar</button>
+          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: OCORRÊNCIA ===================== -->
+  <div class="rh-modal" id="modalOcorrencia">
+    <div class="rh-modal-box">
+      <div class="rh-modal-header">
+        <h3 id="modalOcorrenciaTitle"><i class="fas fa-file-medical"></i> Nova Ocorrência</h3>
+        <button class="rh-modal-close" data-close>&times;</button>
+      </div>
+      <form id="formOcorrencia">
+        <div class="rh-modal-body">
+          <input type="hidden" id="ocorrenciaId">
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Funcionário *</label>
+              <select id="ocorFuncionario" required>
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="rh-form-group">
+              <label>Tipo *</label>
+              <select id="ocorTipo" required>
+                <option value="">Selecione...</option>
+                <option value="Atestado">Atestado</option>
+                <option value="Falta">Falta</option>
+                <option value="Declaração">Declaração</option>
+                <option value="Licença">Licença</option>
+              </select>
+            </div>
+          </div>
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Data *</label>
+              <input type="date" id="ocorData" required>
+            </div>
+            <div class="rh-form-group">
+              <label>Dias *</label>
+              <input type="number" id="ocorDias" min="1" value="1" required>
+            </div>
+          </div>
+          <div class="rh-form-group">
+            <label>CID (se atestado)</label>
+            <input type="text" id="ocorCid" placeholder="Ex.: J11">
+          </div>
+          <div class="rh-form-group">
+            <label>Observação</label>
+            <textarea id="ocorObservacao" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="rh-modal-footer">
+          <button type="button" class="rh-btn rh-btn-secondary" data-close>Cancelar</button>
+          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/rh.js"></script>
+</body>
+</html>
