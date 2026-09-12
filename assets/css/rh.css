@@ -1,0 +1,388 @@
+/* ============ Página RH ============ */
+.rh-page {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.rh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.rh-header h1 { font-size: 1.6rem; color: #1a2332; display: flex; align-items: center; gap: .5rem; }
+.rh-header p  { color: #64748b; font-size: .9rem; margin-top: .25rem; }
+
+/* ============ Tabs internas do RH ============ */
+.rh-tabs {
+  display: flex;
+  gap: .5rem;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+.rh-tab {
+  background: transparent;
+  border: none;
+  padding: .75rem 1.25rem;
+  font-size: .95rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  white-space: nowrap;
+}
+.rh-tab:hover { color: #2563eb; background: #f1f5f9; }
+.rh-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #eff6ff;
+}
+
+.rh-tab-content { display: none; }
+.rh-tab-content.active { display: block; animation: fadeIn .3s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ KPI cards ============ */
+.rh-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.rh-kpi {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: transform .2s, box-shadow .2s;
+}
+.rh-kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.rh-kpi-info .rh-kpi-label {
+  font-size: .75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 600;
+}
+.rh-kpi-info .rh-kpi-value {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #1a2332;
+  margin-top: .25rem;
+}
+.rh-kpi-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: #fff;
+}
+.rh-kpi-icon.blue   { background: #3b82f6; }
+.rh-kpi-icon.red    { background: #ef4444; }
+.rh-kpi-icon.yellow { background: #f59e0b; }
+.rh-kpi-icon.green  { background: #10b981; }
+.rh-kpi-icon.purple { background: #8b5cf6; }
+
+/* ============ Grid de gráficos ============ */
+.rh-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 900px) { .rh-charts { grid-template-columns: 1fr; } }
+
+.rh-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.rh-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a2332;
+  margin-bottom: .25rem;
+}
+.rh-card-sub {
+  font-size: .8rem;
+  color: #94a3b8;
+  margin-bottom: 1rem;
+}
+.rh-chart-box { position: relative; height: 260px; }
+
+/* ============ Tabela ============ */
+.rh-table-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; }
+.rh-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.rh-table th {
+  text-align: left;
+  font-size: .75rem;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: .75rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+.rh-table td {
+  padding: .75rem;
+  font-size: .9rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+.rh-table tr:hover td { background: #f8fafc; }
+
+/* ============ Badges ============ */
+.badge-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .65rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.badge-atestado  { background: #dbeafe; color: #1e40af; }
+.badge-falta     { background: #fee2e2; color: #991b1b; }
+.badge-declaracao{ background: #f3e8ff; color: #6b21a8; }
+.badge-licenca   { background: #d1fae5; color: #065f46; }
+
+/* ============ Ranking funcionários ============ */
+.rh-rank-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.rh-rank-item:last-child { border-bottom: none; }
+.rh-rank-pos {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8rem;
+}
+.rh-rank-item:first-child .rh-rank-pos { background: #fef3c7; color: #b45309; }
+.rh-rank-name { flex: 1; font-size: .9rem; color: #1a2332; font-weight: 500; }
+.rh-rank-bar {
+  width: 100px;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.rh-rank-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+.rh-rank-count { font-weight: 700; color: #1a2332; font-size: .9rem; min-width: 20px; text-align: right; }
+
+/* ============ Modal / Form ============ */
+.rh-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.rh-modal.open { display: flex; }
+.rh-modal-box {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.rh-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.rh-modal-header h3 { font-size: 1.1rem; color: #1a2332; }
+.rh-modal-close {
+  background: none; border: none;
+  font-size: 1.5rem; cursor: pointer;
+  color: #64748b; line-height: 1;
+}
+.rh-modal-body { padding: 1.5rem; }
+.rh-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rh-form-group { margin-bottom: 1rem; }
+.rh-form-group label {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: .35rem;
+}
+.rh-form-group input,
+.rh-form-group select,
+.rh-form-group textarea {
+  width: 100%;
+  padding: .6rem .75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: .9rem;
+  font-family: inherit;
+  transition: border .2s;
+  background: #fff;
+  color: #1a2332;
+}
+.rh-form-group input:focus,
+.rh-form-group select:focus,
+.rh-form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+}
+.rh-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+@media (max-width: 500px) { .rh-form-row { grid-template-columns: 1fr; } }
+
+/* ============ Botões ============ */
+.rh-btn {
+  padding: .6rem 1.1rem;
+  border-radius: 8px;
+  border: none;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  transition: all .2s;
+  font-family: inherit;
+}
+.rh-btn-primary { background: #1e293b; color: #fff; }
+.rh-btn-primary:hover { background: #0f172a; }
+.rh-btn-success { background: #10b981; color: #fff; }
+.rh-btn-success:hover { background: #059669; }
+.rh-btn-secondary { background: #f1f5f9; color: #334155; }
+.rh-btn-secondary:hover { background: #e2e8f0; }
+.rh-btn-danger { background: #ef4444; color: #fff; }
+.rh-btn-danger:hover { background: #dc2626; }
+.rh-btn-icon { padding: .45rem .6rem; font-size: .8rem; }
+
+/* ============ Filtros ============ */
+.rh-filters {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.rh-filters input,
+.rh-filters select {
+  padding: .5rem .75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: .875rem;
+  background: #fff;
+  color: #1a2332;
+}
+.rh-filters input[type="text"] { flex: 1; min-width: 180px; }
+
+/* ============ Cards de Funcionários ============ */
+.rh-func-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+.rh-func-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  position: relative;
+  transition: transform .2s, box-shadow .2s;
+}
+.rh-func-card:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+.rh-func-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: .75rem;
+}
+.rh-func-name { font-weight: 600; color: #1a2332; font-size: 1rem; }
+.rh-func-cargo { font-size: .8rem; color: #94a3b8; margin-bottom: .75rem; }
+.rh-func-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: .75rem;
+  color: #64748b;
+  border-top: 1px solid #f1f5f9;
+  padding-top: .6rem;
+}
+.rh-func-meta strong { color: #1a2332; }
+.rh-func-actions {
+  position: absolute;
+  top: .75rem; right: .75rem;
+  display: flex;
+  gap: .35rem;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.rh-func-card:hover .rh-func-actions { opacity: 1; }
+.rh-func-actions button {
+  background: #f1f5f9;
+  border: none;
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #64748b;
+  font-size: .75rem;
+}
+.rh-func-actions button:hover { background: #e2e8f0; color: #1a2332; }
+.rh-func-actions .del:hover { background: #fee2e2; color: #dc2626; }
+
+/* ============ Empty state ============ */
+.rh-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+}
+.rh-empty i { font-size: 2.5rem; margin-bottom: .75rem; display: block; color: #cbd5e1; }
