@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ocorrências | Recursos Humanos</title>
+  <title>Dashboard RH | Central de Custos</title>
 
   <!-- CSS -->
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/sidebar.css">
   <link rel="stylesheet" href="/assets/css/topbar.css">
   <link rel="stylesheet" href="/assets/css/rh.css">
-  <link rel="stylesheet" href="/assets/css/ocorrencias.css">
+  <link rel="stylesheet" href="/assets/css/rhdashboard.css">
 
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -24,7 +27,7 @@
   <script src="/js/data-loader.js"></script>
 </head>
 
-<body data-page="rh-ocorrencias">
+<body data-page="rh-dashboard">
   <div id="topbar-container"></div>
 
   <div class="container">
@@ -33,149 +36,200 @@
     <main class="main-content">
       <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <p>Carregando...</p>
+        <p>Carregando dashboard...</p>
       </div>
 
-      <div class="oc-page">
+      <div class="dash-page">
 
         <!-- ================= HEADER ================= -->
-        <div class="oc-header">
+        <div class="dash-header">
           <div>
-            <h1><i class="fas fa-clipboard-list"></i> Ocorrências de RH</h1>
-            <p>Faltas · Atestados · Atrasos · Declarações · Licenças</p>
+            <h1><i class="fas fa-chart-line"></i> Dashboard de RH</h1>
+            <p>Indicadores consolidados de absenteísmo · Base de cálculo 220h/mês</p>
           </div>
-          <div class="oc-header-actions">
-            <button class="rh-btn rh-btn-secondary" id="btnExportOcorrencias">
-              <i class="fas fa-file-export"></i> Exportar CSV
-            </button>
-            <button class="rh-btn rh-btn-primary" id="btnNovaOcorrencia">
-              <i class="fas fa-plus"></i> Nova Ocorrência
+          <div class="dash-header-actions">
+            <select id="dashFiltroPeriodo">
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="mes">Mês atual</option>
+              <option value="ano" selected>Ano atual</option>
+              <option value="tudo">Todo o período</option>
+            </select>
+            <select id="dashFiltroSetor">
+              <option value="">Todos os setores</option>
+            </select>
+            <button class="dash-btn dash-btn-primary" id="btnAtualizarDash">
+              <i class="fas fa-rotate"></i> Atualizar
             </button>
           </div>
         </div>
 
         <!-- ================= KPIs ================= -->
-        <div class="oc-kpis">
-          <div class="oc-kpi kpi-percentual">
-            <div class="oc-kpi-icon"><i class="fas fa-percent"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiPercentual">0%</div>
-              <div class="oc-kpi-label">Tempo perdido no mês <small>base 220h</small></div>
+        <div class="dash-kpis" id="dashKpis">
+          <div class="dash-kpi kpi-perigo">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiPct">0%</div>
+                <div class="dash-kpi-label">Tempo perdido</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-percent"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiPctSub">base 220h/mês</div>
           </div>
-          <div class="oc-kpi kpi-falta">
-            <div class="oc-kpi-icon"><i class="fas fa-user-xmark"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiFaltas">0</div>
-              <div class="oc-kpi-label">Faltas no mês</div>
+
+          <div class="dash-kpi kpi-yellow">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiHoras">0h</div>
+                <div class="dash-kpi-label">Horas perdidas</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-hourglass-half"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiHorasSub">—</div>
           </div>
-          <div class="oc-kpi kpi-atestado">
-            <div class="oc-kpi-icon"><i class="fas fa-file-medical"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiAtestados">0</div>
-              <div class="oc-kpi-label">Atestados no mês</div>
+
+          <div class="dash-kpi kpi-red">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiFaltas">0</div>
+                <div class="dash-kpi-label">Faltas</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-user-xmark"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiFaltasSub">—</div>
           </div>
-          <div class="oc-kpi kpi-atraso">
-            <div class="oc-kpi-icon"><i class="fas fa-clock"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiAtrasos">0</div>
-              <div class="oc-kpi-label">Atrasos no mês</div>
+
+          <div class="dash-kpi kpi-purple">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiAtestados">0</div>
+                <div class="dash-kpi-label">Atestados</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-file-medical"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiAtestadosSub">—</div>
           </div>
-          <div class="oc-kpi kpi-declaracao">
-            <div class="oc-kpi-icon"><i class="fas fa-file-signature"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiDeclaracoes">0</div>
-              <div class="oc-kpi-label">Declarações</div>
+
+          <div class="dash-kpi kpi-yellow">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiAtrasos">0</div>
+                <div class="dash-kpi-label">Atrasos</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-clock"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiAtrasosSub">—</div>
           </div>
-          <div class="oc-kpi kpi-falta">
-            <div class="oc-kpi-icon"><i class="fas fa-calendar-xmark"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiDiasPerdidos">0</div>
-              <div class="oc-kpi-label">Dias afastados</div>
+
+          <div class="dash-kpi kpi-green">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiFuncionarios">0</div>
+                <div class="dash-kpi-label">Funcionários ativos</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-users"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiFuncionariosSub">—</div>
           </div>
-          <div class="oc-kpi kpi-atraso">
-            <div class="oc-kpi-icon"><i class="fas fa-hourglass-half"></i></div>
-            <div class="oc-kpi-info">
-              <div class="oc-kpi-value" id="kpiHorasPerdidas">0h</div>
-              <div class="oc-kpi-label">Horas perdidas</div>
+
+          <div class="dash-kpi kpi-red">
+            <div class="dash-kpi-top">
+              <div>
+                <div class="dash-kpi-value" id="dashKpiAbsent">0%</div>
+                <div class="dash-kpi-label">Taxa absenteísmo</div>
+              </div>
+              <div class="dash-kpi-icon"><i class="fas fa-triangle-exclamation"></i></div>
             </div>
+            <div class="dash-kpi-sub" id="dashKpiAbsentSub">—</div>
           </div>
         </div>
 
-        <!-- ================= FILTROS ================= -->
-        <div class="oc-filters">
-          <input type="text" id="ocFiltroTexto" placeholder="🔍 Buscar por nome, matrícula, motivo...">
+        <!-- ================= GRÁFICOS ================= -->
+        <div class="dash-grid">
 
-          <select id="ocFiltroFuncionario">
-            <option value="">Todos os funcionários</option>
-          </select>
+          <!-- Evolução mensal -->
+          <div class="dash-card col-8">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-chart-line"></i> Evolução mensal
+              </div>
+              <div class="dash-card-sub" id="dashEvolucaoSub">Últimos 6 meses</div>
+            </div>
+            <div class="dash-chart-wrap" style="min-height:280px;">
+              <canvas id="chartEvolucao"></canvas>
+            </div>
+          </div>
 
-          <select id="ocFiltroTipo">
-            <option value="">Todos os tipos</option>
-            <option value="Falta">Falta</option>
-            <option value="Atestado">Atestado</option>
-            <option value="Atraso">Atraso</option>
-            <option value="Declaração">Declaração</option>
-            <option value="Licença">Licença</option>
-          </select>
+          <!-- Distribuição por tipo -->
+          <div class="dash-card col-4">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-chart-pie"></i> Distribuição por tipo
+              </div>
+            </div>
+            <div class="dash-chart-wrap" style="min-height:280px;">
+              <canvas id="chartTipos"></canvas>
+            </div>
+          </div>
 
-          <select id="ocFiltroSetor">
-            <option value="">Todos os setores</option>
-          </select>
+          <!-- Ocorrências por setor -->
+          <div class="dash-card col-6">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-building"></i> Horas perdidas por setor
+              </div>
+              <div class="dash-card-sub" id="dashSetoresSub">—</div>
+            </div>
+            <div class="dash-chart-wrap" style="min-height:280px;">
+              <canvas id="chartSetores"></canvas>
+            </div>
+          </div>
 
-          <select id="ocFiltroStatus">
-            <option value="">Todos os status</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Aprovado">Aprovado</option>
-            <option value="Rejeitado">Rejeitado</option>
-          </select>
+          <!-- Motivos -->
+          <div class="dash-card col-6">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-comment-medical"></i> Motivos mais frequentes
+              </div>
+            </div>
+            <div class="dash-chart-wrap" style="min-height:280px;">
+              <canvas id="chartMotivos"></canvas>
+            </div>
+          </div>
 
-          <select id="ocFiltroPeriodo">
-            <option value="7">Últimos 7 dias</option>
-            <option value="30" selected>Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
-            <option value="mes">Mês atual</option>
-            <option value="hoje">Hoje</option>
-            <option value="">Todo o período</option>
-          </select>
+          <!-- Top 10 funcionários -->
+          <div class="dash-card col-6">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-ranking-star"></i> Top 10 · Horas perdidas
+              </div>
+              <div class="dash-card-sub">Funcionários</div>
+            </div>
+            <div class="dash-ranking" id="dashRankingFuncionarios">
+              <div class="dash-loading"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
+            </div>
+          </div>
 
-          <button class="rh-btn rh-btn-secondary rh-btn-icon" id="btnLimparFiltrosOC" title="Limpar filtros">
-            <i class="fas fa-eraser"></i>
-          </button>
+          <!-- Dias afastados por mês -->
+          <div class="dash-card col-6">
+            <div class="dash-card-header">
+              <div class="dash-card-title">
+                <i class="fas fa-calendar-xmark"></i> Dias afastados por mês
+              </div>
+              <div class="dash-card-sub">Faltas + Atestados + Licenças</div>
+            </div>
+            <div class="dash-chart-wrap" style="min-height:280px;">
+              <canvas id="chartDiasMes"></canvas>
+            </div>
+          </div>
 
-          <span class="badge" id="ocTotalRegistros" style="margin-left:auto; font-weight:700;">0 registros</span>
         </div>
 
-        <!-- Resumo do mês (preenchido pelo JS) -->
-        <div class="oc-resumo-mes" id="ocResumoMes"></div>
-
-        <!-- ================= TABELA ================= -->
-        <div class="oc-table-card">
-          <div class="table-responsive">
-            <table class="oc-table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Funcionário</th>
-                  <th>Tipo</th>
-                  <th>Duração</th>
-                  <th>% Perdido</th>
-                  <th>Motivo</th>
-                  <th>CID</th>
-                  <th>Status</th>
-                  <th>Observações</th>
-                  <th style="text-align:right;">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="ocTabelaBody">
-                <tr><td colspan="10" style="text-align:center; padding:2rem; color:#64748b;">Carregando...</td></tr>
-              </tbody>
-            </table>
+        <!-- Estado vazio (aparece se não houver dados) -->
+        <div class="dash-card" id="dashEmpty" style="display:none; margin-top:1rem;">
+          <div class="dash-empty">
+            <i class="fas fa-inbox"></i>
+            <p>Nenhuma ocorrência encontrada no período selecionado.</p>
           </div>
         </div>
 
@@ -183,110 +237,8 @@
     </main>
   </div>
 
-  <!-- ================= MODAL: OCORRÊNCIA ================= -->
-  <div class="oc-modal" id="modalOcorrencia">
-    <div class="oc-modal-box">
-      <div class="oc-modal-header">
-        <h3 id="ocModalTitle"><i class="fas fa-plus-circle"></i> Nova Ocorrência</h3>
-        <button class="oc-modal-close" data-close-oc>&times;</button>
-      </div>
-
-      <form id="formOcorrencia">
-        <div class="oc-modal-body">
-          <input type="hidden" id="ocId">
-
-          <div class="oc-form-grid">
-
-            <div class="oc-form-group full">
-              <label for="ocFuncionario"><i class="fas fa-user"></i> Funcionário <span class="req">*</span></label>
-              <select id="ocFuncionario" required>
-                <option value="">Carregando funcionários...</option>
-              </select>
-            </div>
-
-            <div id="ocFuncInfo" class="oc-func-info" style="display:none;"></div>
-
-            <div class="oc-form-group">
-              <label for="ocTipo"><i class="fas fa-tag"></i> Tipo <span class="req">*</span></label>
-              <select id="ocTipo" required>
-                <option value="Falta">Falta</option>
-                <option value="Atestado">Atestado</option>
-                <option value="Atraso">Atraso</option>
-                <option value="Declaração">Declaração</option>
-                <option value="Licença">Licença</option>
-              </select>
-            </div>
-
-            <div class="oc-form-group">
-              <label for="ocStatus"><i class="fas fa-circle-check"></i> Status</label>
-              <select id="ocStatus">
-                <option value="Pendente">Pendente</option>
-                <option value="Aprovado">Aprovado</option>
-                <option value="Rejeitado">Rejeitado</option>
-              </select>
-            </div>
-
-            <div class="oc-form-group">
-              <label for="ocDataInicio"><i class="fas fa-calendar"></i> Data início <span class="req">*</span></label>
-              <input type="date" id="ocDataInicio" required>
-            </div>
-
-            <div class="oc-form-group oc-cond" id="ocGroupDataFim">
-              <label for="ocDataFim"><i class="fas fa-calendar-check"></i> Data fim</label>
-              <input type="date" id="ocDataFim">
-              <small>Deixe vazio para ocorrências de 1 dia.</small>
-            </div>
-
-            <div class="oc-form-group oc-cond" id="ocGroupHoras">
-              <label for="ocHoras"><i class="fas fa-hourglass-half"></i> Horas</label>
-              <input type="number" id="ocHoras" step="0.25" min="0" placeholder="Ex: 2.5">
-              <small>Quantidade de horas perdidas.</small>
-            </div>
-
-            <div class="oc-form-group">
-              <label for="ocMotivo"><i class="fas fa-comment-medical"></i> Motivo</label>
-              <select id="ocMotivo">
-                <option value="">Selecione...</option>
-                <option value="Saúde">Saúde</option>
-                <option value="Familiar">Motivo familiar</option>
-                <option value="Pessoal">Pessoal</option>
-                <option value="Transporte">Transporte</option>
-                <option value="Falta justificada">Falta justificada</option>
-                <option value="Falta injustificada">Falta injustificada</option>
-                <option value="Acidente de trabalho">Acidente de trabalho</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </div>
-
-            <div class="oc-form-group oc-cond" id="ocGroupCID">
-              <label for="ocCID"><i class="fas fa-notes-medical"></i> CID</label>
-              <input type="text" id="ocCID" placeholder="Ex: J11">
-            </div>
-
-            <div class="oc-form-group oc-cond" id="ocGroupMedico">
-              <label for="ocMedico"><i class="fas fa-user-doctor"></i> Médico / Clínica</label>
-              <input type="text" id="ocMedico" placeholder="Nome do médico ou clínica">
-            </div>
-
-            <div class="oc-form-group full">
-              <label for="ocObservacoes"><i class="fas fa-comment"></i> Observações</label>
-              <textarea id="ocObservacoes" rows="2" placeholder="Detalhes adicionais..."></textarea>
-            </div>
-
-            <div id="ocCalcBox" class="oc-calc-box" style="display:none;"></div>
-          </div>
-        </div>
-
-        <div class="oc-modal-footer">
-          <button type="button" class="rh-btn rh-btn-secondary" data-close-oc>Cancelar</button>
-          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Scripts -->
   <script src="/js/main.js"></script>
-  <script src="/js/ocorrencias.js"></script>
+  <script src="/js/rhdashboard.js"></script>
 </body>
 </html>
