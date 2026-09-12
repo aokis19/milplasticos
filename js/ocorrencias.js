@@ -446,4 +446,77 @@
       const lista = this.getFiltradas();
       if (count) count.textContent = `${lista.length} ${lista.length === 1 ? 'registro' : 'registros'}`;
 
-     
+      if (!lista.length) {
+        tbody.innerHTML = `
+          <tr><td colspan="9">
+            <div class="oc-empty">
+              <i class="fas fa-inbox"></i>
+              <p>Nenhuma ocorrência encontrada com os filtros atuais.</p>
+            </div>
+          </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(oc => `
+        <tr>
+          <td>${fmtDate(oc.data)}${oc.dataFim && oc.dataFim !== oc.data ? ` <small style="color:#64748b">→ ${fmtDate(oc.dataFim)}</small>` : ''}</td>
+          <td class="cell-func">
+            ${oc.funcionarioNome || '—'}
+            <small>${oc.funcionarioMatricula || ''} ${oc.setorNome ? '· ' + oc.setorNome : ''}</small>
+          </td>
+          <td>${badgeTipo(oc.tipo)}</td>
+          <td>${oc.tipo === 'Atraso' || oc.tipo === 'Declaração'
+              ? (oc.horas ? oc.horas + 'h' : '—')
+              : (oc.dias + ' ' + (oc.dias === 1 ? 'dia' : 'dias'))}</td>
+          <td>${oc.motivo || '—'}</td>
+          <td>${oc.cid || '—'}</td>
+          <td>${badgeStatus(oc.status)}</td>
+          <td>${oc.observacoes ? `<span title="${oc.observacoes}">${oc.observacoes.slice(0, 30)}${oc.observacoes.length > 30 ? '…' : ''}</span>` : '—'}</td>
+          <td>
+            <div class="oc-actions">
+              <button data-action="oc-edit" data-id="${oc.id}" title="Editar"><i class="fas fa-pen"></i></button>
+              <button class="del" data-action="oc-del" data-id="${oc.id}" title="Excluir"><i class="fas fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    },
+
+    /* ---------------- Exportar CSV ---------------- */
+    exportarCSV() {
+      const lista = this.getFiltradas();
+      if (!lista.length) return toast('Nada para exportar', 'error');
+
+      const headers = ['Data','Data Fim','Dias','Horas','Funcionário','Matrícula','Setor','Tipo','Motivo','CID','Médico','Status','Observações'];
+      const linhas = lista.map(o => [
+        o.data, o.dataFim || '', o.dias || 0, o.horas || 0,
+        o.funcionarioNome, o.funcionarioMatricula, o.setorNome,
+        o.tipo, o.motivo || '', o.cid || '', o.medico || '',
+        o.status || '', (o.observacoes || '').replace(/[\r\n;]/g, ' ')
+      ]);
+
+      const csv = [headers, ...linhas]
+        .map(l => l.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+        .join('\r\n');
+
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ocorrencias_${hoje()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast(`${lista.length} registros exportados`);
+    },
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Router                                                              */
+  /* ------------------------------------------------------------------ */
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.body.dataset.page === 'rh-ocorrencias') {
+      ModuloOcorrencias.init();
+    }
+  });
+
+})();
