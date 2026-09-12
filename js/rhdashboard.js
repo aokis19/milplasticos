@@ -1,6 +1,5 @@
 /* ==========================================================================
-   RHDASHBOARD.JS — Dashboard de RH com Chart.js
-   Consome: ocorrencias, funcionarios, setores
+   RHDASHBOARD.JS — Dashboard de RH com Chart.js + filtros avançados
    ========================================================================== */
 
 (function () {
@@ -20,9 +19,6 @@
 
   const $ = (s) => document.querySelector(s);
 
-  /* ------------------------------------------------------------------ */
-  /* Constantes                                                          */
-  /* ------------------------------------------------------------------ */
   const HORAS_MES = 220;
   const HORAS_DIA = 8;
 
@@ -32,7 +28,6 @@
     yellow: '#f59e0b',
     blue:   '#3b82f6',
     green:  '#10b981',
-    gray:   '#94a3b8',
   };
 
   const TIPO_COR = {
@@ -44,7 +39,7 @@
   };
 
   /* ------------------------------------------------------------------ */
-  /* Cálculos                                                            */
+  /* Helpers                                                             */
   /* ------------------------------------------------------------------ */
 
   function horasPerdidas(oc) {
@@ -55,24 +50,18 @@
     return (parseInt(oc.dias) || 0) * HORAS_DIA;
   }
 
-  function percentual(horas) {
-    return (horas / HORAS_MES) * 100;
-  }
+  const percentual = (h) => (h / HORAS_MES) * 100;
 
-  function fmtHoras(h) {
-    if (h < 1) return `${(h * 60).toFixed(0)}min`;
-    return `${h.toFixed(1).replace('.', ',')}h`;
-  }
-
-  function fmtPct(p) {
-    return `${p.toFixed(2).replace('.', ',')}%`;
-  }
+  const fmtHoras = (h) => h < 1 ? `${(h * 60).toFixed(0)}min` : `${h.toFixed(1).replace('.', ',')}h`;
+  const fmtPct   = (p) => `${p.toFixed(2).replace('.', ',')}%`;
 
   function labelMes(ym) {
     const [y, m] = ym.split('-');
     const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     return `${nomes[parseInt(m) - 1]}/${y.slice(2)}`;
   }
+
+  const hojeISO = () => new Date().toISOString().split('T')[0];
 
   /* ------------------------------------------------------------------ */
   /* Dashboard                                                           */
@@ -83,8 +72,15 @@
       ocorrencias: [],
       funcionarios: [],
       setores: [],
-      filtroPeriodo: 'ano',
-      filtroSetor: '',
+      filtro: {
+        periodo: 'ano',
+        dataInicio: '',
+        dataFim: '',
+        funcionarioId: '',
+        setorId: '',
+        tipo: '',
+        cid: '',
+      },
       charts: {},
       listeners: [],
     },
@@ -101,30 +97,83 @@
     },
 
     bindEventos() {
-      $('#dashFiltroPeriodo')?.addEventListener('change', (e) => {
-        this.state.filtroPeriodo = e.target.value;
-        this.renderTudo();
+      const { filtro } = this.state;
+      const onChange = (id, key) => {
+        $('#' + id)?.addEventListener('change', (e) => {
+          filtro[key] = e.target.value;
+          if (key === 'periodo') this.togglePeriodoCustom();
+          this.renderTudo();
+        });
+      };
+
+      onChange('dashFiltroPeriodo', 'periodo');
+      onChange('dashFiltroFuncionario', 'funcionarioId');
+      onChange('dashFiltroSetor', 'setorId');
+      onChange('dashFiltroTipo', 'tipo');
+      onChange('dashFiltroCID', 'cid');
+
+      $('#dashDataInicio')?.addEventListener('change', (e) => {
+        filtro.dataInicio = e.target.value; this.renderTudo();
       });
-      $('#dashFiltroSetor')?.addEventListener('change', (e) => {
-        this.state.filtroSetor = e.target.value;
-        this.renderTudo();
+      $('#dashDataFim')?.addEventListener('change', (e) => {
+        filtro.dataFim = e.target.value; this.renderTudo();
       });
+
+      $('#btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
       $('#btnAtualizarDash')?.addEventListener('click', () => this.renderTudo());
     },
 
+    togglePeriodoCustom() {
+      const box = $('#dashPeriodoCustom');
+      const personalizado = this.state.filtro.periodo === 'personalizado';
+      if (box) box.style.display = personalizado ? 'flex' : 'none';
+      if (!personalizado) {
+        this.state.filtro.dataInicio = '';
+        this.state.filtro.dataFim = '';
+        const di = $('#dashDataInicio'), df = $('#dashDataFim');
+        if (di) di.value = '';
+        if (df) df.value = '';
+      }
+    },
+
+    limparFiltros() {
+      this.state.filtro = {
+        periodo: 'ano',
+        dataInicio: '',
+        dataFim: '',
+        funcionarioId: '',
+        setorId: '',
+        tipo: '',
+        cid: '',
+      };
+      ['dashFiltroPeriodo','dashFiltroFuncionario','dashFiltroSetor','dashFiltroTipo','dashFiltroCID'].forEach(id => {
+        const el = $('#' + id);
+        if (el) el.value = id === 'dashFiltroPeriodo' ? 'ano' : '';
+      });
+      const di = $('#dashDataInicio'), df = $('#dashDataFim');
+      if (di) di.value = '';
+      if (df) df.value = '';
+      this.togglePeriodoCustom();
+      this.renderTudo();
+    },
+
+    /* ---------------- Listeners Firestore ---------------- */
     iniciarListeners() {
       this.state.listeners.push(
         COL.funcionarios.onSnapshot(snap => {
-          this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          this.popularFiltroSetor();
+          this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+          this.popularFiltroFuncionario();
           this.renderTudo();
         }, err => console.error('funcionarios:', err))
       );
 
       this.state.listeners.push(
         COL.setores.onSnapshot(snap => {
-          this.state.setores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.state.setores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
           this.popularFiltroSetor();
+          this.renderTudo();
         }, err => console.error('setores:', err))
       );
 
@@ -132,9 +181,20 @@
         COL.ocorrencias.onSnapshot(snap => {
           this.state.ocorrencias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+          this.popularFiltroCID();
           this.renderTudo();
         }, err => console.error('ocorrencias:', err))
       );
+    },
+
+    /* ---------------- Popular selects ---------------- */
+    popularFiltroFuncionario() {
+      const sel = $('#dashFiltroFuncionario');
+      if (!sel) return;
+      const atual = sel.value;
+      sel.innerHTML = '<option value="">Todos os funcionários</option>' +
+        this.state.funcionarios.map(f => `<option value="${f.id}">${f.nome}${f.setorNome ? ' — ' + f.setorNome : ''}</option>`).join('');
+      sel.value = atual;
     },
 
     popularFiltroSetor() {
@@ -146,29 +206,57 @@
       sel.value = atual;
     },
 
-    /* ---------------- Filtro por período ---------------- */
+    popularFiltroCID() {
+      const sel = $('#dashFiltroCID');
+      if (!sel) return;
+      const atual = sel.value;
+      const cids = [...new Set(this.state.ocorrencias.map(o => (o.cid || '').trim()).filter(Boolean))]
+        .sort();
+      sel.innerHTML = '<option value="">Todos os CID</option>' +
+        cids.map(c => `<option value="${c}">${c}</option>`).join('');
+      sel.value = atual;
+    },
+
+    /* ---------------- Filtro principal ---------------- */
     filtrarOcorrencias() {
-      const todas = this.state.ocorrencias;
+      const { ocorrencias } = this.state;
+      const f = this.state.filtro;
       const agora = new Date();
-      const setorFiltro = this.state.filtroSetor;
-      const periodo = this.state.filtroPeriodo;
 
       let dataMin = null, dataMax = null;
 
-      if (periodo === '30')  dataMin = new Date(agora.getTime() - 30 * 86400000);
-      if (periodo === '90')  dataMin = new Date(agora.getTime() - 90 * 86400000);
-      if (periodo === 'mes') {
+      if (f.periodo === '30')  dataMin = new Date(agora.getTime() - 30 * 86400000);
+      if (f.periodo === '90')  dataMin = new Date(agora.getTime() - 90 * 86400000);
+      if (f.periodo === 'mes') {
         const y = agora.getFullYear(), m = agora.getMonth();
         dataMin = new Date(y, m, 1);
         dataMax = new Date(y, m + 1, 0);
       }
-      if (periodo === 'ano') {
+      if (f.periodo === 'ano') {
         dataMin = new Date(agora.getFullYear(), 0, 1);
         dataMax = new Date(agora.getFullYear(), 11, 31);
       }
+      if (f.periodo === 'personalizado') {
+        if (f.dataInicio) dataMin = new Date(f.dataInicio + 'T00:00:00');
+        if (f.dataFim)    dataMax = new Date(f.dataFim + 'T23:59:59');
+      }
 
-      return todas.filter(oc => {
-        if (setorFiltro && oc.setorId !== setorFiltro) return false;
+      return ocorrencias.filter(oc => {
+        if (f.funcionarioId && oc.funcionarioId !== f.funcionarioId) return false;
+        if (f.setorId && oc.setorId !== f.setorId) return false;
+
+        if (f.tipo) {
+          if (f.tipo === 'horas') {
+            if (!['Atraso', 'Declaração'].includes(oc.tipo)) return false;
+          } else if (f.tipo === 'dias') {
+            if (!['Falta', 'Atestado', 'Licença'].includes(oc.tipo)) return false;
+          } else if (oc.tipo !== f.tipo) {
+            return false;
+          }
+        }
+
+        if (f.cid && (oc.cid || '').trim() !== f.cid) return false;
+
         if (dataMin || dataMax) {
           const d = new Date((oc.data || '') + 'T00:00:00');
           if (dataMin && d < dataMin) return false;
@@ -183,7 +271,7 @@
       const lista = this.filtrarOcorrencias();
       const empty = $('#dashEmpty');
       const grid  = document.querySelector('.dash-grid');
-      const kpis  = $('#dashKpis');
+      const cids  = $('#dashCids');
 
       if (!lista.length) {
         if (empty) empty.style.display = 'block';
@@ -192,9 +280,9 @@
         if (empty) empty.style.display = 'none';
         if (grid)  grid.style.display  = 'grid';
       }
-      if (kpis) kpis.style.display = 'grid';
 
       this.renderKPIs(lista);
+      this.renderTopCIDs(lista);
       this.renderChartEvolucao(lista);
       this.renderChartTipos(lista);
       this.renderChartSetores(lista);
@@ -207,10 +295,17 @@
     renderKPIs(lista) {
       const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
       const pct = percentual(totalHoras);
-      const ativos = this.state.funcionarios.filter(f => f.status !== 'Inativo').length;
 
-      const diasUteis = 22 * (this.state.filtroPeriodo === 'ano' ? 12 : 1);
-      const horasDisponiveis = ativos * diasUteis * HORAS_DIA;
+      // Funcionários considerados (respeitando o filtro)
+      const f = this.state.filtro;
+      let funcionariosBase = this.state.funcionarios.filter(x => x.status !== 'Inativo');
+      if (f.funcionarioId) funcionariosBase = funcionariosBase.filter(x => x.id === f.funcionarioId);
+      if (f.setorId) funcionariosBase = funcionariosBase.filter(x => x.setorId === f.setorId);
+      const ativos = funcionariosBase.length;
+
+      // Horas disponíveis: número de meses do período × 220h × funcionários
+      const mesesPeriodo = this.calcularMesesPeriodo();
+      const horasDisponiveis = ativos * mesesPeriodo * HORAS_MES;
       const taxaAbsent = horasDisponiveis > 0 ? (totalHoras / horasDisponiveis) * 100 : 0;
 
       const qtd = (tipo) => lista.filter(o => o.tipo === tipo).length;
@@ -224,33 +319,84 @@
       set('dashKpiFuncionarios', ativos);
       set('dashKpiAbsent', fmtPct(taxaAbsent));
 
-      set('dashKpiPctSub', `${lista.length} ocorrências no período`);
-      set('dashKpiFaltasSub', `${lista.filter(o => o.tipo === 'Falta').reduce((s,o) => s + (o.dias||0), 0)} dias`);
-      set('dashKpiAtestadosSub', `${lista.filter(o => o.tipo === 'Atestado').reduce((s,o) => s + (o.dias||0), 0)} dias`);
+      set('dashKpiPctSub', `${lista.length} ocorrência${lista.length === 1 ? '' : 's'}`);
+      set('dashKpiFaltasSub', `${lista.filter(o => o.tipo === 'Falta').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
+      set('dashKpiAtestadosSub', `${lista.filter(o => o.tipo === 'Atestado').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
       set('dashKpiAtrasosSub', `${lista.filter(o => o.tipo === 'Atraso').reduce((s,o) => s + (parseFloat(o.horas)||0), 0).toFixed(1)}h`);
       set('dashKpiFuncionariosSub', `${this.state.setores.length} setores`);
       set('dashKpiAbsentSub', `${horasDisponiveis.toFixed(0)}h disponíveis`);
     },
 
-    /* ---------------- Chart: Evolução mensal ---------------- */
+    calcularMesesPeriodo() {
+      const f = this.state.filtro;
+      const agora = new Date();
+      switch (f.periodo) {
+        case '30': return 1;
+        case '90': return 3;
+        case 'mes': return 1;
+        case 'ano': return 12;
+        case 'personalizado': {
+          if (!f.dataInicio || !f.dataFim) return 1;
+          const ini = new Date(f.dataInicio), fim = new Date(f.dataFim);
+          const dias = Math.max(1, (fim - ini) / 86400000 + 1);
+          return Math.max(0.5, dias / 30);
+        }
+        default: return 12;
+      }
+    },
+
+    /* ---------------- Top 4 CIDs ---------------- */
+    renderTopCIDs(lista) {
+      const box = $('#dashCids');
+      const sub = $('#dashCidsSub');
+      if (!box) return;
+
+      const mapa = {};
+      lista.forEach(o => {
+        const c = (o.cid || '').trim().toUpperCase();
+        if (!c) return;
+        mapa[c] = (mapa[c] || 0) + 1;
+      });
+
+      const entries = Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+      if (!entries.length) {
+        box.innerHTML = '<div class="dash-cid-empty">Sem atestados com CID no período selecionado.</div>';
+        if (sub) sub.textContent = 'Nenhum CID encontrado';
+        return;
+      }
+
+      const max = entries[0][1];
+      box.innerHTML = entries.map(([cid, qtd]) => `
+        <div class="dash-cid-card">
+          <div class="cid-top">
+            <span class="dash-cid-code">${cid}</span>
+            <span class="dash-cid-count">${qtd}</span>
+          </div>
+          <div class="dash-cid-desc">${qtd} ocorrência${qtd === 1 ? '' : 's'} · ${((qtd/max)*100).toFixed(0)}% do total</div>
+          <div class="dash-cid-bar"><span style="width:${(qtd/max)*100}%"></span></div>
+        </div>
+      `).join('');
+
+      if (sub) sub.textContent = `${entries.length} CID${entries.length === 1 ? '' : 's'} em destaque`;
+    },
+
+    /* ---------------- Evolução mensal ---------------- */
     renderChartEvolucao(lista) {
       const meses = this.ultimosMeses(6);
-      const dados = {
-        Falta:    meses.map(m => lista.filter(o => o.tipo === 'Falta' && (o.data||'').startsWith(m)).length),
-        Atestado: meses.map(m => lista.filter(o => o.tipo === 'Atestado' && (o.data||'').startsWith(m)).length),
-        Atraso:   meses.map(m => lista.filter(o => o.tipo === 'Atraso' && (o.data||'').startsWith(m)).length),
-      };
+      const faltas = meses.map(m => lista.filter(o => o.tipo === 'Falta' && (o.data||'').startsWith(m)).length);
+      const atestados = meses.map(m => lista.filter(o => o.tipo === 'Atestado' && (o.data||'').startsWith(m)).length);
+      const atrasos = meses.map(m => lista.filter(o => o.tipo === 'Atraso' && (o.data||'').startsWith(m)).length);
 
       this.criarChart('chartEvolucao', 'line', {
         labels: meses.map(labelMes),
         datasets: [
-          { label: 'Faltas',    data: dados.Falta,    borderColor: CORES.red,    backgroundColor: 'rgba(239,68,68,.1)',  tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
-          { label: 'Atestados', data: dados.Atestado, borderColor: CORES.purple, backgroundColor: 'rgba(139,92,246,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
-          { label: 'Atrasos',   data: dados.Atraso,   borderColor: CORES.yellow, backgroundColor: 'rgba(245,158,11,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          { label: 'Faltas',    data: faltas,    borderColor: CORES.red,    backgroundColor: 'rgba(239,68,68,.1)',  tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          { label: 'Atestados', data: atestados, borderColor: CORES.purple, backgroundColor: 'rgba(139,92,246,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          { label: 'Atrasos',   data: atrasos,   borderColor: CORES.yellow, backgroundColor: 'rgba(245,158,11,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
         ],
       }, {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } } },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
       });
@@ -269,32 +415,29 @@
       return arr;
     },
 
-    /* ---------------- Chart: Tipos ---------------- */
+    /* ---------------- Distribuição por tipo ---------------- */
     renderChartTipos(lista) {
       const tipos = ['Falta', 'Atestado', 'Atraso', 'Declaração', 'Licença'];
       const valores = tipos.map(t => lista.filter(o => o.tipo === t).length);
       const ativos = tipos.filter((t, i) => valores[i] > 0);
-      const valoresAtivos = valores.filter(v => v > 0);
+      const vAtivos = valores.filter(v => v > 0);
 
       this.criarChart('chartTipos', 'doughnut', {
         labels: ativos,
         datasets: [{
-          data: valoresAtivos,
+          data: vAtivos,
           backgroundColor: ativos.map(t => TIPO_COR[t]),
           borderWidth: 2,
           borderColor: '#fff',
         }],
       }, {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
-        },
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } } },
         cutout: '65%',
       });
     },
 
-    /* ---------------- Chart: Setores ---------------- */
+    /* ---------------- Setores ---------------- */
     renderChartSetores(lista) {
       const mapa = {};
       lista.forEach(o => {
@@ -316,8 +459,7 @@
           maxBarThickness: 40,
         }],
       }, {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, title: { display: true, text: 'Horas' } } },
       });
@@ -326,7 +468,7 @@
       if (sub) sub.textContent = `${labels.length} setores`;
     },
 
-    /* ---------------- Chart: Motivos ---------------- */
+    /* ---------------- Motivos ---------------- */
     renderChartMotivos(lista) {
       const mapa = {};
       lista.forEach(o => {
@@ -348,15 +490,14 @@
           maxBarThickness: 30,
         }],
       }, {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         indexAxis: 'y',
         plugins: { legend: { display: false } },
         scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
       });
     },
 
-    /* ---------------- Ranking funcionários ---------------- */
+    /* ---------------- Ranking ---------------- */
     renderRankingFuncionarios(lista) {
       const box = $('#dashRankingFuncionarios');
       if (!box) return;
@@ -364,21 +505,12 @@
       const mapa = {};
       lista.forEach(o => {
         const id = o.funcionarioId || 'sem-id';
-        if (!mapa[id]) {
-          mapa[id] = {
-            nome: o.funcionarioNome || '—',
-            setor: o.setorNome || '—',
-            horas: 0,
-            ocorrencias: 0,
-          };
-        }
+        if (!mapa[id]) mapa[id] = { nome: o.funcionarioNome || '—', setor: o.setorNome || '—', horas: 0, ocorrencias: 0 };
         mapa[id].horas += horasPerdidas(o);
         mapa[id].ocorrencias++;
       });
 
-      const top = Object.values(mapa)
-        .sort((a, b) => b.horas - a.horas)
-        .slice(0, 10);
+      const top = Object.values(mapa).sort((a, b) => b.horas - a.horas).slice(0, 10);
 
       if (!top.length) {
         box.innerHTML = '<div class="dash-empty"><i class="fas fa-inbox"></i><p>Sem dados</p></div>';
@@ -397,7 +529,7 @@
       `).join('');
     },
 
-    /* ---------------- Chart: Dias afastados ---------------- */
+    /* ---------------- Dias afastados por mês ---------------- */
     renderChartDiasMes(lista) {
       const meses = this.ultimosMeses(6);
       const tiposAfast = ['Falta', 'Atestado', 'Licença'];
@@ -417,29 +549,21 @@
           maxBarThickness: 40,
         }],
       }, {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
       });
     },
 
-    /* ---------------- Helper: criar/atualizar gráfico ---------------- */
+    /* ---------------- Helper: criar gráfico ---------------- */
     criarChart(canvasId, tipo, dados, options) {
       const canvas = document.getElementById(canvasId);
       if (!canvas || typeof Chart === 'undefined') return;
-
-      if (this.state.charts[canvasId]) {
-        this.state.charts[canvasId].destroy();
-      }
-
+      if (this.state.charts[canvasId]) this.state.charts[canvasId].destroy();
       this.state.charts[canvasId] = new Chart(canvas, {
         type: tipo,
         data: dados,
-        options: {
-          ...options,
-          animation: { duration: 500 },
-        },
+        options: { ...options, animation: { duration: 500 } },
       });
     },
   };
