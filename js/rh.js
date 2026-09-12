@@ -1,14 +1,10 @@
 /* ==========================================================================
-   RH.JS — Arquivo unificado
+   RH.JS — Arquivo unificado (com Event Delegation)
    Módulos: Hub, Dashboard, Atestados, Faltas, Atrasos
    ========================================================================== */
 
 (function () {
   'use strict';
-
-  /* =======================================================================
-     BASE COMPARTILHADA
-     ======================================================================= */
 
   const db = window.db || window.firebaseDB;
   if (!db) {
@@ -69,50 +65,109 @@
   }
 
   /* =======================================================================
-     MÓDULO: HUB (rh.html)
+     MÓDULO: HUB
      ======================================================================= */
 
   const ModuloHub = {
+    _initialized: false,
+    _eventosBindados: false,
     state: { funcionarios: [], setores: [], ocorrencias: [], listeners: [] },
 
     init() {
+      if (this._initialized) return;
+      this._initialized = true;
       console.log('🧩 Inicializando ModuloHub');
-      this.initTabs();
+
       this.bindEventos();
-      this.initModais();
       this.iniciarListeners();
+
+      setTimeout(() => {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'none';
+      }, 500);
     },
 
-    initTabs() {
-      $$('.rh-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
+    bindEventos() {
+      if (this._eventosBindados) return;
+      this._eventosBindados = true;
+
+      /* ===== CLIQUES ===== */
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('#btnNovoFuncionario')) {
+          e.preventDefault();
+          this.abrirModalFuncionario();
+          return;
+        }
+        if (e.target.closest('#btnNovoSetor')) {
+          e.preventDefault();
+          this.abrirModalSetor();
+          return;
+        }
+        if (e.target.closest('[data-close]')) {
+          e.preventDefault();
+          fecharModais();
+          return;
+        }
+        if (e.target.classList.contains('rh-modal')) {
+          fecharModais();
+          return;
+        }
+        const btnEditSetor = e.target.closest('[data-action="edit-setor"]');
+        if (btnEditSetor) {
+          const s = this.state.setores.find(x => x.id === btnEditSetor.dataset.id);
+          this.abrirModalSetor(s);
+          return;
+        }
+        const btnDelSetor = e.target.closest('[data-action="del-setor"]');
+        if (btnDelSetor) {
+          this.excluirSetor(btnDelSetor.dataset.id);
+          return;
+        }
+        const btnEditFunc = e.target.closest('[data-action="edit-func"]');
+        if (btnEditFunc) {
+          const f = this.state.funcionarios.find(x => x.id === btnEditFunc.dataset.id);
+          this.abrirModalFuncionario(f);
+          return;
+        }
+        const btnDelFunc = e.target.closest('[data-action="del-func"]');
+        if (btnDelFunc) {
+          this.excluirFuncionario(btnDelFunc.dataset.id);
+          return;
+        }
+        const tab = e.target.closest('.rh-tab');
+        if (tab) {
           $$('.rh-tab').forEach(t => t.classList.remove('active'));
           $$('.rh-tab-content').forEach(c => c.classList.remove('active'));
           tab.classList.add('active');
           const target = $(`#tab-${tab.dataset.tab}`);
           if (target) target.classList.add('active');
-        });
+          return;
+        }
       });
-    },
 
-    bindEventos() {
-      $('#btnNovoFuncionario')?.addEventListener('click', () => this.abrirModalFuncionario());
-      $('#btnNovoSetor')?.addEventListener('click', () => this.abrirModalSetor());
+      /* ===== SUBMIT ===== */
+      document.addEventListener('submit', (e) => {
+        if (e.target.id === 'formFuncionario') {
+          e.preventDefault();
+          this.salvarFuncionario(e);
+          return;
+        }
+        if (e.target.id === 'formSetor') {
+          e.preventDefault();
+          this.salvarSetor(e);
+          return;
+        }
+      });
 
-      $('#formFuncionario')?.addEventListener('submit', e => this.salvarFuncionario(e));
-      $('#formSetor')?.addEventListener('submit', e => this.salvarSetor(e));
+      /* ===== INPUT ===== */
+      document.addEventListener('input', (e) => {
+        if (e.target.id === 'filtroFuncionarioHub') {
+          this.renderFuncionarios();
+        }
+      });
 
-      $('#filtroFuncionarioHub')?.addEventListener('input', () => this.renderFuncionarios());
-    },
-
-    initModais() {
-      $$('[data-close]').forEach(btn =>
-        btn.addEventListener('click', () => fecharModais())
-      );
-      $$('.rh-modal').forEach(m =>
-        m.addEventListener('click', e => { if (e.target === m) fecharModais(); })
-      );
-      document.addEventListener('keydown', e => {
+      /* ===== ESC ===== */
+      document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') fecharModais();
       });
     },
@@ -165,42 +220,32 @@
       const tbody = $('#hubTabelaSetoresBody');
       const count = $('#countSetores');
       if (count) count.textContent = this.state.setores.length;
+      if (!tbody) return;
 
-      if (tbody) {
-        if (!this.state.setores.length) {
-          tbody.innerHTML = '<tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>';
-        } else {
-          tbody.innerHTML = this.state.setores.map(s => {
-            const qtd = this.state.funcionarios.filter(f => f.setorId === s.id).length;
-            return `
-              <tr>
-                <td><strong>${s.nome}</strong></td>
-                <td>${s.descricao || '—'}</td>
-                <td>${qtd}</td>
-                <td style="text-align:right;">
-                  <button class="rh-btn rh-btn-secondary rh-btn-icon" data-action="edit-setor" data-id="${s.id}">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button class="rh-btn rh-btn-danger rh-btn-icon" data-action="del-setor" data-id="${s.id}">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </td>
-              </tr>`;
-          }).join('');
-
-          tbody.querySelectorAll('[data-action="edit-setor"]').forEach(btn =>
-            btn.addEventListener('click', () => {
-              const s = this.state.setores.find(x => x.id === btn.dataset.id);
-              this.abrirModalSetor(s);
-            })
-          );
-          tbody.querySelectorAll('[data-action="del-setor"]').forEach(btn =>
-            btn.addEventListener('click', () => this.excluirSetor(btn.dataset.id))
-          );
-        }
+      if (!this.state.setores.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>';
+        return;
       }
 
-      // Popula select do modal
+      tbody.innerHTML = this.state.setores.map(s => {
+        const qtd = this.state.funcionarios.filter(f => f.setorId === s.id).length;
+        return `
+          <tr>
+            <td><strong>${s.nome}</strong></td>
+            <td>${s.descricao || '—'}</td>
+            <td>${qtd}</td>
+            <td style="text-align:right;">
+              <button class="rh-btn rh-btn-secondary rh-btn-icon" data-action="edit-setor" data-id="${s.id}">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="rh-btn rh-btn-danger rh-btn-icon" data-action="del-setor" data-id="${s.id}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      // Popula select do modal de funcionário
       const selectFunc = $('#funcSetor');
       if (selectFunc) {
         const atual = selectFunc.value;
@@ -304,16 +349,6 @@
             </div>
           </div>`;
       }).join('');
-
-      grid.querySelectorAll('[data-action="edit-func"]').forEach(btn =>
-        btn.addEventListener('click', () => {
-          const f = this.state.funcionarios.find(x => x.id === btn.dataset.id);
-          this.abrirModalFuncionario(f);
-        })
-      );
-      grid.querySelectorAll('[data-action="del-func"]').forEach(btn =>
-        btn.addEventListener('click', () => this.excluirFuncionario(btn.dataset.id))
-      );
     },
 
     renderBadgesCards() {
@@ -350,36 +385,19 @@
   };
 
   /* =======================================================================
-     MÓDULO: DASHBOARD (rhdashboard.html)
-     ======================================================================= */
-  // (mantenha aqui o ModuloDashboard que você já tem — não mexi nele)
-
-  /* =======================================================================
-     MÓDULO GENÉRICO DE OCORRÊNCIAS (Atestados / Faltas / Atrasos)
-     ======================================================================= */
-  // (mantenha aqui o criarModuloOcorrencia + ModuloAtestados + ModuloFaltas + ModuloAtrasos)
-
-  /* =======================================================================
-     ROUTER — detecta a página e inicializa o módulo correto
+     ROUTER
      ======================================================================= */
   document.addEventListener('DOMContentLoaded', () => {
     const pagina = document.body.dataset.page;
     console.log(`📄 Página detectada: ${pagina || 'não definida'}`);
 
     const rotas = {
-      'rh-hub':    ModuloHub,
-      // 'atestados': ModuloAtestados,
-      // 'faltas':    ModuloFaltas,
-      // 'atrasos':   ModuloAtrasos,
-      // 'dashboard': ModuloDashboard,
+      'rh-hub': ModuloHub,
     };
 
     const modulo = rotas[pagina];
-    if (modulo) {
-      modulo.init();
-    } else {
-      console.warn('⚠️ Página sem módulo:', pagina);
-    }
+    if (modulo) modulo.init();
+    else console.warn('⚠️ Página sem módulo:', pagina);
   });
 
 })();
