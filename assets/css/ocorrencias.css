@@ -1,0 +1,328 @@
+/* ==========================================================================
+   OCORRENCIAS.CSS — Módulo de Faltas, Atestados, Atrasos e Declarações
+   ========================================================================== */
+
+/* ---------- Header da página ---------- */
+.oc-page { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+
+.oc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.oc-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--rh-text);
+  margin: 0 0 .25rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.oc-header h1 i { color: var(--rh-purple); }
+.oc-header p { font-size: .875rem; color: var(--rh-text-muted); margin: 0; }
+.oc-header-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* ---------- KPI Cards ---------- */
+.oc-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.oc-kpi {
+  background: #fff;
+  border: 1px solid var(--rh-border);
+  border-left: 4px solid var(--rh-blue);
+  border-radius: var(--rh-radius);
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  box-shadow: var(--rh-shadow);
+  transition: transform .2s, box-shadow .2s;
+}
+.oc-kpi:hover { transform: translateY(-2px); box-shadow: var(--rh-shadow-hover); }
+
+.oc-kpi-icon {
+  width: 46px; height: 46px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; color: #fff;
+  flex-shrink: 0;
+}
+.oc-kpi-info { min-width: 0; }
+.oc-kpi-value {
+  font-size: 1.35rem; font-weight: 700;
+  color: var(--rh-text); line-height: 1.1;
+}
+.oc-kpi-label {
+  font-size: .75rem; color: var(--rh-text-muted);
+  font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-top: .15rem;
+}
+
+.oc-kpi.kpi-falta    { border-left-color: var(--rh-red); }
+.oc-kpi.kpi-falta .oc-kpi-icon    { background: var(--rh-red); }
+.oc-kpi.kpi-atestado { border-left-color: var(--rh-purple); }
+.oc-kpi.kpi-atestado .oc-kpi-icon { background: var(--rh-purple); }
+.oc-kpi.kpi-atraso   { border-left-color: var(--rh-yellow); }
+.oc-kpi.kpi-atraso .oc-kpi-icon   { background: var(--rh-yellow); }
+.oc-kpi.kpi-declaracao { border-left-color: var(--rh-blue); }
+.oc-kpi.kpi-declaracao .oc-kpi-icon { background: var(--rh-blue); }
+
+/* ---------- Filtros ---------- */
+.oc-filters {
+  background: #fff;
+  border: 1px solid var(--rh-border);
+  border-radius: var(--rh-radius);
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  box-shadow: var(--rh-shadow);
+}
+.oc-filters select,
+.oc-filters input {
+  padding: .5rem .75rem;
+  border: 1px solid var(--rh-border);
+  border-radius: 8px;
+  font-size: .85rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--rh-text);
+}
+.oc-filters input[type="text"] { flex: 1; min-width: 180px; }
+.oc-filters input:focus,
+.oc-filters select:focus {
+  outline: none;
+  border-color: var(--rh-blue);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+}
+
+/* ---------- Tabela ---------- */
+.oc-table-card {
+  background: #fff;
+  border: 1px solid var(--rh-border);
+  border-radius: var(--rh-radius);
+  box-shadow: var(--rh-shadow);
+  overflow: hidden;
+}
+.oc-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.oc-table thead { background: var(--rh-bg); }
+.oc-table th {
+  text-align: left;
+  padding: .75rem 1rem;
+  font-weight: 700;
+  color: var(--rh-text);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--rh-border);
+  white-space: nowrap;
+}
+.oc-table td {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--rh-border);
+  color: var(--rh-text);
+  vertical-align: middle;
+}
+.oc-table tbody tr:last-child td { border-bottom: none; }
+.oc-table tbody tr:hover { background: #f8fafc; }
+.oc-table .cell-func { font-weight: 600; }
+.oc-table .cell-func small { display: block; color: var(--rh-text-muted); font-weight: 400; font-size: .7rem; }
+
+/* ---------- Badges de tipo ---------- */
+.oc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .2rem .6rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.oc-badge-falta      { background: var(--rh-red-light);    color: #991b1b; }
+.oc-badge-atestado   { background: var(--rh-purple-light); color: #6b21a8; }
+.oc-badge-atraso     { background: #fef3c7;                color: #b45309; }
+.oc-badge-declaracao { background: var(--rh-blue-light);   color: #1e40af; }
+.oc-badge-licenca    { background: var(--rh-green-light);  color: #065f46; }
+
+/* ---------- Badges de status ---------- */
+.oc-status {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.oc-status-pendente { background: #fef3c7; color: #92400e; }
+.oc-status-aprovado { background: var(--rh-green-light); color: #065f46; }
+.oc-status-rejeitado { background: var(--rh-red-light); color: #991b1b; }
+
+/* ---------- Ações ---------- */
+.oc-actions { display: flex; gap: .25rem; justify-content: flex-end; }
+.oc-actions button {
+  width: 30px; height: 30px;
+  border: none; border-radius: 6px;
+  background: #f1f5f9;
+  color: var(--rh-text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, color .2s;
+  font-size: .75rem;
+}
+.oc-actions button:hover { background: var(--rh-blue); color: #fff; }
+.oc-actions button.del:hover { background: var(--rh-red); }
+
+/* ---------- Empty state ---------- */
+.oc-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--rh-text-muted);
+}
+.oc-empty i {
+  display: block;
+  font-size: 2.25rem;
+  color: var(--rh-text-soft);
+  margin-bottom: .65rem;
+}
+.oc-empty p { margin: 0; font-size: .875rem; }
+
+/* ---------- Modal (reaproveita estilos do rh.css) ---------- */
+.oc-modal {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,.55);
+  z-index: 9999;
+  align-items: center; justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.oc-modal.open { display: flex; }
+
+.oc-modal-box {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px rgba(0,0,0,.25);
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  animation: ocModalIn .2s ease-out;
+}
+@keyframes ocModalIn {
+  from { opacity: 0; transform: translateY(-10px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.oc-modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--rh-border);
+}
+.oc-modal-header h3 {
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--rh-text); margin: 0;
+  display: flex; align-items: center; gap: .5rem;
+}
+.oc-modal-close {
+  background: transparent; border: none;
+  font-size: 1.5rem; line-height: 1;
+  color: var(--rh-text-muted);
+  cursor: pointer; padding: 0 .25rem;
+}
+.oc-modal-close:hover { color: var(--rh-red); }
+
+.oc-modal-body { padding: 1.25rem; overflow-y: auto; }
+.oc-modal-footer {
+  display: flex; justify-content: flex-end; gap: .5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--rh-border);
+  background: var(--rh-bg);
+}
+
+/* ---------- Formulário ---------- */
+.oc-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.oc-form-grid .full { grid-column: 1 / -1; }
+
+.oc-form-group { margin-bottom: 0; }
+.oc-form-group label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--rh-text);
+  margin-bottom: .35rem;
+}
+.oc-form-group label .req { color: var(--rh-red); }
+.oc-form-group input,
+.oc-form-group select,
+.oc-form-group textarea {
+  width: 100%;
+  padding: .55rem .75rem;
+  border: 1px solid var(--rh-border);
+  border-radius: 8px;
+  font-size: .85rem;
+  font-family: inherit;
+  color: var(--rh-text);
+  background: #fff;
+}
+.oc-form-group input:focus,
+.oc-form-group select:focus,
+.oc-form-group textarea:focus {
+  outline: none;
+  border-color: var(--rh-blue);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.1);
+}
+.oc-form-group textarea { resize: vertical; min-height: 60px; }
+.oc-form-group small { display: block; color: var(--rh-text-muted); font-size: .7rem; margin-top: .25rem; }
+
+/* Campos condicionais */
+.oc-cond { display: none; }
+.oc-cond.show { display: block; }
+
+/* Preview do cálculo */
+.oc-calc-box {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  font-size: .8rem;
+  color: #0c4a6e;
+  grid-column: 1 / -1;
+}
+.oc-calc-box strong { color: #075985; }
+
+/* Resumo do funcionário selecionado */
+.oc-func-info {
+  grid-column: 1 / -1;
+  background: #f8fafc;
+  border: 1px solid var(--rh-border);
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-size: .8rem;
+  color: var(--rh-text-muted);
+}
+.oc-func-info strong { color: var(--rh-text); }
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 640px) {
+  .oc-form-grid { grid-template-columns: 1fr; }
+  .oc-header { flex-direction: column; align-items: stretch; }
+  .oc-header-actions .rh-btn { flex: 1; justify-content: center; }
+}
