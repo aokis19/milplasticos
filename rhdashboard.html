@@ -25,182 +25,202 @@
 
 <body data-page="rh-dashboard">
 
-      <div class="dash-page">
+<div class="dash-page">
 
-        <!-- ================= HEADER ================= -->
-        <div class="dash-header">
-          <div>
-            <h1><i class="fas fa-chart-line"></i> Dashboard de RH</h1>
-            <p>Indicadores consolidados de absenteísmo · Base 220h/mês</p>
-          </div>
-          <div class="dash-header-actions">
-            <button class="dash-btn dash-btn-primary" id="btnAtualizarDash">
-              <i class="fas fa-rotate"></i> Atualizar
-            </button>
-          </div>
-        </div>
+  <!-- ================= HEADER ================= -->
+  <div class="dash-header">
+    <div>
+      <h1><i class="fas fa-chart-line"></i> Dashboard de RH</h1>
+      <p>Indicadores consolidados de absenteísmo · Base 220h/mês</p>
+    </div>
+    <div class="dash-header-actions">
+      <button class="dash-btn dash-btn-primary" id="btnAtualizarDash">
+        <i class="fas fa-rotate"></i> Atualizar
+      </button>
+    </div>
+  </div>
 
-        <!-- ================= FILTROS AVANÇADOS ================= -->
-        <div class="dash-filters">
+  <!-- ================= HERO (destaque) ================= -->
+  <div class="dash-hero" id="dashHero">
+    <div class="dash-hero-left">
+      <div class="dash-hero-label">Tempo perdido no período</div>
+      <div class="dash-hero-value">
+        <span id="heroPct">0%</span>
+        <small>· base 220h/mês</small>
+      </div>
+      <div class="dash-hero-bar">
+        <span id="heroBar" style="width:0%"></span>
+      </div>
+      <div class="dash-hero-badge ok" id="heroBadge">
+        <i class="fas fa-circle-check"></i> Dentro do aceitável (&lt; 3%)
+      </div>
+    </div>
+    <div class="dash-hero-right">
+      <div class="dash-hero-stat">
+        <div class="v" id="heroHoras">0h</div>
+        <div class="l">Horas perdidas</div>
+      </div>
+      <div class="dash-hero-stat">
+        <div class="v" id="heroOcorrencias">0</div>
+        <div class="l">Ocorrências</div>
+      </div>
+      <div class="dash-hero-stat">
+        <div class="v" id="heroFuncionarios">0</div>
+        <div class="l">Funcionários</div>
+      </div>
+    </div>
+  </div>
 
-          <div class="dash-filter-group">
-            <label><i class="fas fa-calendar-alt"></i> Período rápido</label>
-            <select id="dashFiltroPeriodo">
-              <option value="tudo">Todo o período</option>
-              <option value="30">Últimos 30 dias</option>
-              <option value="90">Últimos 90 dias</option>
-              <option value="mes">Mês atual</option>
-              <option value="ano" selected>Ano atual</option>
-              <option value="personalizado">Personalizado</option>
-            </select>
-          </div>
+  <!-- ================= FILTROS ================= -->
+  <div class="dash-filters">
+    <div class="dash-filter-group">
+      <label><i class="fas fa-calendar-alt"></i> Período rápido</label>
+      <select id="dashFiltroPeriodo">
+        <option value="tudo">Todo o período</option>
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="mes">Mês atual</option>
+        <option value="ano" selected>Ano atual</option>
+        <option value="personalizado">Personalizado</option>
+      </select>
+    </div>
 
-          <div class="dash-filter-periodo" id="dashPeriodoCustom" style="display:none;">
-            <div class="dash-filter-group">
-              <label><i class="fas fa-calendar-day"></i> Início</label>
-              <input type="date" id="dashDataInicio">
-            </div>
-            <div class="dash-filter-group">
-              <label><i class="fas fa-calendar-day"></i> Fim</label>
-              <input type="date" id="dashDataFim">
-            </div>
-          </div>
+    <div class="dash-filter-periodo" id="dashPeriodoCustom" style="display:none;">
+      <div class="dash-filter-group">
+        <label><i class="fas fa-calendar-day"></i> Início</label>
+        <input type="date" id="dashDataInicio">
+      </div>
+      <div class="dash-filter-group">
+        <label><i class="fas fa-calendar-day"></i> Fim</label>
+        <input type="date" id="dashDataFim">
+      </div>
+    </div>
 
-          <div class="dash-filter-group">
-            <label><i class="fas fa-user"></i> Funcionário</label>
-            <select id="dashFiltroFuncionario">
-              <option value="">Todos os funcionários</option>
-            </select>
-          </div>
+    <div class="dash-filter-group">
+      <label><i class="fas fa-user"></i> Funcionário</label>
+      <select id="dashFiltroFuncionario">
+        <option value="">Todos os funcionários</option>
+      </select>
+    </div>
 
-          <div class="dash-filter-group">
-            <label><i class="fas fa-building"></i> Setor</label>
-            <select id="dashFiltroSetor">
-              <option value="">Todos os setores</option>
-            </select>
-          </div>
+    <div class="dash-filter-group">
+      <label><i class="fas fa-building"></i> Setor</label>
+      <select id="dashFiltroSetor">
+        <option value="">Todos os setores</option>
+      </select>
+    </div>
 
-          <div class="dash-filter-group">
-            <label><i class="fas fa-tag"></i> Tipo de ocorrência</label>
-            <select id="dashFiltroTipo">
-              <option value="">Todos os tipos</option>
-              <option value="Falta">Falta</option>
-              <option value="Atestado">Atestado</option>
-              <option value="Atraso">Atraso</option>
-              <option value="Declaração">Declaração</option>
-              <option value="Licença">Licença</option>
-              <option value="horas">Somente horas (Atraso + Declaração)</option>
-              <option value="dias">Somente dias (Falta + Atestado + Licença)</option>
-            </select>
-          </div>
+    <div class="dash-filter-group">
+      <label><i class="fas fa-tag"></i> Tipo de ocorrência</label>
+      <select id="dashFiltroTipo">
+        <option value="">Todos os tipos</option>
+        <option value="Falta">Falta</option>
+        <option value="Atestado">Atestado</option>
+        <option value="Atraso">Atraso</option>
+        <option value="Declaração">Declaração</option>
+        <option value="Licença">Licença</option>
+        <option value="horas">Somente horas (Atraso + Declaração)</option>
+        <option value="dias">Somente dias (Falta + Atestado + Licença)</option>
+      </select>
+    </div>
 
-          <div class="dash-filter-group">
-            <label><i class="fas fa-notes-medical"></i> CID</label>
-            <select id="dashFiltroCID">
-              <option value="">Todos os CID</option>
-            </select>
-          </div>
+    <div class="dash-filter-group">
+      <label><i class="fas fa-notes-medical"></i> CID</label>
+      <select id="dashFiltroCID">
+        <option value="">Todos os CID</option>
+      </select>
+    </div>
 
-          <div class="dash-filter-actions">
-            <button class="dash-btn dash-btn-danger" id="btnLimparFiltros">
-              <i class="fas fa-eraser"></i> Limpar
-            </button>
-          </div>
-        </div>
+    <div class="dash-filter-actions">
+      <button class="dash-btn dash-btn-danger" id="btnLimparFiltros">
+        <i class="fas fa-eraser"></i> Limpar
+      </button>
+    </div>
+  </div>
 
-        <!-- ================= KPIs ================= -->
-        <div class="dash-kpis" id="dashKpis">
-          <div class="dash-kpi kpi-perigo">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiPct">0%</div>
-                <div class="dash-kpi-label">Tempo perdido</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-percent"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiPctSub">base 220h/mês</div>
-          </div>
+  <!-- ================= KPIs ================= -->
+  <div class="dash-kpis" id="dashKpis">
+    <div class="dash-kpi kpi-yellow">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiHoras">0h</div>
+        <div class="dash-kpi-icon"><i class="fas fa-hourglass-half"></i></div>
+      </div>
+      <div class="dash-kpi-label">Horas perdidas</div>
+      <div class="dash-kpi-sub" id="dashKpiHorasSub">—</div>
+    </div>
 
-          <div class="dash-kpi kpi-yellow">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiHoras">0h</div>
-                <div class="dash-kpi-label">Horas perdidas</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-hourglass-half"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiHorasSub">—</div>
-          </div>
+    <div class="dash-kpi kpi-red">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiFaltas">0</div>
+        <div class="dash-kpi-icon"><i class="fas fa-user-xmark"></i></div>
+      </div>
+      <div class="dash-kpi-label">Faltas</div>
+      <div class="dash-kpi-sub" id="dashKpiFaltasSub">—</div>
+    </div>
 
-          <div class="dash-kpi kpi-red">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiFaltas">0</div>
-                <div class="dash-kpi-label">Faltas</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-user-xmark"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiFaltasSub">—</div>
-          </div>
+    <div class="dash-kpi kpi-purple">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiAtestados">0</div>
+        <div class="dash-kpi-icon"><i class="fas fa-file-medical"></i></div>
+      </div>
+      <div class="dash-kpi-label">Atestados</div>
+      <div class="dash-kpi-sub" id="dashKpiAtestadosSub">—</div>
+    </div>
 
-          <div class="dash-kpi kpi-purple">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiAtestados">0</div>
-                <div class="dash-kpi-label">Atestados</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-file-medical"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiAtestadosSub">—</div>
-          </div>
+    <div class="dash-kpi kpi-yellow">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiAtrasos">0</div>
+        <div class="dash-kpi-icon"><i class="fas fa-clock"></i></div>
+      </div>
+      <div class="dash-kpi-label">Atrasos</div>
+      <div class="dash-kpi-sub" id="dashKpiAtrasosSub">—</div>
+    </div>
 
-          <div class="dash-kpi kpi-yellow">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiAtrasos">0</div>
-                <div class="dash-kpi-label">Atrasos</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-clock"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiAtrasosSub">—</div>
-          </div>
+    <div class="dash-kpi kpi-green">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiFuncionarios">0</div>
+        <div class="dash-kpi-icon"><i class="fas fa-users"></i></div>
+      </div>
+      <div class="dash-kpi-label">Funcionários ativos</div>
+      <div class="dash-kpi-sub" id="dashKpiFuncionariosSub">—</div>
+    </div>
 
-          <div class="dash-kpi kpi-green">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiFuncionarios">0</div>
-                <div class="dash-kpi-label">Funcionários ativos</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-users"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiFuncionariosSub">—</div>
-          </div>
+    <div class="dash-kpi kpi-red">
+      <div class="dash-kpi-top">
+        <div class="dash-kpi-value" id="dashKpiAbsent">0%</div>
+        <div class="dash-kpi-icon"><i class="fas fa-triangle-exclamation"></i></div>
+      </div>
+      <div class="dash-kpi-label">Taxa absenteísmo</div>
+      <div class="dash-kpi-sub" id="dashKpiAbsentSub">—</div>
+    </div>
+  </div>
 
-          <div class="dash-kpi kpi-red">
-            <div class="dash-kpi-top">
-              <div>
-                <div class="dash-kpi-value" id="dashKpiAbsent">0%</div>
-                <div class="dash-kpi-label">Taxa absenteísmo</div>
-              </div>
-              <div class="dash-kpi-icon"><i class="fas fa-triangle-exclamation"></i></div>
-            </div>
-            <div class="dash-kpi-sub" id="dashKpiAbsentSub">—</div>
-          </div>
-        </div>
+  <!-- ================= TOP CIDs ================= -->
+  <h3 class="dash-section-title">
+    <i class="fas fa-notes-medical"></i> Top 4 CIDs mais frequentes
+    <small id="dashCidsSub">Baseado nos atestados do período</small>
+  </h3>
+  <div class="dash-cids" id="dashCids">
+    <div class="dash-cid-empty">
+      <i class="fas fa-notes-medical"></i>
+      Sem atestados com CID no período selecionado.
+    </div>
+  </div>
 
-        <!-- ================= TOP 4 CIDs ================= -->
-        <div class="dash-card-header" style="margin: 0 0 .75rem;">
-          <div class="dash-card-title">
-            <i class="fas fa-notes-medical"></i> Top 4 CIDs mais frequentes
-          </div>
-          <div class="dash-card-sub" id="dashCidsSub">Baseado nos atestados do período</div>
-        </div>
-        <div class="dash-cids" id="dashCids">
-          <div class="dash-cid-empty">Sem atestados com CID no período selecionado.</div>
-        </div>
+  <!-- ================= GRÁFICOS ================= -->
+  <div class="dash-grid">
+    <!-- ... mantenha os cards dos gráficos como estavam ... -->
+  </div>
 
-        <!-- ================= GRÁFICOS ================= -->
-        <div class="dash-grid">
+  <!-- Estado vazio -->
+  <div class="dash-card" id="dashEmpty" style="display:none; margin-top:1rem;">
+    <div class="dash-empty">
+      <i class="fas fa-inbox"></i>
+      <p>Nenhuma ocorrência encontrada com os filtros atuais.</p>
+    </div>
+  </div>
+
+</div>
 
           <div class="dash-card col-8">
             <div class="dash-card-header">
