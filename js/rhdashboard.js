@@ -1,5 +1,6 @@
 /* ==========================================================================
    RHDASHBOARD.JS — Dashboard de RH com Chart.js + filtros avançados
+   Inclui: Hero card, gradientes, tooltips escuros
    ========================================================================== */
 
 (function () {
@@ -19,6 +20,9 @@
 
   const $ = (s) => document.querySelector(s);
 
+  /* ------------------------------------------------------------------ */
+  /* Constantes                                                          */
+  /* ------------------------------------------------------------------ */
   const HORAS_MES = 220;
   const HORAS_DIA = 8;
 
@@ -52,8 +56,11 @@
 
   const percentual = (h) => (h / HORAS_MES) * 100;
 
-  const fmtHoras = (h) => h < 1 ? `${(h * 60).toFixed(0)}min` : `${h.toFixed(1).replace('.', ',')}h`;
-  const fmtPct   = (p) => `${p.toFixed(2).replace('.', ',')}%`;
+  const fmtHoras = (h) => h < 1
+    ? `${(h * 60).toFixed(0)}min`
+    : `${h.toFixed(1).replace('.', ',')}h`;
+
+  const fmtPct = (p) => `${p.toFixed(2).replace('.', ',')}%`;
 
   function labelMes(ym) {
     const [y, m] = ym.split('-');
@@ -96,6 +103,9 @@
       }, 500);
     },
 
+    /* ================================================================== */
+    /* EVENTOS                                                            */
+    /* ================================================================== */
     bindEventos() {
       const { filtro } = this.state;
       const onChange = (id, key) => {
@@ -113,10 +123,12 @@
       onChange('dashFiltroCID', 'cid');
 
       $('#dashDataInicio')?.addEventListener('change', (e) => {
-        filtro.dataInicio = e.target.value; this.renderTudo();
+        filtro.dataInicio = e.target.value;
+        this.renderTudo();
       });
       $('#dashDataFim')?.addEventListener('change', (e) => {
-        filtro.dataFim = e.target.value; this.renderTudo();
+        filtro.dataFim = e.target.value;
+        this.renderTudo();
       });
 
       $('#btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
@@ -146,10 +158,11 @@
         tipo: '',
         cid: '',
       };
-      ['dashFiltroPeriodo','dashFiltroFuncionario','dashFiltroSetor','dashFiltroTipo','dashFiltroCID'].forEach(id => {
-        const el = $('#' + id);
-        if (el) el.value = id === 'dashFiltroPeriodo' ? 'ano' : '';
-      });
+      ['dashFiltroPeriodo','dashFiltroFuncionario','dashFiltroSetor','dashFiltroTipo','dashFiltroCID']
+        .forEach(id => {
+          const el = $('#' + id);
+          if (el) el.value = id === 'dashFiltroPeriodo' ? 'ano' : '';
+        });
       const di = $('#dashDataInicio'), df = $('#dashDataFim');
       if (di) di.value = '';
       if (df) df.value = '';
@@ -157,7 +170,9 @@
       this.renderTudo();
     },
 
-    /* ---------------- Listeners Firestore ---------------- */
+    /* ================================================================== */
+    /* LISTENERS FIRESTORE                                                */
+    /* ================================================================== */
     iniciarListeners() {
       this.state.listeners.push(
         COL.funcionarios.onSnapshot(snap => {
@@ -187,13 +202,17 @@
       );
     },
 
-    /* ---------------- Popular selects ---------------- */
+    /* ================================================================== */
+    /* POPULAR SELECTS                                                    */
+    /* ================================================================== */
     popularFiltroFuncionario() {
       const sel = $('#dashFiltroFuncionario');
       if (!sel) return;
       const atual = sel.value;
       sel.innerHTML = '<option value="">Todos os funcionários</option>' +
-        this.state.funcionarios.map(f => `<option value="${f.id}">${f.nome}${f.setorNome ? ' — ' + f.setorNome : ''}</option>`).join('');
+        this.state.funcionarios.map(f =>
+          `<option value="${f.id}">${f.nome}${f.setorNome ? ' — ' + f.setorNome : ''}</option>`
+        ).join('');
       sel.value = atual;
     },
 
@@ -210,14 +229,19 @@
       const sel = $('#dashFiltroCID');
       if (!sel) return;
       const atual = sel.value;
-      const cids = [...new Set(this.state.ocorrencias.map(o => (o.cid || '').trim()).filter(Boolean))]
-        .sort();
+      const cids = [...new Set(
+        this.state.ocorrencias
+          .map(o => (o.cid || '').trim().toUpperCase())
+          .filter(Boolean)
+      )].sort();
       sel.innerHTML = '<option value="">Todos os CID</option>' +
         cids.map(c => `<option value="${c}">${c}</option>`).join('');
       sel.value = atual;
     },
 
-    /* ---------------- Filtro principal ---------------- */
+    /* ================================================================== */
+    /* FILTRO PRINCIPAL                                                   */
+    /* ================================================================== */
     filtrarOcorrencias() {
       const { ocorrencias } = this.state;
       const f = this.state.filtro;
@@ -255,7 +279,7 @@
           }
         }
 
-        if (f.cid && (oc.cid || '').trim() !== f.cid) return false;
+        if (f.cid && (oc.cid || '').trim().toUpperCase() !== f.cid.toUpperCase()) return false;
 
         if (dataMin || dataMax) {
           const d = new Date((oc.data || '') + 'T00:00:00');
@@ -266,12 +290,13 @@
       });
     },
 
-    /* ---------------- Render principal ---------------- */
+    /* ================================================================== */
+    /* RENDER PRINCIPAL                                                   */
+    /* ================================================================== */
     renderTudo() {
       const lista = this.filtrarOcorrencias();
       const empty = $('#dashEmpty');
       const grid  = document.querySelector('.dash-grid');
-      const cids  = $('#dashCids');
 
       if (!lista.length) {
         if (empty) empty.style.display = 'block';
@@ -281,6 +306,7 @@
         if (grid)  grid.style.display  = 'grid';
       }
 
+      this.renderHero(lista);
       this.renderKPIs(lista);
       this.renderTopCIDs(lista);
       this.renderChartEvolucao(lista);
@@ -291,19 +317,60 @@
       this.renderChartDiasMes(lista);
     },
 
-    /* ---------------- KPIs ---------------- */
+    /* ================================================================== */
+    /* HERO CARD                                                          */
+    /* ================================================================== */
+    renderHero(lista) {
+      const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
+      const pct = percentual(totalHoras);
+
+      const f = this.state.filtro;
+      let funcionariosBase = this.state.funcionarios.filter(x => x.status !== 'Inativo');
+      if (f.funcionarioId) funcionariosBase = funcionariosBase.filter(x => x.id === f.funcionarioId);
+      if (f.setorId)       funcionariosBase = funcionariosBase.filter(x => x.setorId === f.setorId);
+      const ativos = funcionariosBase.length;
+
+      const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
+      set('heroPct', fmtPct(pct));
+      set('heroHoras', fmtHoras(totalHoras));
+      set('heroOcorrencias', lista.length);
+      set('heroFuncionarios', ativos);
+
+      const bar = $('#heroBar');
+      if (bar) {
+        const width = Math.min(100, pct * 5); // 20% = 100% da barra
+        bar.style.width = width + '%';
+      }
+
+      const badge = $('#heroBadge');
+      if (badge) {
+        badge.className = 'dash-hero-badge';
+        if (pct < 3) {
+          badge.classList.add('ok');
+          badge.innerHTML = '<i class="fas fa-circle-check"></i> Dentro do aceitável (< 3%)';
+        } else if (pct < 7) {
+          badge.classList.add('warn');
+          badge.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Atenção (3% a 7%)';
+        } else {
+          badge.classList.add('bad');
+          badge.innerHTML = '<i class="fas fa-circle-exclamation"></i> Crítico (> 7%)';
+        }
+      }
+    },
+
+    /* ================================================================== */
+    /* KPIs                                                               */
+    /* ================================================================== */
     renderKPIs(lista) {
       const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
       const pct = percentual(totalHoras);
 
-      // Funcionários considerados (respeitando o filtro)
       const f = this.state.filtro;
       let funcionariosBase = this.state.funcionarios.filter(x => x.status !== 'Inativo');
       if (f.funcionarioId) funcionariosBase = funcionariosBase.filter(x => x.id === f.funcionarioId);
-      if (f.setorId) funcionariosBase = funcionariosBase.filter(x => x.setorId === f.setorId);
+      if (f.setorId)       funcionariosBase = funcionariosBase.filter(x => x.setorId === f.setorId);
       const ativos = funcionariosBase.length;
 
-      // Horas disponíveis: número de meses do período × 220h × funcionários
       const mesesPeriodo = this.calcularMesesPeriodo();
       const horasDisponiveis = ativos * mesesPeriodo * HORAS_MES;
       const taxaAbsent = horasDisponiveis > 0 ? (totalHoras / horasDisponiveis) * 100 : 0;
@@ -311,7 +378,6 @@
       const qtd = (tipo) => lista.filter(o => o.tipo === tipo).length;
 
       const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
-      set('dashKpiPct', fmtPct(pct));
       set('dashKpiHoras', fmtHoras(totalHoras));
       set('dashKpiFaltas', qtd('Falta'));
       set('dashKpiAtestados', qtd('Atestado'));
@@ -319,10 +385,13 @@
       set('dashKpiFuncionarios', ativos);
       set('dashKpiAbsent', fmtPct(taxaAbsent));
 
-      set('dashKpiPctSub', `${lista.length} ocorrência${lista.length === 1 ? '' : 's'}`);
-      set('dashKpiFaltasSub', `${lista.filter(o => o.tipo === 'Falta').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
-      set('dashKpiAtestadosSub', `${lista.filter(o => o.tipo === 'Atestado').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
-      set('dashKpiAtrasosSub', `${lista.filter(o => o.tipo === 'Atraso').reduce((s,o) => s + (parseFloat(o.horas)||0), 0).toFixed(1)}h`);
+      set('dashKpiHorasSub', `${lista.length} ocorrência${lista.length === 1 ? '' : 's'}`);
+      set('dashKpiFaltasSub',
+        `${lista.filter(o => o.tipo === 'Falta').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
+      set('dashKpiAtestadosSub',
+        `${lista.filter(o => o.tipo === 'Atestado').reduce((s,o) => s + (parseInt(o.dias)||0), 0)} dias`);
+      set('dashKpiAtrasosSub',
+        `${lista.filter(o => o.tipo === 'Atraso').reduce((s,o) => s + (parseFloat(o.horas)||0), 0).toFixed(1)}h`);
       set('dashKpiFuncionariosSub', `${this.state.setores.length} setores`);
       set('dashKpiAbsentSub', `${horasDisponiveis.toFixed(0)}h disponíveis`);
     },
@@ -345,7 +414,9 @@
       }
     },
 
-    /* ---------------- Top 4 CIDs ---------------- */
+    /* ================================================================== */
+    /* TOP 4 CIDs                                                         */
+    /* ================================================================== */
     renderTopCIDs(lista) {
       const box = $('#dashCids');
       const sub = $('#dashCidsSub');
@@ -361,7 +432,11 @@
       const entries = Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
       if (!entries.length) {
-        box.innerHTML = '<div class="dash-cid-empty">Sem atestados com CID no período selecionado.</div>';
+        box.innerHTML = `
+          <div class="dash-cid-empty">
+            <i class="fas fa-notes-medical"></i>
+            Sem atestados com CID no período selecionado.
+          </div>`;
         if (sub) sub.textContent = 'Nenhum CID encontrado';
         return;
       }
@@ -381,24 +456,62 @@
       if (sub) sub.textContent = `${entries.length} CID${entries.length === 1 ? '' : 's'} em destaque`;
     },
 
-    /* ---------------- Evolução mensal ---------------- */
+    /* ================================================================== */
+    /* CHART: EVOLUÇÃO MENSAL (com gradiente)                             */
+    /* ================================================================== */
     renderChartEvolucao(lista) {
       const meses = this.ultimosMeses(6);
-      const faltas = meses.map(m => lista.filter(o => o.tipo === 'Falta' && (o.data||'').startsWith(m)).length);
+      const faltas    = meses.map(m => lista.filter(o => o.tipo === 'Falta'    && (o.data||'').startsWith(m)).length);
       const atestados = meses.map(m => lista.filter(o => o.tipo === 'Atestado' && (o.data||'').startsWith(m)).length);
-      const atrasos = meses.map(m => lista.filter(o => o.tipo === 'Atraso' && (o.data||'').startsWith(m)).length);
+      const atrasos   = meses.map(m => lista.filter(o => o.tipo === 'Atraso'   && (o.data||'').startsWith(m)).length);
+
+      const gradient = (ctx, color) => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260);
+        g.addColorStop(0, color.replace('rgb', 'rgba').replace(')', ',.25)'));
+        g.addColorStop(1, color.replace('rgb', 'rgba').replace(')', ',0)'));
+        return g;
+      };
 
       this.criarChart('chartEvolucao', 'line', {
         labels: meses.map(labelMes),
         datasets: [
-          { label: 'Faltas',    data: faltas,    borderColor: CORES.red,    backgroundColor: 'rgba(239,68,68,.1)',  tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
-          { label: 'Atestados', data: atestados, borderColor: CORES.purple, backgroundColor: 'rgba(139,92,246,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
-          { label: 'Atrasos',   data: atrasos,   borderColor: CORES.yellow, backgroundColor: 'rgba(245,158,11,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          {
+            label: 'Faltas', data: faltas,
+            borderColor: CORES.red,
+            backgroundColor: (ctx) => gradient(ctx, 'rgb(239,68,68)'),
+            tension: .4, fill: true, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+          },
+          {
+            label: 'Atestados', data: atestados,
+            borderColor: CORES.purple,
+            backgroundColor: (ctx) => gradient(ctx, 'rgb(139,92,246)'),
+            tension: .4, fill: true, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+          },
+          {
+            label: 'Atrasos', data: atrasos,
+            borderColor: CORES.yellow,
+            backgroundColor: (ctx) => gradient(ctx, 'rgb(245,158,11)'),
+            tension: .4, fill: true, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6,
+          },
         ],
       }, {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { boxWidth: 12, padding: 14, font: { size: 12, weight: '600' } },
+          },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 12, cornerRadius: 8,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont:  { size: 12 },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+          x: { grid: { display: false } },
+        },
       });
 
       const sub = $('#dashEvolucaoSub');
@@ -415,7 +528,9 @@
       return arr;
     },
 
-    /* ---------------- Distribuição por tipo ---------------- */
+    /* ================================================================== */
+    /* CHART: DISTRIBUIÇÃO POR TIPO                                       */
+    /* ================================================================== */
     renderChartTipos(lista) {
       const tipos = ['Falta', 'Atestado', 'Atraso', 'Declaração', 'Licença'];
       const valores = tipos.map(t => lista.filter(o => o.tipo === t).length);
@@ -427,17 +542,31 @@
         datasets: [{
           data: vAtivos,
           backgroundColor: ativos.map(t => TIPO_COR[t]),
-          borderWidth: 2,
+          borderWidth: 3,
           borderColor: '#fff',
+          hoverOffset: 6,
         }],
       }, {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } } },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 12, font: { size: 11, weight: '600' } },
+          },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 12, cornerRadius: 8,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont:  { size: 12 },
+          },
+        },
         cutout: '65%',
       });
     },
 
-    /* ---------------- Setores ---------------- */
+    /* ================================================================== */
+    /* CHART: HORAS POR SETOR                                             */
+    /* ================================================================== */
     renderChartSetores(lista) {
       const mapa = {};
       lista.forEach(o => {
@@ -455,20 +584,38 @@
           label: 'Horas perdidas',
           data: dados,
           backgroundColor: CORES.blue,
-          borderRadius: 6,
-          maxBarThickness: 40,
+          hoverBackgroundColor: '#2563eb',
+          borderRadius: 8,
+          maxBarThickness: 44,
         }],
       }, {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, title: { display: true, text: 'Horas' } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 12, cornerRadius: 8,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont:  { size: 12 },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Horas', font: { weight: '600' } },
+            grid: { color: '#f1f5f9' },
+          },
+          x: { grid: { display: false } },
+        },
       });
 
       const sub = $('#dashSetoresSub');
       if (sub) sub.textContent = `${labels.length} setores`;
     },
 
-    /* ---------------- Motivos ---------------- */
+    /* ================================================================== */
+    /* CHART: MOTIVOS MAIS FREQUENTES                                     */
+    /* ================================================================== */
     renderChartMotivos(lista) {
       const mapa = {};
       lista.forEach(o => {
@@ -486,18 +633,32 @@
           label: 'Ocorrências',
           data: dados,
           backgroundColor: CORES.purple,
-          borderRadius: 6,
-          maxBarThickness: 30,
+          hoverBackgroundColor: '#7c3aed',
+          borderRadius: 8,
+          maxBarThickness: 32,
         }],
       }, {
         responsive: true, maintainAspectRatio: false,
         indexAxis: 'y',
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 12, cornerRadius: 8,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont:  { size: 12 },
+          },
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+          y: { grid: { display: false } },
+        },
       });
     },
 
-    /* ---------------- Ranking ---------------- */
+    /* ================================================================== */
+    /* RANKING FUNCIONÁRIOS                                               */
+    /* ================================================================== */
     renderRankingFuncionarios(lista) {
       const box = $('#dashRankingFuncionarios');
       if (!box) return;
@@ -505,7 +666,14 @@
       const mapa = {};
       lista.forEach(o => {
         const id = o.funcionarioId || 'sem-id';
-        if (!mapa[id]) mapa[id] = { nome: o.funcionarioNome || '—', setor: o.setorNome || '—', horas: 0, ocorrencias: 0 };
+        if (!mapa[id]) {
+          mapa[id] = {
+            nome: o.funcionarioNome || '—',
+            setor: o.setorNome || '—',
+            horas: 0,
+            ocorrencias: 0,
+          };
+        }
         mapa[id].horas += horasPerdidas(o);
         mapa[id].ocorrencias++;
       });
@@ -529,7 +697,9 @@
       `).join('');
     },
 
-    /* ---------------- Dias afastados por mês ---------------- */
+    /* ================================================================== */
+    /* CHART: DIAS AFASTADOS POR MÊS                                      */
+    /* ================================================================== */
     renderChartDiasMes(lista) {
       const meses = this.ultimosMeses(6);
       const tiposAfast = ['Falta', 'Atestado', 'Licença'];
@@ -545,17 +715,31 @@
           label: 'Dias afastados',
           data: dados,
           backgroundColor: CORES.red,
-          borderRadius: 6,
-          maxBarThickness: 40,
+          hoverBackgroundColor: '#dc2626',
+          borderRadius: 8,
+          maxBarThickness: 44,
         }],
       }, {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            padding: 12, cornerRadius: 8,
+            titleFont: { size: 13, weight: '700' },
+            bodyFont:  { size: 12 },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+          x: { grid: { display: false } },
+        },
       });
     },
 
-    /* ---------------- Helper: criar gráfico ---------------- */
+    /* ================================================================== */
+    /* HELPER: CRIAR GRÁFICO                                              */
+    /* ================================================================== */
     criarChart(canvasId, tipo, dados, options) {
       const canvas = document.getElementById(canvasId);
       if (!canvas || typeof Chart === 'undefined') return;
@@ -568,9 +752,9 @@
     },
   };
 
-  /* ------------------------------------------------------------------ */
-  /* Router                                                              */
-  /* ------------------------------------------------------------------ */
+  /* ================================================================== */
+  /* ROUTER                                                             */
+  /* ================================================================== */
   document.addEventListener('DOMContentLoaded', () => {
     if (document.body.dataset.page === 'rh-dashboard') {
       Dashboard.init();
