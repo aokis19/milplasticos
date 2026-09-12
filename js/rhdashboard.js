@@ -1,6 +1,5 @@
 /* ==========================================================================
-   RHDASHBOARD.JS — Dashboard de RH com Chart.js + filtros avançados
-   Inclui: Hero card, gradientes, tooltips escuros
+   RHDASHBOARD.JS — Dashboard de RH com Chart.js + filtros + seletor de gráficos
    ========================================================================== */
 
 (function () {
@@ -19,12 +18,15 @@
   };
 
   const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
 
   /* ------------------------------------------------------------------ */
   /* Constantes                                                          */
   /* ------------------------------------------------------------------ */
   const HORAS_MES = 220;
   const HORAS_DIA = 8;
+
+  const STORAGE_KEY = 'rhdashboard_charts_visiveis';
 
   const CORES = {
     red:    '#ef4444',
@@ -41,6 +43,15 @@
     'Declaração': CORES.blue,
     'Licença':    CORES.green,
   };
+
+  const CHARTS_PADRAO = [
+    'chartEvolucao',
+    'chartTipos',
+    'chartSetores',
+    'chartMotivos',
+    'chartRanking',
+    'chartDiasMes',
+  ];
 
   /* ------------------------------------------------------------------ */
   /* Helpers                                                             */
@@ -90,10 +101,12 @@
       },
       charts: {},
       listeners: [],
+      chartsVisiveis: [], // preenchido no init a partir do localStorage
     },
 
     init() {
       console.log('📊 Inicializando Dashboard');
+      this.carregarPreferencias();
       this.bindEventos();
       this.iniciarListeners();
 
@@ -101,6 +114,42 @@
         const ov = document.getElementById('loadingOverlay');
         if (ov) ov.style.display = 'none';
       }, 500);
+    },
+
+    /* ================================================================== */
+    /* PREFERÊNCIAS (localStorage)                                        */
+    /* ================================================================== */
+    carregarPreferencias() {
+      try {
+        const salvo = localStorage.getItem(STORAGE_KEY);
+        if (salvo) {
+          const arr = JSON.parse(salvo);
+          if (Array.isArray(arr)) {
+            this.state.chartsVisiveis = arr.filter(c => CHARTS_PADRAO.includes(c));
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao ler preferências:', e);
+      }
+      if (!this.state.chartsVisiveis.length) {
+        this.state.chartsVisiveis = [...CHARTS_PADRAO];
+      }
+      this.aplicarChips();
+    },
+
+    salvarPreferencias() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state.chartsVisiveis));
+      } catch (e) {
+        console.warn('Erro ao salvar preferências:', e);
+      }
+    },
+
+    aplicarChips() {
+      $$('#dashChartToggles .dash-chip').forEach(chip => {
+        const ativo = this.state.chartsVisiveis.includes(chip.dataset.chart);
+        chip.classList.toggle('active', ativo);
+      });
     },
 
     /* ================================================================== */
@@ -133,6 +182,33 @@
 
       $('#btnLimparFiltros')?.addEventListener('click', () => this.limparFiltros());
       $('#btnAtualizarDash')?.addEventListener('click', () => this.renderTudo());
+
+      /* Seletor de gráficos */
+      $$('#dashChartToggles .dash-chip').forEach(chip => {
+        chip.addEventListener('click', () => this.toggleChart(chip.dataset.chart));
+      });
+    },
+
+    toggleChart(chartId) {
+      const idx = this.state.chartsVisiveis.indexOf(chartId);
+      if (idx >= 0) {
+        this.state.chartsVisiveis.splice(idx, 1);
+      } else {
+        this.state.chartsVisiveis.push(chartId);
+      }
+      this.aplicarChips();
+      this.salvarPreferencias();
+      this.atualizarVisibilidadeCards();
+      // Re-renderiza para os gráficos aparecerem com tamanho certo
+      setTimeout(() => this.renderTudo(), 50);
+    },
+
+    atualizarVisibilidadeCards() {
+      $$('.dash-card[data-card]').forEach(card => {
+        const id = card.dataset.card;
+        const visivel = this.state.chartsVisiveis.includes(id);
+        card.style.display = visivel ? '' : 'none';
+      });
     },
 
     togglePeriodoCustom() {
@@ -296,7 +372,9 @@
     renderTudo() {
       const lista = this.filtrarOcorrencias();
       const empty = $('#dashEmpty');
-      const grid  = document.querySelector('.dash-grid');
+      const grid  = document.getElementById('dashGrid');
+
+      this.atualizarVisibilidadeCards();
 
       if (!lista.length) {
         if (empty) empty.style.display = 'block';
@@ -309,12 +387,18 @@
       this.renderHero(lista);
       this.renderKPIs(lista);
       this.renderTopCIDs(lista);
-      this.renderChartEvolucao(lista);
-      this.renderChartTipos(lista);
-      this.renderChartSetores(lista);
-      this.renderChartMotivos(lista);
-      this.renderRankingFuncionarios(lista);
-      this.renderChartDiasMes(lista);
+
+      // Só renderiza o gráfico se estiver visível
+      if (this.isChartVisivel('chartEvolucao'))  this.renderChartEvolucao(lista);
+      if (this.isChartVisivel('chartTipos'))     this.renderChartTipos(lista);
+      if (this.isChartVisivel('chartSetores'))   this.renderChartSetores(lista);
+      if (this.isChartVisivel('chartMotivos'))   this.renderChartMotivos(lista);
+      if (this.isChartVisivel('chartRanking'))   this.renderRankingFuncionarios(lista);
+      if (this.isChartVisivel('chartDiasMes'))   this.renderChartDiasMes(lista);
+    },
+
+    isChartVisivel(id) {
+      return this.state.chartsVisiveis.includes(id);
     },
 
     /* ================================================================== */
@@ -338,7 +422,7 @@
 
       const bar = $('#heroBar');
       if (bar) {
-        const width = Math.min(100, pct * 5); // 20% = 100% da barra
+        const width = Math.min(100, pct * 5);
         bar.style.width = width + '%';
       }
 
@@ -363,7 +447,6 @@
     /* ================================================================== */
     renderKPIs(lista) {
       const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
-      const pct = percentual(totalHoras);
 
       const f = this.state.filtro;
       let funcionariosBase = this.state.funcionarios.filter(x => x.status !== 'Inativo');
@@ -457,7 +540,7 @@
     },
 
     /* ================================================================== */
-    /* CHART: EVOLUÇÃO MENSAL (com gradiente)                             */
+    /* CHART: EVOLUÇÃO MENSAL                                             */
     /* ================================================================== */
     renderChartEvolucao(lista) {
       const meses = this.ultimosMeses(6);
@@ -466,7 +549,7 @@
       const atrasos   = meses.map(m => lista.filter(o => o.tipo === 'Atraso'   && (o.data||'').startsWith(m)).length);
 
       const gradient = (ctx, color) => {
-        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260);
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
         g.addColorStop(0, color.replace('rgb', 'rgba').replace(')', ',.25)'));
         g.addColorStop(1, color.replace('rgb', 'rgba').replace(')', ',0)'));
         return g;
