@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recursos Humanos | Central de Custos</title>
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/sidebar.css">
+  <link rel="stylesheet" href="/assets/css/topbar.css">
+  <link rel="stylesheet" href="/assets/css/rh.css">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/firebase-sync.js"></script>
+  <script src="/js/data-loader.js"></script>
+</head>
+
+<body data-page="rh-hub">
+  <div id="topbar-container"></div>
+
+  <div class="container">
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Carregando...</p>
+      </div>
+
+      <div class="rh-page">
+
+        <!-- ===================== HEADER ===================== -->
+        <div class="rh-header">
+          <div>
+            <h1><i class="fas fa-users-gear"></i> Recursos Humanos</h1>
+            <p>Gestão de pessoas, ocorrências e indicadores</p>
+          </div>
+          <div class="rh-header-actions">
+            <button class="rh-btn rh-btn-secondary" id="btnNovoSetor">
+              <i class="fas fa-building"></i> Adicionar Setor
+            </button>
+            <button class="rh-btn rh-btn-primary" id="btnNovoFuncionario">
+              <i class="fas fa-user-plus"></i> Adicionar Funcionário
+            </button>
+          </div>
+        </div>
+
+        <!-- ===================== KPIs RÁPIDOS ===================== -->
+        <div class="rh-kpis">
+          <div class="rh-kpi">
+            <div class="rh-kpi-info">
+              <div class="rh-kpi-label">Funcionários Ativos</div>
+              <div class="rh-kpi-value" id="hubKpiFunc">0</div>
+              <div class="rh-kpi-sub" id="hubKpiFuncSub">0 cadastrados</div>
+            </div>
+            <div class="rh-kpi-icon blue"><i class="fas fa-users"></i></div>
+          </div>
+          <div class="rh-kpi">
+            <div class="rh-kpi-info">
+              <div class="rh-kpi-label">Setores</div>
+              <div class="rh-kpi-value" id="hubKpiSetores">0</div>
+              <div class="rh-kpi-sub">cadastrados</div>
+            </div>
+            <div class="rh-kpi-icon purple"><i class="fas fa-building"></i></div>
+          </div>
+          <div class="rh-kpi">
+            <div class="rh-kpi-info">
+              <div class="rh-kpi-label">Ocorrências no Mês</div>
+              <div class="rh-kpi-value" id="hubKpiOcor">0</div>
+              <div class="rh-kpi-sub" id="hubKpiOcorSub">mês atual</div>
+            </div>
+            <div class="rh-kpi-icon yellow"><i class="fas fa-clipboard-list"></i></div>
+          </div>
+          <div class="rh-kpi">
+            <div class="rh-kpi-info">
+              <div class="rh-kpi-label">Dias Perdidos</div>
+              <div class="rh-kpi-value" id="hubKpiDias">0</div>
+              <div class="rh-kpi-sub">no mês atual</div>
+            </div>
+            <div class="rh-kpi-icon red"><i class="fas fa-calendar-xmark"></i></div>
+          </div>
+        </div>
+
+        <!-- ===================== CARDS DE MÓDULOS ===================== -->
+        <div class="hub-section-title">
+          <i class="fas fa-th-large"></i> Módulos
+        </div>
+
+        <div class="hub-grid" id="hubGrid">
+
+          <!-- Atestados -->
+          <a href="/html/rh-atestados.html" class="hub-card hub-card-purple">
+            <div class="hub-card-icon"><i class="fas fa-file-medical"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">Atestados</div>
+              <div class="hub-card-desc">Registro e gestão de atestados médicos</div>
+              <div class="hub-card-badge" id="hubBadgeAtestados">0 registros</div>
+            </div>
+            <div class="hub-card-arrow"><i class="fas fa-arrow-right"></i></div>
+          </a>
+
+          <!-- Faltas -->
+          <a href="/html/rh-faltas.html" class="hub-card hub-card-red">
+            <div class="hub-card-icon"><i class="fas fa-user-xmark"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">Faltas</div>
+              <div class="hub-card-desc">Ausências não justificadas</div>
+              <div class="hub-card-badge" id="hubBadgeFaltas">0 registros</div>
+            </div>
+            <div class="hub-card-arrow"><i class="fas fa-arrow-right"></i></div>
+          </a>
+
+          <!-- Atrasos -->
+          <a href="/html/rh-atrasos.html" class="hub-card hub-card-yellow">
+            <div class="hub-card-icon"><i class="fas fa-clock"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">Atrasos</div>
+              <div class="hub-card-desc">Controle de atrasos e horas</div>
+              <div class="hub-card-badge" id="hubBadgeAtrasos">0 registros</div>
+            </div>
+            <div class="hub-card-arrow"><i class="fas fa-arrow-right"></i></div>
+          </a>
+
+          <!-- Dashboard -->
+          <a href="/html/rh-dashboard.html" target="_blank" class="hub-card hub-card-blue">
+            <div class="hub-card-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">Dashboard</div>
+              <div class="hub-card-desc">Indicadores e gráficos consolidados</div>
+              <div class="hub-card-badge">Visualizar</div>
+            </div>
+            <div class="hub-card-arrow"><i class="fas fa-external-link-alt"></i></div>
+          </a>
+
+          <!-- Placeholders (futuros) -->
+          <div class="hub-card hub-card-disabled">
+            <div class="hub-card-icon"><i class="fas fa-helmet-safety"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">EPI</div>
+              <div class="hub-card-desc">Em breve</div>
+            </div>
+          </div>
+
+          <div class="hub-card hub-card-disabled">
+            <div class="hub-card-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="hub-card-body">
+              <div class="hub-card-title">Advertências</div>
+              <div class="hub-card-desc">Em breve</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ===================== LISTAS RÁPIDAS ===================== -->
+        <div class="rh-tabs" style="margin-top:2rem;">
+          <button class="rh-tab active" data-tab="funcionarios-hub">
+            <i class="fas fa-users"></i> Funcionários
+          </button>
+          <button class="rh-tab" data-tab="setores-hub">
+            <i class="fas fa-building"></i> Setores
+          </button>
+        </div>
+
+        <!-- Tab: Funcionários (visão resumida) -->
+        <div class="rh-tab-content active" id="tab-funcionarios-hub">
+          <div class="rh-filters">
+            <input type="text" id="filtroFuncionarioHub" placeholder="🔍 Buscar por nome, setor ou matrícula...">
+          </div>
+          <div class="rh-func-grid" id="hubGridFuncionarios"></div>
+        </div>
+
+        <!-- Tab: Setores -->
+        <div class="rh-tab-content" id="tab-setores-hub">
+          <div class="rh-table-card">
+            <div class="table-responsive">
+              <table class="rh-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Descrição</th>
+                    <th>Qtd. Funcionários</th>
+                    <th style="text-align:right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="hubTabelaSetoresBody">
+                  <tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== MODAL: FUNCIONÁRIO ===================== -->
+  <div class="rh-modal" id="modalFuncionario">
+    <div class="rh-modal-box">
+      <div class="rh-modal-header">
+        <h3 id="modalFuncionarioTitle"><i class="fas fa-user-plus"></i> Novo Funcionário</h3>
+        <button class="rh-modal-close" data-close>&times;</button>
+      </div>
+      <form id="formFuncionario">
+        <div class="rh-modal-body">
+          <input type="hidden" id="funcionarioId">
+          <div class="rh-form-group">
+            <label>Nome completo *</label>
+            <input type="text" id="funcNome" required>
+          </div>
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Matrícula *</label>
+              <input type="text" id="funcMatricula" required>
+            </div>
+            <div class="rh-form-group">
+              <label>Cargo</label>
+              <input type="text" id="funcCargo">
+            </div>
+          </div>
+          <div class="rh-form-row">
+            <div class="rh-form-group">
+              <label>Setor *</label>
+              <select id="funcSetor" required>
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="rh-form-group">
+              <label>Admissão</label>
+              <input type="date" id="funcAdmissao">
+            </div>
+          </div>
+          <div class="rh-form-group">
+            <label>Status</label>
+            <select id="funcStatus">
+              <option value="Ativo">Ativo</option>
+              <option value="Inativo">Inativo</option>
+              <option value="Afastado">Afastado</option>
+            </select>
+          </div>
+        </div>
+        <div class="rh-modal-footer">
+          <button type="button" class="rh-btn rh-btn-secondary" data-close>Cancelar</button>
+          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: SETOR ===================== -->
+  <div class="rh-modal" id="modalSetor">
+    <div class="rh-modal-box" style="max-width:440px;">
+      <div class="rh-modal-header">
+        <h3 id="modalSetorTitle"><i class="fas fa-building"></i> Novo Setor</h3>
+        <button class="rh-modal-close" data-close>&times;</button>
+      </div>
+      <form id="formSetor">
+        <div class="rh-modal-body">
+          <input type="hidden" id="setorId">
+          <div class="rh-form-group">
+            <label>Nome do setor *</label>
+            <input type="text" id="setorNome" required>
+          </div>
+          <div class="rh-form-group">
+            <label>Descrição</label>
+            <textarea id="setorDescricao" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="rh-modal-footer">
+          <button type="button" class="rh-btn rh-btn-secondary" data-close>Cancelar</button>
+          <button type="submit" class="rh-btn rh-btn-success"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/rh.js"></script>
+</body>
+</html>
