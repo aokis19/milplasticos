@@ -120,3 +120,19 @@
 }
 .hub-card-disabled .hub-card-icon { background: #cbd5e1; }
 .hub-card-disabled:hover { transform: none; box-shadow: var(--rh-shadow); }
+
+/* Badge dentro das tabs */
+.rh-tab-badge {
+  display: inline-block;
+  margin-left: .4rem;
+  padding: .1rem .5rem;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.rh-tab.active .rh-tab-badge {
+  background: var(--rh-blue);
+  color: #fff;
+}
