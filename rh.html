@@ -1,19 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recursos Humanos | Central de Custos</title>
 
-  <!-- CSS — caminhos relativos (sem / no início) -->
+  <!-- CSS — caminhos relativos -->
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/sidebar.css">
   <link rel="stylesheet" href="assets/css/topbar.css">
   <link rel="stylesheet" href="assets/css/rh.css">
 
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- Scripts internos — caminhos relativos -->
   <script src="js/firebase-init.js"></script>
   <script src="js/firebase-sync.js"></script>
   <script src="js/data-loader.js"></script>
@@ -57,7 +62,7 @@
         <div class="hub-grid" id="hubGrid">
 
           <!-- Atestados -->
-          <a href="/rh-atestados.html" class="hub-card hub-card-purple">
+          <a href="rh-atestados.html" class="hub-card hub-card-purple">
             <div class="hub-card-icon"><i class="fas fa-file-medical"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Atestados</div>
@@ -68,7 +73,7 @@
           </a>
 
           <!-- Faltas -->
-          <a href="/rh-faltas.html" class="hub-card hub-card-red">
+          <a href="rh-faltas.html" class="hub-card hub-card-red">
             <div class="hub-card-icon"><i class="fas fa-user-xmark"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Faltas</div>
@@ -79,7 +84,7 @@
           </a>
 
           <!-- Atrasos -->
-          <a href="/rh-atrasos.html" class="hub-card hub-card-yellow">
+          <a href="rh-atrasos.html" class="hub-card hub-card-yellow">
             <div class="hub-card-icon"><i class="fas fa-clock"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Atrasos</div>
@@ -90,7 +95,7 @@
           </a>
 
           <!-- Dashboard -->
-          <a href="/rhdashboard.html" target="_blank" class="hub-card hub-card-blue">
+          <a href="rhdashboard.html" target="_blank" class="hub-card hub-card-blue">
             <div class="hub-card-icon"><i class="fas fa-chart-line"></i></div>
             <div class="hub-card-body">
               <div class="hub-card-title">Dashboard</div>
@@ -242,6 +247,8 @@
     </div>
   </div>
 
-    <script src="js/main.js"></script>
+  <!-- Scripts — caminhos relativos -->
+  <script src="js/main.js"></script>
   <script src="js/rh.js"></script>
 </body>
+</html>
