@@ -1,6 +1,6 @@
 /* ==========================================================================
-   OCORRENCIAS.JS — Módulo unificado: Faltas, Atestados, Atrasos, Declarações
-   Cálculo de % de tempo perdido baseado em 220h/mês (CLT)
+   RHDASHBOARD.JS — Dashboard de RH com Chart.js
+   Consome: ocorrencias, funcionarios, setores
    ========================================================================== */
 
 (function () {
@@ -8,7 +8,7 @@
 
   const db = window.db || window.firebaseDB;
   if (!db) {
-    console.error('❌ Firestore não disponível em ocorrencias.js');
+    console.error('❌ Firestore não disponível em rhdashboard.js');
     return;
   }
 
@@ -18,132 +18,79 @@
     setores:      db.collection('setores'),
   };
 
-  const $  = (s, ctx = document) => ctx.querySelector(s);
-  const $$ = (s, ctx = document) => [...ctx.querySelectorAll(s)];
+  const $ = (s) => document.querySelector(s);
 
   /* ------------------------------------------------------------------ */
-  /* Constantes de cálculo                                              */
+  /* Constantes                                                          */
   /* ------------------------------------------------------------------ */
-  const HORAS_MES = 220;          // Base CLT: 220h/mês
-  const HORAS_DIA = 8;            // Jornada padrão: 8h/dia
-  const DIAS_UTEIS_MES = HORAS_MES / HORAS_DIA; // 27,5 dias úteis
+  const HORAS_MES = 220;
+  const HORAS_DIA = 8;
 
-  /* ------------------------------------------------------------------ */
-  /* Helpers                                                             */
-  /* ------------------------------------------------------------------ */
-
-  function toast(msg, tipo = 'success') {
-    const el = document.createElement('div');
-    el.textContent = msg;
-    el.style.cssText = `
-      position:fixed; bottom:20px; right:20px; padding:.75rem 1.25rem;
-      background:${tipo === 'error' ? '#ef4444' : '#10b981'}; color:#fff;
-      border-radius:8px; font-weight:600; z-index:99999;
-      box-shadow:0 10px 25px rgba(0,0,0,.2); font-size:.875rem;
-      font-family:'Segoe UI',system-ui,sans-serif;
-      transition:opacity .3s, transform .3s;
-    `;
-    document.body.appendChild(el);
-    setTimeout(() => {
-      el.style.opacity = '0';
-      el.style.transform = 'translateY(10px)';
-      setTimeout(() => el.remove(), 300);
-    }, 3000);
-  }
-
-  const fmtDate = (str) => {
-    if (!str) return '—';
-    const [y, m, d] = str.split('-');
-    return `${d}/${m}/${y}`;
+  const CORES = {
+    red:    '#ef4444',
+    purple: '#8b5cf6',
+    yellow: '#f59e0b',
+    blue:   '#3b82f6',
+    green:  '#10b981',
+    gray:   '#94a3b8',
   };
 
-  const hoje = () => new Date().toISOString().split('T')[0];
-
-  function diffDias(inicio, fim) {
-    if (!inicio || !fim) return 1;
-    const d1 = new Date(inicio + 'T00:00:00');
-    const d2 = new Date(fim   + 'T00:00:00');
-    return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
-  }
+  const TIPO_COR = {
+    'Falta':      CORES.red,
+    'Atestado':   CORES.purple,
+    'Atraso':     CORES.yellow,
+    'Declaração': CORES.blue,
+    'Licença':    CORES.green,
+  };
 
   /* ------------------------------------------------------------------ */
-  /* Cálculo de horas perdidas e percentual                             */
+  /* Cálculos                                                            */
   /* ------------------------------------------------------------------ */
 
-  /**
-   * Retorna as horas perdidas de uma ocorrência.
-   * - Falta / Atestado / Licença → dias × 8h
-   * - Atraso / Declaração        → horas diretas
-   */
   function horasPerdidas(oc) {
     if (!oc) return 0;
-    const tipo = oc.tipo;
-    if (tipo === 'Atraso' || tipo === 'Declaração') {
+    if (oc.tipo === 'Atraso' || oc.tipo === 'Declaração') {
       return parseFloat(oc.horas) || 0;
     }
-    // Falta, Atestado, Licença → dias × 8h
-    const dias = parseInt(oc.dias) || 0;
-    return dias * HORAS_DIA;
+    return (parseInt(oc.dias) || 0) * HORAS_DIA;
   }
 
-  /** Retorna o % perdido em relação a 220h/mês */
-  function percentualPerdido(horas) {
+  function percentual(horas) {
     return (horas / HORAS_MES) * 100;
   }
 
-  /** Retorna a classe CSS de acordo com o % */
-  function classePercentual(pct) {
-    if (pct < 5)  return 'baixo';
-    if (pct < 10) return 'medio';
-    return 'alto';
+  function fmtHoras(h) {
+    if (h < 1) return `${(h * 60).toFixed(0)}min`;
+    return `${h.toFixed(1).replace('.', ',')}h`;
   }
 
-  const TIPO_INFO = {
-    Falta:        { cls: 'oc-badge-falta',      ico: 'fa-user-xmark',        cor: 'red' },
-    Atestado:     { cls: 'oc-badge-atestado',   ico: 'fa-file-medical',      cor: 'purple' },
-    Atraso:       { cls: 'oc-badge-atraso',     ico: 'fa-clock',             cor: 'yellow' },
-    Declaração:   { cls: 'oc-badge-declaracao', ico: 'fa-file-signature',    cor: 'blue' },
-    Licença:      { cls: 'oc-badge-licenca',    ico: 'fa-notes-medical',     cor: 'green' },
-  };
-
-  function badgeTipo(tipo) {
-    const info = TIPO_INFO[tipo] || TIPO_INFO.Falta;
-    return `<span class="oc-badge ${info.cls}"><i class="fas ${info.ico}"></i> ${tipo}</span>`;
+  function fmtPct(p) {
+    return `${p.toFixed(2).replace('.', ',')}%`;
   }
 
-  function badgeStatus(status) {
-    const map = {
-      'Pendente':  'oc-status-pendente',
-      'Aprovado':  'oc-status-aprovado',
-      'Rejeitado': 'oc-status-rejeitado',
-    };
-    return `<span class="oc-status ${map[status] || 'oc-status-pendente'}">${status || 'Pendente'}</span>`;
-  }
-
-  function fecharModal() {
-    $$('.oc-modal').forEach(m => m.classList.remove('open'));
+  function labelMes(ym) {
+    const [y, m] = ym.split('-');
+    const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${nomes[parseInt(m) - 1]}/${y.slice(2)}`;
   }
 
   /* ------------------------------------------------------------------ */
-  /* Módulo principal                                                    */
+  /* Dashboard                                                           */
   /* ------------------------------------------------------------------ */
 
-  const ModuloOcorrencias = {
-    _initialized: false,
-    _bindado: false,
+  const Dashboard = {
     state: {
       ocorrencias: [],
       funcionarios: [],
       setores: [],
-      editando: null,
+      filtroPeriodo: 'ano',
+      filtroSetor: '',
+      charts: {},
       listeners: [],
     },
 
     init() {
-      if (this._initialized) return;
-      this._initialized = true;
-      console.log('🧩 Inicializando ModuloOcorrencias');
-
+      console.log('📊 Inicializando Dashboard');
       this.bindEventos();
       this.iniciarListeners();
 
@@ -153,92 +100,24 @@
       }, 500);
     },
 
-    /* ---------------- Eventos ---------------- */
     bindEventos() {
-      if (this._bindado) return;
-      this._bindado = true;
-
-      document.addEventListener('click', (e) => {
-        if (e.target.closest('#btnNovaOcorrencia')) {
-          e.preventDefault();
-          this.abrirModal();
-          return;
-        }
-        if (e.target.closest('#btnLimparFiltrosOC')) {
-          e.preventDefault();
-          this.limparFiltros();
-          return;
-        }
-        if (e.target.closest('[data-close-oc]')) {
-          e.preventDefault();
-          fecharModal();
-          return;
-        }
-        if (e.target.classList.contains('oc-modal')) {
-          fecharModal();
-          return;
-        }
-        const btnEdit = e.target.closest('[data-action="oc-edit"]');
-        if (btnEdit) {
-          const oc = this.state.ocorrencias.find(x => x.id === btnEdit.dataset.id);
-          this.abrirModal(oc);
-          return;
-        }
-        const btnDel = e.target.closest('[data-action="oc-del"]');
-        if (btnDel) {
-          this.excluir(btnDel.dataset.id);
-          return;
-        }
-        const btnExport = e.target.closest('#btnExportOcorrencias');
-        if (btnExport) {
-          e.preventDefault();
-          this.exportarCSV();
-          return;
-        }
+      $('#dashFiltroPeriodo')?.addEventListener('change', (e) => {
+        this.state.filtroPeriodo = e.target.value;
+        this.renderTudo();
       });
-
-      document.addEventListener('submit', (e) => {
-        if (e.target.id === 'formOcorrencia') {
-          e.preventDefault();
-          this.salvar();
-        }
+      $('#dashFiltroSetor')?.addEventListener('change', (e) => {
+        this.state.filtroSetor = e.target.value;
+        this.renderTudo();
       });
-
-      document.addEventListener('input', (e) => {
-        if (e.target.id === 'ocFiltroTexto') this.render();
-        if (e.target.id === 'ocDataInicio' || e.target.id === 'ocDataFim') {
-          this.calcularPreview();
-        }
-        if (e.target.id === 'ocHoras') this.calcularPreview();
-        if (e.target.id === 'ocTipo') this.toggleCamposCondicionais();
-      });
-
-      document.addEventListener('change', (e) => {
-        const filtros = [
-          'ocFiltroTipo', 'ocFiltroSetor', 'ocFiltroStatus',
-          'ocFiltroPeriodo', 'ocFiltroFuncionario'
-        ];
-        if (filtros.includes(e.target.id)) {
-          this.render();
-          this.renderResumoMes();
-        }
-        if (e.target.id === 'ocFuncionario') this.preencherInfoFuncionario();
-        if (e.target.id === 'ocTipo') this.toggleCamposCondicionais();
-      });
-
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') fecharModal();
-      });
+      $('#btnAtualizarDash')?.addEventListener('click', () => this.renderTudo());
     },
 
-    /* ---------------- Listeners Firestore ---------------- */
     iniciarListeners() {
       this.state.listeners.push(
         COL.funcionarios.onSnapshot(snap => {
           this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          this.popularSelectFuncionarios();
-          this.popularFiltroFuncionario();
           this.popularFiltroSetor();
+          this.renderTudo();
         }, err => console.error('funcionarios:', err))
       );
 
@@ -253,38 +132,13 @@
         COL.ocorrencias.onSnapshot(snap => {
           this.state.ocorrencias = snap.docs.map(d => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-          this.render();
-          this.renderKPIs();
-          this.renderResumoMes();
+          this.renderTudo();
         }, err => console.error('ocorrencias:', err))
       );
     },
 
-    /* ---------------- Selects ---------------- */
-    popularSelectFuncionarios() {
-      const sel = $('#ocFuncionario');
-      if (!sel) return;
-      const atual = sel.value;
-      const ativos = this.state.funcionarios.filter(f => f.status !== 'Inativo');
-      sel.innerHTML = '<option value="">Selecione o funcionário...</option>' +
-        ativos.map(f => `<option value="${f.id}">${f.nome} — ${f.setorNome || 'sem setor'} (${f.matricula || 's/mat'})</option>`).join('');
-      sel.value = atual;
-    },
-
-    popularFiltroFuncionario() {
-      const sel = $('#ocFiltroFuncionario');
-      if (!sel) return;
-      const atual = sel.value;
-      const ordenados = [...this.state.funcionarios].sort((a, b) =>
-        (a.nome || '').localeCompare(b.nome || '')
-      );
-      sel.innerHTML = '<option value="">Todos os funcionários</option>' +
-        ordenados.map(f => `<option value="${f.id}">${f.nome} — ${f.setorNome || 'sem setor'}</option>`).join('');
-      sel.value = atual;
-    },
-
     popularFiltroSetor() {
-      const sel = $('#ocFiltroSetor');
+      const sel = $('#dashFiltroSetor');
       if (!sel) return;
       const atual = sel.value;
       sel.innerHTML = '<option value="">Todos os setores</option>' +
@@ -292,207 +146,31 @@
       sel.value = atual;
     },
 
-    preencherInfoFuncionario() {
-      const id = $('#ocFuncionario')?.value;
-      const box = $('#ocFuncInfo');
-      if (!box) return;
-      if (!id) { box.style.display = 'none'; return; }
-      const f = this.state.funcionarios.find(x => x.id === id);
-      if (!f) { box.style.display = 'none'; return; }
-      box.style.display = 'flex';
-      box.innerHTML = `
-        <span><i class="fas fa-id-badge"></i> Matrícula: <strong>${f.matricula || '—'}</strong></span>
-        <span><i class="fas fa-building"></i> Setor: <strong>${f.setorNome || '—'}</strong></span>
-        <span><i class="fas fa-briefcase"></i> Cargo: <strong>${f.cargo || '—'}</strong></span>
-        <span><i class="fas fa-circle-check"></i> Status: <strong>${f.status || 'Ativo'}</strong></span>
-      `;
-    },
-
-    toggleCamposCondicionais() {
-      const tipo = $('#ocTipo')?.value;
-      const mostrar = (sel, on) => {
-        const el = $(sel);
-        if (el) el.classList.toggle('show', on);
-      };
-      mostrar('#ocGroupDataFim', tipo === 'Atestado' || tipo === 'Licença');
-      mostrar('#ocGroupHoras',   tipo === 'Atraso' || tipo === 'Declaração');
-      mostrar('#ocGroupCID',     tipo === 'Atestado');
-      mostrar('#ocGroupMedico',  tipo === 'Atestado');
-      this.calcularPreview();
-    },
-
-    calcularPreview() {
-      const box = $('#ocCalcBox');
-      if (!box) return;
-      const tipo = $('#ocTipo')?.value;
-      const inicio = $('#ocDataInicio')?.value;
-      const fim = $('#ocDataFim')?.value || inicio;
-      const horas = parseFloat($('#ocHoras')?.value) || 0;
-
-      let horasTotal = 0;
-      let detalhe = '';
-
-      if (tipo === 'Atraso' || tipo === 'Declaração') {
-        horasTotal = horas;
-        detalhe = horas > 0
-          ? `⏱ <strong>${horas}h</strong> registradas.`
-          : 'Informe as horas para calcular o impacto.';
-      } else if (inicio) {
-        const dias = diffDias(inicio, fim);
-        horasTotal = dias * HORAS_DIA;
-        detalhe = `📅 <strong>${dias} ${dias === 1 ? 'dia' : 'dias'}</strong> (${fmtDate(inicio)} a ${fmtDate(fim)}).`;
-      } else {
-        box.style.display = 'none';
-        return;
-      }
-
-      const pct = percentualPerdido(horasTotal);
-      box.innerHTML = `
-        ${detalhe}
-        <div style="margin-top:.35rem; font-size:.9rem;">
-          💰 Equivale a <strong>${horasTotal}h</strong> perdidas —
-          <strong>${pct.toFixed(2)}%</strong> do mês (base 220h).
-        </div>
-      `;
-      box.style.display = 'block';
-    },
-
-    /* ---------------- Modal ---------------- */
-    abrirModal(oc = null) {
-      this.state.editando = oc;
-      const f = $('#formOcorrencia');
-      f.reset();
-      $('#ocId').value = oc?.id || '';
-      $('#ocModalTitle').innerHTML = oc
-        ? '<i class="fas fa-pen"></i> Editar Ocorrência'
-        : '<i class="fas fa-plus-circle"></i> Nova Ocorrência';
-
-      if (oc) {
-        $('#ocFuncionario').value = oc.funcionarioId || '';
-        $('#ocTipo').value = oc.tipo || 'Falta';
-        $('#ocDataInicio').value = oc.data || hoje();
-        $('#ocDataFim').value = oc.dataFim || '';
-        $('#ocHoras').value = oc.horas || '';
-        $('#ocMotivo').value = oc.motivo || '';
-        $('#ocCID').value = oc.cid || '';
-        $('#ocMedico').value = oc.medico || '';
-        $('#ocObservacoes').value = oc.observacoes || '';
-        $('#ocStatus').value = oc.status || 'Pendente';
-      } else {
-        $('#ocDataInicio').value = hoje();
-        $('#ocTipo').value = 'Falta';
-        $('#ocStatus').value = 'Pendente';
-      }
-
-      this.preencherInfoFuncionario();
-      this.toggleCamposCondicionais();
-      this.calcularPreview();
-      $('#modalOcorrencia').classList.add('open');
-    },
-
-    /* ---------------- Salvar ---------------- */
-    async salvar() {
-      const id = $('#ocId').value;
-      const funcId = $('#ocFuncionario').value;
-      const func = this.state.funcionarios.find(f => f.id === funcId);
-
-      if (!func) return toast('Selecione um funcionário', 'error');
-      const tipo = $('#ocTipo').value;
-      const data = $('#ocDataInicio').value;
-      if (!data) return toast('Informe a data', 'error');
-
-      const dataFim = $('#ocDataFim').value || data;
-      const dias = diffDias(data, dataFim);
-      const horas = parseFloat($('#ocHoras').value) || 0;
-
-      const dados = {
-        funcionarioId: func.id,
-        funcionarioNome: func.nome,
-        funcionarioMatricula: func.matricula || '',
-        setorId: func.setorId || '',
-        setorNome: func.setorNome || '',
-        tipo,
-        data,
-        dataFim,
-        dias,
-        horas: (tipo === 'Atraso' || tipo === 'Declaração') ? horas : 0,
-        motivo: $('#ocMotivo').value.trim(),
-        cid: $('#ocCID').value.trim(),
-        medico: $('#ocMedico').value.trim(),
-        observacoes: $('#ocObservacoes').value.trim(),
-        status: $('#ocStatus').value,
-        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      };
-
-      try {
-        if (id) {
-          await COL.ocorrencias.doc(id).update(dados);
-          toast('Ocorrência atualizada!');
-        } else {
-          dados.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
-          await COL.ocorrencias.add(dados);
-          toast('Ocorrência registrada!');
-        }
-        fecharModal();
-      } catch (err) {
-        console.error(err);
-        toast('Erro ao salvar ocorrência', 'error');
-      }
-    },
-
-    async excluir(id) {
-      if (!confirm('Excluir esta ocorrência?')) return;
-      try {
-        await COL.ocorrencias.doc(id).delete();
-        toast('Ocorrência excluída');
-      } catch (err) {
-        console.error(err);
-        toast('Erro ao excluir', 'error');
-      }
-    },
-
-    /* ---------------- Filtros ---------------- */
-    limparFiltros() {
-      ['ocFiltroTexto','ocFiltroFuncionario','ocFiltroTipo','ocFiltroSetor','ocFiltroStatus'].forEach(id => {
-        const el = $('#' + id); if (el) el.value = '';
-      });
-      const per = $('#ocFiltroPeriodo'); if (per) per.value = '30';
-      this.render();
-      this.renderResumoMes();
-    },
-
-    getFiltradas() {
-      const tipo    = $('#ocFiltroTipo')?.value || '';
-      const setor   = $('#ocFiltroSetor')?.value || '';
-      const status  = $('#ocFiltroStatus')?.value || '';
-      const funcId  = $('#ocFiltroFuncionario')?.value || '';
-      const periodo = $('#ocFiltroPeriodo')?.value || '30';
-      const texto   = ($('#ocFiltroTexto')?.value || '').toLowerCase();
-
+    /* ---------------- Filtro por período ---------------- */
+    filtrarOcorrencias() {
+      const todas = this.state.ocorrencias;
       const agora = new Date();
+      const setorFiltro = this.state.filtroSetor;
+      const periodo = this.state.filtroPeriodo;
+
       let dataMin = null, dataMax = null;
 
-      if (periodo === '7')     dataMin = new Date(agora.getTime() - 7  * 86400000);
-      if (periodo === '30')    dataMin = new Date(agora.getTime() - 30 * 86400000);
-      if (periodo === '90')    dataMin = new Date(agora.getTime() - 90 * 86400000);
-      if (periodo === 'hoje')  { dataMin = new Date(agora.toDateString()); dataMax = new Date(agora.toDateString()); }
+      if (periodo === '30')  dataMin = new Date(agora.getTime() - 30 * 86400000);
+      if (periodo === '90')  dataMin = new Date(agora.getTime() - 90 * 86400000);
       if (periodo === 'mes') {
         const y = agora.getFullYear(), m = agora.getMonth();
         dataMin = new Date(y, m, 1);
         dataMax = new Date(y, m + 1, 0);
       }
+      if (periodo === 'ano') {
+        dataMin = new Date(agora.getFullYear(), 0, 1);
+        dataMax = new Date(agora.getFullYear(), 11, 31);
+      }
 
-      return this.state.ocorrencias.filter(oc => {
-        if (tipo   && oc.tipo !== tipo) return false;
-        if (setor  && oc.setorId !== setor) return false;
-        if (status && oc.status !== status) return false;
-        if (funcId && oc.funcionarioId !== funcId) return false;
-        if (texto) {
-          const blob = `${oc.funcionarioNome} ${oc.funcionarioMatricula} ${oc.motivo} ${oc.observacoes}`.toLowerCase();
-          if (!blob.includes(texto)) return false;
-        }
+      return todas.filter(oc => {
+        if (setorFiltro && oc.setorId !== setorFiltro) return false;
         if (dataMin || dataMax) {
-          const d = new Date(oc.data + 'T00:00:00');
+          const d = new Date((oc.data || '') + 'T00:00:00');
           if (dataMin && d < dataMin) return false;
           if (dataMax && d > dataMax) return false;
         }
@@ -500,165 +178,269 @@
       });
     },
 
-    /* ---------------- KPIs ---------------- */
-    renderKPIs() {
-      const todas = this.state.ocorrencias;
-      const mesAtual = new Date().toISOString().slice(0, 7); // YYYY-MM
-      const doMes = todas.filter(o => (o.data || '').startsWith(mesAtual));
-
-      const qtd = (tipo) => doMes.filter(o => o.tipo === tipo).length;
-
-      const setKpi = (id, valor) => { const el = $('#' + id); if (el) el.textContent = valor; };
-      setKpi('kpiFaltas',      qtd('Falta'));
-      setKpi('kpiAtestados',   qtd('Atestado'));
-      setKpi('kpiAtrasos',     qtd('Atraso'));
-      setKpi('kpiDeclaracoes', qtd('Declaração'));
-
-      // Total de dias afastados no mês (faltas + atestados + licenças)
-      const diasPerdidos = doMes
-        .filter(o => ['Falta', 'Atestado', 'Licença'].includes(o.tipo))
-        .reduce((s, o) => s + (parseInt(o.dias) || 0), 0);
-      setKpi('kpiDiasPerdidos', diasPerdidos);
-
-      // Total de horas diretas (atrasos + declarações)
-      const horasDiretas = doMes
-        .filter(o => ['Atraso', 'Declaração'].includes(o.tipo))
-        .reduce((s, o) => s + (parseFloat(o.horas) || 0), 0);
-
-      // Total geral de horas perdidas no mês (dias × 8h + horas diretas)
-      const horasTotais = doMes.reduce((s, o) => s + horasPerdidas(o), 0);
-      setKpi('kpiHorasPerdidas', horasTotais.toFixed(1) + 'h');
-
-      // % do mês perdido (base 220h)
-      const pct = percentualPerdido(horasTotais);
-      const elPct = $('#kpiPercentual');
-      if (elPct) {
-        elPct.textContent = pct.toFixed(2).replace('.', ',') + '%';
-        elPct.style.color = pct >= 10 ? '#dc2626' : (pct >= 5 ? '#d97706' : '#059669');
-      }
-    },
-
-    /* ---------------- Resumo do mês (barra acima da tabela) ---------------- */
-    renderResumoMes() {
-      const box = $('#ocResumoMes');
-      if (!box) return;
-
-      const lista = this.getFiltradas();
-      if (!lista.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
-      box.style.display = 'flex';
-
-      const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
-      const totalDias  = lista
-        .filter(o => ['Falta','Atestado','Licença'].includes(o.tipo))
-        .reduce((s, o) => s + (parseInt(o.dias) || 0), 0);
-      const horasDiretas = lista
-        .filter(o => ['Atraso','Declaração'].includes(o.tipo))
-        .reduce((s, o) => s + (parseFloat(o.horas) || 0), 0);
-      const pct = percentualPerdido(totalHoras);
-
-      box.innerHTML = `
-        <span><i class="fas fa-list"></i> <strong>${lista.length}</strong> ocorrências</span>
-        <span class="sep">·</span>
-        <span><i class="fas fa-calendar-xmark"></i> <strong>${totalDias}</strong> dias afastados</span>
-        <span class="sep">·</span>
-        <span><i class="fas fa-clock"></i> <strong>${horasDiretas.toFixed(1)}h</strong> de atrasos/declarações</span>
-        <span class="sep">·</span>
-        <span><i class="fas fa-hourglass-half"></i> Total: <strong>${totalHoras.toFixed(1)}h</strong> perdidas</span>
-        <span class="sep">·</span>
-        <span style="margin-left:auto;">
-          <i class="fas fa-percent"></i> <strong style="font-size:1rem;">${pct.toFixed(2).replace('.', ',')}%</strong>
-          <small style="color:#64748b;"> do mês (base 220h)</small>
-        </span>
-      `;
-    },
-
-    /* ---------------- Render tabela ---------------- */
-    render() {
-      const tbody = $('#ocTabelaBody');
-      const count = $('#ocTotalRegistros');
-      if (!tbody) return;
-
-      const lista = this.getFiltradas();
-      if (count) count.textContent = `${lista.length} ${lista.length === 1 ? 'registro' : 'registros'}`;
+    /* ---------------- Render principal ---------------- */
+    renderTudo() {
+      const lista = this.filtrarOcorrencias();
+      const empty = $('#dashEmpty');
+      const grid  = document.querySelector('.dash-grid');
+      const kpis  = $('#dashKpis');
 
       if (!lista.length) {
-        tbody.innerHTML = `
-          <tr><td colspan="10">
-            <div class="oc-empty">
-              <i class="fas fa-inbox"></i>
-              <p>Nenhuma ocorrência encontrada com os filtros atuais.</p>
-            </div>
-          </td></tr>`;
+        if (empty) empty.style.display = 'block';
+        if (grid)  grid.style.display  = 'none';
+      } else {
+        if (empty) empty.style.display = 'none';
+        if (grid)  grid.style.display  = 'grid';
+      }
+      if (kpis) kpis.style.display = 'grid';
+
+      this.renderKPIs(lista);
+      this.renderChartEvolucao(lista);
+      this.renderChartTipos(lista);
+      this.renderChartSetores(lista);
+      this.renderChartMotivos(lista);
+      this.renderRankingFuncionarios(lista);
+      this.renderChartDiasMes(lista);
+    },
+
+    /* ---------------- KPIs ---------------- */
+    renderKPIs(lista) {
+      const totalHoras = lista.reduce((s, o) => s + horasPerdidas(o), 0);
+      const pct = percentual(totalHoras);
+      const ativos = this.state.funcionarios.filter(f => f.status !== 'Inativo').length;
+
+      const diasUteis = 22 * (this.state.filtroPeriodo === 'ano' ? 12 : 1);
+      const horasDisponiveis = ativos * diasUteis * HORAS_DIA;
+      const taxaAbsent = horasDisponiveis > 0 ? (totalHoras / horasDisponiveis) * 100 : 0;
+
+      const qtd = (tipo) => lista.filter(o => o.tipo === tipo).length;
+
+      const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
+      set('dashKpiPct', fmtPct(pct));
+      set('dashKpiHoras', fmtHoras(totalHoras));
+      set('dashKpiFaltas', qtd('Falta'));
+      set('dashKpiAtestados', qtd('Atestado'));
+      set('dashKpiAtrasos', qtd('Atraso'));
+      set('dashKpiFuncionarios', ativos);
+      set('dashKpiAbsent', fmtPct(taxaAbsent));
+
+      set('dashKpiPctSub', `${lista.length} ocorrências no período`);
+      set('dashKpiFaltasSub', `${lista.filter(o => o.tipo === 'Falta').reduce((s,o) => s + (o.dias||0), 0)} dias`);
+      set('dashKpiAtestadosSub', `${lista.filter(o => o.tipo === 'Atestado').reduce((s,o) => s + (o.dias||0), 0)} dias`);
+      set('dashKpiAtrasosSub', `${lista.filter(o => o.tipo === 'Atraso').reduce((s,o) => s + (parseFloat(o.horas)||0), 0).toFixed(1)}h`);
+      set('dashKpiFuncionariosSub', `${this.state.setores.length} setores`);
+      set('dashKpiAbsentSub', `${horasDisponiveis.toFixed(0)}h disponíveis`);
+    },
+
+    /* ---------------- Chart: Evolução mensal ---------------- */
+    renderChartEvolucao(lista) {
+      const meses = this.ultimosMeses(6);
+      const dados = {
+        Falta:    meses.map(m => lista.filter(o => o.tipo === 'Falta' && (o.data||'').startsWith(m)).length),
+        Atestado: meses.map(m => lista.filter(o => o.tipo === 'Atestado' && (o.data||'').startsWith(m)).length),
+        Atraso:   meses.map(m => lista.filter(o => o.tipo === 'Atraso' && (o.data||'').startsWith(m)).length),
+      };
+
+      this.criarChart('chartEvolucao', 'line', {
+        labels: meses.map(labelMes),
+        datasets: [
+          { label: 'Faltas',    data: dados.Falta,    borderColor: CORES.red,    backgroundColor: 'rgba(239,68,68,.1)',  tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          { label: 'Atestados', data: dados.Atestado, borderColor: CORES.purple, backgroundColor: 'rgba(139,92,246,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+          { label: 'Atrasos',   data: dados.Atraso,   borderColor: CORES.yellow, backgroundColor: 'rgba(245,158,11,.1)', tension: .35, fill: true, borderWidth: 2, pointRadius: 4 },
+        ],
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      });
+
+      const sub = $('#dashEvolucaoSub');
+      if (sub) sub.textContent = `${meses.length} meses`;
+    },
+
+    ultimosMeses(n) {
+      const arr = [];
+      const hoje = new Date();
+      for (let i = n - 1; i >= 0; i--) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      return arr;
+    },
+
+    /* ---------------- Chart: Tipos ---------------- */
+    renderChartTipos(lista) {
+      const tipos = ['Falta', 'Atestado', 'Atraso', 'Declaração', 'Licença'];
+      const valores = tipos.map(t => lista.filter(o => o.tipo === t).length);
+      const ativos = tipos.filter((t, i) => valores[i] > 0);
+      const valoresAtivos = valores.filter(v => v > 0);
+
+      this.criarChart('chartTipos', 'doughnut', {
+        labels: ativos,
+        datasets: [{
+          data: valoresAtivos,
+          backgroundColor: ativos.map(t => TIPO_COR[t]),
+          borderWidth: 2,
+          borderColor: '#fff',
+        }],
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } },
+        },
+        cutout: '65%',
+      });
+    },
+
+    /* ---------------- Chart: Setores ---------------- */
+    renderChartSetores(lista) {
+      const mapa = {};
+      lista.forEach(o => {
+        const nome = o.setorNome || 'Sem setor';
+        mapa[nome] = (mapa[nome] || 0) + horasPerdidas(o);
+      });
+
+      const entries = Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const labels = entries.map(e => e[0]);
+      const dados  = entries.map(e => parseFloat(e[1].toFixed(1)));
+
+      this.criarChart('chartSetores', 'bar', {
+        labels,
+        datasets: [{
+          label: 'Horas perdidas',
+          data: dados,
+          backgroundColor: CORES.blue,
+          borderRadius: 6,
+          maxBarThickness: 40,
+        }],
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Horas' } } },
+      });
+
+      const sub = $('#dashSetoresSub');
+      if (sub) sub.textContent = `${labels.length} setores`;
+    },
+
+    /* ---------------- Chart: Motivos ---------------- */
+    renderChartMotivos(lista) {
+      const mapa = {};
+      lista.forEach(o => {
+        const m = o.motivo || 'Não informado';
+        mapa[m] = (mapa[m] || 0) + 1;
+      });
+
+      const entries = Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      const labels = entries.map(e => e[0]);
+      const dados  = entries.map(e => e[1]);
+
+      this.criarChart('chartMotivos', 'bar', {
+        labels,
+        datasets: [{
+          label: 'Ocorrências',
+          data: dados,
+          backgroundColor: CORES.purple,
+          borderRadius: 6,
+          maxBarThickness: 30,
+        }],
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      });
+    },
+
+    /* ---------------- Ranking funcionários ---------------- */
+    renderRankingFuncionarios(lista) {
+      const box = $('#dashRankingFuncionarios');
+      if (!box) return;
+
+      const mapa = {};
+      lista.forEach(o => {
+        const id = o.funcionarioId || 'sem-id';
+        if (!mapa[id]) {
+          mapa[id] = {
+            nome: o.funcionarioNome || '—',
+            setor: o.setorNome || '—',
+            horas: 0,
+            ocorrencias: 0,
+          };
+        }
+        mapa[id].horas += horasPerdidas(o);
+        mapa[id].ocorrencias++;
+      });
+
+      const top = Object.values(mapa)
+        .sort((a, b) => b.horas - a.horas)
+        .slice(0, 10);
+
+      if (!top.length) {
+        box.innerHTML = '<div class="dash-empty"><i class="fas fa-inbox"></i><p>Sem dados</p></div>';
         return;
       }
 
-      tbody.innerHTML = lista.map(oc => {
-        const horas = horasPerdidas(oc);
-        const pct = percentualPerdido(horas);
-        const cls = classePercentual(pct);
-
-        const duracao = (oc.tipo === 'Atraso' || oc.tipo === 'Declaração')
-          ? (oc.horas ? oc.horas + 'h' : '—')
-          : `${oc.dias || 0} ${oc.dias === 1 ? 'dia' : 'dias'}`;
-
-        return `
-          <tr>
-            <td>${fmtDate(oc.data)}${oc.dataFim && oc.dataFim !== oc.data ? ` <small style="color:#64748b">→ ${fmtDate(oc.dataFim)}</small>` : ''}</td>
-            <td class="cell-func">
-              ${oc.funcionarioNome || '—'}
-              <small>${oc.funcionarioMatricula || ''} ${oc.setorNome ? '· ' + oc.setorNome : ''}</small>
-            </td>
-            <td>${badgeTipo(oc.tipo)}</td>
-            <td>${duracao}</td>
-            <td>
-              <span class="oc-pct ${cls}">
-                ${pct.toFixed(2).replace('.', ',')}%
-                <small>${horas.toFixed(1)}h</small>
-              </span>
-            </td>
-            <td>${oc.motivo || '—'}</td>
-            <td>${oc.cid || '—'}</td>
-            <td>${badgeStatus(oc.status)}</td>
-            <td>${oc.observacoes ? `<span title="${oc.observacoes}">${oc.observacoes.slice(0, 30)}${oc.observacoes.length > 30 ? '…' : ''}</span>` : '—'}</td>
-            <td>
-              <div class="oc-actions">
-                <button data-action="oc-edit" data-id="${oc.id}" title="Editar"><i class="fas fa-pen"></i></button>
-                <button class="del" data-action="oc-del" data-id="${oc.id}" title="Excluir"><i class="fas fa-trash"></i></button>
-              </div>
-            </td>
-          </tr>`;
-      }).join('');
+      box.innerHTML = top.map((f, i) => `
+        <div class="dash-rank-item">
+          <div class="dash-rank-pos">${i + 1}</div>
+          <div class="dash-rank-info">
+            <div class="dash-rank-name">${f.nome}</div>
+            <div class="dash-rank-sub">${f.setor} · ${f.ocorrencias} ocorrência${f.ocorrencias === 1 ? '' : 's'}</div>
+          </div>
+          <div class="dash-rank-value">${fmtHoras(f.horas)}</div>
+        </div>
+      `).join('');
     },
 
-    /* ---------------- Exportar CSV ---------------- */
-    exportarCSV() {
-      const lista = this.getFiltradas();
-      if (!lista.length) return toast('Nada para exportar', 'error');
+    /* ---------------- Chart: Dias afastados ---------------- */
+    renderChartDiasMes(lista) {
+      const meses = this.ultimosMeses(6);
+      const tiposAfast = ['Falta', 'Atestado', 'Licença'];
+      const dados = meses.map(m =>
+        lista
+          .filter(o => tiposAfast.includes(o.tipo) && (o.data||'').startsWith(m))
+          .reduce((s, o) => s + (parseInt(o.dias) || 0), 0)
+      );
 
-      const headers = ['Data','Data Fim','Dias','Horas','% Perdido','Funcionário','Matrícula','Setor','Tipo','Motivo','CID','Médico','Status','Observações'];
-      const linhas = lista.map(o => {
-        const horas = horasPerdidas(o);
-        const pct = percentualPerdido(horas).toFixed(2);
-        return [
-          o.data, o.dataFim || '', o.dias || 0, horas.toFixed(1), pct + '%',
-          o.funcionarioNome, o.funcionarioMatricula, o.setorNome,
-          o.tipo, o.motivo || '', o.cid || '', o.medico || '',
-          o.status || '', (o.observacoes || '').replace(/[\r\n;]/g, ' ')
-        ];
+      this.criarChart('chartDiasMes', 'bar', {
+        labels: meses.map(labelMes),
+        datasets: [{
+          label: 'Dias afastados',
+          data: dados,
+          backgroundColor: CORES.red,
+          borderRadius: 6,
+          maxBarThickness: 40,
+        }],
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
       });
+    },
 
-      const csv = [headers, ...linhas]
-        .map(l => l.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
-        .join('\r\n');
+    /* ---------------- Helper: criar/atualizar gráfico ---------------- */
+    criarChart(canvasId, tipo, dados, options) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || typeof Chart === 'undefined') return;
 
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ocorrencias_${hoje()}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast(`${lista.length} registros exportados`);
+      if (this.state.charts[canvasId]) {
+        this.state.charts[canvasId].destroy();
+      }
+
+      this.state.charts[canvasId] = new Chart(canvas, {
+        type: tipo,
+        data: dados,
+        options: {
+          ...options,
+          animation: { duration: 500 },
+        },
+      });
     },
   };
 
@@ -666,8 +448,8 @@
   /* Router                                                              */
   /* ------------------------------------------------------------------ */
   document.addEventListener('DOMContentLoaded', () => {
-    if (document.body.dataset.page === 'rh-ocorrencias') {
-      ModuloOcorrencias.init();
+    if (document.body.dataset.page === 'rh-dashboard') {
+      Dashboard.init();
     }
   });
 
