@@ -1,549 +1,402 @@
 /* ==========================================================================
-   RH.CSS — Arquivo completo
-   Página: rh.html
+   RH.JS — Arquivo unificado (com Event Delegation)
+   Módulos: Hub (Setores + Funcionários)
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 0: VARIÁVEIS
-   -------------------------------------------------------------------------- */
-:root {
-  --rh-bg:            #f8fafc;
-  --rh-card:          #ffffff;
-  --rh-border:        #e2e8f0;
-  --rh-text:          #1e293b;
-  --rh-text-muted:    #64748b;
-  --rh-text-soft:     #94a3b8;
-  --rh-radius:        10px;
-  --rh-shadow:        0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --rh-shadow-hover:  0 10px 25px rgba(0,0,0,.08);
+(function () {
+  'use strict';
 
-  --rh-purple:        #8b5cf6;
-  --rh-purple-light:  #ede9fe;
-  --rh-red:           #ef4444;
-  --rh-red-light:     #fee2e2;
-  --rh-yellow:        #f59e0b;
-  --rh-blue:          #3b82f6;
-  --rh-blue-light:    #dbeafe;
-  --rh-green:         #10b981;
-  --rh-green-light:   #d1fae5;
-}
+  const db = window.db || window.firebaseDB;
+  if (!db) {
+    console.error('❌ Firestore não disponível. Verifique firebase-init.js');
+    return;
+  }
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 1: LAYOUT DA PÁGINA
-   -------------------------------------------------------------------------- */
-.rh-page {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+  const COL = {
+    setores:      db.collection('setores'),
+    funcionarios: db.collection('funcionarios'),
+    ocorrencias:  db.collection('ocorrencias'),
+  };
 
-.rh-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.rh-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  margin: 0 0 .25rem;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.rh-header h1 i { color: var(--rh-blue); }
-.rh-header p {
-  font-size: .875rem;
-  color: var(--rh-text-muted);
-  margin: 0;
-}
-.rh-header-actions {
-  display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
-}
+  const $  = (s, ctx = document) => ctx.querySelector(s);
+  const $$ = (s, ctx = document) => [...ctx.querySelectorAll(s)];
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 2: BOTÕES
-   -------------------------------------------------------------------------- */
-.rh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  padding: .55rem 1rem;
-  font-size: .875rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background .2s, transform .1s, box-shadow .2s;
-  text-decoration: none;
-  font-family: inherit;
-}
-.rh-btn:hover { transform: translateY(-1px); }
-.rh-btn:active { transform: translateY(0); }
+  /* ------------------------------------------------------------------ */
+  /* Helpers                                                             */
+  /* ------------------------------------------------------------------ */
 
-.rh-btn-primary   { background: var(--rh-blue);   color: #fff; }
-.rh-btn-primary:hover   { background: #2563eb; }
+  function toast(msg, tipo = 'success') {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = `
+      position:fixed; bottom:20px; right:20px; padding:.75rem 1.25rem;
+      background:${tipo === 'error' ? '#ef4444' : '#10b981'}; color:#fff;
+      border-radius:8px; font-weight:600; z-index:9999;
+      box-shadow:0 10px 25px rgba(0,0,0,.2); font-size:.875rem;
+      font-family:'Segoe UI',system-ui,sans-serif;
+      transition:opacity .3s, transform .3s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(10px)';
+      setTimeout(() => el.remove(), 300);
+    }, 3000);
+  }
 
-.rh-btn-secondary { background: #e2e8f0; color: var(--rh-text); }
-.rh-btn-secondary:hover { background: #cbd5e1; }
+  function fmtDate(str) {
+    if (!str) return '—';
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
 
-.rh-btn-success   { background: var(--rh-green);  color: #fff; }
-.rh-btn-success:hover   { background: #059669; }
+  function fecharModais() {
+    $$('.rh-modal').forEach(m => m.classList.remove('open'));
+  }
 
-.rh-btn-danger    { background: var(--rh-red);    color: #fff; }
-.rh-btn-danger:hover    { background: #dc2626; }
+  /* =======================================================================
+     MÓDULO: HUB (Setores + Funcionários)
+     ======================================================================= */
 
-.rh-btn-icon {
-  padding: .45rem .6rem;
-  font-size: .8rem;
-}
+  const ModuloHub = {
+    _initialized: false,
+    _eventosBindados: false,
+    state: {
+      funcionarios: [],
+      setores: [],
+      ocorrencias: [],
+      listeners: [],
+    },
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 3: TABS
-   -------------------------------------------------------------------------- */
-.rh-tabs {
-  display: flex;
-  gap: .25rem;
-  border-bottom: 2px solid var(--rh-border);
-  margin-bottom: 1rem;
-  overflow-x: auto;
-}
-.rh-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  padding: .65rem 1rem;
-  font-size: .875rem;
-  font-weight: 600;
-  color: var(--rh-text-muted);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color .2s, border-color .2s;
-  font-family: inherit;
-}
-.rh-tab:hover { color: var(--rh-text); }
-.rh-tab.active {
-  color: var(--rh-blue);
-  border-bottom-color: var(--rh-blue);
-}
+    init() {
+      if (this._initialized) return;
+      this._initialized = true;
+      console.log('🧩 Inicializando ModuloHub');
 
-.rh-tab-content { display: none; }
-.rh-tab-content.active { display: block; }
+      this.bindEventos();
+      this.iniciarListeners();
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 4: FILTROS E GRID DE FUNCIONÁRIOS
-   -------------------------------------------------------------------------- */
-.rh-filters {
-  margin-bottom: 1rem;
-}
-.rh-filters input {
-  width: 100%;
-  max-width: 420px;
-  padding: .6rem .85rem;
-  border: 1px solid var(--rh-border);
-  border-radius: 8px;
-  font-size: .875rem;
-  font-family: inherit;
-  background: #fff;
-}
-.rh-filters input:focus {
-  outline: none;
-  border-color: var(--rh-blue);
-  box-shadow: 0 0 0 3px rgba(59,130,246,.1);
-}
+      setTimeout(() => {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) overlay.style.display = 'none';
+      }, 500);
+    },
 
-.rh-func-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
-}
+    /* ---------------- Event Delegation ---------------- */
+    bindEventos() {
+      if (this._eventosBindados) return;
+      this._eventosBindados = true;
 
-.rh-func-card {
-  position: relative;
-  background: #fff;
-  border: 1px solid var(--rh-border);
-  border-radius: var(--rh-radius);
-  padding: 1.25rem 1rem 1rem;
-  text-align: center;
-  box-shadow: var(--rh-shadow);
-  transition: transform .2s, box-shadow .2s;
-}
-.rh-func-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--rh-shadow-hover);
-}
+      /* ===== CLIQUES ===== */
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('#btnNovoFuncionario')) {
+          e.preventDefault();
+          this.abrirModalFuncionario();
+          return;
+        }
+        if (e.target.closest('#btnNovoSetor')) {
+          e.preventDefault();
+          this.abrirModalSetor();
+          return;
+        }
+        if (e.target.closest('[data-close]')) {
+          e.preventDefault();
+          fecharModais();
+          return;
+        }
+        if (e.target.classList.contains('rh-modal')) {
+          fecharModais();
+          return;
+        }
 
-.rh-func-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--rh-blue), var(--rh-purple));
-  color: #fff;
-  font-size: 1.35rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto .75rem;
-}
+        const btnEditSetor = e.target.closest('[data-action="edit-setor"]');
+        if (btnEditSetor) {
+          const s = this.state.setores.find(x => x.id === btnEditSetor.dataset.id);
+          this.abrirModalSetor(s);
+          return;
+        }
+        const btnDelSetor = e.target.closest('[data-action="del-setor"]');
+        if (btnDelSetor) {
+          this.excluirSetor(btnDelSetor.dataset.id);
+          return;
+        }
 
-.rh-func-name {
-  font-size: .95rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  margin-bottom: .15rem;
-  word-break: break-word;
-}
-.rh-func-cargo {
-  font-size: .8rem;
-  color: var(--rh-text-muted);
-  margin-bottom: .65rem;
-}
-.rh-func-meta {
-  display: flex;
-  flex-direction: column;
-  gap: .2rem;
-  font-size: .75rem;
-  color: var(--rh-text-muted);
-  border-top: 1px solid var(--rh-border);
-  padding-top: .65rem;
-}
-.rh-func-meta strong { color: var(--rh-text); }
+        const btnEditFunc = e.target.closest('[data-action="edit-func"]');
+        if (btnEditFunc) {
+          const f = this.state.funcionarios.find(x => x.id === btnEditFunc.dataset.id);
+          this.abrirModalFuncionario(f);
+          return;
+        }
+        const btnDelFunc = e.target.closest('[data-action="del-func"]');
+        if (btnDelFunc) {
+          this.excluirFuncionario(btnDelFunc.dataset.id);
+          return;
+        }
 
-.rh-func-actions {
-  position: absolute;
-  top: .5rem;
-  right: .5rem;
-  display: flex;
-  gap: .25rem;
-  opacity: 0;
-  transition: opacity .2s;
-}
-.rh-func-card:hover .rh-func-actions { opacity: 1; }
-.rh-func-actions button {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: #f1f5f9;
-  color: var(--rh-text-muted);
-  cursor: pointer;
-  font-size: .75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .2s, color .2s;
-}
-.rh-func-actions button:hover {
-  background: var(--rh-blue);
-  color: #fff;
-}
-.rh-func-actions button.del:hover {
-  background: var(--rh-red);
-}
+        const tab = e.target.closest('.rh-tab');
+        if (tab) {
+          $$('.rh-tab').forEach(t => t.classList.remove('active'));
+          $$('.rh-tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          const target = $(`#tab-${tab.dataset.tab}`);
+          if (target) target.classList.add('active');
+          return;
+        }
+      });
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 5: HUB DE MÓDULOS
-   -------------------------------------------------------------------------- */
-.hub-section-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  margin: 1.5rem 0 .85rem;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.hub-section-title i { color: var(--rh-text-muted); }
+      /* ===== SUBMIT ===== */
+      document.addEventListener('submit', (e) => {
+        if (e.target.id === 'formFuncionario') {
+          e.preventDefault();
+          this.salvarFuncionario(e);
+          return;
+        }
+        if (e.target.id === 'formSetor') {
+          e.preventDefault();
+          this.salvarSetor(e);
+          return;
+        }
+      });
 
-.hub-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
+      /* ===== INPUT ===== */
+      document.addEventListener('input', (e) => {
+        if (e.target.id === 'filtroFuncionarioHub') {
+          this.renderFuncionarios();
+        }
+      });
 
-.hub-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.15rem 1.25rem;
-  background: #fff;
-  border: 1px solid var(--rh-border);
-  border-left: 4px solid var(--rh-border);
-  border-radius: var(--rh-radius);
-  box-shadow: var(--rh-shadow);
-  text-decoration: none;
-  color: inherit;
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-  position: relative;
-  overflow: hidden;
-}
-.hub-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--rh-shadow-hover);
-}
+      /* ===== ESC ===== */
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') fecharModais();
+      });
+    },
 
-.hub-card-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.35rem;
-  color: #fff;
-  flex-shrink: 0;
-}
+    /* ---------------- SETORES ---------------- */
+    abrirModalSetor(setor = null) {
+      $('#setorId').value = setor?.id || '';
+      $('#setorNome').value = setor?.nome || '';
+      $('#setorDescricao').value = setor?.descricao || '';
+      $('#modalSetorTitle').innerHTML = setor
+        ? '<i class="fas fa-pen"></i> Editar Setor'
+        : '<i class="fas fa-building"></i> Novo Setor';
+      $('#modalSetor').classList.add('open');
+    },
 
-.hub-card-body { flex: 1; min-width: 0; }
-.hub-card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  margin-bottom: .2rem;
-}
-.hub-card-desc {
-  font-size: .8rem;
-  color: var(--rh-text-muted);
-  margin-bottom: .45rem;
-  line-height: 1.3;
-}
-.hub-card-badge {
-  display: inline-block;
-  font-size: .7rem;
-  font-weight: 600;
-  padding: .2rem .6rem;
-  border-radius: 999px;
-  background: var(--rh-bg);
-  color: var(--rh-text-muted);
-}
+    async salvarSetor(e) {
+      e.preventDefault();
+      const id = $('#setorId').value;
+      const dados = {
+        nome: $('#setorNome').value.trim(),
+        descricao: $('#setorDescricao').value.trim(),
+      };
+      if (!dados.nome) return toast('Informe o nome do setor', 'error');
+      try {
+        if (id) await COL.setores.doc(id).update(dados);
+        else await COL.setores.add({
+          ...dados,
+          criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        toast('Setor salvo!');
+        fecharModais();
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao salvar setor', 'error');
+      }
+    },
 
-.hub-card-arrow {
-  color: var(--rh-text-soft);
-  font-size: .9rem;
-  transition: transform .2s, color .2s;
-}
-.hub-card:hover .hub-card-arrow {
-  transform: translateX(4px);
-  color: var(--rh-text);
-}
+    async excluirSetor(id) {
+      if (!confirm('Excluir este setor?')) return;
+      try {
+        await COL.setores.doc(id).delete();
+        toast('Setor excluído');
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao excluir', 'error');
+      }
+    },
 
-.hub-card-purple { border-left-color: var(--rh-purple); }
-.hub-card-purple .hub-card-icon { background: var(--rh-purple); }
-.hub-card-purple .hub-card-badge { background: var(--rh-purple-light); color: #6b21a8; }
+    renderSetores() {
+      const tbody = $('#hubTabelaSetoresBody');
+      const count = $('#countSetores');
+      if (count) count.textContent = this.state.setores.length;
+      if (!tbody) return;
 
-.hub-card-red { border-left-color: var(--rh-red); }
-.hub-card-red .hub-card-icon { background: var(--rh-red); }
-.hub-card-red .hub-card-badge { background: var(--rh-red-light); color: #991b1b; }
+      if (!this.state.setores.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="rh-empty"><i class="fas fa-building"></i>Nenhum setor cadastrado</td></tr>';
+        return;
+      }
 
-.hub-card-yellow { border-left-color: var(--rh-yellow); }
-.hub-card-yellow .hub-card-icon { background: var(--rh-yellow); }
-.hub-card-yellow .hub-card-badge { background: #fef3c7; color: #b45309; }
+      tbody.innerHTML = this.state.setores.map(s => {
+        const qtd = this.state.funcionarios.filter(f => f.setorId === s.id).length;
+        return `
+          <tr>
+            <td><strong>${s.nome}</strong></td>
+            <td>${s.descricao || '—'}</td>
+            <td>${qtd}</td>
+            <td style="text-align:right;">
+              <button class="rh-btn rh-btn-secondary rh-btn-icon" data-action="edit-setor" data-id="${s.id}">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="rh-btn rh-btn-danger rh-btn-icon" data-action="del-setor" data-id="${s.id}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
 
-.hub-card-blue { border-left-color: var(--rh-blue); }
-.hub-card-blue .hub-card-icon { background: var(--rh-blue); }
-.hub-card-blue .hub-card-badge { background: var(--rh-blue-light); color: #1e40af; }
+      /* Popula o select de setores no modal de funcionário */
+      const selectFunc = $('#funcSetor');
+      if (selectFunc) {
+        const atual = selectFunc.value;
+        selectFunc.innerHTML = '<option value="">Selecione...</option>' +
+          this.state.setores.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+        selectFunc.value = atual;
+      }
+    },
 
-.hub-card-green { border-left-color: var(--rh-green); }
-.hub-card-green .hub-card-icon { background: var(--rh-green); }
-.hub-card-green .hub-card-badge { background: var(--rh-green-light); color: #065f46; }
+    /* ---------------- FUNCIONÁRIOS ---------------- */
+    abrirModalFuncionario(func = null) {
+      $('#funcionarioId').value  = func?.id || '';
+      $('#funcNome').value       = func?.nome || '';
+      $('#funcMatricula').value  = func?.matricula || '';
+      $('#funcCargo').value      = func?.cargo || '';
+      $('#funcAdmissao').value   = func?.admissao || '';
+      $('#funcStatus').value     = func?.status || 'Ativo';
+      $('#funcSetor').value      = func?.setorId || '';
+      $('#modalFuncionarioTitle').innerHTML = func
+        ? '<i class="fas fa-pen"></i> Editar Funcionário'
+        : '<i class="fas fa-user-plus"></i> Novo Funcionário';
+      $('#modalFuncionario').classList.add('open');
+    },
 
-.hub-card-disabled {
-  opacity: .5;
-  cursor: not-allowed;
-  border-left-color: var(--rh-border);
-}
-.hub-card-disabled .hub-card-icon { background: #cbd5e1; }
-.hub-card-disabled:hover { transform: none; box-shadow: var(--rh-shadow); }
+    async salvarFuncionario(e) {
+      e.preventDefault();
+      const id = $('#funcionarioId').value;
+      const setorId = $('#funcSetor').value;
+      const setor = this.state.setores.find(s => s.id === setorId);
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 6: TABELAS
-   -------------------------------------------------------------------------- */
-.rh-table-card {
-  background: #fff;
-  border: 1px solid var(--rh-border);
-  border-radius: var(--rh-radius);
-  box-shadow: var(--rh-shadow);
-  overflow: hidden;
-}
-.table-responsive { overflow-x: auto; }
+      const dados = {
+        nome:      $('#funcNome').value.trim(),
+        matricula: $('#funcMatricula').value.trim(),
+        cargo:     $('#funcCargo').value.trim(),
+        admissao:  $('#funcAdmissao').value,
+        status:    $('#funcStatus').value,
+        setorId,
+        setorNome: setor?.nome || '',
+      };
+      if (!dados.nome || !dados.matricula || !setorId) {
+        return toast('Preencha os campos obrigatórios', 'error');
+      }
+      try {
+        if (id) await COL.funcionarios.doc(id).update(dados);
+        else await COL.funcionarios.add({
+          ...dados,
+          criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        toast('Funcionário salvo!');
+        fecharModais();
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao salvar', 'error');
+      }
+    },
 
-.rh-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .875rem;
-}
-.rh-table thead { background: var(--rh-bg); }
-.rh-table th {
-  text-align: left;
-  padding: .75rem 1rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  font-size: .8rem;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  border-bottom: 1px solid var(--rh-border);
-}
-.rh-table td {
-  padding: .75rem 1rem;
-  border-bottom: 1px solid var(--rh-border);
-  color: var(--rh-text);
-  vertical-align: middle;
-}
-.rh-table tbody tr:last-child td { border-bottom: none; }
-.rh-table tbody tr:hover { background: #f8fafc; }
+    async excluirFuncionario(id) {
+      if (!confirm('Excluir este funcionário?')) return;
+      try {
+        await COL.funcionarios.doc(id).delete();
+        toast('Funcionário excluído');
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao excluir', 'error');
+      }
+    },
 
-.rh-empty {
-  text-align: center;
-  padding: 2.5rem 1rem !important;
-  color: var(--rh-text-muted);
-  font-size: .875rem;
-}
-.rh-empty i {
-  display: block;
-  font-size: 1.75rem;
-  margin-bottom: .5rem;
-  color: var(--rh-text-soft);
-}
+    renderFuncionarios() {
+      const grid = $('#hubGridFuncionarios');
+      const count = $('#countFuncionarios');
+      if (count) count.textContent = this.state.funcionarios.length;
+      if (!grid) return;
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 7: MODAIS
-   -------------------------------------------------------------------------- */
-.rh-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(15,23,42,.55);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  overflow-y: auto;
-}
-.rh-modal.open { display: flex; }
+      const busca = ($('#filtroFuncionarioHub')?.value || '').toLowerCase();
+      const lista = this.state.funcionarios.filter(f =>
+        !busca ||
+        f.nome?.toLowerCase().includes(busca) ||
+        f.setorNome?.toLowerCase().includes(busca) ||
+        f.matricula?.toLowerCase().includes(busca)
+      );
 
-.rh-modal-box {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 25px 50px rgba(0,0,0,.25);
-  width: 100%;
-  max-width: 560px;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  animation: rhModalIn .2s ease-out;
-}
-@keyframes rhModalIn {
-  from { opacity: 0; transform: translateY(-10px) scale(.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+      if (!lista.length) {
+        grid.innerHTML = '<div class="rh-empty" style="grid-column:1/-1;"><i class="fas fa-users"></i>Nenhum funcionário encontrado</div>';
+        return;
+      }
 
-.rh-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--rh-border);
-}
-.rh-modal-header h3 {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--rh-text);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.rh-modal-header h3 i { color: var(--rh-blue); }
+      grid.innerHTML = lista.map(f => {
+        const inicial = (f.nome || '?').charAt(0).toUpperCase();
+        return `
+          <div class="rh-func-card">
+            <div class="rh-func-actions">
+              <button data-action="edit-func" data-id="${f.id}"><i class="fas fa-pen"></i></button>
+              <button class="del" data-action="del-func" data-id="${f.id}"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="rh-func-avatar">${inicial}</div>
+            <div class="rh-func-name">${f.nome}</div>
+            <div class="rh-func-cargo">${f.cargo || '—'}</div>
+            <div class="rh-func-meta">
+              <span>Setor <strong>${f.setorNome || '—'}</strong></span>
+              <span>Matrícula <strong>${f.matricula || '—'}</strong></span>
+            </div>
+          </div>`;
+      }).join('');
+    },
 
-.rh-modal-close {
-  background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--rh-text-muted);
-  cursor: pointer;
-  padding: 0 .25rem;
-  transition: color .2s;
-}
-.rh-modal-close:hover { color: var(--rh-red); }
+    /* ---------------- Badge do card "Absenteísmo" ---------------- */
+    renderBadgesCards() {
+      const total = this.state.ocorrencias.length;
+      const el = $('#hubBadgeAtestados');
+      if (el) el.textContent = `${total} ${total === 1 ? 'registro' : 'registros'}`;
+    },
 
-.rh-modal-body {
-  padding: 1.25rem;
-  overflow-y: auto;
-}
+    /* ---------------- Listeners Firestore ---------------- */
+    iniciarListeners() {
+      this.state.listeners.push(
+        COL.setores.onSnapshot(snap => {
+          this.state.setores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.renderSetores();
+        }, err => console.error('setores:', err))
+      );
 
-.rh-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: .5rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--rh-border);
-  background: var(--rh-bg);
-}
+      this.state.listeners.push(
+        COL.funcionarios.onSnapshot(snap => {
+          this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.renderFuncionarios();
+          this.renderSetores();
+        }, err => console.error('funcionarios:', err))
+      );
 
-/* --------------------------------------------------------------------------
-   SEÇÃO 8: FORMULÁRIOS
-   -------------------------------------------------------------------------- */
-.rh-form-group { margin-bottom: 1rem; }
-.rh-form-group label {
-  display: block;
-  font-size: .8rem;
-  font-weight: 600;
-  color: var(--rh-text);
-  margin-bottom: .35rem;
-}
-.rh-form-group input,
-.rh-form-group select,
-.rh-form-group textarea {
-  width: 100%;
-  padding: .55rem .75rem;
-  border: 1px solid var(--rh-border);
-  border-radius: 8px;
-  font-size: .875rem;
-  font-family: inherit;
-  color: var(--rh-text);
-  background: #fff;
-  transition: border-color .2s, box-shadow .2s;
-}
-.rh-form-group input:focus,
-.rh-form-group select:focus,
-.rh-form-group textarea:focus {
-  outline: none;
-  border-color: var(--rh-blue);
-  box-shadow: 0 0 0 3px rgba(59,130,246,.1);
-}
-.rh-form-group textarea { resize: vertical; }
+      this.state.listeners.push(
+        COL.ocorrencias.onSnapshot(snap => {
+          this.state.ocorrencias = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.renderBadgesCards();
+        }, err => console.error('ocorrencias:', err))
+      );
+    },
+  };
 
-.rh-form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-@media (max-width: 520px) {
-  .rh-form-row { grid-template-columns: 1fr; }
-}
+  /* =======================================================================
+     ROUTER
+     ======================================================================= */
+  document.addEventListener('DOMContentLoaded', () => {
+    const pagina = document.body.dataset.page;
+    console.log(`📄 Página detectada: ${pagina || 'não definida'}`);
 
-/* --------------------------------------------------------------------------
-   RESPONSIVO
-   -------------------------------------------------------------------------- */
-@media (max-width: 768px) {
-  .rh-page { padding: 1rem; }
-  .rh-header { flex-direction: column; align-items: stretch; }
-  .rh-header-actions { width: 100%; }
-  .rh-header-actions .rh-btn { flex: 1; justify-content: center; }
-  .rh-func-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 480px) {
-  .rh-func-grid { grid-template-columns: 1fr; }
-}
+    const rotas = {
+      'rh-hub': ModuloHub,
+    };
+
+    const modulo = rotas[pagina];
+    if (modulo) modulo.init();
+    else console.warn('⚠️ Página sem módulo:', pagina);
+  });
+
+})();
