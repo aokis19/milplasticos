@@ -1,15 +1,79 @@
+/* ==========================================================================
+   RH.JS — Arquivo unificado
+   Módulos: Hub, Dashboard, Atestados, Faltas, Atrasos
+   ========================================================================== */
+
+(function () {
+  'use strict';
+
+  /* =======================================================================
+     BASE COMPARTILHADA
+     ======================================================================= */
+
+  const db = window.db || window.firebaseDB;
+  if (!db) {
+    console.error('❌ Firestore não disponível. Verifique firebase-init.js');
+    return;
+  }
+
+  const COL = {
+    setores:      db.collection('setores'),
+    funcionarios: db.collection('funcionarios'),
+    ocorrencias:  db.collection('ocorrencias'),
+  };
+
+  const $  = (s, ctx = document) => ctx.querySelector(s);
+  const $$ = (s, ctx = document) => [...ctx.querySelectorAll(s)];
+
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const DIAS  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  function toast(msg, tipo = 'success') {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = `
+      position:fixed; bottom:20px; right:20px; padding:.75rem 1.25rem;
+      background:${tipo === 'error' ? '#ef4444' : '#10b981'}; color:#fff;
+      border-radius:8px; font-weight:600; z-index:9999;
+      box-shadow:0 10px 25px rgba(0,0,0,.2); font-size:.875rem;
+      font-family:'Segoe UI',system-ui,sans-serif;
+      transition:opacity .3s, transform .3s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(10px)';
+      setTimeout(() => el.remove(), 300);
+    }, 3000);
+  }
+
+  function fmtDate(str) {
+    if (!str) return '—';
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function badgeTipo(tipo) {
+    const mapa = {
+      'Atestado':   ['badge-atestado',   'fa-file-medical'],
+      'Falta':      ['badge-falta',      'fa-user-xmark'],
+      'Declaração': ['badge-declaracao', 'fa-file-signature'],
+      'Licença':    ['badge-licenca',    'fa-notes-medical'],
+    };
+    const [cls, ico] = mapa[tipo] || ['badge-atestado', 'fa-circle'];
+    return `<span class="badge-tipo ${cls}"><i class="fas ${ico}"></i> ${tipo}</span>`;
+  }
+
+  function fecharModais() {
+    $$('.rh-modal').forEach(m => m.classList.remove('open'));
+  }
+
   /* =======================================================================
      MÓDULO: HUB (rh.html)
-     Cadastro de funcionários + setores + cards de navegação
      ======================================================================= */
 
   const ModuloHub = {
-    state: {
-      funcionarios: [],
-      setores: [],
-      ocorrencias: [],
-      listeners: [],
-    },
+    state: { funcionarios: [], setores: [], ocorrencias: [], listeners: [] },
 
     init() {
       console.log('🧩 Inicializando ModuloHub');
@@ -100,7 +164,6 @@
     renderSetores() {
       const tbody = $('#hubTabelaSetoresBody');
       const count = $('#countSetores');
-
       if (count) count.textContent = this.state.setores.length;
 
       if (tbody) {
@@ -137,7 +200,7 @@
         }
       }
 
-      // Popula select do modal de funcionário
+      // Popula select do modal
       const selectFunc = $('#funcSetor');
       if (selectFunc) {
         const atual = selectFunc.value;
@@ -208,7 +271,6 @@
     renderFuncionarios() {
       const grid = $('#hubGridFuncionarios');
       const count = $('#countFuncionarios');
-
       if (count) count.textContent = this.state.funcionarios.length;
       if (!grid) return;
 
@@ -254,17 +316,14 @@
       );
     },
 
-    /* ---------- Badges dos cards ---------- */
     renderBadgesCards() {
       const fmt = n => `${n} ${n === 1 ? 'registro' : 'registros'}`;
       const set = (id, v) => { const el = $('#' + id); if (el) el.textContent = v; };
-
       set('hubBadgeAtestados', fmt(this.state.ocorrencias.filter(o => o.tipo === 'Atestado').length));
       set('hubBadgeFaltas',    fmt(this.state.ocorrencias.filter(o => o.tipo === 'Falta').length));
       set('hubBadgeAtrasos',   fmt(this.state.ocorrencias.filter(o => o.tipo === 'Atraso').length));
     },
 
-    /* ---------- Listeners ---------- */
     iniciarListeners() {
       this.state.listeners.push(
         COL.setores.onSnapshot(snap => {
@@ -289,3 +348,38 @@
       );
     },
   };
+
+  /* =======================================================================
+     MÓDULO: DASHBOARD (rhdashboard.html)
+     ======================================================================= */
+  // (mantenha aqui o ModuloDashboard que você já tem — não mexi nele)
+
+  /* =======================================================================
+     MÓDULO GENÉRICO DE OCORRÊNCIAS (Atestados / Faltas / Atrasos)
+     ======================================================================= */
+  // (mantenha aqui o criarModuloOcorrencia + ModuloAtestados + ModuloFaltas + ModuloAtrasos)
+
+  /* =======================================================================
+     ROUTER — detecta a página e inicializa o módulo correto
+     ======================================================================= */
+  document.addEventListener('DOMContentLoaded', () => {
+    const pagina = document.body.dataset.page;
+    console.log(`📄 Página detectada: ${pagina || 'não definida'}`);
+
+    const rotas = {
+      'rh-hub':    ModuloHub,
+      // 'atestados': ModuloAtestados,
+      // 'faltas':    ModuloFaltas,
+      // 'atrasos':   ModuloAtrasos,
+      // 'dashboard': ModuloDashboard,
+    };
+
+    const modulo = rotas[pagina];
+    if (modulo) {
+      modulo.init();
+    } else {
+      console.warn('⚠️ Página sem módulo:', pagina);
+    }
+  });
+
+})();
