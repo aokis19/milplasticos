@@ -77,7 +77,7 @@
       margin: 0;
     }
     .cotacao-header h1 i { color: #3498db; margin-right: 10px; }
-    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
     /* BOTÕES */
     .btn { 
@@ -157,7 +157,7 @@
     .status-pendente { background: #fff3cd; color: #856404; }
     .status-finalizado { background: #cce5ff; color: #004085; }
 
-    /* MODAL - CORRIGIDO PARA NÃO FECHAR ACIDENTALMENTE */
+    /* MODAL */
     .modal { 
       display: none; 
       position: fixed; 
@@ -221,7 +221,6 @@
       transform: rotate(90deg);
     }
 
-    /* Impede que o modal feche ao interagir com campos */
     .modal-content input,
     .modal-content select,
     .modal-content textarea,
@@ -415,6 +414,72 @@
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+    /* ===== DASHBOARD ===== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      border-left: 4px solid #3498db;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+    .kpi-card.blue   { border-left-color: #3498db; }
+    .kpi-card.green  { border-left-color: #27ae60; }
+    .kpi-card.orange { border-left-color: #f39c12; }
+    .kpi-card.purple { border-left-color: #9b59b6; }
+    .kpi-card.red    { border-left-color: #e74c3c; }
+    .kpi-card.info   { border-left-color: #17a2b8; }
+    .kpi-card.success{ border-left-color: #27ae60; }
+    .kpi-card.warning{ border-left-color: #f39c12; }
+
+    .kpi-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .kpi-icon.blue   { background: #e3f2fd; color: #1976d2; }
+    .kpi-icon.green  { background: #e8f5e9; color: #2e7d32; }
+    .kpi-icon.orange { background: #fff3e0; color: #ef6c00; }
+    .kpi-icon.purple { background: #f3e5f5; color: #7b1fa2; }
+    .kpi-icon.red    { background: #ffebee; color: #c62828; }
+    .kpi-icon.info   { background: #e0f7fa; color: #00838f; }
+    .kpi-icon.success{ background: #e8f5e9; color: #2e7d32; }
+    .kpi-icon.warning{ background: #fff3e0; color: #ef6c00; }
+
+    .kpi-info { flex: 1; min-width: 0; }
+    .kpi-value { font-size: 20px; font-weight: 700; color: #2c3e50; line-height: 1.1; word-break: break-word; }
+    .kpi-label { font-size: 11px; color: #7f8c8d; margin-top: 4px; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 16px;
+    }
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      min-height: 340px;
+    }
+    .chart-card h3 {
+      font-size: 14px; color: #2c3e50; margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid #eee;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .chart-card h3 i { color: #3498db; }
+    .chart-card canvas { max-height: 260px; }
+
     @media (max-width: 768px) {
       .table-header, .table-row { 
         grid-template-columns: 0.4fr 1fr 1fr 0.5fr 0.5fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1fr; 
@@ -428,6 +493,9 @@
       .header-actions .btn { flex: 1; justify-content: center; font-size: 11px; padding: 6px 12px; }
       #sidebar-container { width: 60px; }
       .page-container { padding: 10px; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .kpi-value { font-size: 16px; }
     }
   </style>
 </head>
@@ -450,6 +518,7 @@
           <button class="tab-btn" data-tab="historico"><i class="fas fa-history"></i> Histórico</button>
           <button class="tab-btn" data-tab="produtos"><i class="fas fa-box"></i> Produtos</button>
           <button class="tab-btn" data-tab="fornecedores"><i class="fas fa-truck"></i> Fornecedores</button>
+          <button class="tab-btn" data-tab="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
         </div>
 
         <!-- ABA 1: Cotações Ativas -->
@@ -534,6 +603,53 @@
             <h3>Nenhum fornecedor cadastrado</h3>
           </div>
         </div>
+
+        <!-- ABA 5: Dashboard -->
+        <div class="tab-content" id="dashboardTab">
+          <div class="cotacao-header">
+            <h1><i class="fas fa-chart-line"></i> Dashboard de Compras</h1>
+            <div class="header-actions">
+              <select id="dashPeriodo" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:white;">
+                <option value="30">Últimos 30 dias</option>
+                <option value="90" selected>Últimos 90 dias</option>
+                <option value="180">Últimos 6 meses</option>
+                <option value="365">Último ano</option>
+                <option value="all">Todo o período</option>
+              </select>
+              <button class="btn btn-primary" id="dashAtualizarBtn"><i class="fas fa-sync"></i> Atualizar</button>
+              <button class="btn btn-success" id="dashPdfBtn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" id="kpiGrid"></div>
+
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3><i class="fas fa-chart-line"></i> Evolução Mensal de Compras</h3>
+              <canvas id="chartEvolucao"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3><i class="fas fa-chart-pie"></i> Top 5 Fornecedores</h3>
+              <canvas id="chartFornecedores"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3><i class="fas fa-boxes"></i> Top 10 Insumos Comprados</h3>
+              <canvas id="chartProdutos"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3><i class="fas fa-clock"></i> Tempo Médio de Compra (dias)</h3>
+              <canvas id="chartTempo"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3><i class="fas fa-bullseye"></i> Meta vs. Realizado</h3>
+              <canvas id="chartMeta"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3><i class="fas fa-percentage"></i> Curva ABC de Insumos</h3>
+              <canvas id="chartABC"></canvas>
+            </div>
+          </div>
+        </div>
         
       </div>
     </main>
@@ -543,7 +659,7 @@
   <!-- MODAIS -->
   <!-- ============================================ -->
 
-  <!-- Modal: Nova Cotação (CORRIGIDO) -->
+  <!-- Modal: Nova Cotação -->
   <div id="modalCotacao" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -553,13 +669,11 @@
       <div class="modal-body">
         <form id="formCotacao">
           <div class="form-grid">
-            <!-- PRODUTO - Campo de texto livre -->
             <div class="form-group">
               <label>Produto *</label>
               <input type="text" id="cotacaoProduto" placeholder="Digite o nome do produto" required>
             </div>
             
-            <!-- FORNECEDOR - Campo de texto livre -->
             <div class="form-group">
               <label>Fornecedor *</label>
               <input type="text" id="cotacaoFornecedor" placeholder="Digite o nome do fornecedor" required>
@@ -593,7 +707,6 @@
               <input type="date" id="cotacaoDataEntrega">
             </div>
             
-            <!-- Impostos -->
             <div class="form-group">
               <label>Alíquota ICMS (%)</label>
               <input type="number" id="cotacaoAliquotaICMS" placeholder="18" step="0.01" value="18">
