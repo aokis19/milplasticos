@@ -1,4 +1,4 @@
-// cotacao.js - Sistema de Cotações (VERSÃO FIREBASE)
+// cotacao.js - Sistema de Cotações (VERSÃO FIREBASE + DASHBOARD)
 // Mil Plásticos
 
 // ================== FIRESTORE ==================
@@ -22,7 +22,7 @@ let fornecedores = [];
 let editingId = null;
 let editingFornecedorId = null;
 let editingProdutoId = null;
-let listenersAtivos = []; // armazena os unsubscribe dos onSnapshot
+let listenersAtivos = [];
 
 // ================== UTILITÁRIOS ==================
 function formatarMoeda(valor) {
@@ -59,8 +59,6 @@ function toast(msg, tipo = 'success') {
 }
 
 // ================== MIGRAÇÃO localStorage → Firestore ==================
-// Executa uma única vez: se houver dados antigos no localStorage,
-// envia para o Firestore e limpa o localStorage.
 async function migrarLocalStorageParaFirestore() {
   if (!COL) return;
 
@@ -75,35 +73,30 @@ async function migrarLocalStorageParaFirestore() {
   console.log('🔄 Migrando dados antigos do localStorage para o Firestore...');
 
   try {
-    // Produtos
     const produtosAntigos = JSON.parse(localStorage.getItem('produtos_cotacao') || '[]');
     for (const p of produtosAntigos) {
-      const { id, ...dados } = p; // descarta id antigo; Firestore gera o novo
+      const { id, ...dados } = p;
       await COL.produtos.add(dados);
     }
 
-    // Fornecedores
     const fornecedoresAntigos = JSON.parse(localStorage.getItem('fornecedores') || '[]');
     for (const f of fornecedoresAntigos) {
       const { id, ...dados } = f;
       await COL.fornecedores.add(dados);
     }
 
-    // Cotações ativas
     const cotacoesAntigas = JSON.parse(localStorage.getItem('cotacoes') || '[]');
     for (const c of cotacoesAntigas) {
       const { id, ...dados } = c;
       await COL.cotacoes.add(dados);
     }
 
-    // Histórico
     const historicoAntigo = JSON.parse(localStorage.getItem('historico_cotacao') || '[]');
     for (const h of historicoAntigo) {
       const { id, ...dados } = h;
       await COL.historico.add(dados);
     }
 
-    // Limpa o localStorage
     chaves.forEach(k => localStorage.removeItem(k));
     console.log('✅ Migração concluída. localStorage limpo.');
     toast('Dados migrados para o Firestore com sucesso!');
@@ -520,14 +513,12 @@ async function finalizarCotacoesSelecionadas() {
     try {
       for (const item of itensParaFinalizar) {
         const { id, ...dados } = item;
-        // Adiciona ao histórico
         await COL.historico.add({
           ...dados,
           status: 'finalizado',
           dataFinalizacao: new Date().toISOString(),
           finalizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
         });
-        // Remove da coleção de cotações ativas
         await COL.cotacoes.doc(id).delete();
       }
       document.getElementById('modalComparativo').style.display = 'none';
@@ -797,6 +788,10 @@ function iniciarListeners() {
       historico = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.dataFinalizacao || '').localeCompare(a.dataFinalizacao || ''));
       renderHistorico();
+      // Atualiza dashboard em tempo real se estiver ativo
+      if (document.getElementById('dashboardTab')?.classList.contains('active')) {
+        if (typeof initDashboard === 'function') initDashboard();
+      }
     }, err => console.error('❌ historico:', err))
   );
 
@@ -823,17 +818,17 @@ function iniciarListeners() {
 
 // ================== INICIALIZAÇÃO ==================
 async function init() {
-  console.log('🚀 Inicializando sistema de cotações (Firebase)...');
+  console.log('🚀 Inicializando sistema de cotações (Firebase + Dashboard)...');
 
   if (!COL) {
     console.error('❌ Firestore não disponível. Abortando init.');
     return;
   }
 
-  // Migração única (se houver dados antigos no localStorage)
+  // Migração única
   await migrarLocalStorageParaFirestore();
 
-  // Listeners em tempo real — os dados chegam automaticamente
+  // Listeners em tempo real
   iniciarListeners();
 
   // Tabs
@@ -845,6 +840,13 @@ async function init() {
       const tabId = btn.dataset.tab + 'Tab';
       const tab = document.getElementById(tabId);
       if (tab) tab.classList.add('active');
+
+      // Inicializa dashboard ao abrir a aba
+      if (btn.dataset.tab === 'dashboard') {
+        setTimeout(() => {
+          if (typeof initDashboard === 'function') initDashboard();
+        }, 50);
+      }
     });
   });
 
@@ -980,7 +982,357 @@ async function init() {
     }
   });
 
-  console.log('✅ Sistema de cotações pronto (Firestore)!');
+  console.log('✅ Sistema de cotações pronto (Firestore + Dashboard)!');
+}
+
+// =====================================================
+// ============== DASHBOARD DE COMPRAS =================
+// =====================================================
+let chartInstances = {};
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+  chartInstances = {};
+}
+
+function getPeriodoDias() {
+  const v = document.getElementById('dashPeriodo')?.value || '90';
+  return v === 'all' ? 99999 : parseInt(v);
+}
+
+function filtrarPorPeriodo(lista, campoData = 'dataFinalizacao') {
+  const dias = getPeriodoDias();
+  if (dias >= 99999) return lista;
+  const limite = new Date();
+  limite.setDate(limite.getDate() - dias);
+  return lista.filter(i => {
+    const d = new Date(i[campoData] || i.dataCotacao || i.dataCadastro);
+    return d >= limite;
+  });
+}
+
+// ---------- CÁLCULOS ----------
+function calcularKPIs() {
+  const hist = filtrarPorPeriodo([...historico]);
+  const cots = filtrarPorPeriodo([...cotacoes], 'dataCadastro');
+
+  const totalCotacoes = cots.length + hist.length;
+  const pedidosGerados = hist.length;
+  const valorTotal = hist.reduce((s, i) => {
+    const sub = (i.quantidade || 0) * (i.valorUnitario || 0);
+    return s + sub + (i.valorFrete || 0) + (i.valorIPI || 0) + (i.valorICMS || 0);
+  }, 0);
+
+  const ticketMedio = pedidosGerados > 0 ? valorTotal / pedidosGerados : 0;
+  const taxaConversao = totalCotacoes > 0 ? (pedidosGerados / totalCotacoes) * 100 : 0;
+
+  // Tempo médio de compra (dias)
+  let somaDias = 0, countDias = 0;
+  hist.forEach(i => {
+    if (i.dataCotacao && i.dataFinalizacao) {
+      const d1 = new Date(i.dataCotacao);
+      const d2 = new Date(i.dataFinalizacao);
+      const dias = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+      somaDias += dias; countDias++;
+    }
+  });
+  const tempoMedio = countDias > 0 ? (somaDias / countDias).toFixed(1) : 0;
+
+  // Economia estimada
+  const porProduto = {};
+  hist.forEach(i => {
+    const k = (i.produto || '').toLowerCase();
+    if (!porProduto[k]) porProduto[k] = [];
+    const sub = (i.quantidade || 0) * (i.valorUnitario || 0);
+    porProduto[k].push(sub + (i.valorFrete || 0) + (i.valorIPI || 0) + (i.valorICMS || 0));
+  });
+  let economia = 0;
+  Object.values(porProduto).forEach(vals => {
+    if (vals.length > 1) {
+      const melhor = Math.min(...vals);
+      const media = vals.reduce((a,b)=>a+b,0) / vals.length;
+      economia += (media - melhor);
+    }
+  });
+
+  return { totalCotacoes, pedidosGerados, valorTotal, ticketMedio, taxaConversao, tempoMedio, economia };
+}
+
+// ---------- RENDER KPI CARDS ----------
+function renderKPIs() {
+  const k = calcularKPIs();
+  const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
+
+  const cards = [
+    { label:'Total de Cotações',    value: k.totalCotacoes,               icon:'fa-file-invoice',  cor:'blue' },
+    { label:'Pedidos Gerados',      value: k.pedidosGerados,              icon:'fa-shopping-cart', cor:'green' },
+    { label:'Valor Total Comprado', value: fmt(k.valorTotal),             icon:'fa-dollar-sign',   cor:'orange' },
+    { label:'Ticket Médio',         value: fmt(k.ticketMedio),            icon:'fa-receipt',       cor:'purple' },
+    { label:'Taxa de Conversão',    value: k.taxaConversao.toFixed(1)+'%',icon:'fa-percentage',    cor:'green' },
+    { label:'Tempo Médio de Compra',value: k.tempoMedio + ' dias',        icon:'fa-clock',         cor:'warning' },
+    { label:'Economia Estimada',    value: fmt(k.economia),               icon:'fa-piggy-bank',    cor:'success' },
+    { label:'Fornecedores Ativos',  value: new Set(historico.map(h=>h.fornecedor)).size, icon:'fa-truck', cor:'info' },
+  ];
+
+  const grid = document.getElementById('kpiGrid');
+  if (!grid) return;
+
+  grid.innerHTML = cards.map(c => `
+    <div class="kpi-card ${c.cor}">
+      <div class="kpi-icon ${c.cor}"><i class="fas ${c.icon}"></i></div>
+      <div class="kpi-info">
+        <div class="kpi-value">${c.value}</div>
+        <div class="kpi-label">${c.label}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---------- GRÁFICOS ----------
+function renderGraficos() {
+  destroyCharts();
+  const hist = filtrarPorPeriodo([...historico]);
+  const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
+
+  // 1) Evolução mensal
+  const porMes = {};
+  hist.forEach(i => {
+    const d = new Date(i.dataFinalizacao || i.dataCotacao);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const sub = (i.quantidade||0)*(i.valorUnitario||0) + (i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
+    porMes[key] = (porMes[key]||0) + sub;
+  });
+  const meses = Object.keys(porMes).sort();
+
+  const elEvolucao = document.getElementById('chartEvolucao');
+  if (elEvolucao) {
+    chartInstances.evolucao = new Chart(elEvolucao, {
+      type:'line',
+      data:{
+        labels: meses.map(m => { const [a,b]=m.split('-'); return `${b}/${a}`; }),
+        datasets:[{
+          label:'Valor Comprado (R$)',
+          data: meses.map(m => porMes[m]),
+          borderColor:'#3498db', backgroundColor:'rgba(52,152,219,0.15)',
+          fill:true, tension:0.35, pointRadius:4, pointBackgroundColor:'#3498db'
+        }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} } }
+    });
+  }
+
+  // 2) Top fornecedores
+  const porForn = {};
+  hist.forEach(i => {
+    const sub = (i.quantidade||0)*(i.valorUnitario||0)+(i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
+    porForn[i.fornecedor||'N/A'] = (porForn[i.fornecedor||'N/A']||0)+sub;
+  });
+  const topForn = Object.entries(porForn).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const elForn = document.getElementById('chartFornecedores');
+  if (elForn) {
+    chartInstances.fornecedores = new Chart(elForn, {
+      type:'doughnut',
+      data:{
+        labels: topForn.map(f=>f[0]),
+        datasets:[{ data: topForn.map(f=>f[1]),
+          backgroundColor:['#3498db','#27ae60','#f39c12','#9b59b6','#e74c3c'] }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ position:'right', labels:{ font:{size:11} } } } }
+    });
+  }
+
+  // 3) Top produtos
+  const porProd = {};
+  hist.forEach(i => {
+    const sub = (i.quantidade||0)*(i.valorUnitario||0)+(i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
+    porProd[i.produto||'N/A'] = (porProd[i.produto||'N/A']||0)+sub;
+  });
+  const topProd = Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  const elProd = document.getElementById('chartProdutos');
+  if (elProd) {
+    chartInstances.produtos = new Chart(elProd, {
+      type:'bar',
+      data:{
+        labels: topProd.map(p=>p[0].length>25?p[0].slice(0,25)+'…':p[0]),
+        datasets:[{ label:'Valor (R$)', data: topProd.map(p=>p[1]),
+          backgroundColor:'#27ae60', borderRadius:6 }]
+      },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} } }
+    });
+  }
+
+  // 4) Tempo médio por fornecedor
+  const tempoPorForn = {};
+  hist.forEach(i => {
+    if (i.dataCotacao && i.dataFinalizacao) {
+      const dias = Math.max(0, Math.round((new Date(i.dataFinalizacao)-new Date(i.dataCotacao))/(86400000)));
+      const f = i.fornecedor||'N/A';
+      if (!tempoPorForn[f]) tempoPorForn[f] = {soma:0, n:0};
+      tempoPorForn[f].soma += dias; tempoPorForn[f].n++;
+    }
+  });
+  const tempoArr = Object.entries(tempoPorForn).map(([f,v])=>[f, (v.soma/v.n).toFixed(1)]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const elTempo = document.getElementById('chartTempo');
+  if (elTempo) {
+    chartInstances.tempo = new Chart(elTempo, {
+      type:'bar',
+      data:{ labels: tempoArr.map(t=>t[0]),
+        datasets:[{ label:'Dias', data: tempoArr.map(t=>t[1]),
+          backgroundColor:'#f39c12', borderRadius:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+    });
+  }
+
+  // 5) Meta vs Realizado (meta = 10% de redução sobre mês anterior)
+  const elMeta = document.getElementById('chartMeta');
+  if (elMeta && meses.length > 0) {
+    const ultimo = porMes[meses[meses.length-1]];
+    const meta = ultimo * 0.90;
+    chartInstances.meta = new Chart(elMeta, {
+      type:'bar',
+      data:{
+        labels:['Mês Atual','Meta Próximo Mês'],
+        datasets:[{ data:[ultimo, meta],
+          backgroundColor:['#3498db','#27ae60'], borderRadius:8 }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ label: c => fmt(c.raw) } } } }
+    });
+  }
+
+  // 6) Curva ABC (Pareto)
+  const valores = Object.values(porProd).sort((a,b)=>b-a);
+  const totalGeral = valores.reduce((a,b)=>a+b,0);
+  let acumulado = 0;
+  const abc = valores.slice(0,10).map(v => { acumulado += v; return (acumulado/totalGeral*100).toFixed(1); });
+
+  const elABC = document.getElementById('chartABC');
+  if (elABC) {
+    chartInstances.abc = new Chart(elABC, {
+      type:'line',
+      data:{
+        labels: abc.map((_,i)=>`#${i+1}`),
+        datasets:[{
+          label:'% Acumulado',
+          data: abc,
+          borderColor:'#9b59b6', backgroundColor:'rgba(155,89,182,0.15)',
+          fill:true, tension:0.3, pointRadius:5
+        }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false,
+        scales:{ y:{ beginAtZero:true, max:100, ticks:{ callback:v=>v+'%' } } },
+        plugins:{ legend:{display:false} } }
+    });
+  }
+}
+
+// ---------- PDF RESUMO EXECUTIVO ----------
+function gerarPDFDashboard() {
+  const loading = document.getElementById('pdfLoading');
+  if (loading) loading.style.display = 'flex';
+
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait','mm','a4');
+      const W = 210, M = 15;
+      const k = calcularKPIs();
+      const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+
+      // Cabeçalho
+      doc.setFillColor(52,152,219);
+      doc.rect(0,0,W,28,'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(18); doc.setFont('helvetica','bold');
+      doc.text('Relatorio Executivo de Compras', W/2, 14, {align:'center'});
+      doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.text('Mil Plasticos - Central de Cotacoes', W/2, 21, {align:'center'});
+
+      doc.setTextColor(80,80,80);
+      doc.setFontSize(9);
+      doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, M, 36);
+
+      // KPIs em tabela
+      const linhas = [
+        ['Total de Cotacoes', String(k.totalCotacoes)],
+        ['Pedidos Gerados', String(k.pedidosGerados)],
+        ['Valor Total Comprado', fmt(k.valorTotal)],
+        ['Ticket Medio', fmt(k.ticketMedio)],
+        ['Taxa de Conversao', k.taxaConversao.toFixed(1)+'%'],
+        ['Tempo Medio de Compra', k.tempoMedio+' dias'],
+        ['Economia Estimada', fmt(k.economia)],
+      ];
+
+      doc.autoTable({
+        startY: 42,
+        head: [['Indicador','Valor']],
+        body: linhas,
+        theme:'striped',
+        headStyles:{ fillColor:[44,62,80], textColor:255, fontStyle:'bold' },
+        styles:{ fontSize:10, cellPadding:3 },
+        columnStyles:{ 0:{fontStyle:'bold', cellWidth:100}, 1:{halign:'right'} }
+      });
+
+      // Meta
+      const yMeta = doc.lastAutoTable.finalY + 12;
+      doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(44,62,80);
+      doc.text('Meta para o Proximo Mes', M, yMeta);
+
+      const meta = k.valorTotal * 0.90;
+      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+      doc.text(`- Reduzir custo em 10% -> Meta: ${fmt(meta)}`, M+3, yMeta+7);
+      doc.text(`- Economia potencial: ${fmt(k.valorTotal - meta)}`, M+3, yMeta+13);
+      doc.text(`- Foco: negociacao com Top 5 fornecedores`, M+3, yMeta+19);
+
+      // Rodapé
+      doc.setDrawColor(200); doc.line(M, 280, W-M, 280);
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text('Mil Plasticos - Sistema de Cotacoes', M, 286);
+      doc.text(`Pagina ${doc.internal.getCurrentPageInfo().pageNumber}`, W-M, 286, {align:'right'});
+
+      doc.save('relatorio_compras.pdf');
+    } catch(e) {
+      console.error(e);
+      alert('Erro ao gerar PDF');
+    }
+    if (loading) loading.style.display = 'none';
+  }, 400);
+}
+
+// ---------- INIT DASHBOARD ----------
+function initDashboard() {
+  renderKPIs();
+  renderGraficos();
+
+  // Remove listeners antigos (evita duplicar)
+  const periodoEl = document.getElementById('dashPeriodo');
+  const atualizarEl = document.getElementById('dashAtualizarBtn');
+  const pdfEl = document.getElementById('dashPdfBtn');
+
+  // Clona os elementos para limpar listeners anteriores
+  if (periodoEl && !periodoEl.dataset.bound) {
+    periodoEl.addEventListener('change', () => {
+      renderKPIs(); renderGraficos();
+    });
+    periodoEl.dataset.bound = '1';
+  }
+  if (atualizarEl && !atualizarEl.dataset.bound) {
+    atualizarEl.addEventListener('click', () => {
+      renderKPIs(); renderGraficos();
+      toast('Dashboard atualizado!');
+    });
+    atualizarEl.dataset.bound = '1';
+  }
+  if (pdfEl && !pdfEl.dataset.bound) {
+    pdfEl.addEventListener('click', gerarPDFDashboard);
+    pdfEl.dataset.bound = '1';
+  }
 }
 
 // Inicializar quando o DOM estiver carregado
