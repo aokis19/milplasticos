@@ -616,6 +616,7 @@
                 <option value="365">Último ano</option>
                 <option value="all">Todo o período</option>
               </select>
+              <button class="btn btn-warning" id="dashManualBtn"><i class="fas fa-pen-to-square"></i> Dados Manuais</button>
               <button class="btn btn-primary" id="dashAtualizarBtn"><i class="fas fa-sync"></i> Atualizar</button>
               <button class="btn btn-success" id="dashPdfBtn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
             </div>
@@ -852,6 +853,81 @@
         <button class="close-modal" onclick="document.getElementById('modalComparativo').style.display='none'">&times;</button>
       </div>
       <div class="modal-body" id="comparativoBody"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Dados Manuais -->
+  <div id="modalManual" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+      <div class="modal-header">
+        <h2><i class="fas fa-pen-to-square"></i> Dados Históricos Manuais</h2>
+        <button class="close-modal" onclick="fecharModalManual()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:#666;margin-bottom:12px;background:#fff3cd;padding:10px;border-radius:6px;border-left:3px solid #f39c12;">
+          <strong>ℹ️ Como funciona:</strong> Os dados abaixo são <strong>somados</strong> com os dados reais das cotações finalizadas no Dashboard. Use para inserir histórico retroativo (meses anteriores).
+        </p>
+
+        <form id="formManual">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Mês de Referência *</label>
+              <input type="month" id="manualMes" required>
+            </div>
+            <div class="form-group">
+              <label>Fornecedor *</label>
+              <input type="text" id="manualFornecedor" placeholder="Ex: Fornecedor ABC" required>
+            </div>
+            <div class="form-group">
+              <label>Produto / Insumo *</label>
+              <input type="text" id="manualProduto" placeholder="Ex: Resina PP" required>
+            </div>
+            <div class="form-group">
+              <label>Quantidade *</label>
+              <input type="number" id="manualQuantidade" placeholder="0" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label>Valor Unitário (R$) *</label>
+              <input type="number" id="manualValorUnitario" placeholder="0,00" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label>Frete (R$)</label>
+              <input type="number" id="manualFrete" placeholder="0,00" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+              <label>ICMS (%)</label>
+              <input type="number" id="manualICMS" placeholder="18" step="0.01" value="18">
+            </div>
+            <div class="form-group">
+              <label>IPI (%)</label>
+              <input type="number" id="manualIPI" placeholder="5" step="0.01" value="5">
+            </div>
+            <div class="form-group">
+              <label>Dias entre Pedido e Compra</label>
+              <input type="number" id="manualDias" placeholder="Ex: 15" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="manualStatus">
+                <option value="executado">✅ Compra Executada</option>
+                <option value="gerado">📋 Pedido Gerado (não executado)</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer" style="margin-top:15px;padding:10px 0 0 0;background:transparent;border:none;">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalManual()">Cancelar</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar Registro</button>
+          </div>
+        </form>
+
+        <hr style="margin:25px 0 15px 0;border:none;border-top:1px solid #eee;">
+
+        <h3 style="font-size:14px;color:#2c3e50;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span><i class="fas fa-list"></i> Registros Manuais Cadastrados (<span id="manualCount">0</span>)</span>
+          <button type="button" class="btn btn-danger btn-small" id="limparManualBtn"><i class="fas fa-trash-alt"></i> Limpar Todos</button>
+        </h3>
+        <div id="manualLista" style="max-height:250px;overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 
