@@ -1,5 +1,18 @@
-// cotacao.js - Sistema de Cotações (VERSÃO COMPLETAMENTE REFEITA)
+// cotacao.js - Sistema de Cotações (VERSÃO FIREBASE)
 // Mil Plásticos
+
+// ================== FIRESTORE ==================
+const db = window.db || window.firebaseDB;
+if (!db) {
+  console.error('❌ Firestore não disponível em cotacao.js. Verifique firebase-init.js');
+}
+
+const COL = db ? {
+  produtos:     db.collection('cot_produtos'),
+  cotacoes:     db.collection('cot_cotacoes'),
+  historico:    db.collection('cot_historico'),
+  fornecedores: db.collection('cot_fornecedores'),
+} : null;
 
 // ================== DADOS GLOBAIS ==================
 let produtos = [];
@@ -9,6 +22,7 @@ let fornecedores = [];
 let editingId = null;
 let editingFornecedorId = null;
 let editingProdutoId = null;
+let listenersAtivos = []; // armazena os unsubscribe dos onSnapshot
 
 // ================== UTILITÁRIOS ==================
 function formatarMoeda(valor) {
@@ -25,121 +39,78 @@ function formatarDataHora(dataStr) {
   try { const d = new Date(dataStr); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR'); } catch { return dataStr; }
 }
 
-function gerarId() {
-  return 'cot_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 4);
+function toast(msg, tipo = 'success') {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `
+    position:fixed; bottom:20px; right:20px; padding:.75rem 1.25rem;
+    background:${tipo === 'error' ? '#ef4444' : '#10b981'}; color:#fff;
+    border-radius:8px; font-weight:600; z-index:99999;
+    box-shadow:0 10px 25px rgba(0,0,0,.2); font-size:.875rem;
+    font-family:'Segoe UI',system-ui,sans-serif;
+    transition:opacity .3s, transform .3s;
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(10px)';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
 }
 
-function salvarDados() {
-  localStorage.setItem('produtos_cotacao', JSON.stringify(produtos));
-  localStorage.setItem('cotacoes', JSON.stringify(cotacoes));
-  localStorage.setItem('historico_cotacao', JSON.stringify(historico));
-  localStorage.setItem('fornecedores', JSON.stringify(fornecedores));
-}
+// ================== MIGRAÇÃO localStorage → Firestore ==================
+// Executa uma única vez: se houver dados antigos no localStorage,
+// envia para o Firestore e limpa o localStorage.
+async function migrarLocalStorageParaFirestore() {
+  if (!COL) return;
 
-function carregarDados() {
+  const chaves = ['produtos_cotacao', 'cotacoes', 'historico_cotacao', 'fornecedores'];
+  const temDadosAntigos = chaves.some(k => {
+    try { return JSON.parse(localStorage.getItem(k) || 'null')?.length > 0; }
+    catch { return false; }
+  });
+
+  if (!temDadosAntigos) return;
+
+  console.log('🔄 Migrando dados antigos do localStorage para o Firestore...');
+
   try {
-    produtos = JSON.parse(localStorage.getItem('produtos_cotacao')) || [];
-    cotacoes = JSON.parse(localStorage.getItem('cotacoes')) || [];
-    historico = JSON.parse(localStorage.getItem('historico_cotacao')) || [];
-    fornecedores = JSON.parse(localStorage.getItem('fornecedores')) || [];
-  } catch (e) {
-    console.error('Erro ao carregar dados:', e);
-    produtos = [];
-    cotacoes = [];
-    historico = [];
-    fornecedores = [];
+    // Produtos
+    const produtosAntigos = JSON.parse(localStorage.getItem('produtos_cotacao') || '[]');
+    for (const p of produtosAntigos) {
+      const { id, ...dados } = p; // descarta id antigo; Firestore gera o novo
+      await COL.produtos.add(dados);
+    }
+
+    // Fornecedores
+    const fornecedoresAntigos = JSON.parse(localStorage.getItem('fornecedores') || '[]');
+    for (const f of fornecedoresAntigos) {
+      const { id, ...dados } = f;
+      await COL.fornecedores.add(dados);
+    }
+
+    // Cotações ativas
+    const cotacoesAntigas = JSON.parse(localStorage.getItem('cotacoes') || '[]');
+    for (const c of cotacoesAntigas) {
+      const { id, ...dados } = c;
+      await COL.cotacoes.add(dados);
+    }
+
+    // Histórico
+    const historicoAntigo = JSON.parse(localStorage.getItem('historico_cotacao') || '[]');
+    for (const h of historicoAntigo) {
+      const { id, ...dados } = h;
+      await COL.historico.add(dados);
+    }
+
+    // Limpa o localStorage
+    chaves.forEach(k => localStorage.removeItem(k));
+    console.log('✅ Migração concluída. localStorage limpo.');
+    toast('Dados migrados para o Firestore com sucesso!');
+  } catch (err) {
+    console.error('❌ Erro na migração:', err);
+    toast('Erro ao migrar dados antigos. Os dados foram mantidos no localStorage.', 'error');
   }
-  
-  // Garantir que os IDs sejam strings
-  cotacoes = cotacoes.filter(c => c.id).map(c => ({ ...c, id: String(c.id) }));
-  historico = historico.filter(h => h.id).map(h => ({ ...h, id: String(h.id) }));
-  produtos = produtos.filter(p => p.id).map(p => ({ ...p, id: String(p.id) }));
-  fornecedores = fornecedores.filter(f => f.id).map(f => ({ ...f, id: String(f.id) }));
-  
-  // Dados iniciais se estiver vazio
-  if (produtos.length === 0) {
-    produtos = [
-      { id: 'prod_1', nome: "GotaLube SP", codigo: "GL-001", categoria: "Lubrificantes", unidadePadrao: "kg", ncm: "2710.19.90" },
-      { id: 'prod_2', nome: "Sacaria Plástica", codigo: "SP-100", categoria: "Embalagens", unidadePadrao: "un", ncm: "3923.21.90" },
-      { id: 'prod_3', nome: "Polietileno PEAD", codigo: "PE-001", categoria: "Matéria Prima", unidadePadrao: "kg", ncm: "3901.20.90" }
-    ];
-  }
-  if (fornecedores.length === 0) {
-    fornecedores = [
-      { id: 'forn_1', nomeEmpresa: "LMJ Plásticos", cnpj: "12.345.678/0001-99", ie: "123.456.789", telefone: "(11) 99999-9999", email: "contato@lmjplasticos.com.br", uf: "SP" },
-      { id: 'forn_2', nomeEmpresa: "PlastTotal", cnpj: "98.765.432/0001-11", ie: "987.654.321", telefone: "(11) 88888-8888", email: "vendas@plasttotal.com", uf: "SP" },
-      { id: 'forn_3', nomeEmpresa: "PolyPlast", cnpj: "11.222.333/0001-44", ie: "111.222.333", telefone: "(11) 77777-7777", email: "vendas@polyplast.com", uf: "SP" }
-    ];
-  }
-  
-  // Cotações de exemplo se estiver vazio
-  if (cotacoes.length === 0 && historico.length === 0) {
-    const hoje = new Date().toISOString().split('T')[0];
-    cotacoes = [
-      {
-        id: 'cot_1',
-        produto: "GotaLube SP",
-        fornecedor: "LMJ Plásticos",
-        uf: "SP",
-        quantidade: 10,
-        valorUnitario: 15.50,
-        dataCotacao: hoje,
-        dataEntrega: '2026-09-15',
-        observacoes: "",
-        aliquotaICMS: 18,
-        valorICMS: 27.90,
-        aliquotaIPI: 5,
-        valorIPI: 7.75,
-        valorFrete: 15.00,
-        prazoPagamento: "30 dias",
-        condicaoPagamento: "Boleto",
-        status: "ativo",
-        dataCadastro: new Date().toISOString()
-      },
-      {
-        id: 'cot_2',
-        produto: "GotaLube SP",
-        fornecedor: "PlastTotal",
-        uf: "SP",
-        quantidade: 10,
-        valorUnitario: 14.80,
-        dataCotacao: hoje,
-        dataEntrega: '2026-09-20',
-        observacoes: "",
-        aliquotaICMS: 18,
-        valorICMS: 26.64,
-        aliquotaIPI: 5,
-        valorIPI: 7.40,
-        valorFrete: 20.00,
-        prazoPagamento: "15 dias",
-        condicaoPagamento: "Cartão",
-        status: "ativo",
-        dataCadastro: new Date().toISOString()
-      },
-      {
-        id: 'cot_3',
-        produto: "Sacaria Plástica",
-        fornecedor: "PolyPlast",
-        uf: "SP",
-        quantidade: 100,
-        valorUnitario: 2.50,
-        dataCotacao: hoje,
-        dataEntrega: '2026-09-10',
-        observacoes: "",
-        aliquotaICMS: 18,
-        valorICMS: 45.00,
-        aliquotaIPI: 5,
-        valorIPI: 12.50,
-        valorFrete: 30.00,
-        prazoPagamento: "45 dias",
-        condicaoPagamento: "Boleto",
-        status: "ativo",
-        dataCadastro: new Date().toISOString()
-      }
-    ];
-  }
-  
-  salvarDados();
 }
 
 // ================== RENDERIZAÇÃO ==================
@@ -147,22 +118,22 @@ function renderCotacoes() {
   const container = document.getElementById('cotacoesContainer');
   const empty = document.getElementById('emptyState');
   if (!container) return;
-  
+
   const ativas = cotacoes.filter(c => c.status !== "finalizado");
-  
+
   console.log('📊 Renderizando cotações ativas:', ativas.length);
-  
+
   if (ativas.length === 0) {
     container.innerHTML = '';
     if (empty) empty.style.display = 'block';
     return;
   }
   if (empty) empty.style.display = 'none';
-  
+
   container.innerHTML = ativas.map(cot => {
     const total = (cot.quantidade || 0) * (cot.valorUnitario || 0);
     const totalComImpostos = total + (cot.valorFrete || 0) + (cot.valorIPI || 0) + (cot.valorICMS || 0);
-    
+
     return `<div class="table-row" data-id="${cot.id}">
       <div class="checkbox-column"><input type="checkbox" class="select-cotacao" value="${cot.id}"></div>
       <div><strong>${cot.produto || '-'}</strong></div>
@@ -188,30 +159,30 @@ function renderCotacoes() {
 function renderHistorico() {
   const container = document.getElementById('historicoContainer');
   if (!container) return;
-  
+
   const filtroProd = document.getElementById('filtroProduto')?.value?.toLowerCase() || '';
   const filtroForn = document.getElementById('filtroFornecedor')?.value?.toLowerCase() || '';
   const periodo = document.getElementById('filtroPeriodo')?.value || 'todos';
-  
+
   let lista = [...historico];
   if (filtroProd) lista = lista.filter(i => (i.produto || '').toLowerCase().includes(filtroProd));
   if (filtroForn) lista = lista.filter(i => (i.fornecedor || '').toLowerCase().includes(filtroForn));
-  
+
   if (periodo !== 'todos') {
     const dataLimite = new Date();
     dataLimite.setDate(dataLimite.getDate() - parseInt(periodo));
     lista = lista.filter(i => new Date(i.dataFinalizacao || i.dataCotacao) >= dataLimite);
   }
-  
+
   if (lista.length === 0) {
     container.innerHTML = '<div class="empty-state" style="display:block;"><i class="fas fa-history"></i><h3>Nenhum histórico encontrado</h3></div>';
     return;
   }
-  
+
   container.innerHTML = lista.map(item => {
     const total = (item.quantidade || 0) * (item.valorUnitario || 0);
     const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
-    
+
     return `<div class="historico-item">
       <div class="historico-item-header">
         <div class="historico-produto"><i class="fas fa-box"></i> ${item.produto || '-'}</div>
@@ -235,14 +206,14 @@ function renderProdutos() {
   const container = document.getElementById('produtosContainer');
   const empty = document.getElementById('emptyProdutos');
   if (!container) return;
-  
+
   if (produtos.length === 0) {
     container.innerHTML = '';
     if (empty) empty.style.display = 'block';
     return;
   }
   if (empty) empty.style.display = 'none';
-  
+
   container.innerHTML = produtos.map(p => `
     <div class="produto-card">
       <h3>${p.nome}</h3>
@@ -262,14 +233,14 @@ function renderFornecedores() {
   const container = document.getElementById('fornecedoresContainer');
   const empty = document.getElementById('emptyFornecedores');
   if (!container) return;
-  
+
   if (fornecedores.length === 0) {
     container.innerHTML = '';
     if (empty) empty.style.display = 'block';
     return;
   }
   if (empty) empty.style.display = 'none';
-  
+
   container.innerHTML = fornecedores.map(f => `
     <div class="fornecedor-card">
       <h3>${f.nomeEmpresa}</h3>
@@ -289,31 +260,31 @@ function renderFornecedores() {
 // ================== COMPARATIVO ==================
 function compararSelecionados() {
   const selecionados = document.querySelectorAll('.select-cotacao:checked');
-  
+
   console.log('📋 Selecionados:', selecionados.length);
-  
+
   if (selecionados.length < 2) {
     alert('Selecione pelo menos 2 cotações para comparar');
     return;
   }
-  
+
   const ids = Array.from(selecionados).map(cb => String(cb.value));
-  
+
   console.log('📋 IDs selecionados:', ids);
   console.log('📋 Cotações disponíveis:', cotacoes.map(c => ({ id: String(c.id), produto: c.produto, status: c.status })));
-  
+
   const itens = cotacoes.filter(c => ids.includes(String(c.id)) && c.status !== "finalizado");
-  
+
   console.log('📋 Itens encontrados:', itens.length);
-  
+
   if (itens.length < 2) {
     alert('Selecione pelo menos 2 cotações ativas');
     return;
   }
-  
+
   const modal = document.getElementById('modalComparativo');
   const body = document.getElementById('comparativoBody');
-  
+
   let html = `
     <div class="comparativo-container">
       <div class="resumo-cards">
@@ -339,7 +310,7 @@ function compararSelecionados() {
           </div>
         </div>
       </div>
-      
+
       <div class="comparativo-tabela">
         <table>
           <thead>
@@ -361,10 +332,10 @@ function compararSelecionados() {
           </thead>
           <tbody>
   `;
-  
+
   let menorTotal = Infinity;
   let menorId = null;
-  
+
   itens.forEach(item => {
     const total = (item.quantidade || 0) * (item.valorUnitario || 0);
     const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
@@ -373,12 +344,12 @@ function compararSelecionados() {
       menorId = String(item.id);
     }
   });
-  
+
   itens.forEach((item, idx) => {
     const total = (item.quantidade || 0) * (item.valorUnitario || 0);
     const totalComImpostos = total + (item.valorFrete || 0) + (item.valorIPI || 0) + (item.valorICMS || 0);
     const isMelhor = String(item.id) === String(menorId);
-    
+
     html += `
       <tr class="${isMelhor ? 'melhor-preco' : ''}" data-id="${item.id}">
         <td>${idx + 1}</td>
@@ -399,12 +370,12 @@ function compararSelecionados() {
       </tr>
     `;
   });
-  
+
   html += `
           </tbody>
         </table>
       </div>
-      
+
       <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
         <button class="btn btn-success" onclick="gerarPDFComparativo()">
           <i class="fas fa-file-pdf"></i> Gerar PDF
@@ -418,7 +389,7 @@ function compararSelecionados() {
       </div>
     </div>
   `;
-  
+
   body.innerHTML = html;
   modal.style.display = 'block';
 }
@@ -427,7 +398,7 @@ function compararSelecionados() {
 function gerarPDFComparativo() {
   const loading = document.getElementById('pdfLoading');
   loading.style.display = 'flex';
-  
+
   setTimeout(() => {
     try {
       const { jsPDF } = window.jspdf;
@@ -435,63 +406,63 @@ function gerarPDFComparativo() {
       const pageWidth = 297;
       const margin = 15;
       let y = margin;
-      
+
       doc.setFillColor(52, 152, 219);
       doc.rect(0, 0, pageWidth, 30, 'F');
-      
+
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
       doc.text('📊 Comparativo de Cotações', pageWidth / 2, 18, { align: 'center' });
-      
+
       doc.setTextColor(50, 50, 50);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, 38);
-      
+
       y = 45;
-      
+
       const table = document.querySelector('.comparativo-tabela table');
       if (table) {
         const rows = table.querySelectorAll('tbody tr');
         const headers = table.querySelectorAll('thead th');
-        
+
         const colWidths = [8, 28, 25, 15, 15, 20, 22, 20, 20, 20, 28, 25, 15];
         let x = margin;
-        
+
         doc.setFillColor(44, 62, 80);
         doc.rect(margin, y - 4, pageWidth - (margin * 2), 8, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        
+
         headers.forEach((th, i) => {
           if (i < colWidths.length && th.textContent.trim() !== 'Finalizar') {
             doc.text(th.textContent.trim(), x + 1, y + 3);
             x += colWidths[i];
           }
         });
-        
+
         y += 8;
         doc.setTextColor(50, 50, 50);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
-        
+
         rows.forEach((row, rowIdx) => {
           const cells = row.querySelectorAll('td');
           x = margin;
-          
+
           if (rowIdx % 2 === 0) {
             doc.setFillColor(245, 245, 245);
             doc.rect(margin, y - 3, pageWidth - (margin * 2), 6, 'F');
           }
-          
+
           const isMelhor = row.classList.contains('melhor-preco');
           if (isMelhor) {
             doc.setFillColor(212, 237, 218);
             doc.rect(margin, y - 3, pageWidth - (margin * 2), 6, 'F');
           }
-          
+
           cells.forEach((cell, i) => {
             if (i < colWidths.length && i !== 12) {
               const text = cell.textContent.trim().replace(/\s+/g, ' ');
@@ -500,119 +471,121 @@ function gerarPDFComparativo() {
               x += colWidths[i];
             }
           });
-          
+
           y += 7;
-          
+
           if (y > 190) {
             doc.addPage();
             y = margin + 10;
           }
         });
       }
-      
+
       doc.setDrawColor(200, 200, 200);
       doc.line(margin, 190, pageWidth - margin, 190);
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
       doc.text('Mil Plásticos - Sistema de Cotações', margin, 197);
       doc.text(`Página ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - margin, 197, { align: 'right' });
-      
+
       doc.save('comparativo_cotacoes.pdf');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       alert('Erro ao gerar PDF. Tente novamente.');
     }
-    
+
     loading.style.display = 'none';
   }, 500);
 }
 
 // ================== FINALIZAR COTAÇÕES ==================
-function finalizarCotacoesSelecionadas() {
+async function finalizarCotacoesSelecionadas() {
   const checkboxes = document.querySelectorAll('.finalizar-cotacao:checked');
   if (checkboxes.length === 0) {
     alert('Selecione pelo menos uma cotação para finalizar');
     return;
   }
-  
+
   const ids = Array.from(checkboxes).map(cb => String(cb.value));
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(String(c.id)));
-  
+
   if (itensParaFinalizar.length === 0) {
     alert('Nenhuma cotação encontrada para finalizar');
     return;
   }
-  
+
   const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
-  
+
   if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
-    itensParaFinalizar.forEach(item => {
-      const itemFinalizado = {
-        ...item,
-        status: 'finalizado',
-        dataFinalizacao: new Date().toISOString()
-      };
-      historico.push(itemFinalizado);
-    });
-    
-    const idsFinalizados = itensParaFinalizar.map(item => String(item.id));
-    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(String(c.id)));
-    
-    salvarDados();
-    renderCotacoes();
-    renderHistorico();
-    document.getElementById('modalComparativo').style.display = 'none';
-    alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+    try {
+      for (const item of itensParaFinalizar) {
+        const { id, ...dados } = item;
+        // Adiciona ao histórico
+        await COL.historico.add({
+          ...dados,
+          status: 'finalizado',
+          dataFinalizacao: new Date().toISOString(),
+          finalizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        // Remove da coleção de cotações ativas
+        await COL.cotacoes.doc(id).delete();
+      }
+      document.getElementById('modalComparativo').style.display = 'none';
+      toast(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      toast('Erro ao finalizar cotações', 'error');
+    }
   }
 }
 
-function finalizarSelecionadosDireto() {
+async function finalizarSelecionadosDireto() {
   const selecionados = document.querySelectorAll('.select-cotacao:checked');
   if (selecionados.length === 0) {
     alert('Selecione pelo menos uma cotação para finalizar');
     return;
   }
-  
+
   const ids = Array.from(selecionados).map(cb => String(cb.value));
   const itensParaFinalizar = cotacoes.filter(c => ids.includes(String(c.id)) && c.status !== "finalizado");
-  
+
   if (itensParaFinalizar.length === 0) {
     alert('Nenhuma cotação ativa selecionada');
     return;
   }
-  
+
   const nomes = itensParaFinalizar.map(item => `${item.produto} - ${item.fornecedor}`).join('\n');
-  
+
   if (confirm(`Deseja finalizar as seguintes cotações?\n\n${nomes}`)) {
-    itensParaFinalizar.forEach(item => {
-      const itemFinalizado = {
-        ...item,
-        status: 'finalizado',
-        dataFinalizacao: new Date().toISOString()
-      };
-      historico.push(itemFinalizado);
-    });
-    
-    const idsFinalizados = itensParaFinalizar.map(item => String(item.id));
-    cotacoes = cotacoes.filter(c => !idsFinalizados.includes(String(c.id)));
-    
-    salvarDados();
-    renderCotacoes();
-    renderHistorico();
-    alert(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+    try {
+      for (const item of itensParaFinalizar) {
+        const { id, ...dados } = item;
+        await COL.historico.add({
+          ...dados,
+          status: 'finalizado',
+          dataFinalizacao: new Date().toISOString(),
+          finalizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        await COL.cotacoes.doc(id).delete();
+      }
+      toast(`${itensParaFinalizar.length} cotação(ões) finalizada(s) com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      toast('Erro ao finalizar cotações', 'error');
+    }
   }
 }
 
-// ================== MODAIS (CORRIGIDO - NÃO FECHA ACIDENTALMENTE) ==================
+// ================== MODAIS ==================
 function abrirModalCotacao(id = null) {
   editingId = id;
   const modal = document.getElementById('modalCotacao');
   const form = document.getElementById('formCotacao');
   form.reset();
-  
+
   const hoje = new Date().toISOString().split('T')[0];
   document.getElementById('cotacaoData').value = hoje;
-  
+
   if (id) {
     const cot = cotacoes.find(c => String(c.id) === String(id));
     if (cot) {
@@ -631,7 +604,7 @@ function abrirModalCotacao(id = null) {
       document.getElementById('cotacaoCondicaoPagamento').value = cot.condicaoPagamento || '';
     }
   }
-  
+
   modal.style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
@@ -642,31 +615,30 @@ function fecharModalCotacao() {
 }
 
 // ================== COTAÇÕES CRUD ==================
-function salvarCotacao(event) {
+async function salvarCotacao(event) {
   if (event) event.preventDefault();
-  
+
   const produto = document.getElementById('cotacaoProduto')?.value?.trim();
   if (!produto) { alert('Digite o nome do produto'); return; }
-  
+
   const fornecedor = document.getElementById('cotacaoFornecedor')?.value?.trim();
   if (!fornecedor) { alert('Digite o nome do fornecedor'); return; }
-  
+
   const qtd = parseFloat(document.getElementById('cotacaoQuantidade')?.value) || 0;
   if (qtd <= 0) { alert('Digite uma quantidade válida'); return; }
-  
+
   const vu = parseFloat(document.getElementById('cotacaoValorUnitario')?.value) || 0;
   if (vu <= 0) { alert('Digite um valor unitário válido'); return; }
-  
+
   const aliquotaICMS = parseFloat(document.getElementById('cotacaoAliquotaICMS')?.value) || 0;
   const aliquotaIPI = parseFloat(document.getElementById('cotacaoAliquotaIPI')?.value) || 0;
   const valorFrete = parseFloat(document.getElementById('cotacaoValorFrete')?.value) || 0;
-  
+
   const subtotal = qtd * vu;
   const valorICMS = subtotal * (aliquotaICMS / 100);
   const valorIPI = subtotal * (aliquotaIPI / 100);
-  
+
   const cotacaoData = {
-    id: editingId || gerarId(),
     produto: produto,
     fornecedor: fornecedor,
     uf: document.getElementById('cotacaoUF')?.value || '',
@@ -683,32 +655,38 @@ function salvarCotacao(event) {
     prazoPagamento: document.getElementById('cotacaoPrazoPagamento')?.value || '',
     condicaoPagamento: document.getElementById('cotacaoCondicaoPagamento')?.value || '',
     status: "ativo",
-    dataCadastro: new Date().toISOString()
   };
-  
+
   console.log('💾 Salvando cotação:', cotacaoData);
-  
-  if (editingId) {
-    const idx = cotacoes.findIndex(c => String(c.id) === String(editingId));
-    if (idx !== -1) cotacoes[idx] = cotacaoData;
-  } else {
-    cotacoes.push(cotacaoData);
+
+  try {
+    if (editingId) {
+      await COL.cotacoes.doc(editingId).update({
+        ...cotacaoData,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      await COL.cotacoes.add({
+        ...cotacaoData,
+        dataCadastro: new Date().toISOString(),
+        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    fecharModalCotacao();
+    toast('Cotação salva com sucesso!');
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar cotação', 'error');
   }
-  
-  salvarDados();
-  fecharModalCotacao();
-  renderCotacoes();
-  alert('Cotação salva com sucesso!');
 }
 
 // ================== PRODUTOS CRUD ==================
-function salvarProduto(event) {
+async function salvarProduto(event) {
   if (event) event.preventDefault();
   const nome = document.getElementById('produtoNome')?.value?.trim();
   if (!nome) { alert('Nome obrigatório'); return; }
-  
+
   const prodData = {
-    id: editingProdutoId || gerarId(),
     nome: nome,
     codigo: document.getElementById('produtoCodigo')?.value || '',
     categoria: document.getElementById('produtoCategoria')?.value || '',
@@ -716,24 +694,31 @@ function salvarProduto(event) {
     ncm: document.getElementById('produtoNCM')?.value || '',
     descricao: document.getElementById('produtoDescricao')?.value || ''
   };
-  
-  if (editingProdutoId) {
-    const idx = produtos.findIndex(p => String(p.id) === String(editingProdutoId));
-    if (idx !== -1) produtos[idx] = prodData;
-  } else {
-    produtos.push(prodData);
+
+  try {
+    if (editingProdutoId) {
+      await COL.produtos.doc(editingProdutoId).update({
+        ...prodData,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      await COL.produtos.add({
+        ...prodData,
+        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    document.getElementById('modalProduto').style.display = 'none';
+    toast('Produto salvo com sucesso!');
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar produto', 'error');
   }
-  
-  salvarDados();
-  document.getElementById('modalProduto').style.display = 'none';
-  renderProdutos();
-  alert('Produto salvo com sucesso!');
 }
 
 function editarProduto(id) {
   const prod = produtos.find(p => String(p.id) === String(id));
   if (!prod) return;
-  
+
   editingProdutoId = id;
   document.getElementById('produtoNome').value = prod.nome || '';
   document.getElementById('produtoCodigo').value = prod.codigo || '';
@@ -745,13 +730,12 @@ function editarProduto(id) {
 }
 
 // ================== FORNECEDORES CRUD ==================
-function salvarFornecedor(event) {
+async function salvarFornecedor(event) {
   if (event) event.preventDefault();
   const nome = document.getElementById('fornecedorNome')?.value?.trim();
   if (!nome) { alert('Nome obrigatório'); return; }
-  
+
   const fornData = {
-    id: editingFornecedorId || gerarId(),
     nomeEmpresa: nome,
     cnpj: document.getElementById('fornecedorCNPJ')?.value || '',
     ie: document.getElementById('fornecedorIE')?.value || '',
@@ -759,24 +743,31 @@ function salvarFornecedor(event) {
     email: document.getElementById('fornecedorEmail')?.value || '',
     uf: document.getElementById('fornecedorUF')?.value || ''
   };
-  
-  if (editingFornecedorId) {
-    const idx = fornecedores.findIndex(f => String(f.id) === String(editingFornecedorId));
-    if (idx !== -1) fornecedores[idx] = fornData;
-  } else {
-    fornecedores.push(fornData);
+
+  try {
+    if (editingFornecedorId) {
+      await COL.fornecedores.doc(editingFornecedorId).update({
+        ...fornData,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      await COL.fornecedores.add({
+        ...fornData,
+        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    document.getElementById('modalFornecedor').style.display = 'none';
+    toast('Fornecedor salvo com sucesso!');
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar fornecedor', 'error');
   }
-  
-  salvarDados();
-  document.getElementById('modalFornecedor').style.display = 'none';
-  renderFornecedores();
-  alert('Fornecedor salvo com sucesso!');
 }
 
 function editarFornecedor(id) {
   const forn = fornecedores.find(f => String(f.id) === String(id));
   if (!forn) return;
-  
+
   editingFornecedorId = id;
   document.getElementById('fornecedorNome').value = forn.nomeEmpresa || '';
   document.getElementById('fornecedorCNPJ').value = forn.cnpj || '';
@@ -787,22 +778,64 @@ function editarFornecedor(id) {
   document.getElementById('modalFornecedor').style.display = 'block';
 }
 
+// ================== LISTENERS FIRESTORE ==================
+function iniciarListeners() {
+  if (!COL) return;
+
+  // Cotações ativas
+  listenersAtivos.push(
+    COL.cotacoes.onSnapshot(snap => {
+      cotacoes = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.dataCadastro || '').localeCompare(a.dataCadastro || ''));
+      renderCotacoes();
+    }, err => console.error('❌ cotacoes:', err))
+  );
+
+  // Histórico
+  listenersAtivos.push(
+    COL.historico.onSnapshot(snap => {
+      historico = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.dataFinalizacao || '').localeCompare(a.dataFinalizacao || ''));
+      renderHistorico();
+    }, err => console.error('❌ historico:', err))
+  );
+
+  // Produtos
+  listenersAtivos.push(
+    COL.produtos.onSnapshot(snap => {
+      produtos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      renderProdutos();
+    }, err => console.error('❌ produtos:', err))
+  );
+
+  // Fornecedores
+  listenersAtivos.push(
+    COL.fornecedores.onSnapshot(snap => {
+      fornecedores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.nomeEmpresa || '').localeCompare(b.nomeEmpresa || ''));
+      renderFornecedores();
+    }, err => console.error('❌ fornecedores:', err))
+  );
+
+  console.log('👂 Listeners Firestore ativos:', listenersAtivos.length);
+}
+
 // ================== INICIALIZAÇÃO ==================
-function init() {
-  console.log('🚀 Inicializando sistema de cotações...');
-  carregarDados();
-  
-  console.log('📦 Dados carregados:');
-  console.log('  - Produtos:', produtos.length);
-  console.log('  - Cotações:', cotacoes.length);
-  console.log('  - Histórico:', historico.length);
-  console.log('  - Fornecedores:', fornecedores.length);
-  
-  renderCotacoes();
-  renderHistorico();
-  renderProdutos();
-  renderFornecedores();
-  
+async function init() {
+  console.log('🚀 Inicializando sistema de cotações (Firebase)...');
+
+  if (!COL) {
+    console.error('❌ Firestore não disponível. Abortando init.');
+    return;
+  }
+
+  // Migração única (se houver dados antigos no localStorage)
+  await migrarLocalStorageParaFirestore();
+
+  // Listeners em tempo real — os dados chegam automaticamente
+  iniciarListeners();
+
   // Tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -814,7 +847,7 @@ function init() {
       if (tab) tab.classList.add('active');
     });
   });
-  
+
   // Eventos dos botões principais
   document.getElementById('addCotacaoBtn')?.addEventListener('click', () => abrirModalCotacao());
   document.getElementById('addProdutoBtn')?.addEventListener('click', () => {
@@ -827,23 +860,23 @@ function init() {
     document.getElementById('formFornecedor')?.reset();
     document.getElementById('modalFornecedor').style.display = 'block';
   });
-  
+
   // Botões de ação
   document.getElementById('compararSelecionadosBtn')?.addEventListener('click', compararSelecionados);
   document.getElementById('finalizarSelecionadosBtn')?.addEventListener('click', finalizarSelecionadosDireto);
-  
+
   // Forms
   document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
   document.getElementById('formProduto')?.addEventListener('submit', salvarProduto);
   document.getElementById('formFornecedor')?.addEventListener('submit', salvarFornecedor);
-  
+
   // Eventos de clique para editar/excluir (delegação)
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', async function(e) {
     const editCot = e.target.closest('.edit-cotacao');
     if (editCot) {
       abrirModalCotacao(editCot.dataset.id);
     }
-    
+
     const viewCot = e.target.closest('.view-cotacao');
     if (viewCot) {
       const id = viewCot.dataset.id;
@@ -870,69 +903,84 @@ function init() {
         );
       }
     }
-    
+
     const delCot = e.target.closest('.delete-cotacao');
     if (delCot) {
       if (confirm('Excluir esta cotação permanentemente?')) {
-        cotacoes = cotacoes.filter(c => String(c.id) !== String(delCot.dataset.id));
-        salvarDados();
-        renderCotacoes();
-        alert('Cotação excluída com sucesso!');
+        try {
+          await COL.cotacoes.doc(delCot.dataset.id).delete();
+          toast('Cotação excluída com sucesso!');
+        } catch (err) {
+          console.error(err);
+          toast('Erro ao excluir cotação', 'error');
+        }
       }
     }
-    
+
     const editProd = e.target.closest('.btn-editar-produto');
     if (editProd) {
       editarProduto(editProd.dataset.id);
     }
-    
+
     const delProd = e.target.closest('.btn-excluir-produto');
     if (delProd) {
       if (confirm('Excluir este produto?')) {
-        produtos = produtos.filter(p => String(p.id) !== String(delProd.dataset.id));
-        salvarDados();
-        renderProdutos();
-        alert('Produto excluído com sucesso!');
+        try {
+          await COL.produtos.doc(delProd.dataset.id).delete();
+          toast('Produto excluído com sucesso!');
+        } catch (err) {
+          console.error(err);
+          toast('Erro ao excluir produto', 'error');
+        }
       }
     }
-    
+
     const editForn = e.target.closest('.btn-editar-fornecedor');
     if (editForn) {
       editarFornecedor(editForn.dataset.id);
     }
-    
+
     const delForn = e.target.closest('.btn-excluir-fornecedor');
     if (delForn) {
       if (confirm('Excluir este fornecedor?')) {
-        fornecedores = fornecedores.filter(f => String(f.id) !== String(delForn.dataset.id));
-        salvarDados();
-        renderFornecedores();
-        alert('Fornecedor excluído com sucesso!');
+        try {
+          await COL.fornecedores.doc(delForn.dataset.id).delete();
+          toast('Fornecedor excluído com sucesso!');
+        } catch (err) {
+          console.error(err);
+          toast('Erro ao excluir fornecedor', 'error');
+        }
       }
     }
   });
-  
+
   // Selecionar todos
   document.getElementById('selecionarTodos')?.addEventListener('change', function() {
     document.querySelectorAll('.select-cotacao').forEach(cb => cb.checked = this.checked);
   });
-  
+
   // Filtros do histórico
   document.getElementById('filtroProduto')?.addEventListener('input', renderHistorico);
   document.getElementById('filtroFornecedor')?.addEventListener('input', renderHistorico);
   document.getElementById('filtroPeriodo')?.addEventListener('change', renderHistorico);
-  
+
   // Limpar histórico
-  document.getElementById('limparHistoricoBtn')?.addEventListener('click', () => {
-    if (confirm('Deseja realmente limpar todo o histórico de compras?')) {
-      historico = [];
-      salvarDados();
-      renderHistorico();
-      alert('Histórico limpo com sucesso!');
+  document.getElementById('limparHistoricoBtn')?.addEventListener('click', async () => {
+    if (confirm('Deseja realmente limpar TODO o histórico de compras?')) {
+      try {
+        const snap = await COL.historico.get();
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        toast('Histórico limpo com sucesso!');
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao limpar histórico', 'error');
+      }
     }
   });
-  
-  console.log('✅ Sistema de cotações pronto!');
+
+  console.log('✅ Sistema de cotações pronto (Firestore)!');
 }
 
 // Inicializar quando o DOM estiver carregado
