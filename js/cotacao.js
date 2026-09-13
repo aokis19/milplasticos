@@ -1,4 +1,4 @@
-// cotacao.js - Sistema de Cotações (VERSÃO FIREBASE + DASHBOARD)
+// cotacao.js - Sistema de Cotações (VERSÃO FIREBASE + DASHBOARD + DADOS MANUAIS)
 // Mil Plásticos
 
 // ================== FIRESTORE ==================
@@ -12,6 +12,7 @@ const COL = db ? {
   cotacoes:     db.collection('cot_cotacoes'),
   historico:    db.collection('cot_historico'),
   fornecedores: db.collection('cot_fornecedores'),
+  manual:       db.collection('cot_manual'),
 } : null;
 
 // ================== DADOS GLOBAIS ==================
@@ -19,9 +20,11 @@ let produtos = [];
 let cotacoes = [];
 let historico = [];
 let fornecedores = [];
+let dadosManuais = [];        // dados históricos inseridos manualmente
 let editingId = null;
 let editingFornecedorId = null;
 let editingProdutoId = null;
+let editingManualId = null;   // id em edição de registro manual
 let listenersAtivos = [];
 
 // ================== UTILITÁRIOS ==================
@@ -788,7 +791,6 @@ function iniciarListeners() {
       historico = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.dataFinalizacao || '').localeCompare(a.dataFinalizacao || ''));
       renderHistorico();
-      // Atualiza dashboard em tempo real se estiver ativo
       if (document.getElementById('dashboardTab')?.classList.contains('active')) {
         if (typeof initDashboard === 'function') initDashboard();
       }
@@ -813,22 +815,31 @@ function iniciarListeners() {
     }, err => console.error('❌ fornecedores:', err))
   );
 
+  // Dados manuais
+  listenersAtivos.push(
+    COL.manual.onSnapshot(snap => {
+      dadosManuais = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.mes || '').localeCompare(a.mes || ''));
+      renderManualLista();
+      if (document.getElementById('dashboardTab')?.classList.contains('active')) {
+        if (typeof initDashboard === 'function') initDashboard();
+      }
+    }, err => console.error('❌ manual:', err))
+  );
+
   console.log('👂 Listeners Firestore ativos:', listenersAtivos.length);
 }
 
 // ================== INICIALIZAÇÃO ==================
 async function init() {
-  console.log('🚀 Inicializando sistema de cotações (Firebase + Dashboard)...');
+  console.log('🚀 Inicializando sistema de cotações (Firebase + Dashboard + Manuais)...');
 
   if (!COL) {
     console.error('❌ Firestore não disponível. Abortando init.');
     return;
   }
 
-  // Migração única
   await migrarLocalStorageParaFirestore();
-
-  // Listeners em tempo real
   iniciarListeners();
 
   // Tabs
@@ -841,7 +852,6 @@ async function init() {
       const tab = document.getElementById(tabId);
       if (tab) tab.classList.add('active');
 
-      // Inicializa dashboard ao abrir a aba
       if (btn.dataset.tab === 'dashboard') {
         setTimeout(() => {
           if (typeof initDashboard === 'function') initDashboard();
@@ -871,6 +881,7 @@ async function init() {
   document.getElementById('formCotacao')?.addEventListener('submit', salvarCotacao);
   document.getElementById('formProduto')?.addEventListener('submit', salvarProduto);
   document.getElementById('formFornecedor')?.addEventListener('submit', salvarFornecedor);
+  document.getElementById('formManual')?.addEventListener('submit', salvarManual);
 
   // Eventos de clique para editar/excluir (delegação)
   document.addEventListener('click', async function(e) {
@@ -982,7 +993,23 @@ async function init() {
     }
   });
 
-  console.log('✅ Sistema de cotações pronto (Firestore + Dashboard)!');
+  // Limpar todos os manuais
+  document.getElementById('limparManualBtn')?.addEventListener('click', async () => {
+    if (confirm('Excluir TODOS os registros manuais? Esta ação não afeta as cotações reais.')) {
+      try {
+        const snap = await COL.manual.get();
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        toast('Registros manuais excluídos!');
+      } catch (err) {
+        console.error(err);
+        toast('Erro ao limpar registros manuais', 'error');
+      }
+    }
+  });
+
+  console.log('✅ Sistema de cotações pronto (Firestore + Dashboard + Manuais)!');
 }
 
 // =====================================================
@@ -1013,11 +1040,21 @@ function filtrarPorPeriodo(lista, campoData = 'dataFinalizacao') {
 
 // ---------- CÁLCULOS ----------
 function calcularKPIs() {
-  const hist = filtrarPorPeriodo([...historico]);
+  const histReal = filtrarPorPeriodo([...historico]);
+  const manualFiltrado = filtrarPorPeriodo([...dadosManuais]);
+
+  // Combina histórico real + dados manuais
+  const hist = [...histReal, ...manualFiltrado];
   const cots = filtrarPorPeriodo([...cotacoes], 'dataCadastro');
 
   const totalCotacoes = cots.length + hist.length;
   const pedidosGerados = hist.length;
+
+  // Pedidos executados (status = executado nos manuais, ou todos do histórico real)
+  const pedidosExecutados = hist.filter(i =>
+    i.origem === 'manual' ? i.status === 'executado' : true
+  ).length;
+
   const valorTotal = hist.reduce((s, i) => {
     const sub = (i.quantidade || 0) * (i.valorUnitario || 0);
     return s + sub + (i.valorFrete || 0) + (i.valorIPI || 0) + (i.valorICMS || 0);
@@ -1026,9 +1063,14 @@ function calcularKPIs() {
   const ticketMedio = pedidosGerados > 0 ? valorTotal / pedidosGerados : 0;
   const taxaConversao = totalCotacoes > 0 ? (pedidosGerados / totalCotacoes) * 100 : 0;
 
-  // Tempo médio de compra (dias)
+  // Tempo médio de compra
   let somaDias = 0, countDias = 0;
   hist.forEach(i => {
+    if (i.origem === 'manual' && i.diasCompra !== undefined) {
+      somaDias += parseInt(i.diasCompra) || 0;
+      countDias++;
+      return;
+    }
     if (i.dataCotacao && i.dataFinalizacao) {
       const d1 = new Date(i.dataCotacao);
       const d2 = new Date(i.dataFinalizacao);
@@ -1055,7 +1097,7 @@ function calcularKPIs() {
     }
   });
 
-  return { totalCotacoes, pedidosGerados, valorTotal, ticketMedio, taxaConversao, tempoMedio, economia };
+  return { totalCotacoes, pedidosGerados, pedidosExecutados, valorTotal, ticketMedio, taxaConversao, tempoMedio, economia };
 }
 
 // ---------- RENDER KPI CARDS ----------
@@ -1064,14 +1106,14 @@ function renderKPIs() {
   const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
 
   const cards = [
-    { label:'Total de Cotações',    value: k.totalCotacoes,               icon:'fa-file-invoice',  cor:'blue' },
-    { label:'Pedidos Gerados',      value: k.pedidosGerados,              icon:'fa-shopping-cart', cor:'green' },
-    { label:'Valor Total Comprado', value: fmt(k.valorTotal),             icon:'fa-dollar-sign',   cor:'orange' },
-    { label:'Ticket Médio',         value: fmt(k.ticketMedio),            icon:'fa-receipt',       cor:'purple' },
-    { label:'Taxa de Conversão',    value: k.taxaConversao.toFixed(1)+'%',icon:'fa-percentage',    cor:'green' },
-    { label:'Tempo Médio de Compra',value: k.tempoMedio + ' dias',        icon:'fa-clock',         cor:'warning' },
-    { label:'Economia Estimada',    value: fmt(k.economia),               icon:'fa-piggy-bank',    cor:'success' },
-    { label:'Fornecedores Ativos',  value: new Set(historico.map(h=>h.fornecedor)).size, icon:'fa-truck', cor:'info' },
+    { label:'Total de Cotações',     value: k.totalCotacoes,               icon:'fa-file-invoice',  cor:'blue' },
+    { label:'Pedidos Gerados',       value: k.pedidosGerados,              icon:'fa-shopping-cart', cor:'green' },
+    { label:'Pedidos Executados',    value: k.pedidosExecutados,           icon:'fa-check-double',  cor:'success' },
+    { label:'Valor Total Comprado',  value: fmt(k.valorTotal),             icon:'fa-dollar-sign',   cor:'orange' },
+    { label:'Ticket Médio',          value: fmt(k.ticketMedio),            icon:'fa-receipt',       cor:'purple' },
+    { label:'Taxa de Conversão',     value: k.taxaConversao.toFixed(1)+'%',icon:'fa-percentage',    cor:'green' },
+    { label:'Tempo Médio de Compra', value: k.tempoMedio + ' dias',        icon:'fa-clock',         cor:'warning' },
+    { label:'Economia Estimada',     value: fmt(k.economia),               icon:'fa-piggy-bank',    cor:'success' },
   ];
 
   const grid = document.getElementById('kpiGrid');
@@ -1091,7 +1133,9 @@ function renderKPIs() {
 // ---------- GRÁFICOS ----------
 function renderGraficos() {
   destroyCharts();
-  const hist = filtrarPorPeriodo([...historico]);
+  const histReal = filtrarPorPeriodo([...historico]);
+  const manualFiltrado = filtrarPorPeriodo([...dadosManuais]);
+  const hist = [...histReal, ...manualFiltrado];
   const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
 
   // 1) Evolução mensal
@@ -1168,9 +1212,14 @@ function renderGraficos() {
   // 4) Tempo médio por fornecedor
   const tempoPorForn = {};
   hist.forEach(i => {
-    if (i.dataCotacao && i.dataFinalizacao) {
-      const dias = Math.max(0, Math.round((new Date(i.dataFinalizacao)-new Date(i.dataCotacao))/(86400000)));
-      const f = i.fornecedor||'N/A';
+    const f = i.fornecedor||'N/A';
+    let dias = null;
+    if (i.origem === 'manual' && i.diasCompra !== undefined) {
+      dias = parseInt(i.diasCompra) || 0;
+    } else if (i.dataCotacao && i.dataFinalizacao) {
+      dias = Math.max(0, Math.round((new Date(i.dataFinalizacao)-new Date(i.dataCotacao))/(86400000)));
+    }
+    if (dias !== null) {
       if (!tempoPorForn[f]) tempoPorForn[f] = {soma:0, n:0};
       tempoPorForn[f].soma += dias; tempoPorForn[f].n++;
     }
@@ -1188,7 +1237,7 @@ function renderGraficos() {
     });
   }
 
-  // 5) Meta vs Realizado (meta = 10% de redução sobre mês anterior)
+  // 5) Meta vs Realizado (meta = 10% de redução)
   const elMeta = document.getElementById('chartMeta');
   if (elMeta && meses.length > 0) {
     const ultimo = porMes[meses[meses.length-1]];
@@ -1245,7 +1294,6 @@ function gerarPDFDashboard() {
       const k = calcularKPIs();
       const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
 
-      // Cabeçalho
       doc.setFillColor(52,152,219);
       doc.rect(0,0,W,28,'F');
       doc.setTextColor(255,255,255);
@@ -1258,10 +1306,10 @@ function gerarPDFDashboard() {
       doc.setFontSize(9);
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, M, 36);
 
-      // KPIs em tabela
       const linhas = [
         ['Total de Cotacoes', String(k.totalCotacoes)],
         ['Pedidos Gerados', String(k.pedidosGerados)],
+        ['Pedidos Executados', String(k.pedidosExecutados)],
         ['Valor Total Comprado', fmt(k.valorTotal)],
         ['Ticket Medio', fmt(k.ticketMedio)],
         ['Taxa de Conversao', k.taxaConversao.toFixed(1)+'%'],
@@ -1279,7 +1327,6 @@ function gerarPDFDashboard() {
         columnStyles:{ 0:{fontStyle:'bold', cellWidth:100}, 1:{halign:'right'} }
       });
 
-      // Meta
       const yMeta = doc.lastAutoTable.finalY + 12;
       doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(44,62,80);
       doc.text('Meta para o Proximo Mes', M, yMeta);
@@ -1290,7 +1337,6 @@ function gerarPDFDashboard() {
       doc.text(`- Economia potencial: ${fmt(k.valorTotal - meta)}`, M+3, yMeta+13);
       doc.text(`- Foco: negociacao com Top 5 fornecedores`, M+3, yMeta+19);
 
-      // Rodapé
       doc.setDrawColor(200); doc.line(M, 280, W-M, 280);
       doc.setFontSize(8); doc.setTextColor(150);
       doc.text('Mil Plasticos - Sistema de Cotacoes', M, 286);
@@ -1310,12 +1356,11 @@ function initDashboard() {
   renderKPIs();
   renderGraficos();
 
-  // Remove listeners antigos (evita duplicar)
   const periodoEl = document.getElementById('dashPeriodo');
   const atualizarEl = document.getElementById('dashAtualizarBtn');
   const pdfEl = document.getElementById('dashPdfBtn');
+  const manualEl = document.getElementById('dashManualBtn');
 
-  // Clona os elementos para limpar listeners anteriores
   if (periodoEl && !periodoEl.dataset.bound) {
     periodoEl.addEventListener('change', () => {
       renderKPIs(); renderGraficos();
@@ -1332,6 +1377,169 @@ function initDashboard() {
   if (pdfEl && !pdfEl.dataset.bound) {
     pdfEl.addEventListener('click', gerarPDFDashboard);
     pdfEl.dataset.bound = '1';
+  }
+  if (manualEl && !manualEl.dataset.bound) {
+    manualEl.addEventListener('click', abrirModalManual);
+    manualEl.dataset.bound = '1';
+  }
+}
+
+// =====================================================
+// ========= DADOS MANUAIS (HISTÓRICO RETROATIVO) ======
+// =====================================================
+
+function abrirModalManual() {
+  editingManualId = null;
+  const form = document.getElementById('formManual');
+  if (form) form.reset();
+
+  const hoje = new Date();
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const mesEl = document.getElementById('manualMes');
+  if (mesEl) mesEl.value = mesAtual;
+
+  document.getElementById('modalManual').style.display = 'block';
+  renderManualLista();
+}
+
+function fecharModalManual() {
+  document.getElementById('modalManual').style.display = 'none';
+}
+
+async function salvarManual(event) {
+  if (event) event.preventDefault();
+
+  const mes = document.getElementById('manualMes')?.value;
+  if (!mes) { alert('Informe o mês de referência'); return; }
+
+  const fornecedor = document.getElementById('manualFornecedor')?.value?.trim();
+  if (!fornecedor) { alert('Informe o fornecedor'); return; }
+
+  const produto = document.getElementById('manualProduto')?.value?.trim();
+  if (!produto) { alert('Informe o produto'); return; }
+
+  const quantidade = parseFloat(document.getElementById('manualQuantidade')?.value) || 0;
+  const valorUnitario = parseFloat(document.getElementById('manualValorUnitario')?.value) || 0;
+  const frete = parseFloat(document.getElementById('manualFrete')?.value) || 0;
+  const icms = parseFloat(document.getElementById('manualICMS')?.value) || 0;
+  const ipi = parseFloat(document.getElementById('manualIPI')?.value) || 0;
+  const dias = parseInt(document.getElementById('manualDias')?.value) || 0;
+  const status = document.getElementById('manualStatus')?.value || 'executado';
+
+  const subtotal = quantidade * valorUnitario;
+  const valorICMS = subtotal * (icms / 100);
+  const valorIPI = subtotal * (ipi / 100);
+
+  const [ano, m] = mes.split('-');
+  const ultimoDia = new Date(parseInt(ano), parseInt(m), 0).getDate();
+  const dataFinalizacao = `${mes}-${String(ultimoDia).padStart(2,'0')}T12:00:00.000Z`;
+  const dataCotacao = new Date(new Date(dataFinalizacao).getTime() - dias * 86400000).toISOString().split('T')[0];
+
+  const dados = {
+    mes: mes,
+    fornecedor: fornecedor,
+    produto: produto,
+    quantidade: quantidade,
+    valorUnitario: valorUnitario,
+    valorFrete: frete,
+    aliquotaICMS: icms,
+    valorICMS: valorICMS,
+    aliquotaIPI: ipi,
+    valorIPI: valorIPI,
+    diasCompra: dias,
+    status: status,
+    dataCotacao: dataCotacao,
+    dataFinalizacao: dataFinalizacao,
+    origem: 'manual',
+  };
+
+  try {
+    if (editingManualId) {
+      await COL.manual.doc(editingManualId).update({
+        ...dados,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      toast('Registro manual atualizado!');
+    } else {
+      await COL.manual.add({
+        ...dados,
+        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      toast('Registro manual salvo!');
+    }
+    document.getElementById('formManual').reset();
+    const hoje = new Date();
+    document.getElementById('manualMes').value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    editingManualId = null;
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar registro manual', 'error');
+  }
+}
+
+function renderManualLista() {
+  const container = document.getElementById('manualLista');
+  const countEl = document.getElementById('manualCount');
+  if (!container) return;
+
+  if (countEl) countEl.textContent = dadosManuais.length;
+
+  if (dadosManuais.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#999;font-size:12px;padding:15px;">Nenhum registro manual cadastrado ainda.</p>';
+    return;
+  }
+
+  const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
+
+  container.innerHTML = dadosManuais.map(m => {
+    const subtotal = (m.quantidade||0) * (m.valorUnitario||0);
+    const total = subtotal + (m.valorFrete||0) + (m.valorIPI||0) + (m.valorICMS||0);
+    const [ano, mes] = (m.mes || '').split('-');
+    const mesLabel = `${mes}/${ano}`;
+    const statusLabel = m.status === 'executado' ? '✅ Executado' : '📋 Gerado';
+
+    return `<div style="background:#f8f9fa;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;color:#2c3e50;">${m.produto} <span style="color:#999;font-weight:400;">• ${mesLabel}</span></div>
+        <div style="color:#666;font-size:11px;margin-top:2px;">
+          ${m.fornecedor} • ${m.quantidade} un × ${fmt(m.valorUnitario)} = <strong>${fmt(total)}</strong> • ${statusLabel}
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn-icon" onclick="editarManual('${m.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+        <button class="btn-icon delete" onclick="excluirManual('${m.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editarManual(id) {
+  const m = dadosManuais.find(x => String(x.id) === String(id));
+  if (!m) return;
+
+  editingManualId = id;
+  document.getElementById('manualMes').value = m.mes || '';
+  document.getElementById('manualFornecedor').value = m.fornecedor || '';
+  document.getElementById('manualProduto').value = m.produto || '';
+  document.getElementById('manualQuantidade').value = m.quantidade || '';
+  document.getElementById('manualValorUnitario').value = m.valorUnitario || '';
+  document.getElementById('manualFrete').value = m.valorFrete || 0;
+  document.getElementById('manualICMS').value = m.aliquotaICMS || 18;
+  document.getElementById('manualIPI').value = m.aliquotaIPI || 5;
+  document.getElementById('manualDias').value = m.diasCompra || 0;
+  document.getElementById('manualStatus').value = m.status || 'executado';
+
+  document.getElementById('modalManual').style.display = 'block';
+}
+
+async function excluirManual(id) {
+  if (!confirm('Excluir este registro manual?')) return;
+  try {
+    await COL.manual.doc(id).delete();
+    toast('Registro excluído!');
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao excluir', 'error');
   }
 }
 
