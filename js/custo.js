@@ -83,7 +83,7 @@
     return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
   }
 
-  // ======== CALCULAR RESUMO DO PERÍODO ========
+  // ======== CALCULAR RESUMO DO PERÍODO (COM FALLBACK) ========
   function calcularResumoPeriodo(periodoidParam, excluirSetores) {
     const pid = periodoidParam || (periodoAtual ? periodoAtual.id : null);
     const excluir = excluirSetores || setoresExcluidosResumo;
@@ -101,8 +101,12 @@
     sets.forEach(s => { custoTotalGeral += calcularCustosSetor(s.id).totalCusto; });
 
     const setsFinais = sets.filter(s => s.produtoFinal === true);
+
+    // 🔥 FALLBACK: se não houver produto final marcado, usa todos os setores
+    const setsParaProducao = setsFinais.length > 0 ? setsFinais : sets;
+
     let producaoTotalGeral = 0;
-    setsFinais.forEach(sf => {
+    setsParaProducao.forEach(sf => {
       const custos = calcularCustosSetor(sf.id);
       producaoTotalGeral += custos.totalKg;
     });
@@ -302,18 +306,22 @@
     periodosParaCalculo.forEach(per => {
       const sets = getSetoresDoPeriodo(per.id);
       totalSetoresCount += sets.length;
-      
+
       // Só considera setores com produtoFinal = true para produção
       const setsFinais = sets.filter(s => s.produtoFinal === true);
       totalSetoresFinais += setsFinais.length;
-      
+
+      // 🔥 FALLBACK por período: se não tem produto final, conta todos
+      const setsParaProducao = setsFinais.length > 0 ? setsFinais : sets;
+
       sets.forEach(s => {
         const custosSetor = calcularCustosSetor(s.id);
         totalGastoGeral += custosSetor.totalCusto;
-        // Só soma produção se for Produto Final
-        if (s.produtoFinal === true) {
-          totalProduzidoGeral += custosSetor.totalKg;
-        }
+      });
+
+      setsParaProducao.forEach(s => {
+        const custosSetor = calcularCustosSetor(s.id);
+        totalProduzidoGeral += custosSetor.totalKg;
       });
     });
 
@@ -987,7 +995,6 @@
         `;
 
       grupo.itens.forEach(cf => {
-        // Verifica quais setores receberam este custo fixo
         const itensFixosRelacionados = itensCusto.filter(i => i.custoFixold === cf.id && i.tipo === 'fixo');
         const setoresVinculados = itensFixosRelacionados.map(i => {
           const setor = setores.find(s => s.id === i.setorld);
@@ -1038,17 +1045,14 @@
     const modal = document.getElementById('modalCustoFixo');
     if (!modal) return;
 
-    // Preenche períodos
     document.getElementById('custoFixoPeriodo').innerHTML =
       '<option value="">Selecione um período...</option>' +
       periodos.map(p => `<option value="${p.id}" ${(periodoAtual && p.id === periodoAtual.id) ? 'selected' : ''}>${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
 
-    // Preenche categorias
     document.getElementById('custoFixoCategoria').innerHTML =
       '<option value="">Selecione uma categoria...</option>' +
       categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
 
-    // Preenche setores do período
     const setoresContainer = document.getElementById('custoFixoSetores');
     if (setoresContainer) {
       const pid = periodoAtual ? periodoAtual.id : null;
@@ -1059,7 +1063,6 @@
       } else {
         let html = '<div class="setores-selecao-grid">';
         sets.forEach(s => {
-          // Se estiver editando, verifica se este setor já está vinculado
           let checked = false;
           let percentual = 0;
           if (id) {
@@ -1092,7 +1095,6 @@
         html += '</div>';
         setoresContainer.innerHTML = html;
 
-        // Adiciona eventos para habilitar/desabilitar o input de porcentagem
         setoresContainer.querySelectorAll('.setor-fixo-checkbox').forEach(checkbox => {
           checkbox.addEventListener('change', function() {
             const percentInput = this.closest('.setor-selecao-item').querySelector('.setor-fixo-percentual');
@@ -1136,7 +1138,7 @@
     modal.classList.add('active');
   };
 
-  // ======== SALVAR CUSTO FIXO ========
+  // ======== SALVAR CUSTO FIXO (COM VALIDAÇÃO DE %) ========
   window.salvarCustoFixo = async function() {
     const periodoId = document.getElementById('custoFixoPeriodo').value;
     const categoriaId = document.getElementById('custoFixoCategoria').value;
@@ -1148,7 +1150,6 @@
       return;
     }
 
-    // Coleta os setores selecionados e suas porcentagens
     const setoresSelecionados = [];
     document.querySelectorAll('.setor-fixo-checkbox:checked').forEach(checkbox => {
       const setorId = checkbox.dataset.setorId;
@@ -1168,6 +1169,19 @@
       return;
     }
 
+    // 🔥 VALIDAÇÃO: soma dos percentuais deve ser ~100%
+    const somaPercentuais = setoresSelecionados.reduce((s, x) => s + x.percentual, 0);
+    if (Math.abs(somaPercentuais - 100) > 0.01) {
+      const continuar = confirm(
+        `⚠️ A soma dos percentuais é ${somaPercentuais.toFixed(2)}%.\n\n` +
+        `O ideal é 100%.\n\n` +
+        `Se continuar, o custo fixo de ${formatMoney(valor)} será distribuído como ` +
+        `${formatMoney(valor * somaPercentuais / 100)} pelos setores.\n\n` +
+        `Deseja continuar mesmo assim?`
+      );
+      if (!continuar) return;
+    }
+
     const editId = document.getElementById('custoFixoEditId').value;
     const cf = {
       periodold: periodoId,
@@ -1176,7 +1190,6 @@
       valor
     };
 
-    // Salva o custo fixo
     if (editId) {
       cf.id = editId;
       const idx = custosFixos.findIndex(x => x.id === editId);
@@ -1230,7 +1243,6 @@
     if (!confirm('Excluir este custo fixo e todos os itens vinculados?')) return;
 
     try {
-      // Remove os itens fixos vinculados
       const itensVinculados = itensCusto.filter(i => i.custoFixold === id && i.tipo === 'fixo');
       for (const item of itensVinculados) {
         const idx = itensCusto.indexOf(item);
@@ -1238,7 +1250,6 @@
         await excluirFB('itensCusto', item.id);
       }
 
-      // Remove o custo fixo
       custosFixos = custosFixos.filter(c => c.id !== id);
       await excluirFB('custosFixos', id);
       renderizarTela();
@@ -1648,7 +1659,10 @@
   // ======== CRUD PERÍODOS ========
   window.abrirModalPeriodo = function(id) {
     const modal = document.getElementById('modalPeriodo');
-    if (!modal) return;
+    if (!modal) {
+      console.warn('⚠️ Modal de período não encontrado no HTML. Adicione <div id="modalPeriodo"> no HTML.');
+      return;
+    }
     modal.classList.add('active');
     if (id) {
       const p = periodos.find(x => x.id === id);
@@ -1710,7 +1724,7 @@
       alert('Erro ao excluir período.'); }
   };
 
-  // ======== COPIAR PERÍODO ========
+  // ======== COPIAR PERÍODO (COM VÍNCULOS CORRIGIDOS) ========
   window.abrirCopiarPeriodo = function(id) {
     const p = periodos.find(x => x.id === id);
     if (!p) return;
@@ -1750,8 +1764,15 @@
 
       const setoresOrigem = getSetoresDoPeriodo(periodoOrigemCopia.id);
 
+      // 🔥 Mapa para rastrear IDs antigos -> novos
+      const mapaSetores = {};
+      const mapaCustosFixos = {};
+
+      // 1) Copia setores + itens + produções
       for (const setorOrigem of setoresOrigem) {
         const novoSetorId = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        mapaSetores[setorOrigem.id] = novoSetorId;
+
         const novoSetor = { ...setorOrigem, id: novoSetorId, periodold: novoPeriodo.id, createdAt: new Date().toISOString() };
 
         await salvarFB('setores', novoSetor);
@@ -1759,24 +1780,59 @@
 
         const itensOrigem = itensCusto.filter(i => i.setorld === setorOrigem.id);
         for (const itemOrigem of itensOrigem) {
-          const novoItem = { ...itemOrigem, id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), setorld: novoSetorId, createdAt: new Date().toISOString() };
+          const novoItem = {
+            ...itemOrigem,
+            id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            setorld: novoSetorId,
+            createdAt: new Date().toISOString()
+          };
           await salvarFB('itensCusto', novoItem);
           itensCusto.push(novoItem);
         }
 
         const prodsOrigem = producoes.filter(p => p.setorld === setorOrigem.id);
         for (const prodOrigem of prodsOrigem) {
-          const novaProd = { ...prodOrigem, id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), setorld: novoSetorId, createdAt: new Date().toISOString() };
+          const novaProd = {
+            ...prodOrigem,
+            id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            setorld: novoSetorId,
+            createdAt: new Date().toISOString()
+          };
           await salvarFB('producoes', novaProd);
           producoes.push(novaProd);
         }
       }
 
+      // 2) Copia custos fixos e mapeia IDs
       const custosFixosOrigem = getCustosFixosDoPeriodo(periodoOrigemCopia.id);
       for (const cfOrigem of custosFixosOrigem) {
-        const novoCF = { ...cfOrigem, id: 'cf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), periodold: novoPeriodo.id, createdAt: new Date().toISOString() };
+        const novoId = 'cf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        mapaCustosFixos[cfOrigem.id] = novoId;
+
+        const novoCF = {
+          ...cfOrigem,
+          id: novoId,
+          periodold: novoPeriodo.id,
+          createdAt: new Date().toISOString()
+        };
         await salvarFB('custosFixos', novoCF);
         custosFixos.push(novoCF);
+      }
+
+      // 🔥 3) Corrige os itens fixos copiados que apontam para custos fixos antigos
+      const setoresNovos = setores.filter(s => s.periodold === novoPeriodo.id);
+      const idsSetoresNovos = new Set(setoresNovos.map(s => s.id));
+
+      const itensFixosNovos = itensCusto.filter(i =>
+        i.tipo === 'fixo' &&
+        idsSetoresNovos.has(i.setorld) &&
+        i.custoFixold &&
+        mapaCustosFixos[i.custoFixold]
+      );
+
+      for (const item of itensFixosNovos) {
+        item.custoFixold = mapaCustosFixos[item.custoFixold];
+        await salvarFB('itensCusto', item);
       }
 
       window.fecharModal('modalCopiarPeriodo');
@@ -1872,6 +1928,8 @@
       document.getElementById('categoriaCor').value = '#0d904f'; }
   };
 
+  window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
+
   window.salvarCategoria = async function() {
     const nome = document.getElementById('categoriaNome').value.trim();
     if (!nome) { alert('Digite o nome da categoria.'); return; }
@@ -1896,7 +1954,7 @@
     renderizarTela();
   };
 
-  // ======== CRUD ITENS DE CUSTO ========
+  // ======== CRUD ITENS DE CUSTO (CORRIGIDO - PRESERVA VÍNCULO) ========
   window.abrirModalItemCusto = function(id) {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalItemCusto');
@@ -1904,6 +1962,11 @@
     modal.classList.add('active');
     const selCat = document.getElementById('itemCategoria');
     if (selCat) selCat.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+    // 🔥 Bloqueia troca de tipo ao EDITAR (evita perder vínculo com custo fixo)
+    const tabNormal = document.getElementById('tabNormal');
+    const tabFixo = document.getElementById('tabFixo');
+
     if (id) {
       const item = itensCusto.find(i => i.id === id);
       if (item) {
@@ -1923,6 +1986,18 @@
             document.getElementById('itemFixoPercentual').value = item.percentual || 100; }
         }
         mudarTipoItem(item.tipo || 'normal');
+
+        // 🔥 Desabilita as tabs ao editar
+        if (tabNormal) {
+          tabNormal.disabled = true;
+          tabNormal.style.opacity = '0.5';
+          tabNormal.style.cursor = 'not-allowed';
+        }
+        if (tabFixo) {
+          tabFixo.disabled = true;
+          tabFixo.style.opacity = '0.5';
+          tabFixo.style.cursor = 'not-allowed';
+        }
       }
     } else {
       document.getElementById('modalItemTitulo').innerText = 'Novo Item';
@@ -1935,6 +2010,18 @@
       document.getElementById('itemObs').value = '';
       custoFixoSelecionadoId = null;
       mudarTipoItem('normal');
+
+      // Reabilita as tabs ao criar novo
+      if (tabNormal) {
+        tabNormal.disabled = false;
+        tabNormal.style.opacity = '1';
+        tabNormal.style.cursor = 'pointer';
+      }
+      if (tabFixo) {
+        tabFixo.disabled = false;
+        tabFixo.style.opacity = '1';
+        tabFixo.style.cursor = 'pointer';
+      }
     }
     atualizarListaCustosFixos();
   };
@@ -1970,24 +2057,43 @@
     const tipo = document.getElementById('itemTipo').value;
     const editId = document.getElementById('itemEditId').value;
     const item = { setorld: setorAtual ? setorAtual.id : null, nome: document.getElementById('itemNome').value.trim(), obs: document.getElementById('itemObs').value.trim() || '', tipo };
-    if (tipo === 'normal') { item.categoriald = document.getElementById('itemCategoria').value;
+
+    if (tipo === 'normal') {
+      item.categoriald = document.getElementById('itemCategoria').value;
       item.valorTotal = parseFloat(document.getElementById('itemValorTotal').value) || 0;
       item.percentual = parseFloat(document.getElementById('itemPercentual').value) || 100;
-      item.custoFixold = null; } else { if (!custoFixoSelecionadoId) { alert('Selecione um custo fixo.'); return; } const cf = custosFixos.find(c => c.id === custoFixoSelecionadoId); if (!cf) { alert('Custo fixo não encontrado.'); return; } item.categoriald = cf.categoriald;
+
+      // 🔥 PRESERVA VÍNCULO: se estava editando um item fixo, mantém o custoFixold
+      const itemOriginal = editId ? itensCusto.find(x => x.id === editId) : null;
+      item.custoFixold = (itemOriginal && itemOriginal.tipo === 'fixo') ? itemOriginal.custoFixold : null;
+    } else {
+      if (!custoFixoSelecionadoId) { alert('Selecione um custo fixo.'); return; }
+      const cf = custosFixos.find(c => c.id === custoFixoSelecionadoId);
+      if (!cf) { alert('Custo fixo não encontrado.'); return; }
+      item.categoriald = cf.categoriald;
       item.valorTotal = cf.valor;
       item.percentual = parseFloat(document.getElementById('itemFixoPercentual').value) || 100;
       item.custoFixold = custoFixoSelecionadoId;
-      item.nome = cf.nome; }
+      item.nome = cf.nome;
+    }
+
     if (!item.setorld || !item.nome || item.valorTotal <= 0) { alert('Preencha todos os campos corretamente.'); return; }
-    if (editId) { item.id = editId;
-      const idx = itensCusto.findIndex(x => x.id === editId); if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item); } else { item.id = 'item_' + Date.now();
-      itensCusto.push(item); }
+
+    if (editId) {
+      item.id = editId;
+      const idx = itensCusto.findIndex(x => x.id === editId);
+      if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item);
+    } else {
+      item.id = 'item_' + Date.now();
+      itensCusto.push(item);
+    }
     await salvarFB('itensCusto', item);
     window.fecharModal('modalItemCusto');
     renderizarTela();
   };
 
   window.editarItemCusto = function(id) { window.abrirModalItemCusto(id); };
+
   window.excluirItemCusto = async function(id) {
     if (!confirm('Excluir item?')) return;
     itensCusto = itensCusto.filter(i => i.id !== id);
@@ -2194,6 +2300,53 @@
     a.href = c.toDataURL();
     a.click(); } };
 
+  // ======== AJUSTAR TAMANHO DO GRÁFICO ========
+  window.ajustarGrafico = function(tipo, tamanho) {
+    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
+    const infoId = tipo === 'mensal' ? 'graficoMensalTamanho' : 'graficoConsolidadoTamanho';
+    const container = document.getElementById(containerId);
+    const info = document.getElementById(infoId);
+    if (!container) return;
+
+    const tamanhos = {
+      pequeno: '300px',
+      medio: '500px',
+      grande: '700px',
+      telaCheia: 'calc(100vh - 260px)'
+    };
+    const h = tamanhos[tamanho] || '500px';
+    container.style.height = h;
+    if (info) info.textContent = h;
+
+    const modal = container.closest('.modal');
+    if (modal) {
+      modal.querySelectorAll('.btn-grafico-controle').forEach(b => b.classList.remove('active'));
+      const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('.btn-grafico-controle') : null;
+      if (btn) btn.classList.add('active');
+    }
+
+    const canvas = container.querySelector('canvas');
+    if (canvas && window.Chart) {
+      const chart = Chart.getChart(canvas);
+      if (chart) chart.resize();
+    }
+  };
+
+  // ======== FULLSCREEN TOTAL DO GRÁFICO ========
+  window.toggleFullscreenGrafico = function(tipo) {
+    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const modal = container.closest('.modal');
+    if (!modal) return;
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else if (modal.requestFullscreen) {
+      modal.requestFullscreen().catch(() => {});
+    }
+  };
+
   // ======== FILTROS ========
   window.mudarFiltroAno = function(v) { filtroAnoAtual = v;
     periodosSelecionadosResumo.clear();
@@ -2242,24 +2395,19 @@
   }
 
   // ====================================================
-  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA (CORRIGIDO)
+  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA
   // ====================================================
 
-  // ======== INICIALIZAR PAINEL ========
   window.inicializarCustoProcesso = function() {
-    // Preenche os filtros de ano
     const anosDisponiveis = Array.from(new Set(periodos.map(p => p.ano))).sort((a, b) => b - a);
     const selectAno = document.getElementById('custoProcessoAno');
     if (selectAno) {
       selectAno.innerHTML = '<option value="">Todos</option>' +
         anosDisponiveis.map(a => `<option value="${a}">${a}</option>`).join('');
     }
-
-    // Preenche períodos
     window.atualizarPeriodosCustoProcesso();
   };
 
-  // ======== ATUALIZAR PERÍODOS ========
   window.atualizarPeriodosCustoProcesso = function() {
     const selectPeriodo = document.getElementById('custoProcessoPeriodo');
     if (!selectPeriodo) return;
@@ -2280,10 +2428,8 @@
       periodosFiltrados.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
   };
 
-  // ======== FILTRAR CUSTO PROCESSO ========
   window.filtrarCustoProcesso = function() {
     window.atualizarPeriodosCustoProcesso();
-    // Limpa seleção anterior
     document.getElementById('custoProcessoSetoresLista').innerHTML =
       '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione os filtros para carregar os setores.</p>';
     document.getElementById('custoProcessoSetoresSelecionados').innerHTML =
@@ -2292,7 +2438,6 @@
     window.limparResumoCustoProcesso();
   };
 
-  // ======== CARREGAR SETORES DO PERÍODO ========
   window.carregarSetoresProcesso = function() {
     const periodoId = document.getElementById('custoProcessoPeriodo').value;
     const ano = document.getElementById('custoProcessoAno').value;
@@ -2302,20 +2447,17 @@
     const container = document.getElementById('custoProcessoSetoresLista');
     let html = '';
 
-    // Busca os períodos filtrados
     let periodosFiltrados = [...periodos];
     if (ano) periodosFiltrados = periodosFiltrados.filter(p => p.ano === parseInt(ano));
     if (mesesSelecionados.length > 0) {
       periodosFiltrados = periodosFiltrados.filter(p => mesesSelecionados.includes(p.mes));
     }
 
-    // Se não houver períodos filtrados
     if (periodosFiltrados.length === 0) {
       container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Nenhum período encontrado com os filtros selecionados.</p>';
       return;
     }
 
-    // Se tiver período específico selecionado, usa apenas ele
     let periodosParaBuscar = periodosFiltrados;
     if (periodoId) {
       periodosParaBuscar = periodosFiltrados.filter(p => p.id === periodoId);
@@ -2325,7 +2467,6 @@
       }
     }
 
-    // Busca todos os setores dos períodos filtrados (apenas CUSTOS, não despesas)
     let todosSetores = [];
     periodosParaBuscar.forEach(per => {
       const sets = getSetoresDoPeriodo(per.id).filter(s => s.tipo !== 'despesa');
@@ -2338,7 +2479,6 @@
       });
     });
 
-    // Remove duplicados (mesmo setor em períodos diferentes)
     const setoresUnicos = [];
     const nomesSetores = new Set();
     todosSetores.forEach(s => {
@@ -2364,7 +2504,6 @@
         const mediaCustoKg = count > 0 ? somaCustoKg / count : 0;
 
         const isSelecionado = custoProcessoSetoresSelecionados.some(item => item.id === s.id);
-        // Busca a perda salva se já estiver selecionado
         let perdaSalva = 0;
         if (isSelecionado) {
           const setorSalvo = custoProcessoSetoresSelecionados.find(item => item.id === s.id);
@@ -2406,7 +2545,6 @@
 
     container.innerHTML = html;
 
-    // Atualiza lista de selecionados com as perdas atuais
     document.querySelectorAll('.setor-processo-checkbox').forEach(cb => {
       if (cb.checked) {
         const setorId = cb.dataset.setorId;
@@ -2423,13 +2561,11 @@
     window.calcularCustoProcesso();
   };
 
-  // ======== TOGGLE SETOR CUSTO PROCESSO ========
   window.toggleSetorCustoProcesso = function(checkbox) {
     const setorId = checkbox.dataset.setorId;
     const nome = checkbox.dataset.nome;
     const custoKg = parseFloat(checkbox.dataset.custoKg) || 0;
 
-    // Busca a perda configurada
     const perdaInput = document.querySelector(`.setor-perda-input[data-setor-id="${setorId}"]`);
     const perda = perdaInput ? parseFloat(perdaInput.value) || 0 : 0;
 
@@ -2451,7 +2587,6 @@
     window.calcularCustoProcesso();
   };
 
-  // ======== ATUALIZAR SETORES SELECIONADOS ========
   window.atualizarSetoresSelecionados = function() {
     const container = document.getElementById('custoProcessoSetoresSelecionados');
     if (!container) return;
@@ -2481,7 +2616,6 @@
     container.innerHTML = html;
   };
 
-  // ======== REMOVER SETOR SELECIONADO ========
   window.removerSetorSelecionado = function(setorId) {
     const checkbox = document.querySelector(`.setor-processo-checkbox[data-setor-id="${setorId}"]`);
     if (checkbox) checkbox.checked = false;
@@ -2492,7 +2626,6 @@
     window.calcularCustoProcesso();
   };
 
-  // ======== LIMPAR SELEÇÃO DE SETORES ========
   window.limparSelecaoSetores = function() {
     document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
     custoProcessoSetoresSelecionados = [];
@@ -2500,7 +2633,6 @@
     window.limparResumoCustoProcesso();
   };
 
-  // ======== ADICIONAR MATÉRIA PRIMA (CUSTO CASUAL COM QUANTIDADE) ========
   window.adicionarCustoCasual = function() {
     const nome = prompt('Digite o nome da matéria prima:');
     if (!nome) return;
@@ -2531,7 +2663,6 @@
     window.calcularCustoProcesso();
   };
 
-  // ======== REMOVER MATÉRIA PRIMA ========
   window.removerCustoCasual = function(id) {
     custoProcessoCasualItens = custoProcessoCasualItens.filter(item => item.id !== id);
     pesoInicialSimulacao = 0;
@@ -2540,7 +2671,6 @@
     window.calcularCustoProcesso();
   };
 
-  // ======== ATUALIZAR LISTA DE MATÉRIA PRIMA ========
   window.atualizarListaCasual = function() {
     const container = document.getElementById('custoProcessoCasualLista');
     if (!container) return;
@@ -2570,9 +2700,7 @@
     document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(item.quantidade, 0) + ' kg';
   };
 
-  // ======== CALCULAR CUSTO PROCESSO (SIMULAÇÃO COM PERDA - CORRIGIDO) ========
   window.calcularCustoProcesso = function() {
-    // Verifica se tem matéria prima
     if (custoProcessoCasualItens.length === 0) {
       window.limparResumoCustoProcesso();
       document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
@@ -2586,7 +2714,6 @@
     let custoTotalAcumulado = 0;
     let detalhes = [];
 
-    // Calcula o custo da matéria prima
     const custoMP = pesoAtual * materiaPrima.custoKg * (1 + (materiaPrima.imposto || 0) / 100);
     custoTotalAcumulado += custoMP;
 
@@ -2602,16 +2729,13 @@
       custoParcial: custoMP
     });
 
-    // Processa cada setor na ordem selecionada
     let pesoEntrada = pesoAtual;
 
     custoProcessoSetoresSelecionados.forEach((setor, index) => {
       const perda = setor.perda || 0;
-      // 🔥 CORREÇÃO: Calcula o peso perdido com base no peso de entrada
       const pesoPerdido = pesoEntrada * (perda / 100);
       const pesoSaida = pesoEntrada - pesoPerdido;
 
-      // Custo aplicado sobre o peso de ENTRADA
       const custoParcial = pesoEntrada * setor.custoKg;
       custoTotalAcumulado += custoParcial;
 
@@ -2626,7 +2750,6 @@
         custoParcial: custoParcial
       });
 
-      // 🔥 CORREÇÃO: Atualiza o peso para a próxima etapa
       pesoAtual = pesoSaida;
       pesoEntrada = pesoSaida;
     });
@@ -2634,13 +2757,11 @@
     const perdaTotal = pesoAtual > 0 ? ((materiaPrima.quantidade - pesoAtual) / materiaPrima.quantidade * 100) : 100;
     const custoPorKgFinal = pesoAtual > 0 ? custoTotalAcumulado / pesoAtual : 0;
 
-    // Atualiza resumo
     document.getElementById('custoProcessoPesoInicial').textContent = formatNumber(materiaPrima.quantidade, 0) + ' kg';
     document.getElementById('custoProcessoPesoFinal').textContent = formatNumber(pesoAtual, 0) + ' kg';
     document.getElementById('custoProcessoPerdaTotal').textContent = perdaTotal.toFixed(1) + '%';
     document.getElementById('custoProcessoCustoTotal').textContent = formatMoney(custoTotalAcumulado);
 
-    // Mostra detalhes da simulação
     const container = document.getElementById('custoProcessoSetoresSelecionados');
     if (container && detalhes.length > 0) {
       let html = `
@@ -2675,7 +2796,6 @@
                 `;
       });
 
-      // Linha de total
       html += `
                     <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #0d904f;">
                         <td colspan="7" style="padding:0.5rem;text-align:right;color:#0d904f;">TOTAL ACUMULADO</td>
@@ -2690,7 +2810,6 @@
             </div>
         `;
 
-      // Adiciona o resumo da simulação abaixo da tabela
       html += `
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;margin-top:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:6px;">
                 <div><strong>Peso Inicial:</strong> ${formatNumber(materiaPrima.quantidade, 0)} kg</div>
@@ -2705,7 +2824,6 @@
     }
   };
 
-  // ======== LIMPAR RESUMO ========
   window.limparResumoCustoProcesso = function() {
     document.getElementById('custoProcessoPesoInicial').textContent = '0 kg';
     document.getElementById('custoProcessoPesoFinal').textContent = '0 kg';
@@ -2713,7 +2831,6 @@
     document.getElementById('custoProcessoCustoTotal').textContent = 'R$ 0,00';
   };
 
-  // ======== LIMPAR TUDO ========
   window.limparCustoProcesso = function() {
     document.querySelectorAll('.setor-processo-checkbox').forEach(cb => cb.checked = false);
     custoProcessoSetoresSelecionados = [];
@@ -2725,7 +2842,6 @@
     window.limparResumoCustoProcesso();
   };
 
-  // ======== EXPORTAR PDF ========
   window.exportarCustoProcessoPDF = function() {
     if (custoProcessoCasualItens.length === 0 && custoProcessoSetoresSelecionados.length === 0) {
       alert('Adicione uma matéria prima e selecione pelo menos um setor para exportar.');
@@ -2863,7 +2979,7 @@
     win.print();
   };
 
-  // ✅ FUNÇÃO INIT CORRIGIDA
+  // ✅ FUNÇÃO INIT
   async function init() {
     const loadingEl = document.getElementById('loadingOverlay');
     if (loadingEl) loadingEl.classList.add('active');
@@ -2898,7 +3014,6 @@
     if (loadingEl) loadingEl.classList.remove('active');
   }
 
-  // Inicializa o sistema
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
