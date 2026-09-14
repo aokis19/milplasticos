@@ -1,6 +1,7 @@
 /* ==========================================================================
    OCORRENCIAS.JS — Módulo unificado: Faltas, Atestados, Atrasos, Declarações
-   Depende de: firebase-init.js (window.db), rh.js (opcional)
+   Correções: filtro de período "tudo" por padrão + filtro por funcionário
+              + filtro de data personalizado
    ========================================================================== */
 
 (function () {
@@ -108,6 +109,9 @@
       this.bindEventos();
       this.iniciarListeners();
 
+      // Mostrar o box de data personalizada se o filtro já começar com ele
+      this.togglePeriodoCustom();
+
       setTimeout(() => {
         const ov = document.getElementById('loadingOverlay');
         if (ov) ov.style.display = 'none';
@@ -119,6 +123,7 @@
       if (this._bindado) return;
       this._bindado = true;
 
+      /* Cliques */
       document.addEventListener('click', (e) => {
         if (e.target.closest('#btnNovaOcorrencia')) {
           e.preventDefault();
@@ -132,6 +137,11 @@
         }
         if (e.target.classList.contains('oc-modal')) {
           fecharModal();
+          return;
+        }
+        if (e.target.closest('#btnLimparFiltrosOC')) {
+          e.preventDefault();
+          this.limparFiltros();
           return;
         }
         const btnEdit = e.target.closest('[data-action="oc-edit"]');
@@ -153,6 +163,7 @@
         }
       });
 
+      /* Submit */
       document.addEventListener('submit', (e) => {
         if (e.target.id === 'formOcorrencia') {
           e.preventDefault();
@@ -160,24 +171,34 @@
         }
       });
 
+      /* Input */
       document.addEventListener('input', (e) => {
         if (e.target.id === 'ocFiltroTexto') this.render();
         if (e.target.id === 'ocDataInicio' || e.target.id === 'ocDataFim') {
-          if (e.target.id === 'ocDataFim') this.calcularPreview();
-          if (e.target.id === 'ocDataInicio') this.calcularPreview();
+          this.calcularPreview();
         }
         if (e.target.id === 'ocHoras') this.calcularPreview();
         if (e.target.id === 'ocTipo') this.toggleCamposCondicionais();
+        if (e.target.id === 'ocDataInicioFiltro' || e.target.id === 'ocDataFimFiltro') {
+          this.render();
+        }
       });
 
+      /* Change */
       document.addEventListener('change', (e) => {
-        if (['ocFiltroTipo', 'ocFiltroSetor', 'ocFiltroStatus', 'ocFiltroPeriodo'].includes(e.target.id)) {
+        const filtros = [
+          'ocFiltroTipo', 'ocFiltroSetor', 'ocFiltroStatus',
+          'ocFiltroFuncionario', 'ocFiltroPeriodo'
+        ];
+        if (filtros.includes(e.target.id)) {
+          if (e.target.id === 'ocFiltroPeriodo') this.togglePeriodoCustom();
           this.render();
         }
         if (e.target.id === 'ocFuncionario') this.preencherInfoFuncionario();
         if (e.target.id === 'ocTipo') this.toggleCamposCondicionais();
       });
 
+      /* ESC */
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') fecharModal();
       });
@@ -187,15 +208,18 @@
     iniciarListeners() {
       this.state.listeners.push(
         COL.funcionarios.onSnapshot(snap => {
-          this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.state.funcionarios = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
           this.popularSelectFuncionarios();
+          this.popularFiltroFuncionario();
           this.popularFiltroSetor();
         }, err => console.error('funcionarios:', err))
       );
 
       this.state.listeners.push(
         COL.setores.onSnapshot(snap => {
-          this.state.setores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          this.state.setores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
           this.popularFiltroSetor();
         }, err => console.error('setores:', err))
       );
@@ -218,6 +242,17 @@
       const ativos = this.state.funcionarios.filter(f => f.status !== 'Inativo');
       sel.innerHTML = '<option value="">Selecione o funcionário...</option>' +
         ativos.map(f => `<option value="${f.id}">${f.nome} — ${f.setorNome || 'sem setor'} (${f.matricula || 's/mat'})</option>`).join('');
+      sel.value = atual;
+    },
+
+    popularFiltroFuncionario() {
+      const sel = $('#ocFiltroFuncionario');
+      if (!sel) return;
+      const atual = sel.value;
+      sel.innerHTML = '<option value="">Todos os funcionários</option>' +
+        this.state.funcionarios.map(f =>
+          `<option value="${f.id}">${f.nome}${f.setorNome ? ' — ' + f.setorNome : ''}</option>`
+        ).join('');
       sel.value = atual;
     },
 
@@ -252,11 +287,19 @@
         const el = $(sel);
         if (el) el.classList.toggle('show', on);
       };
-      mostrar('#ocGroupDataFim', tipo === 'Atestado' || tipo === 'Licença' || tipo === 'Declaração');
+      mostrar('#ocGroupDataFim', tipo === 'Atestado' || tipo === 'Licença');
       mostrar('#ocGroupHoras',   tipo === 'Atraso' || tipo === 'Declaração');
       mostrar('#ocGroupCID',     tipo === 'Atestado');
       mostrar('#ocGroupMedico',  tipo === 'Atestado');
       this.calcularPreview();
+    },
+
+    togglePeriodoCustom() {
+      const sel = $('#ocFiltroPeriodo');
+      const box = $('#ocPeriodoCustom');
+      if (!box || !sel) return;
+      const personalizado = sel.value === 'personalizado';
+      box.style.display = personalizado ? 'flex' : 'none';
     },
 
     calcularPreview() {
@@ -379,30 +422,65 @@
     },
 
     /* ---------------- Filtros ---------------- */
-    getFiltradas() {
-      const tipo = $('#ocFiltroTipo')?.value || '';
-      const setor = $('#ocFiltroSetor')?.value || '';
-      const status = $('#ocFiltroStatus')?.value || '';
-      const periodo = $('#ocFiltroPeriodo')?.value || '30';
-      const texto = ($('#ocFiltroTexto')?.value || '').toLowerCase();
+    limparFiltros() {
+      ['ocFiltroTexto','ocFiltroTipo','ocFiltroSetor','ocFiltroStatus','ocFiltroFuncionario']
+        .forEach(id => { const el = $('#' + id); if (el) el.value = ''; });
+      const per = $('#ocFiltroPeriodo'); if (per) per.value = 'tudo';
+      const di = $('#ocDataInicioFiltro'); if (di) di.value = '';
+      const df = $('#ocDataFimFiltro'); if (df) df.value = '';
+      this.togglePeriodoCustom();
+      this.render();
+    },
 
-      const hoje = new Date();
+    /**
+     * Aplica os filtros ativos e retorna as ocorrências que passam.
+     * Suporta:
+     *   - Período rápido: 7 / 30 / 90 / hoje / mes / tudo / personalizado
+     *   - Filtro por funcionário
+     *   - Filtro por setor, tipo, status, texto
+     */
+    getFiltradas() {
+      const tipo    = $('#ocFiltroTipo')?.value || '';
+      const setor   = $('#ocFiltroSetor')?.value || '';
+      const status  = $('#ocFiltroStatus')?.value || '';
+      const funcId  = $('#ocFiltroFuncionario')?.value || '';
+      const periodo = $('#ocFiltroPeriodo')?.value || 'tudo';   // ⚠️ PADRÃO = tudo
+      const texto   = ($('#ocFiltroTexto')?.value || '').toLowerCase();
+
+      const agora = new Date();
       let dataMin = null, dataMax = null;
-      if (periodo === '7')  { dataMin = new Date(hoje.getTime() - 7  * 86400000); }
-      if (periodo === '30') { dataMin = new Date(hoje.getTime() - 30 * 86400000); }
-      if (periodo === '90') { dataMin = new Date(hoje.getTime() - 90 * 86400000); }
-      if (periodo === 'hoje') { dataMin = hoje; dataMax = hoje; }
+
+      if (periodo === '7')    dataMin = new Date(agora.getTime() - 7  * 86400000);
+      if (periodo === '30')   dataMin = new Date(agora.getTime() - 30 * 86400000);
+      if (periodo === '90')   dataMin = new Date(agora.getTime() - 90 * 86400000);
+      if (periodo === 'hoje') {
+        dataMin = new Date(agora.toDateString());
+        dataMax = new Date(agora.toDateString());
+      }
+      if (periodo === 'mes') {
+        const y = agora.getFullYear(), m = agora.getMonth();
+        dataMin = new Date(y, m, 1);
+        dataMax = new Date(y, m + 1, 0);
+      }
+      if (periodo === 'personalizado') {
+        const di = $('#ocDataInicioFiltro')?.value;
+        const df = $('#ocDataFimFiltro')?.value;
+        if (di) dataMin = new Date(di + 'T00:00:00');
+        if (df) dataMax = new Date(df + 'T23:59:59');
+      }
+      // 'tudo' → dataMin e dataMax ficam null → sem filtro de data
 
       return this.state.ocorrencias.filter(oc => {
-        if (tipo && oc.tipo !== tipo) return false;
-        if (setor && oc.setorId !== setor) return false;
+        if (tipo   && oc.tipo !== tipo) return false;
+        if (setor  && oc.setorId !== setor) return false;
         if (status && oc.status !== status) return false;
+        if (funcId && oc.funcionarioId !== funcId) return false;
         if (texto) {
           const blob = `${oc.funcionarioNome} ${oc.funcionarioMatricula} ${oc.motivo} ${oc.observacoes}`.toLowerCase();
           if (!blob.includes(texto)) return false;
         }
         if (dataMin || dataMax) {
-          const d = new Date(oc.data + 'T00:00:00');
+          const d = new Date((oc.data || '') + 'T00:00:00');
           if (dataMin && d < dataMin) return false;
           if (dataMax && d > dataMax) return false;
         }
@@ -424,16 +502,14 @@
       setKpi('kpiAtrasos',     qtd('Atraso'));
       setKpi('kpiDeclaracoes', qtd('Declaração'));
 
-      // Total de dias afastados no mês (atestados + faltas + licenças)
       const diasPerdidos = doMes
         .filter(o => ['Falta', 'Atestado', 'Licença'].includes(o.tipo))
-        .reduce((s, o) => s + (o.dias || 0), 0);
+        .reduce((s, o) => s + (parseInt(o.dias) || 0), 0);
       setKpi('kpiDiasPerdidos', diasPerdidos);
 
-      // Total de horas (atrasos + declarações)
       const horasPerdidas = doMes
         .filter(o => ['Atraso', 'Declaração'].includes(o.tipo))
-        .reduce((s, o) => s + (o.horas || 0), 0);
+        .reduce((s, o) => s + (parseFloat(o.horas) || 0), 0);
       setKpi('kpiHorasPerdidas', horasPerdidas.toFixed(1) + 'h');
     },
 
@@ -448,7 +524,7 @@
 
       if (!lista.length) {
         tbody.innerHTML = `
-          <tr><td colspan="9">
+          <tr><td colspan="10">
             <div class="oc-empty">
               <i class="fas fa-inbox"></i>
               <p>Nenhuma ocorrência encontrada com os filtros atuais.</p>
@@ -467,7 +543,7 @@
           <td>${badgeTipo(oc.tipo)}</td>
           <td>${oc.tipo === 'Atraso' || oc.tipo === 'Declaração'
               ? (oc.horas ? oc.horas + 'h' : '—')
-              : (oc.dias + ' ' + (oc.dias === 1 ? 'dia' : 'dias'))}</td>
+              : ((oc.dias || 0) + ' ' + (oc.dias === 1 ? 'dia' : 'dias'))}</td>
           <td>${oc.motivo || '—'}</td>
           <td>${oc.cid || '—'}</td>
           <td>${badgeStatus(oc.status)}</td>
