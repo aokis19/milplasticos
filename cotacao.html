@@ -480,6 +480,69 @@
     .chart-card h3 i { color: #3498db; }
     .chart-card canvas { max-height: 260px; }
 
+    /* Toggle R$ / % nos cards de gráfico */
+    .chart-toggle-mode {
+      margin-left: auto;
+      display: inline-flex;
+      background: #f1f3f5;
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .chart-toggle-mode .toggle-btn {
+      border: none;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6c757d;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-toggle-mode .toggle-btn.active {
+      background: white;
+      color: #3498db;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Chip de filtro ativo (fornecedor clicado) */
+    .filtro-ativo {
+      background: #e3f2fd;
+      border-left: 3px solid #3498db;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #1976d2;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-limpar-filtro {
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-limpar-filtro:hover { background: #2980b9; }
+
+    .chart-hint {
+      font-size: 11px;
+      color: #95a5a6;
+      text-align: center;
+      margin-top: 8px;
+      font-style: italic;
+    }
+
     @media (max-width: 768px) {
       .table-header, .table-row { 
         grid-template-columns: 0.4fr 1fr 1fr 0.5fr 0.5fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1fr; 
@@ -629,25 +692,39 @@
               <h3><i class="fas fa-chart-line"></i> Evolução Mensal de Compras</h3>
               <canvas id="chartEvolucao"></canvas>
             </div>
+
+            <!-- TOP 5 FORNECEDORES (com toggle valor/% + clicável p/ filtrar) -->
             <div class="chart-card">
-              <h3><i class="fas fa-chart-pie"></i> Top 5 Fornecedores</h3>
+              <h3>
+                <i class="fas fa-chart-pie"></i> Top 5 Fornecedores
+                <div class="chart-toggle-mode" data-target="fornecedores">
+                  <button class="toggle-btn active" data-mode="valor">R$</button>
+                  <button class="toggle-btn" data-mode="pct">%</button>
+                </div>
+              </h3>
+              <div id="filtroAtivoFornecedor" class="filtro-ativo" style="display:none;">
+                <i class="fas fa-filter"></i> Filtrando: <strong id="filtroAtivoFornecedorNome"></strong>
+                <button class="btn-limpar-filtro" id="limparFiltroFornecedor" title="Limpar filtro"><i class="fas fa-times"></i></button>
+              </div>
               <canvas id="chartFornecedores"></canvas>
+              <p class="chart-hint"><i class="fas fa-hand-pointer"></i> Clique em um fornecedor para filtrar os demais gráficos</p>
             </div>
+
+            <!-- TOP 10 INSUMOS (com toggle valor/%) -->
             <div class="chart-card">
-              <h3><i class="fas fa-boxes"></i> Top 10 Insumos Comprados</h3>
+              <h3>
+                <i class="fas fa-boxes"></i> Top 10 Insumos Comprados
+                <div class="chart-toggle-mode" data-target="produtos">
+                  <button class="toggle-btn active" data-mode="valor">R$</button>
+                  <button class="toggle-btn" data-mode="pct">%</button>
+                </div>
+              </h3>
               <canvas id="chartProdutos"></canvas>
             </div>
-            <div class="chart-card">
-              <h3><i class="fas fa-clock"></i> Tempo Médio de Compra (dias)</h3>
-              <canvas id="chartTempo"></canvas>
-            </div>
+
             <div class="chart-card">
               <h3><i class="fas fa-bullseye"></i> Meta vs. Realizado</h3>
               <canvas id="chartMeta"></canvas>
-            </div>
-            <div class="chart-card">
-              <h3><i class="fas fa-percentage"></i> Curva ABC de Insumos</h3>
-              <canvas id="chartABC"></canvas>
             </div>
           </div>
         </div>
