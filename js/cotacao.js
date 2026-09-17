@@ -1017,6 +1017,13 @@ async function init() {
 // =====================================================
 let chartInstances = {};
 
+// Estado do dashboard (filtro dinâmico + modo R$/%)
+const dashState = {
+  filtroFornecedor: null,      // nome do fornecedor clicado (ou null)
+  modoFornecedores: 'valor',   // 'valor' | 'pct'
+  modoProdutos: 'valor',       // 'valor' | 'pct'
+};
+
 function destroyCharts() {
   Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
   chartInstances = {};
@@ -1044,7 +1051,13 @@ function calcularKPIs() {
   const manualFiltrado = filtrarPorPeriodo([...dadosManuais]);
 
   // Combina histórico real + dados manuais
-  const hist = [...histReal, ...manualFiltrado];
+  let hist = [...histReal, ...manualFiltrado];
+
+  // Aplica filtro de fornecedor (se houver)
+  if (dashState.filtroFornecedor) {
+    hist = hist.filter(i => (i.fornecedor || 'N/A') === dashState.filtroFornecedor);
+  }
+
   const cots = filtrarPorPeriodo([...cotacoes], 'dataCadastro');
 
   const totalCotacoes = cots.length + hist.length;
@@ -1063,7 +1076,7 @@ function calcularKPIs() {
   const ticketMedio = pedidosGerados > 0 ? valorTotal / pedidosGerados : 0;
   const taxaConversao = totalCotacoes > 0 ? (pedidosGerados / totalCotacoes) * 100 : 0;
 
-  // Tempo médio de compra
+  // Tempo médio de compra (mantido internamente para o PDF, se quiser usar)
   let somaDias = 0, countDias = 0;
   hist.forEach(i => {
     if (i.origem === 'manual' && i.diasCompra !== undefined) {
@@ -1080,7 +1093,7 @@ function calcularKPIs() {
   });
   const tempoMedio = countDias > 0 ? (somaDias / countDias).toFixed(1) : 0;
 
-  // Economia estimada
+  // Economia estimada (mantido internamente para o PDF, se quiser usar)
   const porProduto = {};
   hist.forEach(i => {
     const k = (i.produto || '').toLowerCase();
@@ -1100,20 +1113,18 @@ function calcularKPIs() {
   return { totalCotacoes, pedidosGerados, pedidosExecutados, valorTotal, ticketMedio, taxaConversao, tempoMedio, economia };
 }
 
-// ---------- RENDER KPI CARDS ----------
+// ---------- RENDER KPI CARDS (sem Economia e sem Tempo Médio) ----------
 function renderKPIs() {
   const k = calcularKPIs();
   const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
 
   const cards = [
-    { label:'Total de Cotações',     value: k.totalCotacoes,               icon:'fa-file-invoice',  cor:'blue' },
-    { label:'Pedidos Gerados',       value: k.pedidosGerados,              icon:'fa-shopping-cart', cor:'green' },
-    { label:'Pedidos Executados',    value: k.pedidosExecutados,           icon:'fa-check-double',  cor:'success' },
-    { label:'Valor Total Comprado',  value: fmt(k.valorTotal),             icon:'fa-dollar-sign',   cor:'orange' },
-    { label:'Ticket Médio',          value: fmt(k.ticketMedio),            icon:'fa-receipt',       cor:'purple' },
-    { label:'Taxa de Conversão',     value: k.taxaConversao.toFixed(1)+'%',icon:'fa-percentage',    cor:'green' },
-    { label:'Tempo Médio de Compra', value: k.tempoMedio + ' dias',        icon:'fa-clock',         cor:'warning' },
-    { label:'Economia Estimada',     value: fmt(k.economia),               icon:'fa-piggy-bank',    cor:'success' },
+    { label:'Total de Cotações',    value: k.totalCotacoes,                icon:'fa-file-invoice',  cor:'blue' },
+    { label:'Pedidos Gerados',      value: k.pedidosGerados,               icon:'fa-shopping-cart', cor:'green' },
+    { label:'Pedidos Executados',   value: k.pedidosExecutados,            icon:'fa-check-double',  cor:'success' },
+    { label:'Valor Total Comprado', value: fmt(k.valorTotal),              icon:'fa-dollar-sign',   cor:'orange' },
+    { label:'Ticket Médio',         value: fmt(k.ticketMedio),             icon:'fa-receipt',       cor:'purple' },
+    { label:'Taxa de Conversão',    value: k.taxaConversao.toFixed(1)+'%', icon:'fa-percentage',    cor:'green' },
   ];
 
   const grid = document.getElementById('kpiGrid');
@@ -1133,12 +1144,21 @@ function renderKPIs() {
 // ---------- GRÁFICOS ----------
 function renderGraficos() {
   destroyCharts();
+
   const histReal = filtrarPorPeriodo([...historico]);
   const manualFiltrado = filtrarPorPeriodo([...dadosManuais]);
-  const hist = [...histReal, ...manualFiltrado];
+
+  // Combina tudo
+  let hist = [...histReal, ...manualFiltrado];
+
+  // Aplica filtro de fornecedor (se houver)
+  if (dashState.filtroFornecedor) {
+    hist = hist.filter(i => (i.fornecedor || 'N/A') === dashState.filtroFornecedor);
+  }
+
   const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
 
-  // 1) Evolução mensal
+  /* ---------- 1) Evolução mensal ---------- */
   const porMes = {};
   hist.forEach(i => {
     const d = new Date(i.dataFinalizacao || i.dataCotacao);
@@ -1165,79 +1185,115 @@ function renderGraficos() {
     });
   }
 
-  // 2) Top fornecedores
+  /* ---------- 2) Top 5 Fornecedores (CLICÁVEL + toggle R$ / %) ---------- */
   const porForn = {};
   hist.forEach(i => {
     const sub = (i.quantidade||0)*(i.valorUnitario||0)+(i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
     porForn[i.fornecedor||'N/A'] = (porForn[i.fornecedor||'N/A']||0)+sub;
   });
   const topForn = Object.entries(porForn).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const totalForn = topForn.reduce((s,f)=>s+f[1],0);
 
   const elForn = document.getElementById('chartFornecedores');
   if (elForn) {
+    const isPct = dashState.modoFornecedores === 'pct';
+    const dadosForn = isPct
+      ? topForn.map(f => totalForn > 0 ? +((f[1]/totalForn)*100).toFixed(2) : 0)
+      : topForn.map(f => f[1]);
+
     chartInstances.fornecedores = new Chart(elForn, {
       type:'doughnut',
       data:{
         labels: topForn.map(f=>f[0]),
-        datasets:[{ data: topForn.map(f=>f[1]),
-          backgroundColor:['#3498db','#27ae60','#f39c12','#9b59b6','#e74c3c'] }]
+        datasets:[{
+          data: dadosForn,
+          backgroundColor:['#3498db','#27ae60','#f39c12','#9b59b6','#e74c3c'],
+          borderWidth: 2,
+          borderColor: '#fff',
+        }]
       },
-      options:{ responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'right', labels:{ font:{size:11} } } } }
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        onClick: (evt, elements) => {
+          if (!elements.length) return;
+          const idx = elements[0].index;
+          const fornecedor = topForn[idx][0];
+
+          if (dashState.filtroFornecedor === fornecedor) {
+            limparFiltroFornecedor();
+          } else {
+            dashState.filtroFornecedor = fornecedor;
+            atualizarChipFiltroFornecedor();
+            renderKPIs();
+            renderGraficos();
+            toast(`Filtrando por: ${fornecedor}`);
+          }
+        },
+        plugins:{
+          legend:{ position:'right', labels:{ font:{size:11} } },
+          tooltip:{
+            callbacks:{
+              label: c => {
+                const val = c.raw;
+                return isPct
+                  ? `${c.label}: ${val}%`
+                  : `${c.label}: ${fmt(val)}`;
+              }
+            }
+          }
+        }
+      }
     });
   }
 
-  // 3) Top produtos
+  /* ---------- 3) Top 10 Insumos (toggle R$ / %) ---------- */
   const porProd = {};
   hist.forEach(i => {
     const sub = (i.quantidade||0)*(i.valorUnitario||0)+(i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
     porProd[i.produto||'N/A'] = (porProd[i.produto||'N/A']||0)+sub;
   });
   const topProd = Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const totalProd = topProd.reduce((s,p)=>s+p[1],0);
 
   const elProd = document.getElementById('chartProdutos');
   if (elProd) {
+    const isPct = dashState.modoProdutos === 'pct';
+    const dadosProd = isPct
+      ? topProd.map(p => totalProd > 0 ? +((p[1]/totalProd)*100).toFixed(2) : 0)
+      : topProd.map(p => p[1]);
+
     chartInstances.produtos = new Chart(elProd, {
       type:'bar',
       data:{
         labels: topProd.map(p=>p[0].length>25?p[0].slice(0,25)+'…':p[0]),
-        datasets:[{ label:'Valor (R$)', data: topProd.map(p=>p[1]),
-          backgroundColor:'#27ae60', borderRadius:6 }]
+        datasets:[{
+          label: isPct ? 'Participação (%)' : 'Valor (R$)',
+          data: dadosProd,
+          backgroundColor:'#27ae60',
+          borderRadius:6
+        }]
       },
-      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false} } }
+      options:{
+        indexAxis:'y',
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            callbacks:{
+              label: c => isPct ? `${c.raw}%` : fmt(c.raw)
+            }
+          }
+        },
+        scales: isPct ? {
+          x: { beginAtZero:true, ticks:{ callback: v => v + '%' } }
+        } : {}
+      }
     });
   }
 
-  // 4) Tempo médio por fornecedor
-  const tempoPorForn = {};
-  hist.forEach(i => {
-    const f = i.fornecedor||'N/A';
-    let dias = null;
-    if (i.origem === 'manual' && i.diasCompra !== undefined) {
-      dias = parseInt(i.diasCompra) || 0;
-    } else if (i.dataCotacao && i.dataFinalizacao) {
-      dias = Math.max(0, Math.round((new Date(i.dataFinalizacao)-new Date(i.dataCotacao))/(86400000)));
-    }
-    if (dias !== null) {
-      if (!tempoPorForn[f]) tempoPorForn[f] = {soma:0, n:0};
-      tempoPorForn[f].soma += dias; tempoPorForn[f].n++;
-    }
-  });
-  const tempoArr = Object.entries(tempoPorForn).map(([f,v])=>[f, (v.soma/v.n).toFixed(1)]).sort((a,b)=>b[1]-a[1]).slice(0,8);
-
-  const elTempo = document.getElementById('chartTempo');
-  if (elTempo) {
-    chartInstances.tempo = new Chart(elTempo, {
-      type:'bar',
-      data:{ labels: tempoArr.map(t=>t[0]),
-        datasets:[{ label:'Dias', data: tempoArr.map(t=>t[1]),
-          backgroundColor:'#f39c12', borderRadius:6 }] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
-    });
-  }
-
-  // 5) Meta vs Realizado (meta = 10% de redução)
+  /* ---------- 4) Meta vs. Realizado ---------- */
   const elMeta = document.getElementById('chartMeta');
   if (elMeta && meses.length > 0) {
     const ultimo = porMes[meses[meses.length-1]];
@@ -1254,31 +1310,47 @@ function renderGraficos() {
           tooltip:{ callbacks:{ label: c => fmt(c.raw) } } } }
     });
   }
+}
 
-  // 6) Curva ABC (Pareto)
-  const valores = Object.values(porProd).sort((a,b)=>b-a);
-  const totalGeral = valores.reduce((a,b)=>a+b,0);
-  let acumulado = 0;
-  const abc = valores.slice(0,10).map(v => { acumulado += v; return (acumulado/totalGeral*100).toFixed(1); });
-
-  const elABC = document.getElementById('chartABC');
-  if (elABC) {
-    chartInstances.abc = new Chart(elABC, {
-      type:'line',
-      data:{
-        labels: abc.map((_,i)=>`#${i+1}`),
-        datasets:[{
-          label:'% Acumulado',
-          data: abc,
-          borderColor:'#9b59b6', backgroundColor:'rgba(155,89,182,0.15)',
-          fill:true, tension:0.3, pointRadius:5
-        }]
-      },
-      options:{ responsive:true, maintainAspectRatio:false,
-        scales:{ y:{ beginAtZero:true, max:100, ticks:{ callback:v=>v+'%' } } },
-        plugins:{ legend:{display:false} } }
-    });
+// ---------- Filtro de fornecedor (chip visual) ----------
+function atualizarChipFiltroFornecedor() {
+  const box = document.getElementById('filtroAtivoFornecedor');
+  const nome = document.getElementById('filtroAtivoFornecedorNome');
+  if (!box || !nome) return;
+  if (dashState.filtroFornecedor) {
+    nome.textContent = dashState.filtroFornecedor;
+    box.style.display = 'flex';
+  } else {
+    box.style.display = 'none';
   }
+}
+
+function limparFiltroFornecedor() {
+  dashState.filtroFornecedor = null;
+  atualizarChipFiltroFornecedor();
+  renderKPIs();
+  renderGraficos();
+  toast('Filtro removido');
+}
+
+/* ---------- Bind dos toggles R$ / % ---------- */
+function bindTogglesModo() {
+  document.querySelectorAll('.chart-toggle-mode').forEach(box => {
+    if (box.dataset.bound) return;
+    box.dataset.bound = '1';
+
+    const target = box.dataset.target; // 'fornecedores' | 'produtos'
+    box.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        box.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.dataset.mode;
+        if (target === 'fornecedores') dashState.modoFornecedores = mode;
+        if (target === 'produtos')     dashState.modoProdutos = mode;
+        renderGraficos();
+      });
+    });
+  });
 }
 
 // ---------- PDF RESUMO EXECUTIVO ----------
@@ -1306,6 +1378,14 @@ function gerarPDFDashboard() {
       doc.setFontSize(9);
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, M, 36);
 
+      // Se houver filtro ativo, informa no PDF
+      if (dashState.filtroFornecedor) {
+        doc.setTextColor(52,152,219);
+        doc.setFont('helvetica','bold');
+        doc.text(`Filtro ativo: Fornecedor = ${dashState.filtroFornecedor}`, M, 41);
+        doc.setFont('helvetica','normal');
+      }
+
       const linhas = [
         ['Total de Cotacoes', String(k.totalCotacoes)],
         ['Pedidos Gerados', String(k.pedidosGerados)],
@@ -1313,12 +1393,10 @@ function gerarPDFDashboard() {
         ['Valor Total Comprado', fmt(k.valorTotal)],
         ['Ticket Medio', fmt(k.ticketMedio)],
         ['Taxa de Conversao', k.taxaConversao.toFixed(1)+'%'],
-        ['Tempo Medio de Compra', k.tempoMedio+' dias'],
-        ['Economia Estimada', fmt(k.economia)],
       ];
 
       doc.autoTable({
-        startY: 42,
+        startY: dashState.filtroFornecedor ? 47 : 42,
         head: [['Indicador','Valor']],
         body: linhas,
         theme:'striped',
@@ -1355,11 +1433,14 @@ function gerarPDFDashboard() {
 function initDashboard() {
   renderKPIs();
   renderGraficos();
+  bindTogglesModo();
+  atualizarChipFiltroFornecedor();
 
   const periodoEl = document.getElementById('dashPeriodo');
   const atualizarEl = document.getElementById('dashAtualizarBtn');
   const pdfEl = document.getElementById('dashPdfBtn');
   const manualEl = document.getElementById('dashManualBtn');
+  const limparFiltroEl = document.getElementById('limparFiltroFornecedor');
 
   if (periodoEl && !periodoEl.dataset.bound) {
     periodoEl.addEventListener('change', () => {
@@ -1381,6 +1462,10 @@ function initDashboard() {
   if (manualEl && !manualEl.dataset.bound) {
     manualEl.addEventListener('click', abrirModalManual);
     manualEl.dataset.bound = '1';
+  }
+  if (limparFiltroEl && !limparFiltroEl.dataset.bound) {
+    limparFiltroEl.addEventListener('click', limparFiltroFornecedor);
+    limparFiltroEl.dataset.bound = '1';
   }
 }
 
