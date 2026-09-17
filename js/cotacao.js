@@ -830,6 +830,22 @@ function iniciarListeners() {
   console.log('👂 Listeners Firestore ativos:', listenersAtivos.length);
 }
 
+// ================== MODO TELA CHEIA DO DASHBOARD ==================
+function entrarFullscreenDashboard() {
+  document.body.classList.add('dashboard-fullscreen');
+  // Reajusta os gráficos depois que o layout muda
+  setTimeout(() => {
+    Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
+  }, 100);
+}
+
+function sairFullscreenDashboard() {
+  document.body.classList.remove('dashboard-fullscreen');
+  setTimeout(() => {
+    Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
+  }, 100);
+}
+
 // ================== INICIALIZAÇÃO ==================
 async function init() {
   console.log('🚀 Inicializando sistema de cotações (Firebase + Dashboard + Manuais)...');
@@ -853,11 +869,27 @@ async function init() {
       if (tab) tab.classList.add('active');
 
       if (btn.dataset.tab === 'dashboard') {
+        // Entra em modo tela cheia
+        entrarFullscreenDashboard();
         setTimeout(() => {
           if (typeof initDashboard === 'function') initDashboard();
         }, 50);
+      } else {
+        // Sai do modo tela cheia quando troca de aba
+        sairFullscreenDashboard();
       }
     });
+  });
+
+  // Botão flutuante de sair do fullscreen
+  document.getElementById('btnSairFullscreen')?.addEventListener('click', () => {
+    sairFullscreenDashboard();
+    // Volta para a primeira aba (Cotações)
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const firstBtn = document.querySelector('.tab-btn[data-tab="cotacoes"]');
+    if (firstBtn) firstBtn.classList.add('active');
+    document.getElementById('cotacoesTab')?.classList.add('active');
   });
 
   // Eventos dos botões principais
@@ -1009,6 +1041,18 @@ async function init() {
     }
   });
 
+  // Atalho ESC para sair do modo tela cheia
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('dashboard-fullscreen')) {
+      sairFullscreenDashboard();
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const firstBtn = document.querySelector('.tab-btn[data-tab="cotacoes"]');
+      if (firstBtn) firstBtn.classList.add('active');
+      document.getElementById('cotacoesTab')?.classList.add('active');
+    }
+  });
+
   console.log('✅ Sistema de cotações pronto (Firestore + Dashboard + Manuais)!');
 }
 
@@ -1076,7 +1120,7 @@ function calcularKPIs() {
   const ticketMedio = pedidosGerados > 0 ? valorTotal / pedidosGerados : 0;
   const taxaConversao = totalCotacoes > 0 ? (pedidosGerados / totalCotacoes) * 100 : 0;
 
-  // Tempo médio de compra (mantido internamente para o PDF, se quiser usar)
+  // Tempo médio de compra (mantido internamente para uso no PDF, se precisar)
   let somaDias = 0, countDias = 0;
   hist.forEach(i => {
     if (i.origem === 'manual' && i.diasCompra !== undefined) {
@@ -1093,7 +1137,7 @@ function calcularKPIs() {
   });
   const tempoMedio = countDias > 0 ? (somaDias / countDias).toFixed(1) : 0;
 
-  // Economia estimada (mantido internamente para o PDF, se quiser usar)
+  // Economia estimada (mantido internamente para uso no PDF, se precisar)
   const porProduto = {};
   hist.forEach(i => {
     const k = (i.produto || '').toLowerCase();
@@ -1194,7 +1238,7 @@ function renderGraficos() {
   const topForn = Object.entries(porForn).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const totalForn = topForn.reduce((s,f)=>s+f[1],0);
 
-    const elForn = document.getElementById('chartFornecedores');
+  const elForn = document.getElementById('chartFornecedores');
   if (elForn) {
     const isPct = dashState.modoFornecedores === 'pct';
     const dadosForn = isPct
@@ -1265,14 +1309,13 @@ function renderGraficos() {
   const totalProd = topProd.reduce((s,p)=>s+p[1],0);
 
   const elProd = document.getElementById('chartProdutos');
-    const elProd = document.getElementById('chartProdutos');
   if (elProd) {
     const isPct = dashState.modoProdutos === 'pct';
     const dadosProd = isPct
       ? topProd.map(p => totalProd > 0 ? +((p[1]/totalProd)*100).toFixed(2) : 0)
       : topProd.map(p => p[1]);
 
-    // Plugin simples que desenha o valor no final de cada barra
+    // Plugin que desenha o valor/percentual no final de cada barra
     const pluginValorBarra = {
       id: 'pluginValorBarra',
       afterDatasetsDraw(chart) {
@@ -1336,6 +1379,26 @@ function renderGraficos() {
       plugins: [pluginValorBarra]
     });
   }
+
+  /* ---------- 4) Meta vs. Realizado ---------- */
+  const elMeta = document.getElementById('chartMeta');
+  if (elMeta && meses.length > 0) {
+    const ultimo = porMes[meses[meses.length-1]];
+    const meta = ultimo * 0.90;
+    chartInstances.meta = new Chart(elMeta, {
+      type:'bar',
+      data:{
+        labels:['Mês Atual','Meta Próximo Mês'],
+        datasets:[{ data:[ultimo, meta],
+          backgroundColor:['#3498db','#27ae60'], borderRadius:8 }]
+      },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ label: c => fmt(c.raw) } } } }
+    });
+  }
+}
+
 // ---------- Filtro de fornecedor (chip visual) ----------
 function atualizarChipFiltroFornecedor() {
   const box = document.getElementById('filtroAtivoFornecedor');
