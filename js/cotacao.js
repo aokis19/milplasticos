@@ -1194,17 +1194,23 @@ function renderGraficos() {
   const topForn = Object.entries(porForn).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const totalForn = topForn.reduce((s,f)=>s+f[1],0);
 
-  const elForn = document.getElementById('chartFornecedores');
+    const elForn = document.getElementById('chartFornecedores');
   if (elForn) {
     const isPct = dashState.modoFornecedores === 'pct';
     const dadosForn = isPct
       ? topForn.map(f => totalForn > 0 ? +((f[1]/totalForn)*100).toFixed(2) : 0)
       : topForn.map(f => f[1]);
 
+    // Rótulos da legenda: no modo % mostra "Fornecedor — 32,5%"
+    const labelsLegenda = topForn.map((f, i) => {
+      if (!isPct) return f[0];
+      return `${f[0]} — ${dadosForn[i].toFixed(1).replace('.', ',')}%`;
+    });
+
     chartInstances.fornecedores = new Chart(elForn, {
       type:'doughnut',
       data:{
-        labels: topForn.map(f=>f[0]),
+        labels: labelsLegenda,
         datasets:[{
           data: dadosForn,
           backgroundColor:['#3498db','#27ae60','#f39c12','#9b59b6','#e74c3c'],
@@ -1236,9 +1242,11 @@ function renderGraficos() {
             callbacks:{
               label: c => {
                 const val = c.raw;
+                const total = dadosForn.reduce((a,b)=>a+b,0);
+                const pct = total > 0 ? ((val/total)*100).toFixed(1).replace('.', ',') : '0';
                 return isPct
-                  ? `${c.label}: ${val}%`
-                  : `${c.label}: ${fmt(val)}`;
+                  ? `${topForn[c.dataIndex][0]}: ${pct}%`
+                  : `${topForn[c.dataIndex][0]}: ${fmt(val)} (${pct}%)`;
               }
             }
           }
@@ -1257,11 +1265,34 @@ function renderGraficos() {
   const totalProd = topProd.reduce((s,p)=>s+p[1],0);
 
   const elProd = document.getElementById('chartProdutos');
+    const elProd = document.getElementById('chartProdutos');
   if (elProd) {
     const isPct = dashState.modoProdutos === 'pct';
     const dadosProd = isPct
       ? topProd.map(p => totalProd > 0 ? +((p[1]/totalProd)*100).toFixed(2) : 0)
       : topProd.map(p => p[1]);
+
+    // Plugin simples que desenha o valor no final de cada barra
+    const pluginValorBarra = {
+      id: 'pluginValorBarra',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = 'bold 11px Segoe UI, sans-serif';
+        ctx.fillStyle = '#2c3e50';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+          const valor = chart.data.datasets[0].data[i];
+          const txt = isPct
+            ? `${valor.toFixed(1).replace('.', ',')}%`
+            : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(valor);
+          ctx.fillText(txt, bar.x + 6, bar.y);
+        });
+        ctx.restore();
+      }
+    };
 
     chartInstances.produtos = new Chart(elProd, {
       type:'bar',
@@ -1278,40 +1309,33 @@ function renderGraficos() {
         indexAxis:'y',
         responsive:true,
         maintainAspectRatio:false,
+        layout: { padding: { right: 60 } }, // espaço p/ o rótulo
         plugins:{
           legend:{display:false},
           tooltip:{
             callbacks:{
-              label: c => isPct ? `${c.raw}%` : fmt(c.raw)
+              label: c => {
+                const val = c.raw;
+                const pct = totalProd > 0 ? ((topProd[c.dataIndex][1]/totalProd)*100).toFixed(1).replace('.', ',') : '0';
+                return isPct
+                  ? `${pct}%`
+                  : `${fmt(val)} (${pct}%)`;
+              }
             }
           }
         },
-        scales: isPct ? {
-          x: { beginAtZero:true, ticks:{ callback: v => v + '%' } }
-        } : {}
-      }
-    });
-  }
-
-  /* ---------- 4) Meta vs. Realizado ---------- */
-  const elMeta = document.getElementById('chartMeta');
-  if (elMeta && meses.length > 0) {
-    const ultimo = porMes[meses[meses.length-1]];
-    const meta = ultimo * 0.90;
-    chartInstances.meta = new Chart(elMeta, {
-      type:'bar',
-      data:{
-        labels:['Mês Atual','Meta Próximo Mês'],
-        datasets:[{ data:[ultimo, meta],
-          backgroundColor:['#3498db','#27ae60'], borderRadius:8 }]
+        scales: {
+          x: {
+            beginAtZero:true,
+            ticks: isPct
+              ? { callback: v => v + '%' }
+              : { callback: v => new Intl.NumberFormat('pt-BR',{notation:'compact'}).format(v) }
+          }
+        }
       },
-      options:{ responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{display:false},
-          tooltip:{ callbacks:{ label: c => fmt(c.raw) } } } }
+      plugins: [pluginValorBarra]
     });
   }
-}
-
 // ---------- Filtro de fornecedor (chip visual) ----------
 function atualizarChipFiltroFornecedor() {
   const box = document.getElementById('filtroAtivoFornecedor');
