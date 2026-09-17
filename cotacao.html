@@ -506,7 +506,7 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    /* Chip de filtro ativo (fornecedor clicado) */
+    /* Chip de filtro ativo */
     .filtro-ativo {
       background: #e3f2fd;
       border-left: 3px solid #3498db;
@@ -776,7 +776,7 @@
               <p class="chart-hint"><i class="fas fa-hand-pointer"></i> Clique em um fornecedor para filtrar os demais gráficos</p>
             </div>
 
-            <!-- TOP 10 INSUMOS (com toggle valor/%) -->
+            <!-- TOP 10 INSUMOS (com toggle valor/% + clicável p/ filtrar) -->
             <div class="chart-card">
               <h3>
                 <i class="fas fa-boxes"></i> Top 10 Insumos Comprados
@@ -785,7 +785,12 @@
                   <button class="toggle-btn" data-mode="pct">%</button>
                 </div>
               </h3>
+              <div id="filtroAtivoProduto" class="filtro-ativo" style="display:none;">
+                <i class="fas fa-filter"></i> Filtrando: <strong id="filtroAtivoProdutoNome"></strong>
+                <button class="btn-limpar-filtro" id="limparFiltroProduto" title="Limpar filtro"><i class="fas fa-times"></i></button>
+              </div>
               <canvas id="chartProdutos"></canvas>
+              <p class="chart-hint"><i class="fas fa-hand-pointer"></i> Clique em um insumo para filtrar os demais gráficos</p>
             </div>
 
             <div class="chart-card">
