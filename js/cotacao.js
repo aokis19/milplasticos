@@ -20,11 +20,11 @@ let produtos = [];
 let cotacoes = [];
 let historico = [];
 let fornecedores = [];
-let dadosManuais = [];        // dados históricos inseridos manualmente
+let dadosManuais = [];
 let editingId = null;
 let editingFornecedorId = null;
 let editingProdutoId = null;
-let editingManualId = null;   // id em edição de registro manual
+let editingManualId = null;
 let listenersAtivos = [];
 
 // ================== UTILITÁRIOS ==================
@@ -776,7 +776,6 @@ function editarFornecedor(id) {
 function iniciarListeners() {
   if (!COL) return;
 
-  // Cotações ativas
   listenersAtivos.push(
     COL.cotacoes.onSnapshot(snap => {
       cotacoes = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -785,7 +784,6 @@ function iniciarListeners() {
     }, err => console.error('❌ cotacoes:', err))
   );
 
-  // Histórico
   listenersAtivos.push(
     COL.historico.onSnapshot(snap => {
       historico = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -797,7 +795,6 @@ function iniciarListeners() {
     }, err => console.error('❌ historico:', err))
   );
 
-  // Produtos
   listenersAtivos.push(
     COL.produtos.onSnapshot(snap => {
       produtos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -806,7 +803,6 @@ function iniciarListeners() {
     }, err => console.error('❌ produtos:', err))
   );
 
-  // Fornecedores
   listenersAtivos.push(
     COL.fornecedores.onSnapshot(snap => {
       fornecedores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -815,7 +811,6 @@ function iniciarListeners() {
     }, err => console.error('❌ fornecedores:', err))
   );
 
-  // Dados manuais
   listenersAtivos.push(
     COL.manual.onSnapshot(snap => {
       dadosManuais = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -833,7 +828,6 @@ function iniciarListeners() {
 // ================== MODO TELA CHEIA DO DASHBOARD ==================
 function entrarFullscreenDashboard() {
   document.body.classList.add('dashboard-fullscreen');
-  // Reajusta os gráficos depois que o layout muda
   setTimeout(() => {
     Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
   }, 100);
@@ -869,13 +863,11 @@ async function init() {
       if (tab) tab.classList.add('active');
 
       if (btn.dataset.tab === 'dashboard') {
-        // Entra em modo tela cheia
         entrarFullscreenDashboard();
         setTimeout(() => {
           if (typeof initDashboard === 'function') initDashboard();
         }, 50);
       } else {
-        // Sai do modo tela cheia quando troca de aba
         sairFullscreenDashboard();
       }
     });
@@ -884,7 +876,6 @@ async function init() {
   // Botão flutuante de sair do fullscreen
   document.getElementById('btnSairFullscreen')?.addEventListener('click', () => {
     sairFullscreenDashboard();
-    // Volta para a primeira aba (Cotações)
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     const firstBtn = document.querySelector('.tab-btn[data-tab="cotacoes"]');
@@ -1064,6 +1055,7 @@ let chartInstances = {};
 // Estado do dashboard (filtro dinâmico + modo R$/%)
 const dashState = {
   filtroFornecedor: null,      // nome do fornecedor clicado (ou null)
+  filtroProduto: null,         // nome do produto clicado (ou null)
   modoFornecedores: 'valor',   // 'valor' | 'pct'
   modoProdutos: 'valor',       // 'valor' | 'pct'
 };
@@ -1097,9 +1089,12 @@ function calcularKPIs() {
   // Combina histórico real + dados manuais
   let hist = [...histReal, ...manualFiltrado];
 
-  // Aplica filtro de fornecedor (se houver)
+  // Aplica filtros dinâmicos (fornecedor + produto)
   if (dashState.filtroFornecedor) {
     hist = hist.filter(i => (i.fornecedor || 'N/A') === dashState.filtroFornecedor);
+  }
+  if (dashState.filtroProduto) {
+    hist = hist.filter(i => (i.produto || 'N/A') === dashState.filtroProduto);
   }
 
   const cots = filtrarPorPeriodo([...cotacoes], 'dataCadastro');
@@ -1107,7 +1102,6 @@ function calcularKPIs() {
   const totalCotacoes = cots.length + hist.length;
   const pedidosGerados = hist.length;
 
-  // Pedidos executados (status = executado nos manuais, ou todos do histórico real)
   const pedidosExecutados = hist.filter(i =>
     i.origem === 'manual' ? i.status === 'executado' : true
   ).length;
@@ -1120,7 +1114,7 @@ function calcularKPIs() {
   const ticketMedio = pedidosGerados > 0 ? valorTotal / pedidosGerados : 0;
   const taxaConversao = totalCotacoes > 0 ? (pedidosGerados / totalCotacoes) * 100 : 0;
 
-  // Tempo médio de compra (mantido internamente para uso no PDF, se precisar)
+  // Tempo médio (mantido internamente para uso no PDF, se precisar)
   let somaDias = 0, countDias = 0;
   hist.forEach(i => {
     if (i.origem === 'manual' && i.diasCompra !== undefined) {
@@ -1137,7 +1131,7 @@ function calcularKPIs() {
   });
   const tempoMedio = countDias > 0 ? (somaDias / countDias).toFixed(1) : 0;
 
-  // Economia estimada (mantido internamente para uso no PDF, se precisar)
+  // Economia (mantido internamente para uso no PDF, se precisar)
   const porProduto = {};
   hist.forEach(i => {
     const k = (i.produto || '').toLowerCase();
@@ -1195,9 +1189,12 @@ function renderGraficos() {
   // Combina tudo
   let hist = [...histReal, ...manualFiltrado];
 
-  // Aplica filtro de fornecedor (se houver)
+  // Aplica filtros dinâmicos (fornecedor + produto)
   if (dashState.filtroFornecedor) {
     hist = hist.filter(i => (i.fornecedor || 'N/A') === dashState.filtroFornecedor);
+  }
+  if (dashState.filtroProduto) {
+    hist = hist.filter(i => (i.produto || 'N/A') === dashState.filtroProduto);
   }
 
   const fmt = v => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(v||0);
@@ -1245,7 +1242,6 @@ function renderGraficos() {
       ? topForn.map(f => totalForn > 0 ? +((f[1]/totalForn)*100).toFixed(2) : 0)
       : topForn.map(f => f[1]);
 
-    // Rótulos da legenda: no modo % mostra "Fornecedor — 32,5%"
     const labelsLegenda = topForn.map((f, i) => {
       if (!isPct) return f[0];
       return `${f[0]} — ${dadosForn[i].toFixed(1).replace('.', ',')}%`;
@@ -1280,6 +1276,9 @@ function renderGraficos() {
             toast(`Filtrando por: ${fornecedor}`);
           }
         },
+        onHover: (evt, elements) => {
+          evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        },
         plugins:{
           legend:{ position:'right', labels:{ font:{size:11} } },
           tooltip:{
@@ -1299,7 +1298,7 @@ function renderGraficos() {
     });
   }
 
-  /* ---------- 3) Top 10 Insumos (toggle R$ / %) ---------- */
+  /* ---------- 3) Top 10 Insumos (CLICÁVEL + toggle R$ / %) ---------- */
   const porProd = {};
   hist.forEach(i => {
     const sub = (i.quantidade||0)*(i.valorUnitario||0)+(i.valorFrete||0)+(i.valorIPI||0)+(i.valorICMS||0);
@@ -1337,6 +1336,13 @@ function renderGraficos() {
       }
     };
 
+    // Cores: destacar o produto selecionado
+    const coresBarras = topProd.map(p => {
+      const nomeProd = p[0];
+      if (dashState.filtroProduto === nomeProd) return '#f39c12'; // laranja = selecionado
+      return '#27ae60';
+    });
+
     chartInstances.produtos = new Chart(elProd, {
       type:'bar',
       data:{
@@ -1344,7 +1350,7 @@ function renderGraficos() {
         datasets:[{
           label: isPct ? 'Participação (%)' : 'Valor (R$)',
           data: dadosProd,
-          backgroundColor:'#27ae60',
+          backgroundColor: coresBarras,
           borderRadius:6
         }]
       },
@@ -1352,7 +1358,25 @@ function renderGraficos() {
         indexAxis:'y',
         responsive:true,
         maintainAspectRatio:false,
-        layout: { padding: { right: 60 } }, // espaço p/ o rótulo
+        layout: { padding: { right: 60 } },
+        onClick: (evt, elements) => {
+          if (!elements.length) return;
+          const idx = elements[0].index;
+          const produto = topProd[idx][0];
+
+          if (dashState.filtroProduto === produto) {
+            limparFiltroProduto();
+          } else {
+            dashState.filtroProduto = produto;
+            atualizarChipFiltroProduto();
+            renderKPIs();
+            renderGraficos();
+            toast(`Filtrando por insumo: ${produto}`);
+          }
+        },
+        onHover: (evt, elements) => {
+          evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+        },
         plugins:{
           legend:{display:false},
           tooltip:{
@@ -1417,7 +1441,28 @@ function limparFiltroFornecedor() {
   atualizarChipFiltroFornecedor();
   renderKPIs();
   renderGraficos();
-  toast('Filtro removido');
+  toast('Filtro de fornecedor removido');
+}
+
+/* ---------- Filtro de produto (chip visual) ---------- */
+function atualizarChipFiltroProduto() {
+  const box = document.getElementById('filtroAtivoProduto');
+  const nome = document.getElementById('filtroAtivoProdutoNome');
+  if (!box || !nome) return;
+  if (dashState.filtroProduto) {
+    nome.textContent = dashState.filtroProduto;
+    box.style.display = 'flex';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function limparFiltroProduto() {
+  dashState.filtroProduto = null;
+  atualizarChipFiltroProduto();
+  renderKPIs();
+  renderGraficos();
+  toast('Filtro de insumo removido');
 }
 
 /* ---------- Bind dos toggles R$ / % ---------- */
@@ -1465,11 +1510,19 @@ function gerarPDFDashboard() {
       doc.setFontSize(9);
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, M, 36);
 
-      // Se houver filtro ativo, informa no PDF
-      if (dashState.filtroFornecedor) {
+      // Informa filtros ativos
+      let yFiltros = 41;
+      if (dashState.filtroFornecedor || dashState.filtroProduto) {
         doc.setTextColor(52,152,219);
         doc.setFont('helvetica','bold');
-        doc.text(`Filtro ativo: Fornecedor = ${dashState.filtroFornecedor}`, M, 41);
+        if (dashState.filtroFornecedor) {
+          doc.text(`Filtro fornecedor: ${dashState.filtroFornecedor}`, M, yFiltros);
+          yFiltros += 5;
+        }
+        if (dashState.filtroProduto) {
+          doc.text(`Filtro insumo: ${dashState.filtroProduto}`, M, yFiltros);
+          yFiltros += 5;
+        }
         doc.setFont('helvetica','normal');
       }
 
@@ -1483,7 +1536,7 @@ function gerarPDFDashboard() {
       ];
 
       doc.autoTable({
-        startY: dashState.filtroFornecedor ? 47 : 42,
+        startY: yFiltros + 1,
         head: [['Indicador','Valor']],
         body: linhas,
         theme:'striped',
@@ -1522,12 +1575,14 @@ function initDashboard() {
   renderGraficos();
   bindTogglesModo();
   atualizarChipFiltroFornecedor();
+  atualizarChipFiltroProduto();
 
   const periodoEl = document.getElementById('dashPeriodo');
   const atualizarEl = document.getElementById('dashAtualizarBtn');
   const pdfEl = document.getElementById('dashPdfBtn');
   const manualEl = document.getElementById('dashManualBtn');
   const limparFiltroEl = document.getElementById('limparFiltroFornecedor');
+  const limparFiltroProdEl = document.getElementById('limparFiltroProduto');
 
   if (periodoEl && !periodoEl.dataset.bound) {
     periodoEl.addEventListener('change', () => {
@@ -1553,6 +1608,10 @@ function initDashboard() {
   if (limparFiltroEl && !limparFiltroEl.dataset.bound) {
     limparFiltroEl.addEventListener('click', limparFiltroFornecedor);
     limparFiltroEl.dataset.bound = '1';
+  }
+  if (limparFiltroProdEl && !limparFiltroProdEl.dataset.bound) {
+    limparFiltroProdEl.addEventListener('click', limparFiltroProduto);
+    limparFiltroProdEl.dataset.bound = '1';
   }
 }
 
