@@ -1,6 +1,7 @@
 // ==========================================================================
 // manut.js - Gerenciador de Manutenção (Versão 100% Firebase)
 // Sem localStorage - Dados sempre do Firebase
+// CORRIGIDO: KM atual agora considera abastecimentos (fonte mais recente)
 // ==========================================================================
 
 // ================== VARIÁVEIS GLOBAIS ==================
@@ -8,8 +9,10 @@ let manutencoes = [];
 let manutencoesCorretivas = [];
 let veiculos = [];
 let tiposManutencao = {};
+let abastecimentos = [];          // ← NOVO: cache de abastecimentos para cálculo do KM atual
 let editingId = null;
 let editingCorretivaId = null;
+let unsubscribeAbastecimentos = null;  // ← NOVO: listener em tempo real
 
 // ================== REFERÊNCIA DO FIREBASE ==================
 function getDB() {
@@ -31,6 +34,7 @@ async function inicializar() {
     await carregarManutencoes();
     await carregarTiposConfig();
     await carregarManutencoesCorretivas();
+    await carregarAbastecimentos();      // ← NOVO: essencial para o KM atual
     
     configurarEventos();
     configurarAbas();
@@ -40,10 +44,13 @@ async function inicializar() {
     await renderVeiculosList();
     await renderCorretivas();
     
+    escutarAbastecimentos();             // ← NOVO: mantém KM atualizado em tempo real
+    
     console.log('✅ Sistema de manutenção pronto!');
     console.log('   🚗 ' + veiculos.length + ' veículos');
     console.log('   🔧 ' + manutencoes.length + ' preventivas');
     console.log('   🛠️ ' + manutencoesCorretivas.length + ' corretivas');
+    console.log('   ⛽ ' + abastecimentos.length + ' abastecimentos (para KM atual)');
 }
 
 // ================== CARREGAR DADOS (APENAS FIREBASE) ==================
@@ -132,7 +139,58 @@ async function carregarTiposConfig() {
     }
 }
 
+// ← NOVO: carrega abastecimentos em memória para cálculo do KM atual
+async function carregarAbastecimentos() {
+    const db = getDB();
+    if (!db) {
+        abastecimentos = [];
+        return;
+    }
+    
+    try {
+        const snapshot = await db.collection('abastecimentos')
+            .orderBy('data', 'desc')
+            .get();
+        abastecimentos = [];
+        snapshot.forEach(doc => {
+            abastecimentos.push({ firebaseId: doc.id, id: doc.id, ...doc.data() });
+        });
+        console.log(`✅ ${abastecimentos.length} abastecimentos carregados (fonte do KM atual)`);
+    } catch (error) {
+        console.error('❌ Erro ao carregar abastecimentos:', error);
+        abastecimentos = [];
+    }
+}
+
+// ← NOVO: listener em tempo real — se abastecerem em outra aba, a manutenção atualiza
+function escutarAbastecimentos() {
+    const db = getDB();
+    if (!db || unsubscribeAbastecimentos) return;
+    
+    try {
+        unsubscribeAbastecimentos = db.collection('abastecimentos')
+            .orderBy('data', 'desc')
+            .onSnapshot(snapshot => {
+                abastecimentos = [];
+                snapshot.forEach(doc => {
+                    abastecimentos.push({ firebaseId: doc.id, id: doc.id, ...doc.data() });
+                });
+                console.log(`🔄 ${abastecimentos.length} abastecimentos sincronizados em tempo real`);
+                
+                // Re-renderiza apenas as telas que dependem do KM atual
+                renderPreventivas();
+                renderProximas();
+                renderVeiculosList();
+            }, error => {
+                console.error('❌ Erro no listener de abastecimentos:', error);
+            });
+    } catch (error) {
+        console.error('❌ Erro ao configurar listener:', error);
+    }
+}
+
 // ================== FUNÇÕES AUXILIARES ==================
+
 // Buscar KM atual do veículo DIRETO do Firebase
 async function obterKmAtualVeiculo(placa) {
     const db = getDB();
@@ -168,9 +226,40 @@ async function obterKmAtualVeiculo(placa) {
     }
 }
 
-// Versão síncrona para renderização (usa cache da memória)
+// Versão síncrona para renderização — usa cache em memória
+// ✅ CORRIGIDO: prioriza abastecimentos (fonte mais recente do odômetro)
 function obterKmAtualVeiculoCache(placa) {
-    // Buscar no array de manutenções (já carregado em memória)
+    if (!placa) return 0;
+    
+    // 1. PRIORIDADE: último abastecimento
+    //    Observação: o abastecimento grava 'veiculoPlaca' (ver abastecimento.js).
+    //    Também aceitamos 'veiculoId' cruzando com a lista de veículos, para
+    //    compatibilidade com registros antigos.
+    const veiculoRef = veiculos.find(v =>
+        v.placa === placa || v.firebaseId === placa || v.id === placa
+    );
+    const placaAlvo = veiculoRef?.placa || placa;
+    const idsAlvo = new Set([
+        veiculoRef?.firebaseId,
+        veiculoRef?.id,
+        placa
+    ].filter(Boolean));
+    
+    const abastVeiculo = abastecimentos
+        .filter(a => {
+            if (a.veiculoPlaca && a.veiculoPlaca === placaAlvo) return true;
+            if (a.veiculoId && idsAlvo.has(a.veiculoId)) return true;
+            return false;
+        })
+        .sort((a, b) => new Date(b.data) - new Date(a.data));
+    
+    if (abastVeiculo.length > 0) {
+        const ultimo = abastVeiculo[0];
+        const km = ultimo.odometro || ultimo.horimetro || 0;
+        if (km > 0) return km;
+    }
+    
+    // 2. Fallback: última manutenção preventiva
     const manutVeiculo = manutencoes
         .filter(m => m.veiculoPlaca === placa)
         .sort((a, b) => new Date(b.data) - new Date(a.data));
@@ -320,6 +409,9 @@ async function salvarPreventiva(e) {
         }
     }
     
+    // ✅ Guardar estado de edição ANTES de zerar (corrige mensagem "registrada" indevida)
+    const eraEdicao = !!editingId;
+    
     // Salvar no Firebase
     const firebaseId = await salvarNoFirebase('manutencoes', manutencaoData);
     
@@ -334,7 +426,7 @@ async function salvarPreventiva(e) {
         await renderPreventivas();
         await renderProximas();
         
-        alert(editingId ? '✅ Manutenção atualizada!' : '✅ Manutenção registrada!');
+        alert(eraEdicao ? '✅ Manutenção atualizada!' : '✅ Manutenção registrada!');
     } else {
         alert('❌ Erro ao salvar. Tente novamente.');
     }
@@ -549,6 +641,9 @@ async function salvarCorretiva(e) {
         }
     }
     
+    // ✅ Guardar estado de edição ANTES de zerar
+    const eraEdicao = !!editingCorretivaId;
+    
     const firebaseId = await salvarNoFirebase('manutencoesCorretivas', manutencaoData);
     
     if (firebaseId) {
@@ -561,7 +656,7 @@ async function salvarCorretiva(e) {
         editingCorretivaId = null;
         
         await renderCorretivas();
-        alert(editingCorretivaId ? '✅ Manutenção atualizada!' : '✅ Manutenção registrada!');
+        alert(eraEdicao ? '✅ Manutenção atualizada!' : '✅ Manutenção registrada!');
     } else {
         alert('❌ Erro ao salvar.');
     }
@@ -602,8 +697,107 @@ async function excluirCorretiva(id) {
     alert('✅ Excluído!');
 }
 
-// ... (manter funções: verificarGarantia, renderCorretivas, visualizarAnexo, 
-//      calcularGarantiaFim, anexarArquivo IGUAIS - elas não usam localStorage)
+// ================== FUNÇÕES AUXILIARES (GARANTIA / ANEXO) ==================
+
+function verificarGarantia(garantiaFim) {
+    if (!garantiaFim) return { texto: 'Sem garantia', classe: '' };
+    const hoje = new Date();
+    const dataFim = new Date(garantiaFim);
+    if (dataFim < hoje) return { texto: 'Garantia expirada', classe: 'status-urgente' };
+    const diasRestantes = Math.ceil((dataFim - hoje) / (1000 * 60 * 60 * 24));
+    if (diasRestantes <= 30) return { texto: `Garantia: ${diasRestantes} dias`, classe: 'status-proximo' };
+    return { texto: `Garantia até ${new Date(garantiaFim).toLocaleDateString('pt-BR')}`, classe: 'status-ok' };
+}
+
+async function renderCorretivas() {
+    const tbody = document.getElementById('corretivaBody');
+    if (!tbody) return;
+    
+    if (manutencoesCorretivas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    for (const m of manutencoesCorretivas) {
+        const garantia = verificarGarantia(m.garantiaFim);
+        const anexoHtml = m.anexo ? `<button class="btn-icon" onclick="visualizarAnexo('${m.firebaseId || m.id}')"><i class="fas fa-paperclip"></i></button>` : '-';
+        const id = m.firebaseId || m.id;
+        
+        html += `<tr>
+            <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
+            <td><strong>${m.veiculoNome || 'Sem nome'}</strong><br><small>${m.veiculoPlaca}</small></td>
+            <td>${m.tipo}</td>
+            <td>${m.descricao ? (m.descricao.length > 50 ? m.descricao.substring(0, 50) + '...' : m.descricao) : '-'}</td>
+            <td>${m.valor > 0 ? m.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
+            <td class="${garantia.classe}">${garantia.texto}</td>
+            <td>${anexoHtml}</td>
+            <td>
+                <button class="btn-icon" onclick="editarCorretiva('${id}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon delete" onclick="excluirCorretiva('${id}')"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+}
+
+function visualizarAnexo(id) {
+    const m = manutencoesCorretivas.find(m => (m.firebaseId === id) || (m.id == id));
+    if (!m || !m.anexo) return;
+    
+    const modal = document.getElementById('modalVisualizarAnexo');
+    if (!modal) {
+        // Criar modal se não existir
+        const modalHTML = `
+            <div id="modalVisualizarAnexo" class="modal-overlay" style="display:flex;">
+                <div class="modal-content" style="max-width:800px;">
+                    <span class="modal-close" onclick="document.getElementById('modalVisualizarAnexo').style.display='none'">&times;</span>
+                    <h3>📎 Anexo</h3>
+                    <iframe id="visualizarAnexoIframe" style="width:100%;height:500px;border:none;"></iframe>
+                    <button id="baixarAnexoBtn" class="btn btn-primary" style="margin-top:10px;">📥 Baixar</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    const iframe = document.getElementById('visualizarAnexoIframe');
+    if (iframe) iframe.src = m.anexo.base64;
+    
+    const btnBaixar = document.getElementById('baixarAnexoBtn');
+    if (btnBaixar) {
+        btnBaixar.onclick = () => {
+            const link = document.createElement('a');
+            link.href = m.anexo.base64;
+            link.download = m.anexo.nome || 'anexo';
+            link.click();
+        };
+    }
+    
+    document.getElementById('modalVisualizarAnexo').style.display = 'flex';
+}
+
+function calcularGarantiaFim() {
+    const data = document.getElementById('corretivaData')?.value;
+    const meses = parseInt(document.getElementById('corretivaGarantiaMeses')?.value) || 0;
+    const garantiaFimInput = document.getElementById('corretivaGarantiaFim');
+    
+    if (data && meses > 0 && garantiaFimInput) {
+        const dataGarantia = new Date(data);
+        dataGarantia.setMonth(dataGarantia.getMonth() + meses);
+        garantiaFimInput.value = dataGarantia.toISOString().split('T')[0];
+    } else if (garantiaFimInput) {
+        garantiaFimInput.value = '';
+    }
+}
+
+async function anexarArquivo(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ nome: file.name, base64: e.target.result, tamanho: file.size });
+        reader.readAsDataURL(file);
+    });
+}
 
 // ================== CONFIGURAÇÕES ==================
 async function renderVeiculosList() {
@@ -716,107 +910,6 @@ async function removerTipoManutencao(placa, idx) {
     await carregarTiposVeiculo(placa);
     atualizarSelectTiposPreventiva();
 }
-// ================== FUNÇÕES QUE FALTAVAM ==================
-
-function verificarGarantia(garantiaFim) {
-    if (!garantiaFim) return { texto: 'Sem garantia', classe: '' };
-    const hoje = new Date();
-    const dataFim = new Date(garantiaFim);
-    if (dataFim < hoje) return { texto: 'Garantia expirada', classe: 'status-urgente' };
-    const diasRestantes = Math.ceil((dataFim - hoje) / (1000 * 60 * 60 * 24));
-    if (diasRestantes <= 30) return { texto: `Garantia: ${diasRestantes} dias`, classe: 'status-proximo' };
-    return { texto: `Garantia até ${new Date(garantiaFim).toLocaleDateString('pt-BR')}`, classe: 'status-ok' };
-}
-
-async function renderCorretivas() {
-    const tbody = document.getElementById('corretivaBody');
-    if (!tbody) return;
-    
-    if (manutencoesCorretivas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Nenhuma manutenção corretiva registrada.</td></tr>';
-        return;
-    }
-    
-    let html = '';
-    for (const m of manutencoesCorretivas) {
-        const garantia = verificarGarantia(m.garantiaFim);
-        const anexoHtml = m.anexo ? `<button class="btn-icon" onclick="visualizarAnexo('${m.firebaseId || m.id}')"><i class="fas fa-paperclip"></i></button>` : '-';
-        const id = m.firebaseId || m.id;
-        
-        html += `<tr>
-            <td>${new Date(m.data).toLocaleDateString('pt-BR')}</td>
-            <td><strong>${m.veiculoNome || 'Sem nome'}</strong><br><small>${m.veiculoPlaca}</small></td>
-            <td>${m.tipo}</td>
-            <td>${m.descricao ? (m.descricao.length > 50 ? m.descricao.substring(0, 50) + '...' : m.descricao) : '-'}</td>
-            <td>${m.valor > 0 ? m.valor.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : '-'}</td>
-            <td class="${garantia.classe}">${garantia.texto}</td>
-            <td>${anexoHtml}</td>
-            <td>
-                <button class="btn-icon" onclick="editarCorretiva('${id}')"><i class="fas fa-edit"></i></button>
-                <button class="btn-icon delete" onclick="excluirCorretiva('${id}')"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>`;
-    }
-    tbody.innerHTML = html;
-}
-
-function visualizarAnexo(id) {
-    const m = manutencoesCorretivas.find(m => (m.firebaseId === id) || (m.id == id));
-    if (!m || !m.anexo) return;
-    
-    const modal = document.getElementById('modalVisualizarAnexo');
-    if (!modal) {
-        // Criar modal se não existir
-        const modalHTML = `
-            <div id="modalVisualizarAnexo" class="modal-overlay" style="display:flex;">
-                <div class="modal-content" style="max-width:800px;">
-                    <span class="modal-close" onclick="document.getElementById('modalVisualizarAnexo').style.display='none'">&times;</span>
-                    <h3>📎 Anexo</h3>
-                    <iframe id="visualizarAnexoIframe" style="width:100%;height:500px;border:none;"></iframe>
-                    <button id="baixarAnexoBtn" class="btn btn-primary" style="margin-top:10px;">📥 Baixar</button>
-                </div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-    }
-    
-    const iframe = document.getElementById('visualizarAnexoIframe');
-    if (iframe) iframe.src = m.anexo.base64;
-    
-    const btnBaixar = document.getElementById('baixarAnexoBtn');
-    if (btnBaixar) {
-        btnBaixar.onclick = () => {
-            const link = document.createElement('a');
-            link.href = m.anexo.base64;
-            link.download = m.anexo.nome || 'anexo';
-            link.click();
-        };
-    }
-    
-    document.getElementById('modalVisualizarAnexo').style.display = 'flex';
-}
-
-function calcularGarantiaFim() {
-    const data = document.getElementById('corretivaData')?.value;
-    const meses = parseInt(document.getElementById('corretivaGarantiaMeses')?.value) || 0;
-    const garantiaFimInput = document.getElementById('corretivaGarantiaFim');
-    
-    if (data && meses > 0 && garantiaFimInput) {
-        const dataGarantia = new Date(data);
-        dataGarantia.setMonth(dataGarantia.getMonth() + meses);
-        garantiaFimInput.value = dataGarantia.toISOString().split('T')[0];
-    } else if (garantiaFimInput) {
-        garantiaFimInput.value = '';
-    }
-}
-
-async function anexarArquivo(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve({ nome: file.name, base64: e.target.result, tamanho: file.size });
-        reader.readAsDataURL(file);
-    });
-}
 
 async function salvarNovoVeiculo() {
     const nome = document.getElementById('novoVeiculoNome')?.value?.trim();
@@ -852,6 +945,9 @@ async function salvarNovoVeiculo() {
 }
 
 async function verificarAlertas() {
+    // Garantir que o cache esteja atualizado
+    await carregarAbastecimentos();
+    
     const ultimas = getUltimaManutencaoPorVeiculoTipo();
     const alertas = [];
     
@@ -859,7 +955,7 @@ async function verificarAlertas() {
         const kmAtual = obterKmAtualVeiculoCache(m.veiculoPlaca);
         const restantes = m.proximaManutencao - kmAtual;
         if (restantes <= 100) {
-            alertas.push({ veiculo: m.veiculoPlaca, tipo: m.tipo, restantes });
+            alertas.push({ veiculo: m.veiculoPlaca, tipo: m.tipo, restantes, kmAtual, proxima: m.proximaManutencao });
         }
     }
     
@@ -868,7 +964,10 @@ async function verificarAlertas() {
     } else {
         let msg = '⚠️ ALERTAS DE MANUTENÇÃO:\n\n';
         alertas.forEach(a => {
-            msg += `📌 ${a.veiculo} - ${a.tipo}\n   ${a.restantes <= 0 ? 'VENCIDA!' : `Próxima em ${a.restantes} KM/Horas`}\n\n`;
+            msg += `📌 ${a.veiculo} - ${a.tipo}\n`;
+            msg += `   KM atual: ${a.kmAtual.toLocaleString('pt-BR')}\n`;
+            msg += `   Próxima: ${a.proxima.toLocaleString('pt-BR')}\n`;
+            msg += `   ${a.restantes <= 0 ? '🔴 VENCIDA!' : `🟡 Próxima em ${a.restantes} KM/Horas`}\n\n`;
         });
         alert(msg);
     }
@@ -934,12 +1033,17 @@ function configurarEventos() {
 
 function configurarAbas() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {           // ← async para poder recarregar
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             const tabContent = document.getElementById(`tab-${btn.dataset.tab}`);
             if (tabContent) tabContent.classList.add('active');
+            
+            // ✅ Recarrega abastecimentos ao entrar em abas que dependem do KM atual
+            if (btn.dataset.tab === 'preventiva' || btn.dataset.tab === 'proximas') {
+                await carregarAbastecimentos();
+            }
             
             if (btn.dataset.tab === 'preventiva') renderPreventivas();
             if (btn.dataset.tab === 'proximas') renderProximas();
@@ -948,7 +1052,6 @@ function configurarAbas() {
         });
     });
 }
-// ... (manter funções: salvarNovoVeiculo, verificarAlertas, configurarEventos, configurarAbas)
 
 // ================== EXPORTAR FUNÇÕES GLOBAIS ==================
 window.editarPreventiva = editarPreventiva;
