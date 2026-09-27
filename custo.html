@@ -24,12 +24,6 @@
   <!-- Init e Sync System -->
   <script src="/js/firebase-init.js"></script>
   <script src="/js/firebase-sync.js"></script>
-
-  <!-- Bibliotecas específicas (carregadas depois para não bloquear) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -68,7 +62,7 @@
         </div>
 
         <div class="breadcrumb" id="breadcrumb"></div>
-        
+
         <!-- ========== CONTEÚDO DINÂMICO (ONDE O JS RENDERIZA) ========== -->
         <div id="conteudoDinamico">
           <!-- O JavaScript vai renderizar TODO o conteúdo aqui -->
@@ -78,12 +72,17 @@
 
       </div>
 
+      <!-- ============================================================ -->
+      <!-- MODAIS -->
+      <!-- ============================================================ -->
+
       <!-- MODAL COPIAR PERÍODO -->
       <div class="modal-overlay" id="modalCopiarPeriodo">
         <div class="modal">
           <h2><i class="fas fa-copy"></i> Copiar Período</h2>
-          <p style="color: var(--text-light); margin-bottom: 1rem;">Copiar TODOS os dados (setores, itens, produções e
-            custos fixos) do período selecionado para um novo mês.</p>
+          <p style="color: var(--text-light); margin-bottom: 1rem;">
+            Copiar TODOS os dados (setores, itens, produções e custos fixos) do período selecionado para um novo mês.
+          </p>
           <div class="form-group">
             <label>Período de Origem</label>
             <input type="text" id="copiarOrigem" disabled style="background: #f5f5f5;">
@@ -118,6 +117,45 @@
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalCopiarPeriodo')">Cancelar</button>
             <button class="btn btn-info" onclick="window.copiarPeriodo()"><i class="fas fa-copy"></i> Copiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL PERÍODO -->
+      <div class="modal-overlay" id="modalPeriodo">
+        <div class="modal">
+          <h2 id="modalPeriodoTitulo"><i class="fas fa-calendar-plus"></i> Novo Período</h2>
+          <input type="hidden" id="periodoEditId">
+          <div class="grid-2">
+            <div class="form-group">
+              <label>Mês</label>
+              <select id="periodoMes">
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Ano</label>
+              <input type="number" id="periodoAno" value="2026" min="2020" max="2035">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Observação</label>
+            <input type="text" id="periodoObs" placeholder="Opcional">
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="window.fecharModal('modalPeriodo')">Cancelar</button>
+            <button class="btn btn-primary" onclick="window.salvarPeriodo()"><i class="fas fa-save"></i> Salvar</button>
           </div>
         </div>
       </div>
@@ -188,8 +226,10 @@
       <!-- MODAL CUSTO FIXO -->
       <div class="modal-overlay" id="modalCustoFixo">
         <div class="modal">
-          <h2 id="modalCustoFixoTitulo"><i class="fas fa-thumbtack"></i> <span id="custoFixoTituloTexto">Novo Custo
-              Fixo</span></h2>
+          <h2 id="modalCustoFixoTitulo">
+            <i class="fas fa-thumbtack"></i>
+            <span id="custoFixoTituloTexto">Novo Custo Fixo</span>
+          </h2>
           <input type="hidden" id="custoFixoEditId">
           <div class="form-group">
             <label>Período</label>
@@ -218,13 +258,14 @@
               style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem;">
               <!-- Os setores serão carregados aqui -->
             </div>
-            <div class="hint">Selecione os setores que receberão este custo fixo e defina a porcentagem de cada um.
+            <div class="hint">
+              Selecione os setores que receberão este custo fixo e defina a porcentagem de cada um.
+              <strong>A soma dos percentuais deve ser 100%.</strong>
             </div>
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalCustoFixo')">Cancelar</button>
-            <button class="btn btn-warning" onclick="window.salvarCustoFixo()"><i class="fas fa-save"></i>
-              Salvar</button>
+            <button class="btn btn-warning" onclick="window.salvarCustoFixo()"><i class="fas fa-save"></i> Salvar</button>
           </div>
         </div>
       </div>
@@ -297,8 +338,7 @@
 
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalItemCusto')">Cancelar</button>
-            <button class="btn btn-primary" onclick="window.salvarItemCusto()"><i class="fas fa-save"></i>
-              Salvar</button>
+            <button class="btn btn-primary" onclick="window.salvarItemCusto()"><i class="fas fa-save"></i> Salvar</button>
           </div>
         </div>
       </div>
@@ -382,8 +422,9 @@
                 <input type="text" class="insumo-nome" placeholder="Nome do insumo">
                 <input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg">
                 <button class="btn btn-danger btn-xs"
-                  onclick="this.parentElement.remove(); window.atualizarResumoGerarCusto();"><i
-                    class="fas fa-times"></i></button>
+                  onclick="this.parentElement.remove(); window.atualizarResumoGerarCusto();">
+                  <i class="fas fa-times"></i>
+                </button>
               </div>
             </div>
             <button class="btn btn-outline btn-sm" onclick="window.adicionarInsumo()" style="margin-top: 0.5rem;">
@@ -413,10 +454,12 @@
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalGerarCusto')">Cancelar</button>
-            <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCustoMaterial()"><i
-                class="fas fa-file-pdf"></i> PDF</button>
-            <button class="btn btn-teal" onclick="window.salvarCustoMaterial()"><i class="fas fa-save"></i> Salvar
-              Custo</button>
+            <button class="btn btn-purple btn-sm" onclick="window.gerarPDFCustoMaterial()">
+              <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <button class="btn btn-teal" onclick="window.salvarCustoMaterial()">
+              <i class="fas fa-save"></i> Salvar Custo
+            </button>
           </div>
         </div>
       </div>
@@ -440,99 +483,6 @@
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalConfigCampos')">Cancelar</button>
             <button class="btn btn-primary" onclick="window.salvarConfigCampos()">Salvar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========== MODAIS PARA GRÁFICOS ========== -->
-
-      <!-- MODAL GRÁFICO MENSAL -->
-      <div class="modal-overlay" id="modalGraficoMensal">
-        <div class="modal modal-lg">
-          <h2>
-            <i class="fas fa-chart-bar"></i> Gastos por Categoria
-            <span class="btn-group">
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'pequeno')" title="Pequeno">
-                <i class="fas fa-compress"></i> P
-              </button>
-              <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('mensal', 'medio')"
-                title="Médio">
-                <i class="fas fa-expand"></i> M
-              </button>
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'grande')" title="Grande">
-                <i class="fas fa-arrows-alt-v"></i> G
-              </button>
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('mensal', 'telaCheia')"
-                title="Tela Cheia">
-                <i class="fas fa-maximize"></i> ⛶
-              </button>
-              <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('mensal')"
-                title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
-                <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
-              </button>
-              <span class="grafico-tamanho-info" id="graficoMensalTamanho">500px</span>
-            </span>
-          </h2>
-          <div style="flex-shrink:0;margin-bottom:0.3rem;">
-            <p id="graficoMensalTitulo" style="font-weight:600;color:var(--primary);margin:0;font-size:0.9rem;"></p>
-          </div>
-          <div class="grafico-container" id="graficoMensalContainer" style="height:500px;">
-            <canvas id="graficoMensalCanvas"></canvas>
-          </div>
-          <div id="graficoMensalResumo" class="grafico-resumo"></div>
-          <div class="modal-actions">
-            <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoMensal()">
-              <i class="fas fa-download"></i> Exportar Imagem
-            </button>
-            <button class="btn btn-outline btn-sm" onclick="window.fecharModal('modalGraficoMensal')">Fechar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MODAL GRÁFICO CONSOLIDADO -->
-      <div class="modal-overlay" id="modalGraficoConsolidado">
-        <div class="modal modal-lg">
-          <h2>
-            <i class="fas fa-chart-bar"></i> Gastos por Categoria (Consolidado)
-            <span class="btn-group">
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'pequeno')"
-                title="Pequeno">
-                <i class="fas fa-compress"></i> P
-              </button>
-              <button class="btn-grafico-controle active" onclick="window.ajustarGrafico('consolidado', 'medio')"
-                title="Médio">
-                <i class="fas fa-expand"></i> M
-              </button>
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'grande')"
-                title="Grande">
-                <i class="fas fa-arrows-alt-v"></i> G
-              </button>
-              <button class="btn-grafico-controle" onclick="window.ajustarGrafico('consolidado', 'telaCheia')"
-                title="Tela Cheia">
-                <i class="fas fa-maximize"></i> ⛶
-              </button>
-              <button class="btn-grafico-controle" onclick="window.toggleFullscreenGrafico('consolidado')"
-                title="Tela Cheia Total" style="background:#0d904f;color:#fff;border-color:#0d904f;">
-                <i class="fas fa-expand-arrows-alt"></i> ⛶⛶
-              </button>
-              <span class="grafico-tamanho-info" id="graficoConsolidadoTamanho">500px</span>
-            </span>
-          </h2>
-          <div style="flex-shrink:0;margin-bottom:0.3rem;">
-            <div id="graficoConsolidadoTags" class="periodos-selecionados-tags" style="margin-bottom:0.3rem;"></div>
-          </div>
-          <div class="grafico-container grafico-consolidado" id="graficoConsolidadoContainer" style="height:500px;">
-            <canvas id="graficoConsolidadoCanvas"></canvas>
-          </div>
-          <div id="graficoConsolidadoInfo" class="grafico-resumo" style="text-align:center;color:var(--text-light);">
-            Valores totais por categoria (todos os setores, com custos fixos distribuídos)
-          </div>
-          <div class="modal-actions">
-            <button class="btn btn-purple btn-sm" onclick="window.exportarGraficoConsolidado()">
-              <i class="fas fa-download"></i> Exportar Imagem
-            </button>
-            <button class="btn btn-outline btn-sm"
-              onclick="window.fecharModal('modalGraficoConsolidado')">Fechar</button>
           </div>
         </div>
       </div>
