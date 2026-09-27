@@ -38,10 +38,6 @@
   let custoFixoSelecionadoId = null;
   let periodosSelecionadosResumo = new Set();
   let setoresExcluidosResumo = new Set();
-  let graficoMensalChart = null;
-  let graficoConsolidadoChart = null;
-  let graficoCategoriasHomeChart = null;
-  let graficoAnaliseSetorChart = null;
   let configCampos = {
     setorNome: 'Nome do Setor',
     setorDesc: 'Descrição',
@@ -59,7 +55,19 @@
   // ======== UTILITÁRIOS ========
   function formatMoney(v) { return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
   function formatNumber(n, d) { d = d || 2; return (n || 0).toFixed(d).replace('.', ','); }
-  function getNomeMes(m) { return ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][m - 1] || ''; }
+  function getNomeMes(m) {
+    return ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][m - 1] || '';
+  }
+  function gerarId(prefixo) {
+    return prefixo + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // 🔥 CORREÇÃO #4: usa ?? em vez de || para não engolir 0
+  function getPercentual(item) {
+    const p = item.percentual;
+    return (p === undefined || p === null) ? 100 : p;
+  }
 
   function getSetoresDoPeriodo(periodoid) {
     const pid = periodoid || (periodoAtual ? periodoAtual.id : null);
@@ -76,14 +84,25 @@
   // ======== CALCULAR CUSTOS DO SETOR ========
   function calcularCustosSetor(setorld) {
     const itens = itensCusto.filter(i => i.setorld === setorld);
-    const totalCusto = itens.reduce((s, i) => s + (i.valorTotal * (i.percentual || 100) / 100), 0);
+    const totalCusto = itens.reduce((s, i) => s + (i.valorTotal * getPercentual(i) / 100), 0);
     const prods = producoes.filter(p => p.setorld === setorld);
     const totalKg = prods.reduce((s, p) => s + p.kg, 0);
     const custoPorKg = totalKg > 0 ? totalCusto / totalKg : 0;
     return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
   }
 
-  // ======== CALCULAR RESUMO DO PERÍODO (COM FALLBACK) ========
+  // 🔥 CORREÇÃO #3: fallback inteligente de produto final (usa último setor da ordem)
+  function getSetsParaProducao(sets) {
+    const setsFinais = sets.filter(s => s.produtoFinal === true);
+    if (setsFinais.length > 0) return setsFinais;
+
+    if (sets.length === 0) return [];
+    const maxOrdem = Math.max(...sets.map(s => s.ordem || 0));
+    const ultimos = sets.filter(s => (s.ordem || 0) === maxOrdem);
+    return ultimos.length > 0 ? ultimos : sets;
+  }
+
+  // ======== CALCULAR RESUMO DO PERÍODO ========
   function calcularResumoPeriodo(periodoidParam, excluirSetores) {
     const pid = periodoidParam || (periodoAtual ? periodoAtual.id : null);
     const excluir = excluirSetores || setoresExcluidosResumo;
@@ -101,9 +120,7 @@
     sets.forEach(s => { custoTotalGeral += calcularCustosSetor(s.id).totalCusto; });
 
     const setsFinais = sets.filter(s => s.produtoFinal === true);
-
-    // 🔥 FALLBACK: se não houver produto final marcado, usa todos os setores
-    const setsParaProducao = setsFinais.length > 0 ? setsFinais : sets;
+    const setsParaProducao = getSetsParaProducao(sets);
 
     let producaoTotalGeral = 0;
     setsParaProducao.forEach(sf => {
@@ -124,11 +141,10 @@
   async function salvarFB(colecaoNome, dados) {
     try {
       if (!dados.id) {
-        dados.id = colecaoNome + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        dados.id = gerarId(colecaoNome);
       }
       const ref = colecoes[colecaoNome].doc(dados.id);
-      const dadosParaSalvar = { ...dados };
-      await ref.set(dadosParaSalvar, { merge: true });
+      await ref.set({ ...dados }, { merge: true });
       console.log(`✅ Salvo em ${colecaoNome}:`, dados.id);
       return true;
     } catch (error) {
@@ -151,9 +167,7 @@
   // ✅ FUNÇÃO DE CARREGAMENTO
   async function carregarDadosFirebase() {
     console.log('🔄 Iniciando carregamento...');
-
     try {
-      console.log('📂 Carregando das coleções...');
       const [snapPeriodos, snapSetores, snapCategorias, snapItens, snapProducoes,
         snapMateriais, snapCustosMat, snapCustosFixos, snapConfig
       ] = await Promise.all([
@@ -181,7 +195,6 @@
         console.log('📦 Coleções vazias. Verificando documento centralizado...');
         try {
           const docCentral = await db.collection('centralCustos').doc('dados_completos').get();
-
           if (docCentral.exists && docCentral.data().dados) {
             console.log('✅ Dados antigos encontrados! Recuperando...');
             const dados = docCentral.data().dados;
@@ -193,8 +206,6 @@
             materiais = dados.materiais || [];
             custosMateriais = dados.custosMateriais || [];
             custosFixos = dados.custosFixos || [];
-
-            console.log(`📊 Recuperado: ${periodos.length} períodos, ${setores.length} setores`);
           }
         } catch (err) {
           console.log('ℹ️ Nenhum dado antigo encontrado:', err.message);
@@ -228,8 +239,7 @@
         ];
       }
 
-      console.log(`✅ PRONTO: ${periodos.length} períodos, ${setores.length} setores, ${categorias.length} categorias`);
-
+      console.log(`✅ PRONTO: ${periodos.length} períodos, ${setores.length} setores`);
     } catch (error) {
       console.error('❌ ERRO:', error);
       throw error;
@@ -280,7 +290,7 @@
     atualizarBreadcrumb();
   }
 
-  // ======== HOME - COM CARDS, GRÁFICO E PAINEL DE CUSTO DE PROCESSO ========
+  // ======== HOME ========
   function renderizarPeriodos() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -307,14 +317,14 @@
       const sets = getSetoresDoPeriodo(per.id);
       totalSetoresCount += sets.length;
 
-      // Só considera setores com produtoFinal = true para produção
       const setsFinais = sets.filter(s => s.produtoFinal === true);
       totalSetoresFinais += setsFinais.length;
 
-      // 🔥 FALLBACK por período: se não tem produto final, conta todos
-      const setsParaProducao = setsFinais.length > 0 ? setsFinais : sets;
+      // 🔥 CORREÇÃO #2 e #3: aplica filtro de exclusão + fallback inteligente
+      const setsVisiveis = sets.filter(s => !setoresExcluidosResumo.has(s.id));
+      const setsParaProducao = getSetsParaProducao(setsVisiveis);
 
-      sets.forEach(s => {
+      setsVisiveis.forEach(s => {
         const custosSetor = calcularCustosSetor(s.id);
         totalGastoGeral += custosSetor.totalCusto;
       });
@@ -395,7 +405,6 @@
     </div>
   </div>
 
-  <!-- Filtros -->
   <div class="custo-processo-filtros" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:1rem;background:#f8fafc;border-radius:8px;">
     <div class="form-group" style="margin:0;flex:1;min-width:150px;">
       <label style="font-size:0.8rem;font-weight:600;">Ano</label>
@@ -429,7 +438,6 @@
     </div>
   </div>
 
-  <!-- Resumo Principal -->
   <div class="custo-processo-resumo" id="custoProcessoResumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
     <div class="stat-card-home" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;">
       <div class="stat-info">
@@ -457,7 +465,6 @@
     </div>
   </div>
 
-  <!-- Matéria Prima (Custo Casual com quantidade) -->
   <div style="margin-bottom:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
       <label style="font-weight:600;font-size:0.9rem;margin:0;">
@@ -474,7 +481,6 @@
     </div>
   </div>
 
-  <!-- Lista de Setores do Período -->
   <div style="margin-bottom:1rem;">
     <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:0.5rem;">
       <i class="fas fa-industry"></i> Setores do Processo
@@ -485,7 +491,6 @@
     </div>
   </div>
 
-  <!-- Setores Selecionados -->
   <div style="margin-bottom:1rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
       <label style="font-weight:600;font-size:0.9rem;margin:0;">
@@ -502,7 +507,6 @@
     </div>
   </div>
 
-  <!-- Botões de Ação -->
   <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
     <button class="btn btn-warning btn-sm" onclick="window.calcularCustoProcesso()">
       <i class="fas fa-sync"></i> Simular Processo
@@ -513,43 +517,6 @@
   </div>
 </div>
 `;
-
-    // ====== GRÁFICO DE CATEGORIAS ======
-    html += `
-      <div class="categorias-section">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title"><i class="fas fa-chart-bar"></i> Custos por Categoria</span>
-            <div style="display:flex;gap:0.5rem;">
-              <button class="btn btn-outline btn-sm" onclick="window.abrirModalCategoria()">
-                <i class="fas fa-plus"></i> Nova Categoria
-              </button>
-            </div>
-          </div>
-          <div class="periodos-selecionados-tags" style="margin-bottom:1rem;">
-            ${periodosSelecionadosResumo.size > 0 ?
-        Array.from(periodosSelecionadosResumo).map(pid => {
-          const per = periodos.find(p => p.id === pid);
-          return per ? `<span class="periodo-tag" style="background:#e3f2fd;color:#1565c0;">${getNomeMes(per.mes)}/${per.ano} <span class="remover-tag" onclick="window.removePeriodoResumo('${pid}')">&times;</span></span>` : '';
-        }).join('') + '<span class="btn-selecionar-todos" onclick="window.limparSelecaoResumo()" style="background:#e3f2fd;color:#1565c0;">Limpar</span>'
-        : '<span style="font-size:0.8rem;color:var(--text-light);">Selecione os períodos abaixo para filtrar</span>'
-      }
-          </div>
-          <div class="categorias-content">
-            <div class="grafico-categorias-wrapper">
-              <div style="height: 450px; position: relative;">
-                <canvas id="graficoCategoriasHome"></canvas>
-              </div>
-            </div>
-            <div class="lista-categorias-wrapper">
-              <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-light);">
-                <i class="fas fa-list"></i> Resumo por Categoria
-              </h4>
-              <div id="listaCategoriasHome"></div>
-            </div>
-          </div>
-        </div>
-      </div>`;
 
     // ====== LISTA DE PERÍODOS ======
     html += `
@@ -588,7 +555,6 @@
             <input type="checkbox" ${isSelecionado ? 'checked' : ''} onchange="window.togglePeriodoResumo('${per.id}', this.checked)">
           </div>
           <div class="acoes">
-            <button class="btn btn-purple btn-xs" onclick="event.stopPropagation();window.abrirGraficoMensal('${per.id}')" title="Ver Gráfico"><i class="fas fa-chart-bar"></i></button>
             <button class="btn btn-info btn-xs" onclick="event.stopPropagation();window.abrirCopiarPeriodo('${per.id}')" title="Copiar Período"><i class="fas fa-copy"></i></button>
             <button class="btn btn-outline btn-xs btn-editar-periodo" data-id="${per.id}" title="Editar"><i class="fas fa-edit"></i></button>
             <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();window.excluirPeriodo('${per.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
@@ -608,152 +574,8 @@
     }
 
     setTimeout(() => {
-      inicializarGraficoCategorias();
-      renderizarListaCategorias();
       window.inicializarCustoProcesso();
     }, 100);
-  }
-
-  // ======== GRÁFICO VERTICAL - CATEGORIAS NA HOME ========
-  function inicializarGraficoCategorias() {
-    const canvas = document.getElementById('graficoCategoriasHome');
-    if (!canvas) return;
-
-    if (window.graficoCategoriasHomeChart) {
-      window.graficoCategoriasHomeChart.destroy();
-    }
-
-    const totaisCategorias = {};
-    categorias.forEach(cat => {
-      totaisCategorias[cat.id] = { nome: cat.nome, cor: cat.cor, total: 0 };
-    });
-
-    const periodosParaGrafico = periodosSelecionadosResumo.size > 0 ?
-      periodos.filter(p => periodosSelecionadosResumo.has(p.id)) :
-      (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
-
-    periodosParaGrafico.forEach(per => {
-      getSetoresDoPeriodo(per.id).forEach(s => {
-        itensCusto.filter(i => i.setorld === s.id).forEach(i => {
-          if (totaisCategorias[i.categoriald]) {
-            totaisCategorias[i.categoriald].total += i.valorTotal * (i.percentual || 100) / 100;
-          }
-        });
-      });
-    });
-
-    const dadosGrafico = Object.values(totaisCategorias).filter(cat => cat.total > 0);
-
-    if (dadosGrafico.length === 0) {
-      canvas.parentElement.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--text-light);">Nenhum custo registrado.</p>';
-      return;
-    }
-
-    dadosGrafico.sort((a, b) => b.total - a.total);
-
-    const wrapper = canvas.parentElement;
-    const btnFullOld = document.getElementById('btnFullscreenHome');
-    if (btnFullOld) btnFullOld.remove();
-
-    const btnFull = document.createElement('button');
-    btnFull.id = 'btnFullscreenHome';
-    btnFull.className = 'btn-fullscreen-grafico';
-    btnFull.innerHTML = '<i class="fas fa-expand"></i> Tela Cheia';
-    btnFull.onclick = () => abrirGraficoFullscreen('home');
-    wrapper.style.position = 'relative';
-    wrapper.appendChild(btnFull);
-
-    window.graficoCategoriasHomeChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: dadosGrafico.map(c => c.nome),
-        datasets: [{
-          label: 'Valor Total',
-          data: dadosGrafico.map(c => c.total),
-          backgroundColor: dadosGrafico.map(c => c.cor + 'CC'),
-          borderColor: dadosGrafico.map(c => c.cor),
-          borderWidth: 2,
-          borderRadius: 10,
-          borderSkipped: false,
-          hoverBackgroundColor: dadosGrafico.map(c => c.cor),
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            titleFont: { size: 14 },
-            bodyFont: { size: 13 },
-            callbacks: {
-              label: function(context) {
-                const value = context.parsed.y;
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
-                return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
-            grid: { color: '#e5e7eb', drawBorder: false }
-          },
-          x: {
-            ticks: { font: { size: 12, weight: '500' }, maxRotation: 45, minRotation: 0 },
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
-
-  function renderizarListaCategorias() {
-    const container = document.getElementById('listaCategoriasHome');
-    if (!container) return;
-
-    if (categorias.length === 0) {
-      container.innerHTML = '<p style="text-align:center;padding:1rem;color:var(--text-light);">Nenhuma categoria.</p>';
-      return;
-    }
-
-    const totais = {};
-    categorias.forEach(cat => { totais[cat.id] = { ...cat, total: 0 }; });
-
-    const periodosParaGrafico = periodosSelecionadosResumo.size > 0 ?
-      periodos.filter(p => periodosSelecionadosResumo.has(p.id)) :
-      (filtroAnoAtual === 'todos' ? periodos : periodos.filter(p => p.ano === parseInt(filtroAnoAtual)));
-
-    periodosParaGrafico.forEach(per => {
-      getSetoresDoPeriodo(per.id).forEach(s => {
-        itensCusto.filter(i => i.setorld === s.id).forEach(i => {
-          if (totais[i.categoriald]) {
-            totais[i.categoriald].total += i.valorTotal * (i.percentual || 100) / 100;
-          }
-        });
-      });
-    });
-
-    const categoriasOrdenadas = Object.values(totais).sort((a, b) => b.total - a.total);
-
-    container.innerHTML = categoriasOrdenadas.map(cat => `
-      <div class="categoria-item-home">
-        <div class="categoria-cor" style="background-color: ${cat.cor};" title="${cat.nome}"></div>
-        <div class="categoria-info">
-          <div class="categoria-nome">${cat.nome}</div>
-          <div class="categoria-total">${formatMoney(cat.total)}</div>
-        </div>
-        <button class="btn btn-xs btn-outline" onclick="window.editarCategoria('${cat.id}')" title="Editar">
-          <i class="fas fa-edit"></i>
-        </button>
-      </div>
-    `).join('');
   }
 
   // ======== RENDERIZAR CARD SETOR ========
@@ -892,7 +714,6 @@
       }
     }
 
-    // ==== ÁREA DE CUSTOS FIXOS ====
     html += `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;padding-top:1.5rem;border-top:2px solid var(--border);">
         <h4 style="margin:0;"><i class="fas fa-thumbtack"></i> Custos Fixos</h4>
@@ -915,7 +736,6 @@
 
     container.innerHTML = html;
 
-    // Renderiza os cards de setores
     if (setoresCusto.length > 0) {
       const gridCusto = document.getElementById('setoresCustoGrid');
       if (gridCusto) setoresCusto.forEach(s => renderizarCardSetor(s, gridCusto));
@@ -926,7 +746,6 @@
       if (gridDespesa) setoresDespesa.forEach(s => renderizarCardSetor(s, gridDespesa));
     }
 
-    // Renderiza os custos fixos
     window.listarCustosFixos(periodoAtual.id);
   }
 
@@ -1138,7 +957,7 @@
     modal.classList.add('active');
   };
 
-  // ======== SALVAR CUSTO FIXO (COM VALIDAÇÃO DE %) ========
+  // ======== SALVAR CUSTO FIXO (CORREÇÃO #1: valida soma = 100%) ========
   window.salvarCustoFixo = async function() {
     const periodoId = document.getElementById('custoFixoPeriodo').value;
     const categoriaId = document.getElementById('custoFixoCategoria').value;
@@ -1155,12 +974,8 @@
       const setorId = checkbox.dataset.setorId;
       const percentInput = document.querySelector(`.setor-fixo-percentual[data-setor-id="${setorId}"]`);
       const percentual = parseFloat(percentInput.value) || 0;
-
       if (percentual > 0) {
-        setoresSelecionados.push({
-          setorId: setorId,
-          percentual: percentual
-        });
+        setoresSelecionados.push({ setorId, percentual });
       }
     });
 
@@ -1169,17 +984,15 @@
       return;
     }
 
-    // 🔥 VALIDAÇÃO: soma dos percentuais deve ser ~100%
+    // 🔥 CORREÇÃO #1: BLOQUEIA se a soma dos percentuais ≠ 100%
     const somaPercentuais = setoresSelecionados.reduce((s, x) => s + x.percentual, 0);
     if (Math.abs(somaPercentuais - 100) > 0.01) {
-      const continuar = confirm(
-        `⚠️ A soma dos percentuais é ${somaPercentuais.toFixed(2)}%.\n\n` +
-        `O ideal é 100%.\n\n` +
-        `Se continuar, o custo fixo de ${formatMoney(valor)} será distribuído como ` +
-        `${formatMoney(valor * somaPercentuais / 100)} pelos setores.\n\n` +
-        `Deseja continuar mesmo assim?`
+      alert(
+        `❌ A soma dos percentuais é ${somaPercentuais.toFixed(2)}%.\n\n` +
+        `Deve ser exatamente 100%.\n\n` +
+        `Ajuste os valores nos setores selecionados e tente novamente.`
       );
-      if (!continuar) return;
+      return;
     }
 
     const editId = document.getElementById('custoFixoEditId').value;
@@ -1195,12 +1008,11 @@
       const idx = custosFixos.findIndex(x => x.id === editId);
       if (idx !== -1) custosFixos[idx] = Object.assign({}, custosFixos[idx], cf);
     } else {
-      cf.id = 'cf_' + Date.now();
+      cf.id = gerarId('cf');
       custosFixos.push(cf);
     }
     await salvarFB('custosFixos', cf);
 
-    // Remove os itens fixos antigos (se estiver editando)
     if (editId) {
       const itensAntigos = itensCusto.filter(i => i.custoFixold === editId && i.tipo === 'fixo');
       for (const item of itensAntigos) {
@@ -1210,10 +1022,9 @@
       }
     }
 
-    // Cria os itens fixos para cada setor selecionado
     for (const selecao of setoresSelecionados) {
       const novoItem = {
-        id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        id: gerarId('item'),
         setorld: selecao.setorId,
         categoriald: categoriaId,
         nome: nome + ' (fixo)',
@@ -1233,15 +1044,12 @@
     alert(`✅ Custo fixo "${nome}" salvo com sucesso!\n\n📊 ${setoresSelecionados.length} setores vinculados`);
   };
 
-  // ======== EDITAR CUSTO FIXO ========
   window.editarCustoFixo = function(id) {
     window.abrirModalCustoFixo(id);
   };
 
-  // ======== EXCLUIR CUSTO FIXO ========
   window.excluirCustoFixo = async function(id) {
     if (!confirm('Excluir este custo fixo e todos os itens vinculados?')) return;
-
     try {
       const itensVinculados = itensCusto.filter(i => i.custoFixold === id && i.tipo === 'fixo');
       for (const item of itensVinculados) {
@@ -1249,7 +1057,6 @@
         if (idx !== -1) itensCusto.splice(idx, 1);
         await excluirFB('itensCusto', item.id);
       }
-
       custosFixos = custosFixos.filter(c => c.id !== id);
       await excluirFB('custosFixos', id);
       renderizarTela();
@@ -1260,7 +1067,6 @@
     }
   };
 
-  // ======== TOGGLE TODOS SETORES ========
   window.toggleTodosSetores = function(tipo) {
     if (!periodoAtual) return;
     const sets = getSetoresDoPeriodo(periodoAtual.id);
@@ -1275,18 +1081,14 @@
     } else {
       setsDoTipo.forEach(s => setoresExcluidosResumo.add(s.id));
     }
-
     renderizarTela();
   };
 
-  // ======== MINIMIZAR/EXPANDIR CUSTOS FIXOS ========
   window.toggleCustosFixos = function() {
     const container = document.getElementById('listaCustosFixosContainer');
     if (!container) return;
-
     const isHidden = container.style.display === 'none';
     container.style.display = isHidden ? 'block' : 'none';
-
     const btn = document.querySelector('.btn-toggle-custos-fixos');
     if (btn) {
       btn.innerHTML = isHidden ?
@@ -1359,16 +1161,6 @@
         </div>
       </div>`;
 
-    if (itens.length > 0) {
-      html += `
-        <div style="margin-bottom: 1.5rem;">
-          <h4 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Custos por Categoria</h4>
-          <div style="height: 400px; position: relative;">
-            <canvas id="graficoAnaliseSetor"></canvas>
-          </div>
-        </div>`;
-    }
-
     html += '<h4>Itens de Custo</h4>';
 
     if (itens.length === 0) {
@@ -1383,8 +1175,8 @@
           <td>${i.nome}</td>
           <td>${cat ? cat.nome : '-'}</td>
           <td>${formatMoney(i.valorTotal)}</td>
-          <td>${i.percentual || 100}%</td>
-          <td>${formatMoney(i.valorTotal * (i.percentual || 100) / 100)}</td>
+          <td>${getPercentual(i)}%</td>
+          <td>${formatMoney(i.valorTotal * getPercentual(i) / 100)}</td>
           <td>${tipoLabel}</td>
           <td>
             <button class="btn btn-outline btn-xs" onclick="window.editarItemCusto('${i.id}')"><i class="fas fa-edit"></i></button>
@@ -1411,182 +1203,7 @@
 
     html += `<div style="margin-top:1rem;"><button class="btn btn-teal btn-sm" onclick="window.abrirModalProducao()"><i class="fas fa-plus"></i> Registrar Produção</button></div></div>`;
     container.innerHTML = html;
-
-    if (itens.length > 0) {
-      setTimeout(() => inicializarGraficoAnaliseSetor(), 100);
-    }
   }
-
-  function inicializarGraficoAnaliseSetor() {
-    const canvas = document.getElementById('graficoAnaliseSetor');
-    if (!canvas) return;
-
-    if (window.graficoAnaliseSetorChart) {
-      window.graficoAnaliseSetorChart.destroy();
-    }
-
-    const itens = itensCusto.filter(i => i.setorld === setorAtual.id);
-    if (itens.length === 0) return;
-
-    const totaisPorCategoria = {};
-    itens.forEach(i => {
-      const catId = i.categoriald || 'sem_categoria';
-      if (!totaisPorCategoria[catId]) {
-        const cat = categorias.find(c => c.id === catId);
-        totaisPorCategoria[catId] = {
-          nome: cat ? cat.nome : 'Sem Categoria',
-          cor: cat ? cat.cor : '#6b7280',
-          total: 0
-        };
-      }
-      totaisPorCategoria[catId].total += i.valorTotal * (i.percentual || 100) / 100;
-    });
-
-    const dadosGrafico = Object.values(totaisPorCategoria).filter(c => c.total > 0);
-    dadosGrafico.sort((a, b) => b.total - a.total);
-
-    const wrapper = canvas.parentElement;
-    const btnFullOld = document.getElementById('btnFullscreenAnalise');
-    if (btnFullOld) btnFullOld.remove();
-
-    const btnFull = document.createElement('button');
-    btnFull.id = 'btnFullscreenAnalise';
-    btnFull.className = 'btn-fullscreen-grafico';
-    btnFull.innerHTML = '<i class="fas fa-expand"></i> Tela Cheia';
-    btnFull.onclick = () => abrirGraficoFullscreen('analise');
-    wrapper.style.position = 'relative';
-    wrapper.appendChild(btnFull);
-
-    window.graficoAnaliseSetorChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: dadosGrafico.map(c => c.nome),
-        datasets: [{
-          label: 'Valor Total',
-          data: dadosGrafico.map(c => c.total),
-          backgroundColor: dadosGrafico.map(c => c.cor + 'CC'),
-          borderColor: dadosGrafico.map(c => c.cor),
-          borderWidth: 2,
-          borderRadius: 10,
-          borderSkipped: false,
-          hoverBackgroundColor: dadosGrafico.map(c => c.cor),
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: 'index' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            titleFont: { size: 14 },
-            bodyFont: { size: 13 },
-            callbacks: {
-              label: function(context) {
-                const value = context.parsed.y;
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
-                return ` ${context.label}: ${formatMoney(value)} (${percent}%)`;
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: function(value) { return formatMoney(value); }, font: { size: 12, weight: '600' } },
-            grid: { color: '#e5e7eb', drawBorder: false }
-          },
-          x: {
-            ticks: { font: { size: 12, weight: '500' }, maxRotation: 45, minRotation: 0 },
-            grid: { display: false }
-          }
-        }
-      }
-    });
-  }
-
-  // ======== TELA CHEIA ========
-  function abrirGraficoFullscreen(tipo) {
-    let modal = document.getElementById('modalGraficoFullscreen');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'modalGraficoFullscreen';
-      modal.className = 'modal-grafico-fullscreen';
-      modal.innerHTML = `
-        <div class="header-fullscreen">
-          <h3 id="fullscreenTitulo"><i class="fas fa-chart-bar"></i> Gráfico</h3>
-          <button class="btn-fechar-fullscreen" onclick="fecharGraficoFullscreen()">
-            <i class="fas fa-times"></i> Fechar
-          </button>
-        </div>
-        <div class="canvas-container-fullscreen">
-          <canvas id="graficoFullscreenCanvas"></canvas>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && document.getElementById('modalGraficoFullscreen')?.classList.contains('active')) {
-          fecharGraficoFullscreen();
-        }
-      });
-    }
-
-    modal.classList.add('active');
-
-    let chartInstance, titulo;
-    if (tipo === 'home') {
-      chartInstance = window.graficoCategoriasHomeChart;
-      titulo = 'Custos por Categoria';
-      if (periodosSelecionadosResumo.size > 0) titulo += ' (Períodos Selecionados)';
-    } else {
-      chartInstance = window.graficoAnaliseSetorChart;
-      titulo = `Análise - ${setorAtual ? setorAtual.nome : 'Setor'}`;
-    }
-
-    document.getElementById('fullscreenTitulo').innerHTML = `<i class="fas fa-chart-bar"></i> ${titulo}`;
-
-    setTimeout(() => {
-      const canvas = document.getElementById('graficoFullscreenCanvas');
-      if (canvas && chartInstance) {
-        new Chart(canvas.getContext('2d'), {
-          type: chartInstance.config.type,
-          data: JSON.parse(JSON.stringify(chartInstance.config.data)),
-          options: {
-            ...chartInstance.config.options,
-            responsive: true,
-            maintainAspectRatio: true,
-            scales: {
-              y: { ...chartInstance.config.options.scales.y, ticks: { ...chartInstance.config.options.scales.y.ticks, font: { size: 14, weight: '600' } } },
-              x: { ...chartInstance.config.options.scales.x, ticks: { ...chartInstance.config.options.scales.x.ticks, font: { size: 14, weight: '500' } } }
-            },
-            plugins: {
-              ...chartInstance.config.options.plugins,
-              tooltip: { ...chartInstance.config.options.plugins.tooltip, titleFont: { size: 16 }, bodyFont: { size: 15 } }
-            }
-          }
-        });
-      }
-    }, 100);
-  }
-
-  function fecharGraficoFullscreen() {
-    const modal = document.getElementById('modalGraficoFullscreen');
-    if (modal) {
-      modal.classList.remove('active');
-      const canvas = document.getElementById('graficoFullscreenCanvas');
-      if (canvas) {
-        const chart = Chart.getChart(canvas);
-        if (chart) chart.destroy();
-      }
-    }
-  }
-
-  window.abrirGraficoFullscreen = abrirGraficoFullscreen;
-  window.fecharGraficoFullscreen = fecharGraficoFullscreen;
 
   // ======== MATERIAIS ========
   function renderizarMateriais() {
@@ -1635,10 +1252,9 @@
   }
 
   window.navegarPara = function(nivel) {
-    if (nivel === 'periodos') { periodoAtual = null;
-      setorAtual = null;
-      nivelAtual = 'periodos'; } else if (nivel === 'setores') { setorAtual = null;
-      nivelAtual = 'setores'; } else if (nivel === 'materiais') { nivelAtual = 'materiais'; }
+    if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; }
+    else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; }
+    else if (nivel === 'materiais') { nivelAtual = 'materiais'; }
     renderizarTela();
   };
 
@@ -1660,7 +1276,7 @@
   window.abrirModalPeriodo = function(id) {
     const modal = document.getElementById('modalPeriodo');
     if (!modal) {
-      console.warn('⚠️ Modal de período não encontrado no HTML. Adicione <div id="modalPeriodo"> no HTML.');
+      console.warn('⚠️ Modal de período não encontrado no HTML.');
       return;
     }
     modal.classList.add('active');
@@ -1688,9 +1304,14 @@
     const obs = document.getElementById('periodoObs').value.trim();
     const editId = document.getElementById('periodoEditId').value;
     const periodo = { mes, ano, obs, createdAt: new Date().toISOString() };
-    if (editId) { periodo.id = editId;
-      const idx = periodos.findIndex(p => p.id === editId); if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo }; } else { periodo.id = 'per_' + Date.now();
-      periodos.push(periodo); }
+    if (editId) {
+      periodo.id = editId;
+      const idx = periodos.findIndex(p => p.id === editId);
+      if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo };
+    } else {
+      periodo.id = gerarId('per');
+      periodos.push(periodo);
+    }
     await salvarFB('periodos', periodo);
     window.fecharModal('modalPeriodo');
     renderizarTela();
@@ -1717,14 +1338,15 @@
       periodos = periodos.filter(p => p.id !== id);
       periodosSelecionadosResumo.delete(id);
       await excluirFB('periodos', id);
-      if (periodoAtual && periodoAtual.id === id) { periodoAtual = null;
-        nivelAtual = 'periodos'; }
+      if (periodoAtual && periodoAtual.id === id) { periodoAtual = null; nivelAtual = 'periodos'; }
       renderizarTela();
-    } catch (error) { console.error('Erro ao excluir período:', error);
-      alert('Erro ao excluir período.'); }
+    } catch (error) {
+      console.error('Erro ao excluir período:', error);
+      alert('Erro ao excluir período.');
+    }
   };
 
-  // ======== COPIAR PERÍODO (COM VÍNCULOS CORRIGIDOS) ========
+  // ======== COPIAR PERÍODO (CORREÇÃO #6) ========
   window.abrirCopiarPeriodo = function(id) {
     const p = periodos.find(x => x.id === id);
     if (!p) return;
@@ -1752,7 +1374,7 @@
       if (loadingEl) loadingEl.classList.add('active');
 
       const novoPeriodo = {
-        id: 'per_' + Date.now(),
+        id: gerarId('per'),
         mes: novoMes,
         ano: novoAno,
         obs: 'Cópia de ' + getNomeMes(periodoOrigemCopia.mes) + '/' + periodoOrigemCopia.ano,
@@ -1763,52 +1385,14 @@
       periodos.push(novoPeriodo);
 
       const setoresOrigem = getSetoresDoPeriodo(periodoOrigemCopia.id);
-
-      // 🔥 Mapa para rastrear IDs antigos -> novos
       const mapaSetores = {};
       const mapaCustosFixos = {};
 
-      // 1) Copia setores + itens + produções
-      for (const setorOrigem of setoresOrigem) {
-        const novoSetorId = 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-        mapaSetores[setorOrigem.id] = novoSetorId;
-
-        const novoSetor = { ...setorOrigem, id: novoSetorId, periodold: novoPeriodo.id, createdAt: new Date().toISOString() };
-
-        await salvarFB('setores', novoSetor);
-        setores.push(novoSetor);
-
-        const itensOrigem = itensCusto.filter(i => i.setorld === setorOrigem.id);
-        for (const itemOrigem of itensOrigem) {
-          const novoItem = {
-            ...itemOrigem,
-            id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-            setorld: novoSetorId,
-            createdAt: new Date().toISOString()
-          };
-          await salvarFB('itensCusto', novoItem);
-          itensCusto.push(novoItem);
-        }
-
-        const prodsOrigem = producoes.filter(p => p.setorld === setorOrigem.id);
-        for (const prodOrigem of prodsOrigem) {
-          const novaProd = {
-            ...prodOrigem,
-            id: 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-            setorld: novoSetorId,
-            createdAt: new Date().toISOString()
-          };
-          await salvarFB('producoes', novaProd);
-          producoes.push(novaProd);
-        }
-      }
-
-      // 2) Copia custos fixos e mapeia IDs
+      // 1) Copia custos fixos primeiro (para mapear IDs)
       const custosFixosOrigem = getCustosFixosDoPeriodo(periodoOrigemCopia.id);
       for (const cfOrigem of custosFixosOrigem) {
-        const novoId = 'cf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        const novoId = gerarId('cf');
         mapaCustosFixos[cfOrigem.id] = novoId;
-
         const novoCF = {
           ...cfOrigem,
           id: novoId,
@@ -1819,27 +1403,55 @@
         custosFixos.push(novoCF);
       }
 
-      // 🔥 3) Corrige os itens fixos copiados que apontam para custos fixos antigos
-      const setoresNovos = setores.filter(s => s.periodold === novoPeriodo.id);
-      const idsSetoresNovos = new Set(setoresNovos.map(s => s.id));
+      // 2) Copia setores + itens + produções (com custoFixold já remapeado)
+      for (const setorOrigem of setoresOrigem) {
+        const novoSetorId = gerarId('set');
+        mapaSetores[setorOrigem.id] = novoSetorId;
 
-      const itensFixosNovos = itensCusto.filter(i =>
-        i.tipo === 'fixo' &&
-        idsSetoresNovos.has(i.setorld) &&
-        i.custoFixold &&
-        mapaCustosFixos[i.custoFixold]
-      );
+        const novoSetor = { ...setorOrigem, id: novoSetorId, periodold: novoPeriodo.id, createdAt: new Date().toISOString() };
+        await salvarFB('setores', novoSetor);
+        setores.push(novoSetor);
 
-      for (const item of itensFixosNovos) {
-        item.custoFixold = mapaCustosFixos[item.custoFixold];
-        await salvarFB('itensCusto', item);
+        const itensOrigem = itensCusto.filter(i => i.setorld === setorOrigem.id);
+        for (const itemOrigem of itensOrigem) {
+          const novoItem = {
+            ...itemOrigem,
+            id: gerarId('item'),
+            setorld: novoSetorId,
+            createdAt: new Date().toISOString()
+          };
+
+          // 🔥 CORREÇÃO #6: remapeia custoFixold ou limpa se órfão
+          if (novoItem.tipo === 'fixo' && novoItem.custoFixold) {
+            if (mapaCustosFixos[novoItem.custoFixold]) {
+              novoItem.custoFixold = mapaCustosFixos[novoItem.custoFixold];
+            } else {
+              // Custo fixo órfão: limpa o vínculo
+              novoItem.custoFixold = null;
+            }
+          }
+
+          await salvarFB('itensCusto', novoItem);
+          itensCusto.push(novoItem);
+        }
+
+        const prodsOrigem = producoes.filter(p => p.setorld === setorOrigem.id);
+        for (const prodOrigem of prodsOrigem) {
+          const novaProd = {
+            ...prodOrigem,
+            id: gerarId('prod'),
+            setorld: novoSetorId,
+            createdAt: new Date().toISOString()
+          };
+          await salvarFB('producoes', novaProd);
+          producoes.push(novaProd);
+        }
       }
 
       window.fecharModal('modalCopiarPeriodo');
       periodoOrigemCopia = null;
       renderizarTela();
       alert('✅ Período copiado com sucesso!\n\n📅 ' + getNomeMes(novoMes) + '/' + novoAno + '\n🏭 ' + setoresOrigem.length + ' setores\n💰 ' + custosFixosOrigem.length + ' custos fixos');
-
     } catch (error) {
       console.error('❌ Erro ao copiar período:', error);
       alert('Erro ao copiar período: ' + error.message);
@@ -1881,11 +1493,24 @@
     if (!periodoAtual) { alert('Nenhum período selecionado!'); return; }
     const nome = document.getElementById('setorNome').value.trim();
     if (!nome) { alert('Digite o nome!'); return; }
-    const setor = { periodold: periodoAtual.id, nome, descricao: document.getElementById('setorDescricao').value.trim() || '', ordem: parseInt(document.getElementById('setorOrdem').value) || 1, produtoFinal: document.getElementById('setorProdutoFinal').checked || false, tipo: document.getElementById('setorTipo').value || 'custo', createdAt: new Date().toISOString() };
+    const setor = {
+      periodold: periodoAtual.id,
+      nome,
+      descricao: document.getElementById('setorDescricao').value.trim() || '',
+      ordem: parseInt(document.getElementById('setorOrdem').value) || 1,
+      produtoFinal: document.getElementById('setorProdutoFinal').checked || false,
+      tipo: document.getElementById('setorTipo').value || 'custo',
+      createdAt: new Date().toISOString()
+    };
     const editId = document.getElementById('setorEditId').value;
-    if (editId) { setor.id = editId;
-      const idx = setores.findIndex(x => x.id === editId); if (idx !== -1) setores[idx] = Object.assign({}, setores[idx], setor); } else { setor.id = 'set_' + Date.now();
-      setores.push(setor); }
+    if (editId) {
+      setor.id = editId;
+      const idx = setores.findIndex(x => x.id === editId);
+      if (idx !== -1) setores[idx] = Object.assign({}, setores[idx], setor);
+    } else {
+      setor.id = gerarId('set');
+      setores.push(setor);
+    }
     await salvarFB('setores', setor);
     window.fecharModal('modalSetor');
     renderizarTela();
@@ -1907,8 +1532,10 @@
       setoresExcluidosResumo.delete(id);
       if (setorAtual && setorAtual.id === id) setorAtual = null;
       renderizarTela();
-    } catch (error) { console.error('Erro ao excluir setor:', error);
-      alert('Erro ao excluir setor.'); }
+    } catch (error) {
+      console.error('Erro ao excluir setor:', error);
+      alert('Erro ao excluir setor.');
+    }
   };
 
   // ======== CRUD CATEGORIAS ========
@@ -1918,14 +1545,18 @@
     modal.classList.add('active');
     if (id) {
       const cat = categorias.find(c => c.id === id);
-      if (cat) { document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria';
+      if (cat) {
+        document.getElementById('modalCategoriaTitulo').innerText = 'Editar Categoria';
         document.getElementById('categoriaEditId').value = cat.id;
         document.getElementById('categoriaNome').value = cat.nome;
-        document.getElementById('categoriaCor').value = cat.cor; }
-    } else { document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria';
+        document.getElementById('categoriaCor').value = cat.cor;
+      }
+    } else {
+      document.getElementById('modalCategoriaTitulo').innerText = 'Nova Categoria';
       document.getElementById('categoriaEditId').value = '';
       document.getElementById('categoriaNome').value = '';
-      document.getElementById('categoriaCor').value = '#0d904f'; }
+      document.getElementById('categoriaCor').value = '#0d904f';
+    }
   };
 
   window.editarCategoria = function(id) { window.abrirModalCategoria(id); };
@@ -1938,10 +1569,14 @@
     let categoria;
     if (editId) {
       const idx = categorias.findIndex(c => c.id === editId);
-      if (idx !== -1) { categoria = Object.assign({}, categorias[idx], { nome, cor });
-        categorias[idx] = categoria; }
-    } else { categoria = { id: 'cat_' + Date.now(), nome, cor };
-      categorias.push(categoria); }
+      if (idx !== -1) {
+        categoria = Object.assign({}, categorias[idx], { nome, cor });
+        categorias[idx] = categoria;
+      }
+    } else {
+      categoria = { id: gerarId('cat'), nome, cor };
+      categorias.push(categoria);
+    }
     await salvarFB('categorias', categoria);
     window.fecharModal('modalCategoria');
     renderizarTela();
@@ -1954,7 +1589,7 @@
     renderizarTela();
   };
 
-  // ======== CRUD ITENS DE CUSTO (CORRIGIDO - PRESERVA VÍNCULO) ========
+  // ======== CRUD ITENS DE CUSTO ========
   window.abrirModalItemCusto = function(id) {
     if (!setorAtual) { alert('Selecione um setor primeiro.'); return; }
     const modal = document.getElementById('modalItemCusto');
@@ -1963,7 +1598,6 @@
     const selCat = document.getElementById('itemCategoria');
     if (selCat) selCat.innerHTML = categorias.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
 
-    // 🔥 Bloqueia troca de tipo ao EDITAR (evita perder vínculo com custo fixo)
     const tabNormal = document.getElementById('tabNormal');
     const tabFixo = document.getElementById('tabFixo');
 
@@ -1976,28 +1610,21 @@
         if (selCat) selCat.value = item.categoriald || '';
         document.getElementById('itemNome').value = item.nome || '';
         document.getElementById('itemValorTotal').value = item.valorTotal || 0;
-        document.getElementById('itemPercentual').value = item.percentual || 100;
+        document.getElementById('itemPercentual').value = getPercentual(item);
         document.getElementById('itemObs').value = item.obs || '';
         if (item.tipo === 'fixo' && item.custoFixold) {
           custoFixoSelecionadoId = item.custoFixold;
           const cf = custosFixos.find(c => c.id === item.custoFixold);
-          if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome;
+          if (cf) {
+            document.getElementById('itemFixoNomeDisplay').value = cf.nome;
             document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
-            document.getElementById('itemFixoPercentual').value = item.percentual || 100; }
+            document.getElementById('itemFixoPercentual').value = getPercentual(item);
+          }
         }
         mudarTipoItem(item.tipo || 'normal');
 
-        // 🔥 Desabilita as tabs ao editar
-        if (tabNormal) {
-          tabNormal.disabled = true;
-          tabNormal.style.opacity = '0.5';
-          tabNormal.style.cursor = 'not-allowed';
-        }
-        if (tabFixo) {
-          tabFixo.disabled = true;
-          tabFixo.style.opacity = '0.5';
-          tabFixo.style.cursor = 'not-allowed';
-        }
+        if (tabNormal) { tabNormal.disabled = true; tabNormal.style.opacity = '0.5'; tabNormal.style.cursor = 'not-allowed'; }
+        if (tabFixo) { tabFixo.disabled = true; tabFixo.style.opacity = '0.5'; tabFixo.style.cursor = 'not-allowed'; }
       }
     } else {
       document.getElementById('modalItemTitulo').innerText = 'Novo Item';
@@ -2011,17 +1638,8 @@
       custoFixoSelecionadoId = null;
       mudarTipoItem('normal');
 
-      // Reabilita as tabs ao criar novo
-      if (tabNormal) {
-        tabNormal.disabled = false;
-        tabNormal.style.opacity = '1';
-        tabNormal.style.cursor = 'pointer';
-      }
-      if (tabFixo) {
-        tabFixo.disabled = false;
-        tabFixo.style.opacity = '1';
-        tabFixo.style.cursor = 'pointer';
-      }
+      if (tabNormal) { tabNormal.disabled = false; tabNormal.style.opacity = '1'; tabNormal.style.cursor = 'pointer'; }
+      if (tabFixo) { tabFixo.disabled = false; tabFixo.style.opacity = '1'; tabFixo.style.cursor = 'pointer'; }
     }
     atualizarListaCustosFixos();
   };
@@ -2030,15 +1648,30 @@
     const container = document.getElementById('custosFixosSelect');
     if (!container) return;
     const fixos = getCustosFixosDoPeriodo(periodoAtual ? periodoAtual.id : null);
-    if (fixos.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>'; } else { container.innerHTML = fixos.map(cf => `<div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" onclick="window.selecionarCustoFixo('${cf.id}')" style="cursor:pointer;margin-bottom:0.5rem;"><div><div class="cf-nome">${cf.nome}</div><div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div></div><div class="cf-valor">${formatMoney(cf.valor)}</div></div>`).join(''); }
+    if (fixos.length === 0) {
+      container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>';
+    } else {
+      container.innerHTML = fixos.map(cf => `
+        <div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" 
+             onclick="window.selecionarCustoFixo('${cf.id}')" 
+             style="cursor:pointer;margin-bottom:0.5rem;">
+          <div>
+            <div class="cf-nome">${cf.nome}</div>
+            <div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div>
+          </div>
+          <div class="cf-valor">${formatMoney(cf.valor)}</div>
+        </div>`).join('');
+    }
   }
 
   window.selecionarCustoFixo = function(id) {
     custoFixoSelecionadoId = id;
     const cf = custosFixos.find(c => c.id === id);
-    if (cf) { document.getElementById('itemFixoNomeDisplay').value = cf.nome;
+    if (cf) {
+      document.getElementById('itemFixoNomeDisplay').value = cf.nome;
       document.getElementById('itemFixoValorDisplay').value = formatMoney(cf.valor);
-      document.getElementById('areaItemFixoDetalhe').style.display = 'block'; }
+      document.getElementById('areaItemFixoDetalhe').style.display = 'block';
+    }
     atualizarListaCustosFixos();
   };
 
@@ -2056,14 +1689,18 @@
   window.salvarItemCusto = async function() {
     const tipo = document.getElementById('itemTipo').value;
     const editId = document.getElementById('itemEditId').value;
-    const item = { setorld: setorAtual ? setorAtual.id : null, nome: document.getElementById('itemNome').value.trim(), obs: document.getElementById('itemObs').value.trim() || '', tipo };
+    const item = {
+      setorld: setorAtual ? setorAtual.id : null,
+      nome: document.getElementById('itemNome').value.trim(),
+      obs: document.getElementById('itemObs').value.trim() || '',
+      tipo
+    };
 
     if (tipo === 'normal') {
       item.categoriald = document.getElementById('itemCategoria').value;
       item.valorTotal = parseFloat(document.getElementById('itemValorTotal').value) || 0;
       item.percentual = parseFloat(document.getElementById('itemPercentual').value) || 100;
 
-      // 🔥 PRESERVA VÍNCULO: se estava editando um item fixo, mantém o custoFixold
       const itemOriginal = editId ? itensCusto.find(x => x.id === editId) : null;
       item.custoFixold = (itemOriginal && itemOriginal.tipo === 'fixo') ? itemOriginal.custoFixold : null;
     } else {
@@ -2077,14 +1714,17 @@
       item.nome = cf.nome;
     }
 
-    if (!item.setorld || !item.nome || item.valorTotal <= 0) { alert('Preencha todos os campos corretamente.'); return; }
+    if (!item.setorld || !item.nome || item.valorTotal <= 0) {
+      alert('Preencha todos os campos corretamente.');
+      return;
+    }
 
     if (editId) {
       item.id = editId;
       const idx = itensCusto.findIndex(x => x.id === editId);
       if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item);
     } else {
-      item.id = 'item_' + Date.now();
+      item.id = gerarId('item');
       itensCusto.push(item);
     }
     await salvarFB('itensCusto', item);
@@ -2117,7 +1757,7 @@
     const produto = document.getElementById('producaoProduto').value.trim();
     const kg = parseFloat(document.getElementById('producaoKg').value);
     if (!produto || !kg || kg <= 0) { alert('Preencha todos os campos corretamente.'); return; }
-    const p = { id: 'prod_' + Date.now(), setorld: setorAtual.id, produto, kg, data: document.getElementById('producaoData').value };
+    const p = { id: gerarId('prod'), setorld: setorAtual.id, produto, kg, data: document.getElementById('producaoData').value };
     producoes.push(p);
     await salvarFB('producoes', p);
     window.fecharModal('modalProducao');
@@ -2136,13 +1776,20 @@
     const modal = document.getElementById('modalMaterial');
     if (!modal) return;
     modal.classList.add('active');
-    if (id) { const m = materiais.find(x => x.id === id); if (m) { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Material';
+    if (id) {
+      const m = materiais.find(x => x.id === id);
+      if (m) {
+        document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-edit"></i> Editar Material';
         document.getElementById('materialEditId').value = m.id;
         document.getElementById('materialNome').value = m.nome;
-        document.getElementById('materialDescricao').value = m.descricao || ''; } } else { document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-box"></i> Novo Material';
+        document.getElementById('materialDescricao').value = m.descricao || '';
+      }
+    } else {
+      document.getElementById('modalMaterialTitulo').innerHTML = '<i class="fas fa-box"></i> Novo Material';
       document.getElementById('materialEditId').value = '';
       document.getElementById('materialNome').value = '';
-      document.getElementById('materialDescricao').value = ''; }
+      document.getElementById('materialDescricao').value = '';
+    }
   };
 
   window.salvarMaterial = async function() {
@@ -2150,9 +1797,14 @@
     if (!nome) { alert('Digite o nome do material.'); return; }
     const editId = document.getElementById('materialEditId').value;
     const m = { nome, descricao: document.getElementById('materialDescricao').value.trim() || '' };
-    if (editId) { m.id = editId;
-      const idx = materiais.findIndex(x => x.id === editId); if (idx !== -1) materiais[idx] = Object.assign({}, materiais[idx], m); } else { m.id = 'mat_' + Date.now();
-      materiais.push(m); }
+    if (editId) {
+      m.id = editId;
+      const idx = materiais.findIndex(x => x.id === editId);
+      if (idx !== -1) materiais[idx] = Object.assign({}, materiais[idx], m);
+    } else {
+      m.id = gerarId('mat');
+      materiais.push(m);
+    }
     await salvarFB('materiais', m);
     window.fecharModal('modalMaterial');
     renderizarTela();
@@ -2165,16 +1817,20 @@
     await excluirFB('materiais', id);
     renderizarTela();
   };
-  window.verHistoricoMaterial = function(id) { nivelAtual = 'historicoMaterial';
-    renderizarTela(); };
+  window.verHistoricoMaterial = function(id) {
+    nivelAtual = 'historicoMaterial';
+    renderizarTela();
+  };
 
   // ======== GERAR CUSTO MATERIAL ========
   window.abrirGerarCustoMaterial = function() {
     const modal = document.getElementById('modalGerarCusto');
     if (!modal) return;
     modal.classList.add('active');
-    document.getElementById('gerarCustoPeriodo').innerHTML = '<option value="">Selecione um período...</option>' + periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
-    document.getElementById('gerarCustoMaterial').innerHTML = '<option value="">Selecione um material...</option>' + materiais.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
+    document.getElementById('gerarCustoPeriodo').innerHTML = '<option value="">Selecione um período...</option>' +
+      periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
+    document.getElementById('gerarCustoMaterial').innerHTML = '<option value="">Selecione um material...</option>' +
+      materiais.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
     document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
     document.getElementById('gerarCustoImposto').value = 0;
     document.getElementById('gerarCustoMargem').value = 0;
@@ -2187,29 +1843,54 @@
   window.atualizarSetoresGerarCusto = function() {
     const periodoId = document.getElementById('gerarCustoPeriodo').value;
     const container = document.getElementById('setoresGerarCusto');
-    if (!periodoId) { container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período primeiro</p>'; return; }
+    if (!periodoId) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período primeiro</p>';
+      return;
+    }
     const sets = setores.filter(s => s.periodold === periodoId);
-    if (sets.length === 0) { container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>'; } else { container.innerHTML = sets.map(s => `<div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}"><div class="ss-header"><input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)"><div class="ss-info"><div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div><div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div></div></div></div>`).join(''); }
+    if (sets.length === 0) {
+      container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>';
+    } else {
+      container.innerHTML = sets.map(s => `
+        <div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}">
+          <div class="ss-header">
+            <input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)">
+            <div class="ss-info">
+              <div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div>
+              <div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
   };
 
-  window.toggleSetorGerarCusto = function(setorId, checked) { if (checked) setoresSelecionadosGerar.set(setorId, true);
+  window.toggleSetorGerarCusto = function(setorId, checked) {
+    if (checked) setoresSelecionadosGerar.set(setorId, true);
     else setoresSelecionadosGerar.delete(setorId);
     window.atualizarSetoresGerarCusto();
-    window.atualizarResumoGerarCusto(); };
+    window.atualizarResumoGerarCusto();
+  };
 
   window.atualizarResumoGerarCusto = function() {
     const container = document.getElementById('resumoLinhas');
     if (!container) return;
     const setorIds = Array.from(setoresSelecionadosGerar.keys());
-    if (setorIds.length === 0) { container.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>'; return; }
-    let custoTotal = 0,
-      producaoTotal = 0;
-    setorIds.forEach(id => { const custos = calcularCustosSetor(id);
+    if (setorIds.length === 0) {
+      container.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
+      return;
+    }
+    let custoTotal = 0, producaoTotal = 0;
+    setorIds.forEach(id => {
+      const custos = calcularCustosSetor(id);
       custoTotal += custos.totalCusto;
-      producaoTotal += custos.totalKg; });
+      producaoTotal += custos.totalKg;
+    });
     const custoKg = producaoTotal > 0 ? custoTotal / producaoTotal : 0;
     let custoInsumos = 0;
-    document.querySelectorAll('.insumo-row').forEach(row => { const input = row.querySelector('.insumo-custo'); if (input) custoInsumos += parseFloat(input.value) || 0; });
+    document.querySelectorAll('.insumo-row').forEach(row => {
+      const input = row.querySelector('.insumo-custo');
+      if (input) custoInsumos += parseFloat(input.value) || 0;
+    });
     const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
     const margem = parseFloat(document.getElementById('gerarCustoMargem').value) || 0;
     const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
@@ -2221,148 +1902,59 @@
     if (imposto > 0) html += `<div class="linha"><span>Imposto (${imposto}%)</span><span class="l-valor">${formatMoney(custoFinal * imposto / 100)}/kg</span></div>`;
     if (margem > 0) html += `<div class="linha"><span>Margem (${margem}%)</span><span class="l-valor">${formatMoney(custoFinal * (1 + imposto / 100) * margem / 100)}/kg</span></div>`;
     html += `<div class="linha total"><span>Preço Sugerido</span><span class="l-valor">${formatMoney(precoSugerido)}/kg</span></div>`;
-    if (valorAtual > 0) { const diff = precoSugerido - valorAtual;
-      html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div><div class="linha"><span>Diferença</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`; }
+    if (valorAtual > 0) {
+      const diff = precoSugerido - valorAtual;
+      html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div>`;
+      html += `<div class="linha"><span>Diferença</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`;
+    }
     container.innerHTML = html;
   };
 
-  window.adicionarInsumo = function() { const container = document.getElementById('insumosContainer');
+  window.adicionarInsumo = function() {
+    const container = document.getElementById('insumosContainer');
     const div = document.createElement('div');
     div.className = 'insumo-row';
     div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
-    container.appendChild(div); };
-  window.salvarCustoMaterial = async function() { alert('Custo de material salvo com sucesso!');
-    window.fecharModal('modalGerarCusto'); };
-  window.gerarPDFCustoMaterial = function() { alert('Função de exportação PDF em desenvolvimento.'); };
-
-  // ======== GRÁFICOS MODAIS ========
-  window.abrirGraficoMensal = function(periodoId) {
-    if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
-    const modal = document.getElementById('modalGraficoMensal');
-    if (!modal) return;
-    modal.classList.add('active');
-    const per = periodos.find(p => p.id === periodoId);
-    if (!per) return;
-    document.getElementById('graficoMensalTitulo').innerText = getNomeMes(per.mes) + '/' + per.ano;
-    const sets = getSetoresDoPeriodo(periodoId);
-    const cats = categorias.map(c => ({ ...c,
-      total: 0 }));
-    sets.forEach(s => {
-      itensCusto.filter(i => i.setorld === s.id).forEach(i => {
-        const cat = cats.find(c => c.id === i.categoriald);
-        if (cat) cat.total += i.valorTotal * (i.percentual || 100) / 100;
-      });
-    });
-    const catsComDados = cats.filter(c => c.total > 0);
-    if (graficoMensalChart) graficoMensalChart.destroy();
-    const canvas = document.getElementById('graficoMensalCanvas');
-    if (!canvas) return;
-    graficoMensalChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
+    container.appendChild(div);
   };
 
-  window.abrirGraficoConsolidado = function() {
-    if (typeof Chart === 'undefined') { alert('Chart.js não carregado.'); return; }
-    if (periodosSelecionadosResumo.size === 0) { alert('Selecione períodos.'); return; }
-    const modal = document.getElementById('modalGraficoConsolidado');
-    if (!modal) return;
-    modal.classList.add('active');
-    const cats = categorias.map(c => ({ ...c,
-      total: 0 }));
-    periodosSelecionadosResumo.forEach(pid => {
-      getSetoresDoPeriodo(pid).forEach(s => {
-        itensCusto.filter(i => i.setorld === s.id).forEach(i => {
-          const cat = cats.find(c => c.id === i.categoriald);
-          if (cat) cat.total += i.valorTotal * (i.percentual || 100) / 100;
-        });
-      });
-    });
-    const catsComDados = cats.filter(c => c.total > 0);
-    if (graficoConsolidadoChart) graficoConsolidadoChart.destroy();
-    const canvas = document.getElementById('graficoConsolidadoCanvas');
-    if (!canvas) return;
-    graficoConsolidadoChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: catsComDados.map(c => c.nome), datasets: [{ data: catsComDados.map(c => c.total), backgroundColor: catsComDados.map(c => c.cor) }] },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
+  window.salvarCustoMaterial = async function() {
+    alert('Custo de material salvo com sucesso!');
+    window.fecharModal('modalGerarCusto');
   };
 
-  window.exportarGraficoMensal = function() { const c = document.getElementById('graficoMensalCanvas'); if (c) { const a = document.createElement('a');
-    a.download = 'grafico.png';
-    a.href = c.toDataURL();
-    a.click(); } };
-  window.exportarGraficoConsolidado = function() { const c = document.getElementById('graficoConsolidadoCanvas'); if (c) { const a = document.createElement('a');
-    a.download = 'grafico.png';
-    a.href = c.toDataURL();
-    a.click(); } };
-
-  // ======== AJUSTAR TAMANHO DO GRÁFICO ========
-  window.ajustarGrafico = function(tipo, tamanho) {
-    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
-    const infoId = tipo === 'mensal' ? 'graficoMensalTamanho' : 'graficoConsolidadoTamanho';
-    const container = document.getElementById(containerId);
-    const info = document.getElementById(infoId);
-    if (!container) return;
-
-    const tamanhos = {
-      pequeno: '300px',
-      medio: '500px',
-      grande: '700px',
-      telaCheia: 'calc(100vh - 260px)'
-    };
-    const h = tamanhos[tamanho] || '500px';
-    container.style.height = h;
-    if (info) info.textContent = h;
-
-    const modal = container.closest('.modal');
-    if (modal) {
-      modal.querySelectorAll('.btn-grafico-controle').forEach(b => b.classList.remove('active'));
-      const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('.btn-grafico-controle') : null;
-      if (btn) btn.classList.add('active');
-    }
-
-    const canvas = container.querySelector('canvas');
-    if (canvas && window.Chart) {
-      const chart = Chart.getChart(canvas);
-      if (chart) chart.resize();
-    }
-  };
-
-  // ======== FULLSCREEN TOTAL DO GRÁFICO ========
-  window.toggleFullscreenGrafico = function(tipo) {
-    const containerId = tipo === 'mensal' ? 'graficoMensalContainer' : 'graficoConsolidadoContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const modal = container.closest('.modal');
-    if (!modal) return;
-
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else if (modal.requestFullscreen) {
-      modal.requestFullscreen().catch(() => {});
-    }
+  window.gerarPDFCustoMaterial = function() {
+    alert('Função de exportação PDF em desenvolvimento.');
   };
 
   // ======== FILTROS ========
-  window.mudarFiltroAno = function(v) { filtroAnoAtual = v;
+  window.mudarFiltroAno = function(v) {
+    filtroAnoAtual = v;
     periodosSelecionadosResumo.clear();
-    renderizarTela(); };
-  window.togglePeriodoResumo = function(pid, checked) { if (checked) periodosSelecionadosResumo.add(pid);
+    renderizarTela();
+  };
+  window.togglePeriodoResumo = function(pid, checked) {
+    if (checked) periodosSelecionadosResumo.add(pid);
     else periodosSelecionadosResumo.delete(pid);
-    renderizarTela(); };
-  window.removePeriodoResumo = function(pid) { periodosSelecionadosResumo.delete(pid);
-    renderizarTela(); };
-  window.limparSelecaoResumo = function() { periodosSelecionadosResumo.clear();
-    renderizarTela(); };
-  window.toggleSetorResumo = function(sid, checked) { if (checked) setoresExcluidosResumo.delete(sid);
+    renderizarTela();
+  };
+  window.removePeriodoResumo = function(pid) {
+    periodosSelecionadosResumo.delete(pid);
+    renderizarTela();
+  };
+  window.limparSelecaoResumo = function() {
+    periodosSelecionadosResumo.clear();
+    renderizarTela();
+  };
+  window.toggleSetorResumo = function(sid, checked) {
+    if (checked) setoresExcluidosResumo.delete(sid);
     else setoresExcluidosResumo.add(sid);
-    renderizarTela(); };
-  window.limparSetoresExcluidos = function() { setoresExcluidosResumo.clear();
-    renderizarTela(); };
+    renderizarTela();
+  };
+  window.limparSetoresExcluidos = function() {
+    setoresExcluidosResumo.clear();
+    renderizarTela();
+  };
 
   window.fecharModal = function(id) {
     const modal = document.getElementById(id);
@@ -2377,9 +1969,11 @@
       const btnEditar = e.target.closest('.btn-editar-periodo');
       if (btnEditar) {
         const id = btnEditar.getAttribute('data-id');
-        if (id) { e.preventDefault();
+        if (id) {
+          e.preventDefault();
           e.stopPropagation();
-          window.editarPeriodo(id); }
+          window.editarPeriodo(id);
+        }
       }
     });
     document.addEventListener('keydown', function(e) {
@@ -2395,7 +1989,7 @@
   }
 
   // ====================================================
-  // PAINEL DE CUSTO DE PROCESSO - SIMULAÇÃO COM PERDA
+  // PAINEL DE CUSTO DE PROCESSO
   // ====================================================
 
   window.inicializarCustoProcesso = function() {
@@ -2572,12 +2166,7 @@
     if (checkbox.checked) {
       const existe = custoProcessoSetoresSelecionados.some(item => item.id === setorId);
       if (!existe) {
-        custoProcessoSetoresSelecionados.push({
-          id: setorId,
-          nome: nome,
-          custoKg: custoKg,
-          perda: perda
-        });
+        custoProcessoSetoresSelecionados.push({ id: setorId, nome, custoKg, perda });
       }
     } else {
       custoProcessoSetoresSelecionados = custoProcessoSetoresSelecionados.filter(item => item.id !== setorId);
@@ -2649,8 +2238,8 @@
     const id = 'casual_' + Date.now();
     custoProcessoCasualItens = [];
     custoProcessoCasualItens.push({
-      id: id,
-      nome: nome,
+      id,
+      nome,
       quantidade: parseFloat(quantidade),
       custoKg: parseFloat(custoKg),
       imposto: parseFloat(imposto) || 0
@@ -2742,12 +2331,12 @@
       detalhes.push({
         etapa: `${index + 1}º`,
         nome: setor.nome,
-        pesoEntrada: pesoEntrada,
+        pesoEntrada,
         custoKg: setor.custoKg,
-        perda: perda,
-        pesoPerdido: pesoPerdido,
-        pesoSaida: pesoSaida,
-        custoParcial: custoParcial
+        perda,
+        pesoPerdido,
+        pesoSaida,
+        custoParcial
       });
 
       pesoAtual = pesoSaida;
@@ -2887,12 +2476,12 @@
       detalhes.push({
         etapa: `${index + 1}º`,
         nome: setor.nome,
-        pesoEntrada: pesoEntrada,
+        pesoEntrada,
         custoKg: setor.custoKg,
-        perda: perda,
-        pesoPerdido: pesoPerdido,
-        pesoSaida: pesoSaida,
-        custoParcial: custoParcial
+        perda,
+        pesoPerdido,
+        pesoSaida,
+        custoParcial
       });
 
       pesoAtual = pesoSaida;
@@ -2992,7 +2581,6 @@
       atualizarStatusFirebase();
       renderizarTela();
       console.log('✅ Sistema inicializado com sucesso!');
-
     } catch (error) {
       console.error('❌ Erro na inicialização:', error);
       if (loadingEl) loadingEl.classList.remove('active');
