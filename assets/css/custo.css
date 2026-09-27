@@ -1,6 +1,6 @@
 /* ============================================================
    CENTRAL DE CUSTOS - CSS MODERNO
-   Versão: 4.0 — Sem gráficos, sem painel antigo de processo
+   Versão: 5.0 — Sem gráficos, com análise comercial
    ============================================================ */
 
 :root {
@@ -125,22 +125,16 @@ body {
 
 .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.3); }
 .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); transform: translateY(-1px); }
-
 .btn-teal { background: var(--teal); color: #fff; box-shadow: 0 1px 2px rgba(13, 148, 136, 0.3); }
 .btn-teal:hover { background: var(--teal-dark); box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35); transform: translateY(-1px); }
-
 .btn-purple { background: var(--purple); color: #fff; box-shadow: 0 1px 2px rgba(124, 58, 237, 0.3); }
 .btn-purple:hover { background: var(--purple-dark); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35); transform: translateY(-1px); }
-
 .btn-warning { background: var(--warning); color: #fff; box-shadow: 0 1px 2px rgba(245, 158, 11, 0.3); }
 .btn-warning:hover { background: var(--warning-dark); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35); transform: translateY(-1px); }
-
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger:hover { background: var(--danger-dark); }
-
 .btn-info { background: var(--info); color: #fff; }
 .btn-info:hover { background: #0369a1; }
-
 .btn-outline { background: var(--surface); color: var(--text); border-color: var(--border-dark); }
 .btn-outline:hover { background: var(--bg-alt); border-color: var(--text-muted); color: var(--text); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
@@ -173,6 +167,7 @@ body {
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
 
+/* ============ MODAIS ============ */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
@@ -180,17 +175,21 @@ body {
   padding: 1rem; animation: fadeIn 0.2s ease;
 }
 .modal-overlay.active, .modal-overlay.show { display: flex; }
+
 .modal {
   background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);
   width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
   padding: 1.75rem; animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid var(--border);
+  position: relative;
 }
 .modal-lg { max-width: 780px; }
+
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.96) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
 .modal h2 {
   font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 1.25rem;
   display: flex; align-items: center; gap: 0.6rem; letter-spacing: -0.01em; flex-wrap: wrap;
@@ -205,6 +204,138 @@ body {
   padding-top: 1.25rem; border-top: 1px solid var(--border); flex-wrap: wrap;
 }
 
+/* ============ MODAL CUSTO POR MATERIAL - TAMANHOS ============ */
+.modal.modal-cpm {
+  max-width: 980px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  transition: max-width 0.3s ease, width 0.3s ease, height 0.3s ease, max-height 0.3s ease;
+}
+
+/* Expandido */
+.modal.modal-cpm.cpm-expandido {
+  max-width: 1500px;
+  width: 96vw;
+  max-height: 94vh;
+}
+
+/* Tela cheia */
+.modal.modal-cpm.cpm-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  z-index: 9999 !important;
+  animation: none !important;
+}
+
+.cpm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.cpm-modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cpm-modal-header h2 i {
+  color: var(--purple);
+  background: var(--purple-light);
+  padding: 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+}
+
+.cpm-modal-controls {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.cpm-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.cpm-ctrl-btn:hover {
+  background: var(--bg-alt);
+  border-color: var(--text-muted);
+}
+
+.cpm-ctrl-btn i {
+  font-size: 0.85em;
+}
+
+.cpm-ctrl-btn.cpm-ctrl-close {
+  padding: 0.45rem 0.65rem;
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.cpm-ctrl-btn.cpm-ctrl-close:hover {
+  background: var(--danger-dark);
+}
+
+@media (max-width: 640px) {
+  .cpm-ctrl-btn span { display: none; }
+  .cpm-ctrl-btn { padding: 0.5rem; }
+}
+
+.cpm-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem;
+  background: var(--bg);
+}
+
+.modal.modal-cpm .modal-actions.cpm-modal-actions {
+  margin: 0;
+  padding: 1rem 1.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+/* ============ ALERTAS ============ */
 .alert-info {
   display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.85rem 1rem;
   background: var(--info-light); border: 1px solid #bae6fd; border-left: 4px solid var(--info);
@@ -494,104 +625,6 @@ body {
    CUSTO POR MATERIAL — SIMULAÇÃO EM CADEIA
    ============================================================ */
 
-/* --- MODAL BOX + CONTROLES (expandir / tela cheia) --- */
-#cpmModalBox {
-  transition: max-width 0.3s ease, width 0.3s ease, height 0.3s ease, max-height 0.3s ease;
-}
-
-#cpmModalBox.cpm-expandido {
-  max-width: 1400px;
-  width: 96vw;
-}
-
-#cpmModalBox.cpm-fullscreen {
-  max-width: none;
-  width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
-  border-radius: 0;
-  padding: 1.25rem 2rem;
-  overflow-y: auto;
-}
-
-.cpm-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.cpm-modal-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.cpm-modal-header h2 i {
-  color: var(--purple);
-  background: var(--purple-light);
-  padding: 0.45rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-}
-
-.cpm-modal-controls {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.cpm-ctrl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1.5px solid var(--border-dark);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.cpm-ctrl-btn:hover {
-  background: var(--bg-alt);
-  border-color: var(--text-muted);
-}
-
-.cpm-ctrl-btn i {
-  font-size: 0.85em;
-}
-
-.cpm-ctrl-btn.cpm-ctrl-close {
-  padding: 0.45rem 0.65rem;
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
-}
-
-.cpm-ctrl-btn.cpm-ctrl-close:hover {
-  background: var(--danger-dark);
-}
-
-@media (max-width: 640px) {
-  .cpm-ctrl-btn span { display: none; }
-  .cpm-ctrl-btn { padding: 0.5rem; }
-}
-
-/* --- SEÇÕES --- */
 .cpm-section {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.25rem;
@@ -741,11 +774,130 @@ body {
 .cpm-tabela .txt-danger { color: var(--danger); font-weight: 600; }
 .cpm-tabela .txt-success { color: var(--teal-dark); font-weight: 600; }
 
-/* Em modo tela cheia, expande a área de resultado */
-#cpmModalBox.cpm-fullscreen .cpm-setores-lista { max-height: 320px; }
-#cpmModalBox.cpm-fullscreen .table-wrap { max-height: 60vh; overflow-y: auto; }
+/* ============ ETAPA 5 — ANÁLISE COMERCIAL ============ */
+.cpm-subsection {
+  padding: 1rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+.cpm-subsection:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.cpm-subsection-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cpm-subsection-title i {
+  color: var(--purple);
+  background: var(--purple-light);
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
 
-/* ============ RESPONSIVIDADE GERAL ============ */
+.cpm-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+@media (max-width: 768px) {
+  .cpm-grid-3 { grid-template-columns: 1fr; }
+}
+
+.cpm-resumo-comercial {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.cpm-resumo-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.4);
+}
+.cpm-resumo-linha:last-of-type {
+  border-bottom: none;
+}
+.cpm-resumo-linha span {
+  color: var(--text-light);
+}
+.cpm-resumo-linha strong {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.cpm-resumo-linha.cpm-resumo-total {
+  border-top: 2px solid var(--border-dark);
+  border-bottom: 1px dashed rgba(148, 163, 184, 0.4);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  font-weight: 700;
+}
+.cpm-resumo-linha.cpm-resumo-total strong {
+  font-size: 1.05rem;
+}
+.cpm-resumo-linha.cpm-resumo-destaque {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  margin: 0.5rem -0.5rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid #86efac;
+}
+.cpm-resumo-linha.cpm-resumo-destaque span,
+.cpm-resumo-linha.cpm-resumo-destaque strong {
+  color: var(--teal-dark);
+  font-size: 1.1rem;
+}
+
+.cpm-resumo-badges {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .cpm-resumo-badges { grid-template-columns: 1fr; }
+}
+
+.cpm-badge-lucro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border: 1px solid #86efac;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}
+.cpm-badge-lucro span {
+  color: var(--teal-dark);
+  font-weight: 600;
+}
+.cpm-badge-lucro strong {
+  color: var(--teal-dark);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.cpm-badge-lucro.cpm-badge-custo {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-color: #93c5fd;
+}
+.cpm-badge-lucro.cpm-badge-custo span,
+.cpm-badge-lucro.cpm-badge-custo strong {
+  color: var(--primary-dark);
+}
+
+/* ============ RESPONSIVIDADE ============ */
 @media (max-width: 768px) {
   .header-custos { flex-direction: column; align-items: stretch; padding: 1rem; }
   .header-custos h1 { font-size: 1.25rem; }
@@ -754,6 +906,10 @@ body {
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions .btn { width: 100%; }
   .custo-fixo-card { flex-direction: column; align-items: flex-start; }
+  .cpm-modal-header { padding: 1rem; }
+  .cpm-modal-body { padding: 1rem; }
+  .modal.modal-cpm .modal-actions.cpm-modal-actions { padding: 1rem; flex-direction: column-reverse; }
+  .modal.modal-cpm .modal-actions.cpm-modal-actions .btn { width: 100%; }
 }
 @media (max-width: 640px) {
   .stats-grid-home, .periodos-grid, .setores-grid { grid-template-columns: 1fr; }
