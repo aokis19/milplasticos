@@ -473,7 +473,7 @@
       <!-- MODAL CUSTO POR MATERIAL (SIMULAÇÃO EM CADEIA)               -->
       <!-- ============================================================ -->
       <div class="modal-overlay" id="modalCustoPorMaterial">
-        <div class="modal modal-lg" id="cpmModalBox" style="max-width: 980px;">
+        <div class="modal modal-cpm" id="cpmModalBox">
           <div class="cpm-modal-header">
             <h2>
               <i class="fas fa-project-diagram"></i>
@@ -629,6 +629,140 @@
                   </thead>
                   <tbody id="cpmTabelaDetalhe"></tbody>
                 </table>
+              </div>
+            </div>
+
+            <!-- ========== ETAPA 5: ANÁLISE COMERCIAL ========== -->
+            <div class="cpm-section" id="cpmComercialSection" style="display:none;">
+              <div class="cpm-section-title">
+                <span class="cpm-step">5</span> Análise Comercial
+                <span class="cpm-hint-inline">(transporte, nota fiscal e margem de lucro)</span>
+              </div>
+
+              <!-- 5.1 TRANSPORTE -->
+              <div class="cpm-subsection">
+                <h4 class="cpm-subsection-title">
+                  <i class="fas fa-truck"></i> Custo de Transporte
+                </h4>
+                <div class="cpm-grid-3">
+                  <div class="form-group" style="margin:0;">
+                    <label>Distância (km)</label>
+                    <input type="number" id="cpmTransDistancia" step="0.01" min="0" value="0"
+                           placeholder="0,00" oninput="window.cpmRecalcularComercial()">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Custo por km (R$)</label>
+                    <input type="number" id="cpmTransCustoKm" step="0.01" min="0" value="0"
+                           placeholder="0,00" oninput="window.cpmRecalcularComercial()">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Custo total do transporte</label>
+                    <input type="text" id="cpmTransTotal" readonly
+                           style="background:var(--surface-alt);font-weight:700;color:var(--purple-dark);"
+                           value="R$ 0,00">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5.2 NOTA FISCAL -->
+              <div class="cpm-subsection">
+                <h4 class="cpm-subsection-title">
+                  <i class="fas fa-file-invoice-dollar"></i> Nota Fiscal
+                </h4>
+                <div class="cpm-grid-3">
+                  <div class="form-group" style="margin:0;">
+                    <label>Valor de venda (R$)</label>
+                    <input type="number" id="cpmNfValorVenda" step="0.01" min="0" value="0"
+                           placeholder="0,00" oninput="window.cpmRecalcularComercial()">
+                    <div class="hint" style="margin-top:0.25rem;">Valor total que será emitido na NF</div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Imposto (%)</label>
+                    <input type="number" id="cpmNfImposto" step="0.01" min="0" max="100" value="0"
+                           placeholder="0,00" oninput="window.cpmRecalcularComercial()">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Valor do imposto (R$)</label>
+                    <input type="text" id="cpmNfImpostoValor" readonly
+                           style="background:var(--surface-alt);font-weight:700;color:var(--danger);"
+                           value="R$ 0,00">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5.3 MARGEM DE LUCRO -->
+              <div class="cpm-subsection">
+                <h4 class="cpm-subsection-title">
+                  <i class="fas fa-chart-line"></i> Margem de Lucro
+                </h4>
+                <div class="cpm-grid-3">
+                  <div class="form-group" style="margin:0;">
+                    <label>Margem desejada (%)</label>
+                    <input type="number" id="cpmMargemDesejada" step="0.01" min="0" value="0"
+                           placeholder="0,00" oninput="window.cpmRecalcularComercial()">
+                    <div class="hint" style="margin-top:0.25rem;">% de lucro sobre o custo total</div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Custo base (R$)</label>
+                    <input type="text" id="cpmCustoBase" readonly
+                           style="background:var(--surface-alt);font-weight:700;"
+                           value="R$ 0,00">
+                    <div class="hint" style="margin-top:0.25rem;">Custo total + transporte</div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Preço de venda ideal (R$)</label>
+                    <input type="text" id="cpmPrecoVendaIdeal" readonly
+                           style="background:linear-gradient(135deg, #f0fdf4, #dcfce7);font-weight:700;color:var(--teal-dark);font-size:1rem;"
+                           value="R$ 0,00">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5.4 RESUMO FINAL -->
+              <div class="cpm-resumo-comercial" id="cpmResumoComercial">
+                <h4 class="cpm-subsection-title" style="border-bottom:none;padding-bottom:0;margin-bottom:0.75rem;">
+                  <i class="fas fa-receipt"></i> Resumo Final
+                </h4>
+
+                <div class="cpm-resumo-linha">
+                  <span>Custo do processo (etapas 1–4):</span>
+                  <strong id="cpmResumoProcesso">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha">
+                  <span>(+) Transporte:</span>
+                  <strong id="cpmResumoTransporte">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha cpm-resumo-total">
+                  <span>(=) Custo base do produto:</span>
+                  <strong id="cpmResumoCustoBase">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha">
+                  <span>(+) Margem de lucro (<span id="cpmResumoMargemPct">0</span>%):</span>
+                  <strong id="cpmResumoMargemValor">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha cpm-resumo-destaque">
+                  <span>(=) Preço de venda ideal:</span>
+                  <strong id="cpmResumoPrecoIdeal">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha">
+                  <span>(-) Imposto NF (<span id="cpmResumoImpostoPct">0</span>%):</span>
+                  <strong id="cpmResumoImpostoValor" style="color:var(--danger);">R$ 0,00</strong>
+                </div>
+                <div class="cpm-resumo-linha cpm-resumo-total">
+                  <span>(=) Lucro líquido:</span>
+                  <strong id="cpmResumoLucroLiquido" style="color:var(--teal-dark);">R$ 0,00</strong>
+                </div>
+
+                <div class="cpm-resumo-badges">
+                  <div class="cpm-badge-lucro">
+                    <span>Lucro sobre venda:</span>
+                    <strong id="cpmResumoLucroSobreVenda">0,00%</strong>
+                  </div>
+                  <div class="cpm-badge-lucro cpm-badge-custo">
+                    <span>Lucro sobre custo:</span>
+                    <strong id="cpmResumoLucroSobreCusto">0,00%</strong>
+                  </div>
+                </div>
               </div>
             </div>
 
