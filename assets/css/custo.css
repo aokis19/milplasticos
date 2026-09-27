@@ -1,7 +1,6 @@
 /* ============================================================
-   CENTRAL DE CUSTOS - CSS MODERNO (UNIFICADO)
-   Paleta clara, profissional, com suporte a gráficos
-   Versão: 2.0 - Corrigido loading-overlay + classes JS
+   CENTRAL DE CUSTOS - CSS MODERNO (SEM GRÁFICOS)
+   Versão: 3.0
    ============================================================ */
 
 /* ============ VARIÁVEIS GLOBAIS ============ */
@@ -678,10 +677,7 @@ body {
   transform: translateX(20px);
 }
 
-/* ============================================================
-   🔥 LOADING OVERLAY - CORRIGIDO
-   Agora esconde por padrão e só aparece com .active
-   ============================================================ */
+/* ============ LOADING OVERLAY ============ */
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -694,21 +690,17 @@ body {
   justify-content: center;
   z-index: 2000;
   transition: opacity 0.25s ease, visibility 0.25s ease;
-
-  /* 🔥 Escondido por padrão */
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
 }
 
-/* 🔥 Só aparece quando o JS adiciona .active */
 .loading-overlay.active {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-/* Compatibilidade com a classe .hidden */
 .loading-overlay.hidden {
   display: none;
 }
@@ -817,227 +809,7 @@ body {
   color: var(--teal-dark);
 }
 
-/* ============ GRÁFICOS ============ */
-.grafico-container {
-  position: relative;
-  width: 100%;
-  min-height: 300px;
-  padding: 1rem;
-  background: var(--surface);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  transition: var(--transition-slow);
-}
-
-.grafico-container canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-}
-
-.grafico-resumo {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: var(--surface-alt);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  font-size: 0.85rem;
-  color: var(--text-light);
-  line-height: 1.6;
-}
-
-/* Controles de tamanho do gráfico */
-.btn-group {
-  display: inline-flex;
-  gap: 0.25rem;
-  margin-left: auto;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.btn-grafico-controle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text-light);
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.btn-grafico-controle:hover {
-  background: var(--bg-alt);
-  color: var(--text);
-  border-color: var(--border-dark);
-}
-
-.btn-grafico-controle.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-}
-
-.grafico-tamanho-info {
-  display: inline-block;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-light);
-  background: var(--bg-alt);
-  border-radius: var(--radius-sm);
-  font-family: 'SF Mono', Consolas, monospace;
-}
-
-/* Modo tela cheia do gráfico */
-.modal.grafico-tela-cheia {
-  max-width: 98vw;
-  max-height: 98vh;
-  width: 98vw;
-  height: 98vh;
-  padding: 1.5rem;
-}
-
-.modal.grafico-tela-cheia .grafico-container {
-  height: calc(98vh - 200px) !important;
-}
-
-/* Tags de períodos selecionados */
-.periodos-selecionados-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.periodo-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--primary-dark);
-  background: var(--primary-light);
-  border: 1px solid #bfdbfe;
-  border-radius: var(--radius-full);
-}
-
-.remover-tag {
-  cursor: pointer;
-  font-weight: 700;
-  opacity: 0.6;
-  margin-left: 0.2rem;
-}
-.remover-tag:hover { opacity: 1; }
-
-.btn-selecionar-todos {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: var(--transition);
-}
-.btn-selecionar-todos:hover { background: var(--primary-light); }
-
-/* ============ CARDS DE SETOR / ITENS ============ */
-.card-setor {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.card-setor:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-dark);
-}
-
-.card-setor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.card-setor-header h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* ============ BADGES ============ */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border-radius: var(--radius-full);
-  text-transform: uppercase;
-}
-
-.badge-custo {
-  background: var(--primary-light);
-  color: var(--primary-dark);
-}
-
-.badge-despesa {
-  background: var(--warning-light);
-  color: var(--warning-dark);
-}
-
-.badge-produto-final {
-  background: var(--teal-light);
-  color: var(--teal-dark);
-}
-
-.badge-purple {
-  background: var(--purple-light);
-  color: var(--purple-dark);
-}
-
-.badge-green {
-  background: var(--success-light);
-  color: var(--success);
-}
-
-.badge-warning {
-  background: var(--warning-light);
-  color: var(--warning-dark);
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #c2410c;
-}
-
-/* ============================================================
-   🔥 CLASSES ADICIONAIS GERADAS PELO JS (custo.js)
-   ============================================================ */
-
-/* ============ CARDS DE ESTATÍSTICA (HOME) ============ */
+/* ============ CARDS DE ESTATÍSTICA ============ */
 .stats-grid-home {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1453,7 +1225,6 @@ body {
   gap: 0.25rem;
 }
 
-/* Item seleção de custo fixo no modal */
 .custo-fixo-item {
   display: flex;
   justify-content: space-between;
@@ -1559,7 +1330,6 @@ body {
   font-weight: 600;
 }
 
-/* Header de setor no gerar custo */
 .ss-header {
   display: flex;
   align-items: center;
@@ -1581,73 +1351,6 @@ body {
 .ss-custo {
   font-size: 0.72rem;
   color: var(--text-light);
-}
-
-/* ============ LISTA DE CATEGORIAS ============ */
-.categorias-section {
-  margin-bottom: 1.5rem;
-}
-
-.categorias-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .categorias-content {
-    grid-template-columns: 1fr;
-  }
-}
-
-.grafico-categorias-wrapper {
-  position: relative;
-}
-
-.lista-categorias-wrapper {
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
-  max-height: 500px;
-  overflow-y: auto;
-}
-
-.categoria-item-home {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.categoria-item-home:last-child {
-  border-bottom: none;
-}
-
-.categoria-cor {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.categoria-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.categoria-nome {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.categoria-total {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--teal-dark);
 }
 
 /* ============ TABELAS ============ */
@@ -1691,106 +1394,6 @@ body {
 
 .table tbody tr:last-child td {
   border-bottom: none;
-}
-
-/* ============ BOTÃO FULLSCREEN DO GRÁFICO ============ */
-.btn-fullscreen-grafico {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 10;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(13, 148, 136, 0.9);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.btn-fullscreen-grafico:hover {
-  background: var(--teal-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-/* ============ MODAL FULLSCREEN DO GRÁFICO ============ */
-.modal-grafico-fullscreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: none;
-  flex-direction: column;
-  z-index: 3000;
-  padding: 1.5rem;
-  animation: fadeIn 0.25s ease;
-}
-
-.modal-grafico-fullscreen.active {
-  display: flex;
-}
-
-.header-fullscreen {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--surface);
-  padding: 1rem 1.5rem;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.header-fullscreen h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.header-fullscreen h3 i {
-  color: var(--teal);
-}
-
-.btn-fechar-fullscreen {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #fff;
-  background: var(--danger);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.btn-fechar-fullscreen:hover {
-  background: var(--danger-dark);
-}
-
-.canvas-container-fullscreen {
-  flex: 1;
-  background: var(--surface);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  padding: 1.5rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.canvas-container-fullscreen canvas {
-  width: 100% !important;
-  height: 100% !important;
 }
 
 /* ============ PAINEL CUSTO DE PROCESSO ============ */
@@ -1898,15 +1501,6 @@ body {
 
   .modal-actions .btn {
     width: 100%;
-  }
-
-  .btn-group {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .grafico-container {
-    min-height: 250px;
   }
 
   .custo-processo-filtros {
