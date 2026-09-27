@@ -49,6 +49,9 @@
         <div class="header-custos">
           <h1><i class="fas fa-recycle"></i> Central de Custos</h1>
           <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-purple btn-sm" onclick="window.abrirCustoPorMaterial()">
+              <i class="fas fa-project-diagram"></i> Custo por Material
+            </button>
             <button class="btn btn-teal btn-sm" onclick="window.abrirGerarCustoMaterial()">
               <i class="fas fa-calculator"></i> Gerar Custo Material
             </button>
@@ -63,17 +66,13 @@
 
         <div class="breadcrumb" id="breadcrumb"></div>
 
-        <!-- ========== CONTEÚDO DINÂMICO (ONDE O JS RENDERIZA) ========== -->
-        <div id="conteudoDinamico">
-          <!-- O JavaScript vai renderizar TODO o conteúdo aqui -->
-          <!-- Incluindo o painel de Custo de Processo -->
-        </div>
-        <!-- ========== FIM DO CONTEÚDO DINÂMICO ========== -->
+        <!-- ========== CONTEÚDO DINÂMICO ========== -->
+        <div id="conteudoDinamico"></div>
 
       </div>
 
       <!-- ============================================================ -->
-      <!-- MODAIS -->
+      <!-- MODAIS                                                       -->
       <!-- ============================================================ -->
 
       <!-- MODAL COPIAR PERÍODO -->
@@ -160,7 +159,7 @@
         </div>
       </div>
 
-      <!-- MODAL SETOR (COM TIPO CUSTO/DESPESA) -->
+      <!-- MODAL SETOR -->
       <div class="modal-overlay" id="modalSetor">
         <div class="modal">
           <h2 id="modalSetorTitulo"><i class="fas fa-industry"></i> Novo Setor</h2>
@@ -256,7 +255,6 @@
             <label><i class="fas fa-industry"></i> Setores para Distribuir</label>
             <div id="custoFixoSetores"
               style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem;">
-              <!-- Os setores serão carregados aqui -->
             </div>
             <div class="hint">
               Selecione os setores que receberão este custo fixo e defina a porcentagem de cada um.
@@ -285,7 +283,6 @@
             </button>
           </div>
 
-          <!-- Área para Itens Fixos -->
           <div id="areaItensFixos" style="display:none; margin-bottom:1rem;">
             <label style="font-weight:500; margin-bottom:0.5rem; display:block; font-size:0.85rem;">
               <i class="fas fa-list" style="color:var(--warning);"></i> Selecione um custo fixo para usar neste setor:
@@ -310,7 +307,6 @@
             </div>
           </div>
 
-          <!-- Área para Itens Normais -->
           <div id="areaItemNormal">
             <div class="grid-2">
               <div class="form-group">
@@ -483,6 +479,171 @@
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="window.fecharModal('modalConfigCampos')">Cancelar</button>
             <button class="btn btn-primary" onclick="window.salvarConfigCampos()">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- MODAL CUSTO POR MATERIAL (SIMULAÇÃO EM CADEIA)               -->
+      <!-- ============================================================ -->
+      <div class="modal-overlay" id="modalCustoPorMaterial">
+        <div class="modal modal-lg" style="max-width: 980px;">
+          <h2>
+            <i class="fas fa-project-diagram"></i>
+            Custo por Material — Simulação em Cadeia
+          </h2>
+
+          <!-- ========== ETAPA 1: FILTROS ========== -->
+          <div class="cpm-section">
+            <div class="cpm-section-title">
+              <span class="cpm-step">1</span> Períodos de referência
+            </div>
+            <p class="cpm-hint">
+              Selecione os períodos que serão usados para calcular a <strong>média de custo/kg</strong> de cada setor.
+            </p>
+            <div class="cpm-filtros">
+              <div class="form-group" style="margin:0;flex:1;min-width:150px;">
+                <label>Ano</label>
+                <select id="cpmAno" onchange="window.cpmAtualizarPeriodos()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;flex:2;min-width:250px;">
+                <label>Períodos (múltipla seleção)</label>
+                <select id="cpmPeriodos" multiple
+                  style="min-height:100px;width:100%;padding:0.4rem;border-radius:6px;border:1px solid #ddd;">
+                </select>
+                <div class="hint">Segure CTRL para selecionar múltiplos</div>
+              </div>
+            </div>
+            <div id="cpmPeriodosSelecionados" class="cpm-tags"></div>
+          </div>
+
+          <!-- ========== ETAPA 2: MATÉRIA-PRIMA ========== -->
+          <div class="cpm-section">
+            <div class="cpm-section-title">
+              <span class="cpm-step">2</span> Matéria-prima
+            </div>
+            <div class="cpm-mp-grid">
+              <div class="form-group" style="margin:0;">
+                <label>Nome da matéria-prima</label>
+                <input type="text" id="cpmMpNome" placeholder="Ex: PEAD Natural">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Peso inicial (kg)</label>
+                <input type="number" id="cpmMpPeso" step="0.01" placeholder="0,00">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Custo (R$/kg)</label>
+                <input type="number" id="cpmMpCusto" step="0.01" placeholder="0,00">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Imposto (%)</label>
+                <input type="number" id="cpmMpImposto" step="0.01" value="0">
+              </div>
+            </div>
+            <div id="cpmMpResumo" class="cpm-mp-resumo" style="display:none;"></div>
+          </div>
+
+          <!-- ========== ETAPA 3: SETORES DO PROCESSO ========== -->
+          <div class="cpm-section">
+            <div class="cpm-section-title">
+              <span class="cpm-step">3</span> Setores do processo
+              <span class="cpm-hint-inline">(ordem 01, 02, 03...)</span>
+            </div>
+            <p class="cpm-hint">
+              Selecione os setores na ordem em que o material passa. O peso que entra no setor 2 é o que sai do setor 1, e assim por diante.
+            </p>
+
+            <div class="cpm-setores-disponiveis">
+              <label style="font-weight:600;font-size:0.85rem;display:block;margin-bottom:0.5rem;">
+                <i class="fas fa-industry"></i> Setores disponíveis
+              </label>
+              <div id="cpmSetoresLista" class="cpm-setores-lista">
+                <p class="cpm-empty">Selecione ao menos um período acima para carregar os setores.</p>
+              </div>
+            </div>
+
+            <div class="cpm-cadeia-container">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <label style="font-weight:600;font-size:0.85rem;margin:0;">
+                  <i class="fas fa-link"></i> Cadeia do processo
+                </label>
+                <button class="btn btn-outline btn-xs" onclick="window.cpmLimparCadeia()">
+                  <i class="fas fa-times"></i> Limpar cadeia
+                </button>
+              </div>
+              <div id="cpmCadeia" class="cpm-cadeia">
+                <p class="cpm-empty">Nenhum setor adicionado. Clique nos setores acima para montar a cadeia.</p>
+              </div>
+            </div>
+
+            <div id="cpmConfiguracoes"></div>
+          </div>
+
+          <!-- ========== ETAPA 4: RESULTADO ========== -->
+          <div class="cpm-section" id="cpmResultadoSection" style="display:none;">
+            <div class="cpm-section-title">
+              <span class="cpm-step">4</span> Resultado da simulação
+            </div>
+
+            <div class="cpm-resultado-cards">
+              <div class="cpm-card cpm-card-blue">
+                <div class="cpm-card-label">Peso Inicial</div>
+                <div class="cpm-card-value" id="cpmResPesoInicial">0 kg</div>
+              </div>
+              <div class="cpm-card cpm-card-purple">
+                <div class="cpm-card-label">Peso Final</div>
+                <div class="cpm-card-value" id="cpmResPesoFinal">0 kg</div>
+              </div>
+              <div class="cpm-card cpm-card-orange">
+                <div class="cpm-card-label">Perda Total</div>
+                <div class="cpm-card-value" id="cpmResPerdaTotal">0%</div>
+              </div>
+              <div class="cpm-card cpm-card-green">
+                <div class="cpm-card-label">Custo Total</div>
+                <div class="cpm-card-value" id="cpmResCustoTotal">R$ 0,00</div>
+              </div>
+              <div class="cpm-card cpm-card-teal">
+                <div class="cpm-card-label">Custo Final / kg</div>
+                <div class="cpm-card-value" id="cpmResCustoKg">R$ 0,00</div>
+              </div>
+            </div>
+
+            <div class="table-wrap" style="margin-top:1rem;">
+              <table class="table cpm-tabela">
+                <thead>
+                  <tr>
+                    <th>Ordem</th>
+                    <th>Item</th>
+                    <th style="text-align:right;">Peso Entrada</th>
+                    <th style="text-align:right;">Custo/kg</th>
+                    <th style="text-align:right;">Perda %</th>
+                    <th style="text-align:right;">Peso Perdido</th>
+                    <th style="text-align:right;">Peso Saída</th>
+                    <th style="text-align:right;">Custo Parcial</th>
+                    <th style="text-align:right;">Custo Acum.</th>
+                  </tr>
+                </thead>
+                <tbody id="cpmTabelaDetalhe"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ========== AÇÕES ========== -->
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="window.fecharModal('modalCustoPorMaterial')">
+              Fechar
+            </button>
+            <button class="btn btn-outline" onclick="window.cpmLimparTudo()">
+              <i class="fas fa-eraser"></i> Limpar tudo
+            </button>
+            <button class="btn btn-purple" onclick="window.cpmCalcular()">
+              <i class="fas fa-sync"></i> Calcular
+            </button>
+            <button class="btn btn-teal" onclick="window.cpmExportarPDF()">
+              <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
           </div>
         </div>
       </div>
