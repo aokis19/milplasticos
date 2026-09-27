@@ -48,6 +48,7 @@
   // ======== UTILITÁRIOS ========
   function formatMoney(v) { return 'R$ ' + (v || 0).toFixed(2).replace('.', ','); }
   function formatNumber(n, d) { d = d || 2; return (n || 0).toFixed(d).replace('.', ','); }
+  function formatPercent(v) { return (v || 0).toFixed(2).replace('.', ',') + '%'; }
   function getNomeMes(m) {
     return ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][m - 1] || '';
@@ -255,7 +256,6 @@
     atualizarBreadcrumb();
   }
 
-  // ======== HOME ========
   function renderizarPeriodos() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
@@ -1584,13 +1584,12 @@
   window.fecharModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.remove('active');
-    // Se fechar o modal de custo por material, também sai do modo tela cheia/expandido
     if (id === 'modalCustoPorMaterial') {
       const box = document.getElementById('cpmModalBox');
       if (box) {
         box.classList.remove('cpm-fullscreen', 'cpm-expandido');
-        document.body.style.overflow = '';
       }
+      document.body.style.overflow = '';
     }
   };
 
@@ -1600,10 +1599,8 @@
         e.target.classList.remove('active');
         if (e.target.id === 'modalCustoPorMaterial') {
           const box = document.getElementById('cpmModalBox');
-          if (box) {
-            box.classList.remove('cpm-fullscreen', 'cpm-expandido');
-            document.body.style.overflow = '';
-          }
+          if (box) box.classList.remove('cpm-fullscreen', 'cpm-expandido');
+          document.body.style.overflow = '';
         }
       }
       const btnEditar = e.target.closest('.btn-editar-periodo');
@@ -1614,7 +1611,6 @@
     });
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
-        // Se o modal de custo por material está aberto, primeiro sai do fullscreen
         const cpmBox = document.getElementById('cpmModalBox');
         if (cpmBox && (cpmBox.classList.contains('cpm-fullscreen') || cpmBox.classList.contains('cpm-expandido'))) {
           cpmBox.classList.remove('cpm-fullscreen', 'cpm-expandido');
@@ -1635,15 +1631,20 @@
   // CUSTO POR MATERIAL — SIMULAÇÃO EM CADEIA
   // ====================================================
 
-  // --- Expansão e Tela Cheia do modal ---
   window.cpmToggleExpandir = function() {
     const box = document.getElementById('cpmModalBox');
     const btn = document.getElementById('cpmBtnExpandir');
     if (!box) return;
-    // Se estiver em fullscreen, primeiro sai
     if (box.classList.contains('cpm-fullscreen')) {
       box.classList.remove('cpm-fullscreen');
       document.body.style.overflow = '';
+      const btnFs = document.getElementById('cpmBtnFullscreen');
+      if (btnFs) {
+        const spanFs = btnFs.querySelector('span');
+        if (spanFs) spanFs.textContent = 'Tela Cheia';
+        const iconFs = btnFs.querySelector('i');
+        if (iconFs) iconFs.className = 'fas fa-expand';
+      }
     }
     const ativo = box.classList.toggle('cpm-expandido');
     if (btn) {
@@ -1663,7 +1664,6 @@
     const btn = document.getElementById('cpmBtnFullscreen');
     if (!box) return;
     const ativo = box.classList.toggle('cpm-fullscreen');
-    // Ao entrar em fullscreen, remove modo expandido (senão conflita)
     if (ativo) {
       box.classList.remove('cpm-expandido');
       const btnExp = document.getElementById('cpmBtnExpandir');
@@ -1706,12 +1706,21 @@
     document.getElementById('cpmMpCusto').value = '';
     document.getElementById('cpmMpImposto').value = '0';
     document.getElementById('cpmResultadoSection').style.display = 'none';
+    document.getElementById('cpmComercialSection').style.display = 'none';
 
-    // Reseta classes de expansão
+    // Reset campos comerciais
+    document.getElementById('cpmTransDistancia').value = 0;
+    document.getElementById('cpmTransCustoKm').value = 0;
+    document.getElementById('cpmTransTotal').value = 'R$ 0,00';
+    document.getElementById('cpmNfValorVenda').value = 0;
+    document.getElementById('cpmNfImposto').value = 0;
+    document.getElementById('cpmNfImpostoValor').value = 'R$ 0,00';
+    document.getElementById('cpmMargemDesejada').value = 0;
+    document.getElementById('cpmCustoBase').value = 'R$ 0,00';
+    document.getElementById('cpmPrecoVendaIdeal').value = 'R$ 0,00';
+
     const box = document.getElementById('cpmModalBox');
-    if (box) {
-      box.classList.remove('cpm-fullscreen', 'cpm-expandido');
-    }
+    if (box) box.classList.remove('cpm-fullscreen', 'cpm-expandido');
     document.body.style.overflow = '';
     const btnExp = document.getElementById('cpmBtnExpandir');
     if (btnExp) {
@@ -2015,6 +2024,66 @@
     }
 
     document.getElementById('cpmResultadoSection').style.display = 'block';
+
+    // Atualiza a Etapa 5 (Análise Comercial)
+    // Pré-preenche o valor de venda com o custo base (se estiver em 0)
+    const nfValorAtual = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
+    if (nfValorAtual === 0) {
+      document.getElementById('cpmNfValorVenda').value = custoTotalAcumulado.toFixed(2);
+    }
+    document.getElementById('cpmComercialSection').style.display = 'block';
+    window.cpmRecalcularComercial();
+  };
+
+  // ======== RECÁLCULO COMERCIAL (ETAPA 5) ========
+  window.cpmRecalcularComercial = function() {
+    if (!cpmUltimoResultado) return;
+
+    const custoProcesso = cpmUltimoResultado.custoTotal;
+
+    const distancia = parseFloat(document.getElementById('cpmTransDistancia').value) || 0;
+    const custoKm = parseFloat(document.getElementById('cpmTransCustoKm').value) || 0;
+    const custoTransporte = distancia * custoKm;
+    document.getElementById('cpmTransTotal').value = formatMoney(custoTransporte);
+
+    const nfValorVenda = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
+    const nfImpostoPct = parseFloat(document.getElementById('cpmNfImposto').value) || 0;
+    const nfImpostoValor = nfValorVenda * (nfImpostoPct / 100);
+    document.getElementById('cpmNfImpostoValor').value = formatMoney(nfImpostoValor);
+
+    const margemDesejada = parseFloat(document.getElementById('cpmMargemDesejada').value) || 0;
+
+    const custoBase = custoProcesso + custoTransporte;
+    document.getElementById('cpmCustoBase').value = formatMoney(custoBase);
+
+    // Preço de venda ideal = custo base × (1 + margem%)
+    // Importante: a margem é aplicada sobre o custo base. O imposto da NF
+    // é calculado sobre o preço de venda, portanto entra no lucro líquido.
+    const precoVendaIdeal = custoBase * (1 + margemDesejada / 100);
+    document.getElementById('cpmPrecoVendaIdeal').value = formatMoney(precoVendaIdeal);
+
+    // Resumo
+    document.getElementById('cpmResumoProcesso').textContent = formatMoney(custoProcesso);
+    document.getElementById('cpmResumoTransporte').textContent = formatMoney(custoTransporte);
+    document.getElementById('cpmResumoCustoBase').textContent = formatMoney(custoBase);
+    document.getElementById('cpmResumoMargemPct').textContent = margemDesejada.toFixed(2);
+    const margemValor = custoBase * (margemDesejada / 100);
+    document.getElementById('cpmResumoMargemValor').textContent = formatMoney(margemValor);
+    document.getElementById('cpmResumoPrecoIdeal').textContent = formatMoney(precoVendaIdeal);
+    document.getElementById('cpmResumoImpostoPct').textContent = nfImpostoPct.toFixed(2);
+
+    // Considera: se o usuário informou um valor de venda, usamos ele; senão, o ideal
+    const precoVendaConsiderado = nfValorVenda > 0 ? nfValorVenda : precoVendaIdeal;
+    const impostoConsiderado = precoVendaConsiderado * (nfImpostoPct / 100);
+    const lucroLiquido = precoVendaConsiderado - custoBase - impostoConsiderado;
+
+    document.getElementById('cpmResumoImpostoValor').textContent = formatMoney(impostoConsiderado);
+    document.getElementById('cpmResumoLucroLiquido').textContent = formatMoney(lucroLiquido);
+
+    const lucroSobreVenda = precoVendaConsiderado > 0 ? (lucroLiquido / precoVendaConsiderado) * 100 : 0;
+    const lucroSobreCusto = custoBase > 0 ? (lucroLiquido / custoBase) * 100 : 0;
+    document.getElementById('cpmResumoLucroSobreVenda').textContent = lucroSobreVenda.toFixed(2).replace('.', ',') + '%';
+    document.getElementById('cpmResumoLucroSobreCusto').textContent = lucroSobreCusto.toFixed(2).replace('.', ',') + '%';
   };
 
   window.cpmLimparTudo = function() {
@@ -2027,6 +2096,19 @@
     document.getElementById('cpmMpCusto').value = '';
     document.getElementById('cpmMpImposto').value = '0';
     document.getElementById('cpmResultadoSection').style.display = 'none';
+    document.getElementById('cpmComercialSection').style.display = 'none';
+
+    // Reset comerciais
+    document.getElementById('cpmTransDistancia').value = 0;
+    document.getElementById('cpmTransCustoKm').value = 0;
+    document.getElementById('cpmTransTotal').value = 'R$ 0,00';
+    document.getElementById('cpmNfValorVenda').value = 0;
+    document.getElementById('cpmNfImposto').value = 0;
+    document.getElementById('cpmNfImpostoValor').value = 'R$ 0,00';
+    document.getElementById('cpmMargemDesejada').value = 0;
+    document.getElementById('cpmCustoBase').value = 'R$ 0,00';
+    document.getElementById('cpmPrecoVendaIdeal').value = 'R$ 0,00';
+
     const sel = document.getElementById('cpmPeriodos');
     if (sel) Array.from(sel.options).forEach(o => o.selected = false);
     window.cpmRenderizarTagsPeriodos();
@@ -2039,6 +2121,20 @@
     if (!cpmUltimoResultado) { alert('Calcule a simulação antes de exportar o PDF.'); return; }
     const r = cpmUltimoResultado;
     const dataAtual = new Date().toLocaleString('pt-BR');
+
+    // Dados comerciais
+    const custoProcesso = r.custoTotal;
+    const custoTransporte = parseFloat(document.getElementById('cpmTransTotal').value.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
+    const custoBase = custoProcesso + custoTransporte;
+    const nfValorVenda = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
+    const nfImpostoPct = parseFloat(document.getElementById('cpmNfImposto').value) || 0;
+    const margemPct = parseFloat(document.getElementById('cpmMargemDesejada').value) || 0;
+    const precoVendaIdeal = custoBase * (1 + margemPct / 100);
+    const precoVendaConsiderado = nfValorVenda > 0 ? nfValorVenda : precoVendaIdeal;
+    const impostoValor = precoVendaConsiderado * (nfImpostoPct / 100);
+    const lucroLiquido = precoVendaConsiderado - custoBase - impostoValor;
+    const lucroSobreVenda = precoVendaConsiderado > 0 ? (lucroLiquido / precoVendaConsiderado) * 100 : 0;
+
     let html = `
       <div style="font-family:Arial,sans-serif;padding:20px;max-width:1000px;margin:0 auto;">
         <h1 style="color:#7c3aed;border-bottom:3px solid #7c3aed;padding-bottom:10px;">
@@ -2046,15 +2142,17 @@
         </h1>
         <p><strong>Matéria-prima:</strong> ${r.nomeMateriaPrima}</p>
         <p><strong>Gerado em:</strong> ${dataAtual}</p>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:20px 0;background:#f8fafc;padding:15px;border-radius:8px;">
+
+        <h2 style="color:#7c3aed;margin-top:24px;">1. Simulação do Processo</h2>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:15px 0;background:#f8fafc;padding:15px;border-radius:8px;">
           <div><strong>Peso Inicial:</strong><br>${formatNumber(r.pesoInicial, 0)} kg</div>
           <div><strong>Peso Final:</strong><br>${formatNumber(r.pesoFinal, 0)} kg</div>
           <div><strong>Perda Total:</strong><br>${r.perdaTotal.toFixed(1)}%</div>
           <div><strong>Custo Total:</strong><br>${formatMoney(r.custoTotal)}</div>
           <div><strong>Custo Final/kg:</strong><br>${formatMoney(r.custoKgFinal)}</div>
         </div>
-        <h3 style="margin-top:20px;">Detalhamento do Processo</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:15px;">
           <thead>
             <tr style="background:#7c3aed;color:#fff;">
               <th style="padding:8px;text-align:left;">Ordem</th>
@@ -2062,7 +2160,6 @@
               <th style="padding:8px;text-align:right;">Peso Entrada</th>
               <th style="padding:8px;text-align:right;">Custo/kg</th>
               <th style="padding:8px;text-align:right;">Perda %</th>
-              <th style="padding:8px;text-align:right;">Peso Perdido</th>
               <th style="padding:8px;text-align:right;">Peso Saída</th>
               <th style="padding:8px;text-align:right;">Custo Parcial</th>
               <th style="padding:8px;text-align:right;">Custo Acum.</th>
@@ -2077,7 +2174,6 @@
               <td style="padding:6px 8px;text-align:right;">${formatNumber(d.pesoEntrada, 0)} kg</td>
               <td style="padding:6px 8px;text-align:right;">${formatMoney(d.custoKg)}</td>
               <td style="padding:6px 8px;text-align:right;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? d.perda + '%' : '-'}</td>
-              <td style="padding:6px 8px;text-align:right;${d.perda > 0 ? 'color:#ef4444;font-weight:600;' : ''}">${d.perda > 0 ? formatNumber(d.pesoPerdido, 0) + ' kg' : '-'}</td>
               <td style="padding:6px 8px;text-align:right;font-weight:600;color:#7c3aed;">${formatNumber(d.pesoSaida, 0)} kg</td>
               <td style="padding:6px 8px;text-align:right;">${formatMoney(d.custoParcial)}</td>
               <td style="padding:6px 8px;text-align:right;font-weight:600;">${formatMoney(d.custoAcumulado)}</td>
@@ -2085,16 +2181,55 @@
     });
     html += `
             <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #7c3aed;">
-              <td colspan="8" style="padding:8px;text-align:right;color:#7c3aed;">CUSTO TOTAL ACUMULADO</td>
-              <td style="padding:8px;text-align:right;color:#7c3aed;font-size:1.1rem;">${formatMoney(r.custoTotal)}</td>
+              <td colspan="7" style="padding:8px;text-align:right;color:#7c3aed;">CUSTO TOTAL ACUMULADO</td>
+              <td style="padding:8px;text-align:right;color:#7c3aed;font-size:1.1rem;">${formatMoney(custoProcesso)}</td>
             </tr>
-            <tr style="background:#ede9fe;font-weight:700;">
-              <td colspan="8" style="padding:8px;text-align:right;color:#6d28d9;">CUSTO FINAL POR KG</td>
-              <td style="padding:8px;text-align:right;color:#6d28d9;font-size:1.1rem;">${formatMoney(r.custoKgFinal)}/kg</td>
+          </tbody>
+        </table>
+
+        <h2 style="color:#7c3aed;margin-top:24px;">2. Análise Comercial</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-top:15px;">
+          <tbody>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">Custo do processo:</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoProcesso)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">(+) Transporte (${document.getElementById('cpmTransDistancia').value} km × ${formatMoney(parseFloat(document.getElementById('cpmTransCustoKm').value) || 0)}):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoTransporte)}</td>
+            </tr>
+            <tr style="background:#f8fafc;border-bottom:2px solid #7c3aed;">
+              <td style="padding:8px;font-weight:700;">(=) Custo base:</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.05rem;">${formatMoney(custoBase)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">(+) Margem de lucro (${margemPct.toFixed(2)}%):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoBase * margemPct / 100)}</td>
+            </tr>
+            <tr style="background:#f0fdf4;border-bottom:1px solid #86efac;">
+              <td style="padding:8px;font-weight:700;color:#0f766e;">(=) Preço de venda ideal:</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.1rem;color:#0f766e;">${formatMoney(precoVendaIdeal)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">Valor de venda considerado na NF:</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(precoVendaConsiderado)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">(-) Imposto NF (${nfImpostoPct.toFixed(2)}%):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;color:#dc2626;">${formatMoney(impostoValor)}</td>
+            </tr>
+            <tr style="background:#f0fdf4;border-top:2px solid #16a34a;">
+              <td style="padding:10px;font-weight:700;color:#166534;font-size:1.1rem;">(=) Lucro líquido:</td>
+              <td style="padding:10px;text-align:right;font-weight:700;color:#166534;font-size:1.15rem;">${formatMoney(lucroLiquido)}</td>
+            </tr>
+            <tr style="background:#dbeafe;">
+              <td style="padding:8px;font-weight:600;color:#1e40af;">Margem sobre a venda:</td>
+              <td style="padding:8px;text-align:right;font-weight:700;color:#1e40af;">${lucroSobreVenda.toFixed(2).replace('.', ',')}%</td>
             </tr>
           </tbody>
         </table>
       </div>`;
+
     const win = window.open('', '_blank', 'width=1000,height=700');
     win.document.write(`<html><head><title>Custo por Material</title>
       <style>body{font-family:Arial,sans-serif;padding:20px;} @media print { body { padding:10px; } }</style>
