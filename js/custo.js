@@ -1,6 +1,25 @@
 (function() {
   'use strict';
 
+  // =====================================================================
+  // SISTEMA DE CUSTOS - MILPLASTICOS
+  // Versão corrigida. Principais mudanças (procure por "CORREÇÃO"):
+  //  1. Produção só é contada nos setores marcados como ⭐ Produto Final
+  //     (e nunca em setores de Despesa). Evita somar kg repetidos.
+  //  2. "Copiar Período" não copia mais a produção do mês antigo.
+  //  3. Preço de venda ideal agora já cobre o imposto da NF.
+  //  4. Setores desmarcados são limpos ao voltar para a tela inicial.
+  //  5. Aviso ao excluir setor que tem parte de custo fixo.
+  //  6. Aviso quando custo fixo não está 100% rateado.
+  //  7. Categorias padrão agora são gravadas no Firebase.
+  //  8. Percentual 0% não vira mais 100% sozinho.
+  //  9. Custo médio por setor agora é ponderado pelos kg.
+  // 10. "Gerar Custo de Material" soma custo/kg de cada setor (cadeia)
+  //     e o botão Salvar grava de verdade.
+  // 11. Não permite dois períodos com o mesmo mês/ano.
+  // 12. Não permite excluir categoria em uso.
+  // =====================================================================
+
   const db = window.firebaseDB || window.db;
   if (!db) {
     console.error('❌ Firebase não disponível');
@@ -60,6 +79,11 @@
     const p = item.percentual;
     return (p === undefined || p === null) ? 100 : p;
   }
+  // CORREÇÃO: antes, digitar 0 virava 100. Agora só usa 100 se o campo estiver vazio.
+  function lerPercentual(valorCampo) {
+    const v = parseFloat(valorCampo);
+    return isNaN(v) ? 100 : v;
+  }
   function getSetoresDoPeriodo(periodoid) {
     const pid = periodoid || (periodoAtual ? periodoAtual.id : null);
     if (!pid) return [];
@@ -80,13 +104,19 @@
     return { totalCusto, totalKg, custoPorKg, qtdItens: itens.length };
   }
 
+  // CORREÇÃO: antes, se nenhum setor tivesse ⭐, o sistema somava a produção
+  // de todos os setores com a maior "ordem" (que por padrão é 1 para todos),
+  // contando o mesmo material várias vezes e deixando o custo/kg baixo demais.
+  // Agora só conta setores de CUSTO marcados como ⭐ Produto Final.
   function getSetsParaProducao(sets) {
-    const setsFinais = sets.filter(s => s.produtoFinal === true);
-    if (setsFinais.length > 0) return setsFinais;
-    if (sets.length === 0) return [];
-    const maxOrdem = Math.max(...sets.map(s => s.ordem || 0));
-    const ultimos = sets.filter(s => (s.ordem || 0) === maxOrdem);
-    return ultimos.length > 0 ? ultimos : sets;
+    return sets.filter(s => s.tipo !== 'despesa' && s.produtoFinal === true);
+  }
+
+  // Percentual total rateado de um custo fixo (deveria ser 100%)
+  function getPercentualRateadoCustoFixo(cfId) {
+    return itensCusto
+      .filter(i => i.custoFixold === cfId && i.tipo === 'fixo')
+      .reduce((s, i) => s + getPercentual(i), 0);
   }
 
   function calcularResumoPeriodo(periodoidParam, excluirSetores) {
@@ -99,7 +129,6 @@
     const sets = getSetoresDoPeriodo(pid).filter(s => !excluir.has(s.id));
     let custoTotalGeral = 0;
     sets.forEach(s => { custoTotalGeral += calcularCustosSetor(s.id).totalCusto; });
-    const setsFinais = sets.filter(s => s.produtoFinal === true);
     const setsParaProducao = getSetsParaProducao(sets);
     let producaoTotalGeral = 0;
     setsParaProducao.forEach(sf => { producaoTotalGeral += calcularCustosSetor(sf.id).totalKg; });
@@ -108,7 +137,7 @@
       producaoTotalGeral,
       custoPorKgGeral: producaoTotalGeral > 0 ? custoTotalGeral / producaoTotalGeral : 0,
       qtdSetores: sets.length,
-      qtdProdutosFinais: setsFinais.length
+      qtdProdutosFinais: setsParaProducao.length
     };
   }
 
@@ -192,11 +221,14 @@
         periodold: cf.periodold || cf.periodoId,
         categoriald: cf.categoriald || cf.categoriaId
       }));
-      producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId }));
+      // CORREÇÃO: inclui também "setorId" (dados antigos)
+      producoes = producoes.map(p => ({ ...p, setorld: p.setorld || p.maquinaId || p.setorId }));
 
       if (snapConfig.exists && snapConfig.data().config) {
         configCampos = { ...configCampos, ...snapConfig.data().config };
       }
+      // CORREÇÃO: categorias padrão agora são gravadas no Firebase,
+      // para não sumirem quando uma categoria nova é criada.
       if (categorias.length === 0) {
         categorias = [
           { id: 'cat1', nome: 'Energia Elétrica', cor: '#f57c00' },
@@ -205,6 +237,7 @@
           { id: 'cat4', nome: 'Manutenção', cor: '#6a1b9a' },
           { id: 'cat5', nome: 'Insumos', cor: '#c62828' }
         ];
+        for (const c of categorias) await salvarFB('categorias', c);
       }
       console.log(`✅ PRONTO: ${periodos.length} períodos, ${setores.length} setores`);
     } catch (error) {
@@ -274,19 +307,29 @@
     let totalGastoGeral = 0;
     let totalSetoresCount = 0;
     let totalSetoresFinais = 0;
+    const periodosSemFinal = [];
 
     periodosParaCalculo.forEach(per => {
       const sets = getSetoresDoPeriodo(per.id);
       totalSetoresCount += sets.length;
-      const setsFinais = sets.filter(s => s.produtoFinal === true);
-      totalSetoresFinais += setsFinais.length;
       const setsVisiveis = sets.filter(s => !setoresExcluidosResumo.has(s.id));
       const setsParaProducao = getSetsParaProducao(setsVisiveis);
+      totalSetoresFinais += setsParaProducao.length;
+      if (sets.length > 0 && setsParaProducao.length === 0) periodosSemFinal.push(per);
       setsVisiveis.forEach(s => { totalGastoGeral += calcularCustosSetor(s.id).totalCusto; });
       setsParaProducao.forEach(s => { totalProduzidoGeral += calcularCustosSetor(s.id).totalKg; });
     });
 
     const custoPorKgCalculado = totalProduzidoGeral > 0 ? totalGastoGeral / totalProduzidoGeral : 0;
+
+    if (periodosSemFinal.length > 0) {
+      html += `
+        <div class="card" style="border-left:4px solid #f59e0b;background:#fffbeb;margin-bottom:1rem;">
+          <strong>⚠️ Atenção:</strong> ${periodosSemFinal.length} período(s) sem nenhum setor marcado como
+          <strong>⭐ Produto Final</strong> (${periodosSemFinal.map(p => getNomeMes(p.mes) + '/' + p.ano).join(', ')}).
+          A produção desses meses não entra no cálculo do custo por KG. Edite o último setor da linha de produção e marque "Produto Final".
+        </div>`;
+    }
 
     html += '<div class="stats-grid-home">';
     html += `
@@ -308,7 +351,7 @@
         <div class="stat-info">
           <div class="stat-label">Total Produzido</div>
           <div class="stat-value">${formatNumber(totalProduzidoGeral, 0)} kg</div>
-          <div style="font-size:0.7rem;color:var(--text-light);">Apenas produtos finais</div>
+          <div style="font-size:0.7rem;color:var(--text-light);">Apenas setores ⭐ Produto Final</div>
         </div>
       </div>`;
     html += `
@@ -432,6 +475,7 @@
     const resumo = calcularResumoPeriodo(periodoAtual.id);
     const setoresCusto = sets.filter(s => s.tipo !== 'despesa');
     const setoresDespesa = sets.filter(s => s.tipo === 'despesa');
+    const qtdFinais = setoresCusto.filter(s => s.produtoFinal === true).length;
 
     let html = `
     <div class="card">
@@ -442,7 +486,26 @@
           <button class="btn btn-warning btn-sm" onclick="window.abrirModalCustoFixo()"><i class="fas fa-thumbtack"></i> Novo Custo Fixo</button>
           <button class="btn btn-outline btn-sm" onclick="window.navegarPara('periodos')"><i class="fas fa-arrow-left"></i> Voltar</button>
         </div>
-      </div>
+      </div>`;
+
+    // Avisos sobre produção
+    if (setoresCusto.length > 0 && qtdFinais === 0) {
+      html += `
+      <div style="border-left:4px solid #f59e0b;background:#fffbeb;padding:0.75rem 1rem;border-radius:8px;margin-bottom:1rem;">
+        <strong>⚠️ Nenhum setor marcado como ⭐ Produto Final.</strong><br>
+        A produção deste mês fica 0 kg e o custo por KG não pode ser calculado.
+        Edite o <strong>último setor</strong> da linha (o que entrega o produto pronto) e marque "Produto Final".
+      </div>`;
+    } else if (qtdFinais > 1) {
+      html += `
+      <div style="border-left:4px solid #0277bd;background:#eff6ff;padding:0.75rem 1rem;border-radius:8px;margin-bottom:1rem;">
+        ℹ️ Há <strong>${qtdFinais} setores</strong> marcados como ⭐ Produto Final. A produção deles é somada.
+        Isso só está certo se forem <strong>produtos diferentes</strong> (linhas separadas).
+        Se o mesmo material passa por mais de um deles, a produção fica contada em dobro e o custo por KG fica baixo.
+      </div>`;
+    }
+
+    html += `
       <div class="stats-grid-home" style="margin-bottom:1.5rem;">
         <div class="stat-card-home">
           <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);"><i class="fas fa-industry"></i></div>
@@ -457,7 +520,7 @@
           <div class="stat-info">
             <div class="stat-label">${configCampos.producaoKg}</div>
             <div class="stat-value">${formatNumber(resumo.producaoTotalGeral, 0)} kg</div>
-            <div style="font-size:0.7rem;color:var(--text-light);">Total produzido</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Setores ⭐ Produto Final</div>
           </div>
         </div>
         <div class="stat-card-home">
@@ -465,7 +528,7 @@
           <div class="stat-info">
             <div class="stat-label">${configCampos.custoTotal}</div>
             <div class="stat-value">${formatMoney(resumo.custoTotalGeral)}</div>
-            <div style="font-size:0.7rem;color:var(--text-light);">Total gasto</div>
+            <div style="font-size:0.7rem;color:var(--text-light);">Setores marcados</div>
           </div>
         </div>
         <div class="stat-card-home" style="border: 2px solid #43e97b; background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%);">
@@ -596,8 +659,13 @@
         const itensFixosRelacionados = itensCusto.filter(i => i.custoFixold === cf.id && i.tipo === 'fixo');
         const setoresVinculados = itensFixosRelacionados.map(i => {
           const setor = setores.find(s => s.id === i.setorld);
-          return setor ? setor.nome : 'Setor removido';
+          return setor ? `${setor.nome} (${formatNumber(getPercentual(i), 0)}%)` : 'Setor removido';
         });
+        // CORREÇÃO: avisa quando o rateio não soma 100%
+        const pctRateado = getPercentualRateadoCustoFixo(cf.id);
+        const avisoRateio = (setoresVinculados.length > 0 && Math.abs(pctRateado - 100) > 0.01)
+          ? `<div style="color:#dc2626;font-size:0.75rem;margin-top:0.25rem;"><i class="fas fa-exclamation-triangle"></i> Rateio soma ${formatNumber(pctRateado, 2)}% (deveria ser 100%). Edite para corrigir.</div>`
+          : '';
         html += `
                 <div class="custo-fixo-card" data-id="${cf.id}">
                     <div class="cf-info">
@@ -605,7 +673,8 @@
                         <div class="cf-valor">${formatMoney(cf.valor)}</div>
                     </div>
                     <div class="cf-detalhes">
-                        ${setoresVinculados.length > 0 ? `<span class="cf-setores"><i class="fas fa-industry"></i> ${setoresVinculados.join(', ')}</span>` : '<span class="cf-setores" style="color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum setor vinculado</span>'}
+                        ${setoresVinculados.length > 0 ? `<span class="cf-setores"><i class="fas fa-industry"></i> ${setoresVinculados.join(', ')}</span>` : '<span class="cf-setores" style="color:#f59e0b;"><i class="fas fa-exclamation-triangle"></i> Nenhum setor vinculado (valor não entra no custo)</span>'}
+                        ${avisoRateio}
                     </div>
                     <div class="cf-acoes">
                         <button class="btn btn-outline btn-xs btn-editar-custo-fixo" data-id="${cf.id}" title="Editar">
@@ -718,6 +787,11 @@
       alert('Preencha todos os campos corretamente.');
       return;
     }
+    // A lista de setores exibida é do período aberto na tela
+    if (periodoAtual && periodoId !== periodoAtual.id) {
+      alert('Os setores mostrados são do período aberto na tela (' + getNomeMes(periodoAtual.mes) + '/' + periodoAtual.ano + ').\nSelecione esse mesmo período ou abra o período desejado antes.');
+      return;
+    }
     const setoresSelecionados = [];
     document.querySelectorAll('.setor-fixo-checkbox:checked').forEach(checkbox => {
       const setorId = checkbox.dataset.setorId;
@@ -813,8 +887,8 @@
     const btn = document.querySelector('.btn-toggle-custos-fixos');
     if (btn) {
       btn.innerHTML = isHidden ?
-        '<i class="fas fa-chevron-down"></i> Mostrar Custos Fixos' :
-        '<i class="fas fa-chevron-up"></i> Ocultar Custos Fixos';
+        '<i class="fas fa-chevron-up"></i> Ocultar' :
+        '<i class="fas fa-chevron-down"></i> Mostrar';
     }
   };
 
@@ -939,12 +1013,48 @@
     container.innerHTML = html;
   }
 
+  let materialHistoricoId = null;
+
+  // MELHORIA: histórico agora mostra os custos salvos em "Gerar Custo de Material"
   function renderizarHistoricoMaterial() {
     const container = document.getElementById('conteudoDinamico');
     if (!container) return;
-    container.innerHTML = `<div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-history"></i> Histórico de Custos de Materiais</span>
-      <button class="btn btn-outline btn-sm" onclick="window.navegarPara('materiais')"><i class="fas fa-arrow-left"></i> Voltar</button></div><p>Histórico de materiais (em desenvolvimento)</p></div>`;
+    const mat = materiais.find(m => m.id === materialHistoricoId);
+    const registros = custosMateriais
+      .filter(c => c.materialId === materialHistoricoId)
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    let html = `<div class="card"><div class="card-header"><span class="card-title"><i class="fas fa-history"></i> Histórico de Custos${mat ? ' - ' + mat.nome : ''}</span>
+      <button class="btn btn-outline btn-sm" onclick="window.navegarPara('materiais')"><i class="fas fa-arrow-left"></i> Voltar</button></div>`;
+    if (registros.length === 0) {
+      html += '<p style="text-align:center;padding:1rem;">Nenhum custo salvo para este material.</p>';
+    } else {
+      html += `<div class="table-wrap"><table class="table"><thead><tr>
+        <th>Data</th><th>Período</th><th>Custo Setores</th><th>Insumos</th><th>Custo Final</th><th>Preço Sugerido</th><th>Ações</th>
+        </tr></thead><tbody>`;
+      registros.forEach(r => {
+        const per = periodos.find(p => p.id === r.periodoId);
+        html += `<tr>
+          <td>${r.createdAt ? new Date(r.createdAt).toLocaleDateString('pt-BR') : '-'}</td>
+          <td>${per ? getNomeMes(per.mes) + '/' + per.ano : '-'}</td>
+          <td>${formatMoney(r.custoSetoresKg)}/kg</td>
+          <td>${formatMoney(r.custoInsumosKg)}/kg</td>
+          <td>${formatMoney(r.custoFinalKg)}/kg</td>
+          <td><strong>${formatMoney(r.precoSugeridoKg)}/kg</strong></td>
+          <td><button class="btn btn-danger btn-xs" onclick="window.excluirCustoMaterial('${r.id}')"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
   }
+
+  window.excluirCustoMaterial = async function(id) {
+    if (!confirm('Excluir este registro de custo?')) return;
+    custosMateriais = custosMateriais.filter(c => c.id !== id);
+    await excluirFB('custosMateriais', id);
+    renderizarTela();
+  };
 
   function atualizarBreadcrumb() {
     const bc = document.getElementById('breadcrumb');
@@ -956,7 +1066,11 @@
   }
 
   window.navegarPara = function(nivel) {
-    if (nivel === 'periodos') { periodoAtual = null; setorAtual = null; nivelAtual = 'periodos'; }
+    if (nivel === 'periodos') {
+      periodoAtual = null; setorAtual = null; nivelAtual = 'periodos';
+      // CORREÇÃO: setores desmarcados dentro de um mês não afetam mais os totais da Home
+      setoresExcluidosResumo.clear();
+    }
     else if (nivel === 'setores') { setorAtual = null; nivelAtual = 'setores'; }
     else if (nivel === 'materiais') { nivelAtual = 'materiais'; }
     renderizarTela();
@@ -1003,13 +1117,18 @@
     const ano = parseInt(document.getElementById('periodoAno').value);
     const obs = document.getElementById('periodoObs').value.trim();
     const editId = document.getElementById('periodoEditId').value;
-    const periodo = { mes, ano, obs, createdAt: new Date().toISOString() };
+    if (!mes || mes < 1 || mes > 12 || !ano) { alert('Informe mês e ano válidos.'); return; }
+    // CORREÇÃO: impede dois períodos com o mesmo mês/ano
+    const duplicado = periodos.find(p => p.mes === mes && p.ano === ano && p.id !== editId);
+    if (duplicado) { alert('Já existe um período para ' + getNomeMes(mes) + '/' + ano + '.'); return; }
+    const periodo = { mes, ano, obs };
     if (editId) {
       periodo.id = editId;
       const idx = periodos.findIndex(p => p.id === editId);
       if (idx !== -1) periodos[idx] = { ...periodos[idx], ...periodo };
     } else {
       periodo.id = gerarId('per');
+      periodo.createdAt = new Date().toISOString();
       periodos.push(periodo);
     }
     await salvarFB('periodos', periodo);
@@ -1099,17 +1218,13 @@
           await salvarFB('itensCusto', novoItem);
           itensCusto.push(novoItem);
         }
-        const prodsOrigem = producoes.filter(p => p.setorld === setorOrigem.id);
-        for (const prodOrigem of prodsOrigem) {
-          const novaProd = { ...prodOrigem, id: gerarId('prod'), setorld: novoSetorId, createdAt: new Date().toISOString() };
-          await salvarFB('producoes', novaProd);
-          producoes.push(novaProd);
-        }
+        // CORREÇÃO: a produção NÃO é mais copiada.
+        // Cada mês deve ter a sua própria produção lançada.
       }
       window.fecharModal('modalCopiarPeriodo');
       periodoOrigemCopia = null;
       renderizarTela();
-      alert('✅ Período copiado com sucesso!\n\n📅 ' + getNomeMes(novoMes) + '/' + novoAno + '\n🏭 ' + setoresOrigem.length + ' setores\n💰 ' + custosFixosOrigem.length + ' custos fixos');
+      alert('✅ Período copiado com sucesso!\n\n📅 ' + getNomeMes(novoMes) + '/' + novoAno + '\n🏭 ' + setoresOrigem.length + ' setores\n💰 ' + custosFixosOrigem.length + ' custos fixos\n\n⚠️ Lembre de lançar a produção deste mês e revisar os valores dos itens.');
     } catch (error) {
       console.error('❌ Erro ao copiar período:', error);
       alert('Erro ao copiar período: ' + error.message);
@@ -1140,7 +1255,8 @@
       document.getElementById('setorEditId').value = '';
       document.getElementById('setorNome').value = '';
       document.getElementById('setorDescricao').value = '';
-      document.getElementById('setorOrdem').value = '1';
+      const proximaOrdem = getSetoresDoPeriodo(periodoAtual.id).reduce((m, s) => Math.max(m, s.ordem || 0), 0) + 1;
+      document.getElementById('setorOrdem').value = String(proximaOrdem);
       document.getElementById('setorProdutoFinal').checked = false;
       document.getElementById('setorTipo').value = 'custo';
     }
@@ -1150,14 +1266,19 @@
     if (!periodoAtual) { alert('Nenhum período selecionado!'); return; }
     const nome = document.getElementById('setorNome').value.trim();
     if (!nome) { alert('Digite o nome!'); return; }
+    const tipo = document.getElementById('setorTipo').value || 'custo';
+    let produtoFinal = document.getElementById('setorProdutoFinal').checked || false;
+    if (tipo === 'despesa' && produtoFinal) {
+      alert('Setores de Despesa não podem ser Produto Final. A marcação foi removida.');
+      produtoFinal = false;
+    }
     const setor = {
       periodold: periodoAtual.id,
       nome,
       descricao: document.getElementById('setorDescricao').value.trim() || '',
       ordem: parseInt(document.getElementById('setorOrdem').value) || 1,
-      produtoFinal: document.getElementById('setorProdutoFinal').checked || false,
-      tipo: document.getElementById('setorTipo').value || 'custo',
-      createdAt: new Date().toISOString()
+      produtoFinal,
+      tipo
     };
     const editId = document.getElementById('setorEditId').value;
     if (editId) {
@@ -1166,6 +1287,7 @@
       if (idx !== -1) setores[idx] = Object.assign({}, setores[idx], setor);
     } else {
       setor.id = gerarId('set');
+      setor.createdAt = new Date().toISOString();
       setores.push(setor);
     }
     await salvarFB('setores', setor);
@@ -1176,7 +1298,14 @@
   window.editarSetor = function(id) { window.abrirModalSetor(id); };
 
   window.excluirSetor = async function(id) {
-    if (!confirm('Excluir setor e todos os itens/produções relacionados?')) return;
+    // CORREÇÃO: avisa que parte do custo fixo vai sumir do cálculo
+    const itensFixos = itensCusto.filter(i => i.setorld === id && i.tipo === 'fixo');
+    let msg = 'Excluir setor e todos os itens/produções relacionados?';
+    if (itensFixos.length > 0) {
+      const nomes = itensFixos.map(i => `• ${i.nome} (${getPercentual(i)}%)`).join('\n');
+      msg += `\n\n⚠️ Este setor recebe parte de ${itensFixos.length} custo(s) fixo(s):\n${nomes}\n\nEssa parte deixará de entrar no custo. Depois, edite o custo fixo e redistribua para outros setores.`;
+    }
+    if (!confirm(msg)) return;
     try {
       await Promise.all([
         ...itensCusto.filter(i => i.setorld === id).map(i => excluirFB('itensCusto', i.id)),
@@ -1233,12 +1362,15 @@
       categoria = { id: gerarId('cat'), nome, cor };
       categorias.push(categoria);
     }
-    await salvarFB('categorias', categoria);
+    if (categoria) await salvarFB('categorias', categoria);
     window.fecharModal('modalCategoria');
     renderizarTela();
   };
 
   window.excluirCategoria = async function(id) {
+    // CORREÇÃO: não deixa excluir categoria que está sendo usada
+    const emUso = itensCusto.some(i => i.categoriald === id) || custosFixos.some(cf => cf.categoriald === id);
+    if (emUso) { alert('Esta categoria está sendo usada em itens ou custos fixos e não pode ser excluída.'); return; }
     if (!confirm('Excluir categoria?')) return;
     categorias = categorias.filter(c => c.id !== id);
     await excluirFB('categorias', id);
@@ -1302,16 +1434,20 @@
     if (fixos.length === 0) {
       container.innerHTML = '<p style="opacity:0.7;padding:0.5rem;">Nenhum custo fixo cadastrado neste período.</p>';
     } else {
-      container.innerHTML = fixos.map(cf => `
+      container.innerHTML = fixos.map(cf => {
+        const cat = categorias.find(c => c.id === cf.categoriald);
+        const rateado = getPercentualRateadoCustoFixo(cf.id);
+        return `
         <div class="custo-fixo-item ${custoFixoSelecionadoId === cf.id ? 'selecionado' : ''}" 
              onclick="window.selecionarCustoFixo('${cf.id}')" 
              style="cursor:pointer;margin-bottom:0.5rem;">
           <div>
             <div class="cf-nome">${cf.nome}</div>
-            <div class="cf-categoria">${categorias.find(c => c.id === cf.categoriald)?.nome || 'Sem categoria'}</div>
+            <div class="cf-categoria">${cat ? cat.nome : 'Sem categoria'} · já rateado: ${formatNumber(rateado, 0)}%</div>
           </div>
           <div class="cf-valor">${formatMoney(cf.valor)}</div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
   }
 
@@ -1348,7 +1484,7 @@
     if (tipo === 'normal') {
       item.categoriald = document.getElementById('itemCategoria').value;
       item.valorTotal = parseFloat(document.getElementById('itemValorTotal').value) || 0;
-      item.percentual = parseFloat(document.getElementById('itemPercentual').value) || 100;
+      item.percentual = lerPercentual(document.getElementById('itemPercentual').value);
       const itemOriginal = editId ? itensCusto.find(x => x.id === editId) : null;
       item.custoFixold = (itemOriginal && itemOriginal.tipo === 'fixo') ? itemOriginal.custoFixold : null;
     } else {
@@ -1357,9 +1493,21 @@
       if (!cf) { alert('Custo fixo não encontrado.'); return; }
       item.categoriald = cf.categoriald;
       item.valorTotal = cf.valor;
-      item.percentual = parseFloat(document.getElementById('itemFixoPercentual').value) || 100;
+      item.percentual = lerPercentual(document.getElementById('itemFixoPercentual').value);
       item.custoFixold = custoFixoSelecionadoId;
       item.nome = cf.nome;
+      // CORREÇÃO: impede ratear o mesmo custo fixo acima de 100% (cobraria em dobro)
+      const outros = itensCusto
+        .filter(i => i.custoFixold === cf.id && i.tipo === 'fixo' && i.id !== editId)
+        .reduce((s, i) => s + getPercentual(i), 0);
+      if (outros + item.percentual > 100.01) {
+        alert(`❌ Este custo fixo já tem ${formatNumber(outros, 2)}% rateado em outros setores.\nO máximo que você pode colocar aqui é ${formatNumber(100 - outros, 2)}%.`);
+        return;
+      }
+    }
+    if (item.percentual < 0 || item.percentual > 100) {
+      alert('O percentual deve estar entre 0 e 100.');
+      return;
     }
     if (!item.setorld || !item.nome || item.valorTotal <= 0) {
       alert('Preencha todos os campos corretamente.');
@@ -1371,6 +1519,7 @@
       if (idx !== -1) itensCusto[idx] = Object.assign({}, itensCusto[idx], item);
     } else {
       item.id = gerarId('item');
+      item.createdAt = new Date().toISOString();
       itensCusto.push(item);
     }
     await salvarFB('itensCusto', item);
@@ -1461,7 +1610,11 @@
     await excluirFB('materiais', id);
     renderizarTela();
   };
-  window.verHistoricoMaterial = function(id) { nivelAtual = 'historicoMaterial'; renderizarTela(); };
+  window.verHistoricoMaterial = function(id) {
+    materialHistoricoId = id;
+    nivelAtual = 'historicoMaterial';
+    renderizarTela();
+  };
 
   window.abrirGerarCustoMaterial = function() {
     const modal = document.getElementById('modalGerarCusto');
@@ -1471,7 +1624,7 @@
       periodos.map(p => `<option value="${p.id}">${getNomeMes(p.mes)}/${p.ano}</option>`).join('');
     document.getElementById('gerarCustoMaterial').innerHTML = '<option value="">Selecione um material...</option>' +
       materiais.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
-    document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
+    document.getElementById('insumosContainer').innerHTML = `<div class="insumo-row"><input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg" oninput="window.atualizarResumoGerarCusto()"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button></div>`;
     document.getElementById('gerarCustoImposto').value = 0;
     document.getElementById('gerarCustoMargem').value = 0;
     document.getElementById('gerarCustoValorAtual').value = 0;
@@ -1487,20 +1640,23 @@
       container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:1rem;">Selecione um período primeiro</p>';
       return;
     }
-    const sets = setores.filter(s => s.periodold === periodoId);
+    const sets = getSetoresDoPeriodo(periodoId);
     if (sets.length === 0) {
       container.innerHTML = '<p style="opacity:0.7;padding:1rem;">Nenhum setor neste período.</p>';
     } else {
-      container.innerHTML = sets.map(s => `
+      container.innerHTML = sets.map(s => {
+        const c = calcularCustosSetor(s.id);
+        return `
         <div class="setor-selecao-item ${setoresSelecionadosGerar.has(s.id) ? 'selecionado' : ''}">
           <div class="ss-header">
             <input type="checkbox" ${setoresSelecionadosGerar.has(s.id) ? 'checked' : ''} onchange="window.toggleSetorGerarCusto('${s.id}', this.checked)">
             <div class="ss-info">
-              <div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''}</div>
-              <div class="ss-custo">${s.descricao || ''} | Custo atual: ${formatMoney(calcularCustosSetor(s.id).totalCusto)}</div>
+              <div class="ss-nome">${s.nome} ${s.produtoFinal ? '⭐' : ''} ${s.tipo === 'despesa' ? '(Despesa)' : ''}</div>
+              <div class="ss-custo">${s.descricao || ''} | ${formatMoney(c.totalCusto)} ÷ ${formatNumber(c.totalKg, 0)} kg = <strong>${formatMoney(c.custoPorKg)}/kg</strong></div>
             </div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
   };
 
@@ -1511,41 +1667,64 @@
     window.atualizarResumoGerarCusto();
   };
 
-  window.atualizarResumoGerarCusto = function() {
-    const container = document.getElementById('resumoLinhas');
-    if (!container) return;
+  // Calcula os valores do "Gerar Custo de Material" (usado no resumo e ao salvar)
+  function calcularGerarCusto() {
     const setorIds = Array.from(setoresSelecionadosGerar.keys());
-    if (setorIds.length === 0) {
-      container.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
-      return;
-    }
-    let custoTotal = 0, producaoTotal = 0;
+    // CORREÇÃO: o material passa por TODOS os setores selecionados,
+    // então o custo por kg é a SOMA do custo/kg de cada setor.
+    // Antes, os kg de cada setor eram somados, contando o mesmo material várias vezes.
+    let custoKg = 0;
+    const semProducao = [];
     setorIds.forEach(id => {
-      const custos = calcularCustosSetor(id);
-      custoTotal += custos.totalCusto;
-      producaoTotal += custos.totalKg;
+      const c = calcularCustosSetor(id);
+      if (c.totalKg > 0) custoKg += c.custoPorKg;
+      else {
+        const s = setores.find(x => x.id === id);
+        semProducao.push(s ? s.nome : id);
+      }
     });
-    const custoKg = producaoTotal > 0 ? custoTotal / producaoTotal : 0;
     let custoInsumos = 0;
+    const insumos = [];
     document.querySelectorAll('.insumo-row').forEach(row => {
-      const input = row.querySelector('.insumo-custo');
-      if (input) custoInsumos += parseFloat(input.value) || 0;
+      const nomeInput = row.querySelector('.insumo-nome');
+      const custoInput = row.querySelector('.insumo-custo');
+      const v = custoInput ? (parseFloat(custoInput.value) || 0) : 0;
+      custoInsumos += v;
+      if (v > 0 || (nomeInput && nomeInput.value.trim())) {
+        insumos.push({ nome: nomeInput ? nomeInput.value.trim() : '', custoKg: v });
+      }
     });
     const imposto = parseFloat(document.getElementById('gerarCustoImposto').value) || 0;
     const margem = parseFloat(document.getElementById('gerarCustoMargem').value) || 0;
     const valorAtual = parseFloat(document.getElementById('gerarCustoValorAtual').value) || 0;
     const custoFinal = custoKg + custoInsumos;
-    const precoSugerido = custoFinal * (1 + imposto / 100) * (1 + margem / 100);
-    let html = `<div class="linha"><span>Custo dos Setores</span><span class="l-valor">${formatMoney(custoKg)}/kg</span></div>`;
-    html += `<div class="linha"><span>Insumos Adicionais</span><span class="l-valor">${formatMoney(custoInsumos)}/kg</span></div>`;
-    html += `<div class="linha"><span>Custo Final</span><span class="l-valor">${formatMoney(custoFinal)}/kg</span></div>`;
-    if (imposto > 0) html += `<div class="linha"><span>Imposto (${imposto}%)</span><span class="l-valor">${formatMoney(custoFinal * imposto / 100)}/kg</span></div>`;
-    if (margem > 0) html += `<div class="linha"><span>Margem (${margem}%)</span><span class="l-valor">${formatMoney(custoFinal * (1 + imposto / 100) * margem / 100)}/kg</span></div>`;
-    html += `<div class="linha total"><span>Preço Sugerido</span><span class="l-valor">${formatMoney(precoSugerido)}/kg</span></div>`;
-    if (valorAtual > 0) {
-      const diff = precoSugerido - valorAtual;
-      html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(valorAtual)}/kg</span></div>`;
-      html += `<div class="linha"><span>Diferença</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`;
+    // Preço que cobre o custo + margem e ainda paga o imposto sobre a venda
+    const precoSugerido = imposto < 100 ? (custoFinal * (1 + margem / 100)) / (1 - imposto / 100) : 0;
+    return { setorIds, custoKg, custoInsumos, insumos, imposto, margem, valorAtual, custoFinal, precoSugerido, semProducao };
+  }
+
+  window.atualizarResumoGerarCusto = function() {
+    const container = document.getElementById('resumoLinhas');
+    if (!container) return;
+    if (setoresSelecionadosGerar.size === 0) {
+      container.innerHTML = '<p style="opacity:0.7;text-align:center;">Selecione os setores para calcular</p>';
+      return;
+    }
+    const r = calcularGerarCusto();
+    let html = '';
+    if (r.semProducao.length > 0) {
+      html += `<div class="linha" style="color:#dc2626;"><span>⚠️ Sem produção lançada (ignorados): ${r.semProducao.join(', ')}</span></div>`;
+    }
+    html += `<div class="linha"><span>Custo dos Setores (soma do R$/kg de cada setor)</span><span class="l-valor">${formatMoney(r.custoKg)}/kg</span></div>`;
+    html += `<div class="linha"><span>Insumos Adicionais</span><span class="l-valor">${formatMoney(r.custoInsumos)}/kg</span></div>`;
+    html += `<div class="linha"><span>Custo Final</span><span class="l-valor">${formatMoney(r.custoFinal)}/kg</span></div>`;
+    if (r.margem > 0) html += `<div class="linha"><span>Margem (${r.margem}%)</span><span class="l-valor">${formatMoney(r.custoFinal * r.margem / 100)}/kg</span></div>`;
+    if (r.imposto > 0) html += `<div class="linha"><span>Imposto (${r.imposto}% sobre o preço)</span><span class="l-valor">${formatMoney(r.precoSugerido * r.imposto / 100)}/kg</span></div>`;
+    html += `<div class="linha total"><span>Preço Sugerido</span><span class="l-valor">${formatMoney(r.precoSugerido)}/kg</span></div>`;
+    if (r.valorAtual > 0) {
+      const diff = r.valorAtual - r.precoSugerido;
+      html += `<div class="linha"><span>Valor Atual</span><span class="l-valor">${formatMoney(r.valorAtual)}/kg</span></div>`;
+      html += `<div class="linha"><span>${diff >= 0 ? 'Atual está acima do sugerido' : 'Atual está abaixo do sugerido'}</span><span class="l-valor" style="color:${diff >= 0 ? '#4caf50' : '#f44336'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}/kg</span></div>`;
     }
     container.innerHTML = html;
   };
@@ -1554,12 +1733,36 @@
     const container = document.getElementById('insumosContainer');
     const div = document.createElement('div');
     div.className = 'insumo-row';
-    div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
+    div.innerHTML = `<input type="text" class="insumo-nome" placeholder="Nome do insumo"><input type="number" class="insumo-custo" step="0.01" placeholder="R$/kg" oninput="window.atualizarResumoGerarCusto()"><button class="btn btn-danger btn-xs" onclick="this.parentElement.remove();window.atualizarResumoGerarCusto();"><i class="fas fa-times"></i></button>`;
     container.appendChild(div);
   };
 
+  // CORREÇÃO: antes só mostrava "salvo com sucesso" sem gravar nada
   window.salvarCustoMaterial = async function() {
-    alert('Custo de material salvo com sucesso!');
+    const periodoId = document.getElementById('gerarCustoPeriodo').value;
+    const materialId = document.getElementById('gerarCustoMaterial').value;
+    if (!periodoId) { alert('Selecione um período.'); return; }
+    if (!materialId) { alert('Selecione um material.'); return; }
+    if (setoresSelecionadosGerar.size === 0) { alert('Selecione pelo menos um setor.'); return; }
+    const r = calcularGerarCusto();
+    const registro = {
+      id: gerarId('cmat'),
+      periodoId, materialId,
+      setores: r.setorIds,
+      insumos: r.insumos,
+      custoSetoresKg: r.custoKg,
+      custoInsumosKg: r.custoInsumos,
+      custoFinalKg: r.custoFinal,
+      imposto: r.imposto,
+      margem: r.margem,
+      precoSugeridoKg: r.precoSugerido,
+      valorAtualKg: r.valorAtual,
+      createdAt: new Date().toISOString()
+    };
+    const ok = await salvarFB('custosMateriais', registro);
+    if (!ok) { alert('❌ Erro ao salvar. Tente novamente.'); return; }
+    custosMateriais.push(registro);
+    alert('✅ Custo de material salvo! Veja em Materiais → Histórico.');
     window.fecharModal('modalGerarCusto');
   };
 
@@ -1685,6 +1888,18 @@
     }
   };
 
+  function cpmResetarCamposComerciais() {
+    document.getElementById('cpmTransDistancia').value = 0;
+    document.getElementById('cpmTransCustoKm').value = 0;
+    document.getElementById('cpmTransTotal').value = 'R$ 0,00';
+    document.getElementById('cpmNfValorVenda').value = 0;
+    document.getElementById('cpmNfImposto').value = 0;
+    document.getElementById('cpmNfImpostoValor').value = 'R$ 0,00';
+    document.getElementById('cpmMargemDesejada').value = 0;
+    document.getElementById('cpmCustoBase').value = 'R$ 0,00';
+    document.getElementById('cpmPrecoVendaIdeal').value = 'R$ 0,00';
+  }
+
   window.abrirCustoPorMaterial = function() {
     const modal = document.getElementById('modalCustoPorMaterial');
     if (!modal) { alert('Modal "modalCustoPorMaterial" não encontrado no HTML.'); return; }
@@ -1708,16 +1923,7 @@
     document.getElementById('cpmResultadoSection').style.display = 'none';
     document.getElementById('cpmComercialSection').style.display = 'none';
 
-    // Reset campos comerciais
-    document.getElementById('cpmTransDistancia').value = 0;
-    document.getElementById('cpmTransCustoKm').value = 0;
-    document.getElementById('cpmTransTotal').value = 'R$ 0,00';
-    document.getElementById('cpmNfValorVenda').value = 0;
-    document.getElementById('cpmNfImposto').value = 0;
-    document.getElementById('cpmNfImpostoValor').value = 'R$ 0,00';
-    document.getElementById('cpmMargemDesejada').value = 0;
-    document.getElementById('cpmCustoBase').value = 'R$ 0,00';
-    document.getElementById('cpmPrecoVendaIdeal').value = 'R$ 0,00';
+    cpmResetarCamposComerciais();
 
     const box = document.getElementById('cpmModalBox');
     if (box) box.classList.remove('cpm-fullscreen', 'cpm-expandido');
@@ -1807,23 +2013,24 @@
     const porNome = {};
     todosSetores.forEach(s => {
       if (!porNome[s.nome]) {
-        porNome[s.nome] = { nome: s.nome, custosKg: [], periodos: new Set(), produtoFinal: false };
+        porNome[s.nome] = { nome: s.nome, custoTotal: 0, kgTotal: 0, periodos: new Set(), produtoFinal: false };
       }
       const custos = calcularCustosSetor(s.id);
-      if (custos.totalKg > 0) porNome[s.nome].custosKg.push(custos.custoPorKg);
+      // CORREÇÃO: média ponderada (soma dos custos ÷ soma dos kg),
+      // em vez de média simples dos meses (que dava o mesmo peso a um mês fraco e a um forte).
+      if (custos.totalKg > 0) {
+        porNome[s.nome].custoTotal += custos.totalCusto;
+        porNome[s.nome].kgTotal += custos.totalKg;
+      }
       porNome[s.nome].periodos.add(s.periodoNome);
       if (s.produtoFinal) porNome[s.nome].produtoFinal = true;
     });
-    cpmSetoresDisponiveis = Object.values(porNome).map(item => {
-      const soma = item.custosKg.reduce((a, b) => a + b, 0);
-      const media = item.custosKg.length > 0 ? soma / item.custosKg.length : 0;
-      return {
-        nome: item.nome,
-        custoKgMedio: media,
-        qtdPeriodos: item.periodos.size,
-        produtoFinal: item.produtoFinal
-      };
-    }).sort((a, b) => a.nome.localeCompare(b.nome));
+    cpmSetoresDisponiveis = Object.values(porNome).map(item => ({
+      nome: item.nome,
+      custoKgMedio: item.kgTotal > 0 ? item.custoTotal / item.kgTotal : 0,
+      qtdPeriodos: item.periodos.size,
+      produtoFinal: item.produtoFinal
+    })).sort((a, b) => a.nome.localeCompare(b.nome));
     if (cpmSetoresDisponiveis.length === 0) {
       container.innerHTML = '<p class="cpm-empty">Nenhum setor de custo encontrado.</p>';
       return;
@@ -1932,7 +2139,8 @@
   window.cpmAtualizarCampo = function(id, campo, valor) {
     const item = cpmCadeia.find(x => x.id === id);
     if (!item) return;
-    const v = parseFloat(valor) || 0;
+    let v = parseFloat(valor) || 0;
+    if (campo === 'perda') v = Math.min(Math.max(v, 0), 100);
     item[campo] = v;
     window.cpmRenderizarCadeia();
   };
@@ -2025,65 +2233,60 @@
 
     document.getElementById('cpmResultadoSection').style.display = 'block';
 
-    // Atualiza a Etapa 5 (Análise Comercial)
-    // Pré-preenche o valor de venda com o custo base (se estiver em 0)
-    const nfValorAtual = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
-    if (nfValorAtual === 0) {
-      document.getElementById('cpmNfValorVenda').value = custoTotalAcumulado.toFixed(2);
-    }
+    // CORREÇÃO: antes o "valor de venda" era pré-preenchido com o custo,
+    // o que sempre mostrava lucro negativo. Agora fica em 0 e o sistema
+    // usa o preço ideal até você digitar um valor de venda real.
     document.getElementById('cpmComercialSection').style.display = 'block';
     window.cpmRecalcularComercial();
   };
 
-  // ======== RECÁLCULO COMERCIAL (ETAPA 5) ========
-  window.cpmRecalcularComercial = function() {
-    if (!cpmUltimoResultado) return;
-
-    const custoProcesso = cpmUltimoResultado.custoTotal;
-
+  // Cálculos comerciais centralizados (usados na tela e no PDF)
+  function cpmCalcularComercial() {
+    const custoProcesso = cpmUltimoResultado ? cpmUltimoResultado.custoTotal : 0;
     const distancia = parseFloat(document.getElementById('cpmTransDistancia').value) || 0;
     const custoKm = parseFloat(document.getElementById('cpmTransCustoKm').value) || 0;
     const custoTransporte = distancia * custoKm;
-    document.getElementById('cpmTransTotal').value = formatMoney(custoTransporte);
-
     const nfValorVenda = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
     const nfImpostoPct = parseFloat(document.getElementById('cpmNfImposto').value) || 0;
-    const nfImpostoValor = nfValorVenda * (nfImpostoPct / 100);
-    document.getElementById('cpmNfImpostoValor').value = formatMoney(nfImpostoValor);
-
-    const margemDesejada = parseFloat(document.getElementById('cpmMargemDesejada').value) || 0;
-
+    const margemPct = parseFloat(document.getElementById('cpmMargemDesejada').value) || 0;
     const custoBase = custoProcesso + custoTransporte;
-    document.getElementById('cpmCustoBase').value = formatMoney(custoBase);
-
-    // Preço de venda ideal = custo base × (1 + margem%)
-    // Importante: a margem é aplicada sobre o custo base. O imposto da NF
-    // é calculado sobre o preço de venda, portanto entra no lucro líquido.
-    const precoVendaIdeal = custoBase * (1 + margemDesejada / 100);
-    document.getElementById('cpmPrecoVendaIdeal').value = formatMoney(precoVendaIdeal);
-
-    // Resumo
-    document.getElementById('cpmResumoProcesso').textContent = formatMoney(custoProcesso);
-    document.getElementById('cpmResumoTransporte').textContent = formatMoney(custoTransporte);
-    document.getElementById('cpmResumoCustoBase').textContent = formatMoney(custoBase);
-    document.getElementById('cpmResumoMargemPct').textContent = margemDesejada.toFixed(2);
-    const margemValor = custoBase * (margemDesejada / 100);
-    document.getElementById('cpmResumoMargemValor').textContent = formatMoney(margemValor);
-    document.getElementById('cpmResumoPrecoIdeal').textContent = formatMoney(precoVendaIdeal);
-    document.getElementById('cpmResumoImpostoPct').textContent = nfImpostoPct.toFixed(2);
-
-    // Considera: se o usuário informou um valor de venda, usamos ele; senão, o ideal
+    const margemValor = custoBase * (margemPct / 100);
+    // CORREÇÃO: o preço ideal agora cobre custo + margem + imposto da NF.
+    // Antes o imposto não entrava no preço, e o lucro real saía menor que a margem desejada.
+    const precoVendaIdeal = nfImpostoPct < 100 ? (custoBase + margemValor) / (1 - nfImpostoPct / 100) : 0;
     const precoVendaConsiderado = nfValorVenda > 0 ? nfValorVenda : precoVendaIdeal;
-    const impostoConsiderado = precoVendaConsiderado * (nfImpostoPct / 100);
-    const lucroLiquido = precoVendaConsiderado - custoBase - impostoConsiderado;
-
-    document.getElementById('cpmResumoImpostoValor').textContent = formatMoney(impostoConsiderado);
-    document.getElementById('cpmResumoLucroLiquido').textContent = formatMoney(lucroLiquido);
-
+    const impostoValor = precoVendaConsiderado * (nfImpostoPct / 100);
+    const lucroLiquido = precoVendaConsiderado - custoBase - impostoValor;
     const lucroSobreVenda = precoVendaConsiderado > 0 ? (lucroLiquido / precoVendaConsiderado) * 100 : 0;
     const lucroSobreCusto = custoBase > 0 ? (lucroLiquido / custoBase) * 100 : 0;
-    document.getElementById('cpmResumoLucroSobreVenda').textContent = lucroSobreVenda.toFixed(2).replace('.', ',') + '%';
-    document.getElementById('cpmResumoLucroSobreCusto').textContent = lucroSobreCusto.toFixed(2).replace('.', ',') + '%';
+    return {
+      custoProcesso, distancia, custoKm, custoTransporte, nfValorVenda, nfImpostoPct,
+      margemPct, custoBase, margemValor, precoVendaIdeal, precoVendaConsiderado,
+      impostoValor, lucroLiquido, lucroSobreVenda, lucroSobreCusto
+    };
+  }
+
+  // ======== RECÁLCULO COMERCIAL (ETAPA 5) ========
+  window.cpmRecalcularComercial = function() {
+    if (!cpmUltimoResultado) return;
+    const c = cpmCalcularComercial();
+
+    document.getElementById('cpmTransTotal').value = formatMoney(c.custoTransporte);
+    document.getElementById('cpmNfImpostoValor').value = formatMoney(c.impostoValor);
+    document.getElementById('cpmCustoBase').value = formatMoney(c.custoBase);
+    document.getElementById('cpmPrecoVendaIdeal').value = formatMoney(c.precoVendaIdeal);
+
+    document.getElementById('cpmResumoProcesso').textContent = formatMoney(c.custoProcesso);
+    document.getElementById('cpmResumoTransporte').textContent = formatMoney(c.custoTransporte);
+    document.getElementById('cpmResumoCustoBase').textContent = formatMoney(c.custoBase);
+    document.getElementById('cpmResumoMargemPct').textContent = c.margemPct.toFixed(2);
+    document.getElementById('cpmResumoMargemValor').textContent = formatMoney(c.margemValor);
+    document.getElementById('cpmResumoPrecoIdeal').textContent = formatMoney(c.precoVendaIdeal);
+    document.getElementById('cpmResumoImpostoPct').textContent = c.nfImpostoPct.toFixed(2);
+    document.getElementById('cpmResumoImpostoValor').textContent = formatMoney(c.impostoValor);
+    document.getElementById('cpmResumoLucroLiquido').textContent = formatMoney(c.lucroLiquido);
+    document.getElementById('cpmResumoLucroSobreVenda').textContent = formatPercent(c.lucroSobreVenda);
+    document.getElementById('cpmResumoLucroSobreCusto').textContent = formatPercent(c.lucroSobreCusto);
   };
 
   window.cpmLimparTudo = function() {
@@ -2098,16 +2301,7 @@
     document.getElementById('cpmResultadoSection').style.display = 'none';
     document.getElementById('cpmComercialSection').style.display = 'none';
 
-    // Reset comerciais
-    document.getElementById('cpmTransDistancia').value = 0;
-    document.getElementById('cpmTransCustoKm').value = 0;
-    document.getElementById('cpmTransTotal').value = 'R$ 0,00';
-    document.getElementById('cpmNfValorVenda').value = 0;
-    document.getElementById('cpmNfImposto').value = 0;
-    document.getElementById('cpmNfImpostoValor').value = 'R$ 0,00';
-    document.getElementById('cpmMargemDesejada').value = 0;
-    document.getElementById('cpmCustoBase').value = 'R$ 0,00';
-    document.getElementById('cpmPrecoVendaIdeal').value = 'R$ 0,00';
+    cpmResetarCamposComerciais();
 
     const sel = document.getElementById('cpmPeriodos');
     if (sel) Array.from(sel.options).forEach(o => o.selected = false);
@@ -2121,19 +2315,8 @@
     if (!cpmUltimoResultado) { alert('Calcule a simulação antes de exportar o PDF.'); return; }
     const r = cpmUltimoResultado;
     const dataAtual = new Date().toLocaleString('pt-BR');
-
-    // Dados comerciais
-    const custoProcesso = r.custoTotal;
-    const custoTransporte = parseFloat(document.getElementById('cpmTransTotal').value.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
-    const custoBase = custoProcesso + custoTransporte;
-    const nfValorVenda = parseFloat(document.getElementById('cpmNfValorVenda').value) || 0;
-    const nfImpostoPct = parseFloat(document.getElementById('cpmNfImposto').value) || 0;
-    const margemPct = parseFloat(document.getElementById('cpmMargemDesejada').value) || 0;
-    const precoVendaIdeal = custoBase * (1 + margemPct / 100);
-    const precoVendaConsiderado = nfValorVenda > 0 ? nfValorVenda : precoVendaIdeal;
-    const impostoValor = precoVendaConsiderado * (nfImpostoPct / 100);
-    const lucroLiquido = precoVendaConsiderado - custoBase - impostoValor;
-    const lucroSobreVenda = precoVendaConsiderado > 0 ? (lucroLiquido / precoVendaConsiderado) * 100 : 0;
+    // CORREÇÃO: usa os mesmos cálculos da tela (antes lia o texto formatado, sujeito a erro)
+    const c = cpmCalcularComercial();
 
     let html = `
       <div style="font-family:Arial,sans-serif;padding:20px;max-width:1000px;margin:0 auto;">
@@ -2182,7 +2365,7 @@
     html += `
             <tr style="background:#f0fdf4;font-weight:700;border-top:2px solid #7c3aed;">
               <td colspan="7" style="padding:8px;text-align:right;color:#7c3aed;">CUSTO TOTAL ACUMULADO</td>
-              <td style="padding:8px;text-align:right;color:#7c3aed;font-size:1.1rem;">${formatMoney(custoProcesso)}</td>
+              <td style="padding:8px;text-align:right;color:#7c3aed;font-size:1.1rem;">${formatMoney(c.custoProcesso)}</td>
             </tr>
           </tbody>
         </table>
@@ -2192,45 +2375,50 @@
           <tbody>
             <tr style="border-bottom:1px solid #e5e7eb;">
               <td style="padding:8px;">Custo do processo:</td>
-              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoProcesso)}</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(c.custoProcesso)}</td>
             </tr>
             <tr style="border-bottom:1px solid #e5e7eb;">
-              <td style="padding:8px;">(+) Transporte (${document.getElementById('cpmTransDistancia').value} km × ${formatMoney(parseFloat(document.getElementById('cpmTransCustoKm').value) || 0)}):</td>
-              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoTransporte)}</td>
+              <td style="padding:8px;">(+) Transporte (${formatNumber(c.distancia, 0)} km × ${formatMoney(c.custoKm)}):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(c.custoTransporte)}</td>
             </tr>
             <tr style="background:#f8fafc;border-bottom:2px solid #7c3aed;">
               <td style="padding:8px;font-weight:700;">(=) Custo base:</td>
-              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.05rem;">${formatMoney(custoBase)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.05rem;">${formatMoney(c.custoBase)}</td>
             </tr>
             <tr style="border-bottom:1px solid #e5e7eb;">
-              <td style="padding:8px;">(+) Margem de lucro (${margemPct.toFixed(2)}%):</td>
-              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(custoBase * margemPct / 100)}</td>
+              <td style="padding:8px;">(+) Margem de lucro (${c.margemPct.toFixed(2)}%):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(c.margemValor)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e5e7eb;">
+              <td style="padding:8px;">(+) Imposto NF embutido no preço (${c.nfImpostoPct.toFixed(2)}%):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(c.precoVendaIdeal * c.nfImpostoPct / 100)}</td>
             </tr>
             <tr style="background:#f0fdf4;border-bottom:1px solid #86efac;">
               <td style="padding:8px;font-weight:700;color:#0f766e;">(=) Preço de venda ideal:</td>
-              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.1rem;color:#0f766e;">${formatMoney(precoVendaIdeal)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-size:1.1rem;color:#0f766e;">${formatMoney(c.precoVendaIdeal)}</td>
             </tr>
             <tr style="border-bottom:1px solid #e5e7eb;">
-              <td style="padding:8px;">Valor de venda considerado na NF:</td>
-              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(precoVendaConsiderado)}</td>
+              <td style="padding:8px;">Valor de venda considerado na NF${c.nfValorVenda > 0 ? '' : ' (preço ideal)'}:</td>
+              <td style="padding:8px;text-align:right;font-weight:600;">${formatMoney(c.precoVendaConsiderado)}</td>
             </tr>
             <tr style="border-bottom:1px solid #e5e7eb;">
-              <td style="padding:8px;">(-) Imposto NF (${nfImpostoPct.toFixed(2)}%):</td>
-              <td style="padding:8px;text-align:right;font-weight:600;color:#dc2626;">${formatMoney(impostoValor)}</td>
+              <td style="padding:8px;">(-) Imposto NF (${c.nfImpostoPct.toFixed(2)}%):</td>
+              <td style="padding:8px;text-align:right;font-weight:600;color:#dc2626;">${formatMoney(c.impostoValor)}</td>
             </tr>
             <tr style="background:#f0fdf4;border-top:2px solid #16a34a;">
               <td style="padding:10px;font-weight:700;color:#166534;font-size:1.1rem;">(=) Lucro líquido:</td>
-              <td style="padding:10px;text-align:right;font-weight:700;color:#166534;font-size:1.15rem;">${formatMoney(lucroLiquido)}</td>
+              <td style="padding:10px;text-align:right;font-weight:700;color:#166534;font-size:1.15rem;">${formatMoney(c.lucroLiquido)}</td>
             </tr>
             <tr style="background:#dbeafe;">
               <td style="padding:8px;font-weight:600;color:#1e40af;">Margem sobre a venda:</td>
-              <td style="padding:8px;text-align:right;font-weight:700;color:#1e40af;">${lucroSobreVenda.toFixed(2).replace('.', ',')}%</td>
+              <td style="padding:8px;text-align:right;font-weight:700;color:#1e40af;">${formatPercent(c.lucroSobreVenda)}</td>
             </tr>
           </tbody>
         </table>
       </div>`;
 
     const win = window.open('', '_blank', 'width=1000,height=700');
+    if (!win) { alert('O navegador bloqueou a janela. Permita pop-ups para este site.'); return; }
     win.document.write(`<html><head><title>Custo por Material</title>
       <style>body{font-family:Arial,sans-serif;padding:20px;} @media print { body { padding:10px; } }</style>
     </head><body>`);
